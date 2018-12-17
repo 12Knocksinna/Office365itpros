@@ -13,7 +13,7 @@ ForEach ($P in $Policies) {
         # Check whether a rule is for advanced settings - either a KQL query or sensitive data types
         If (-not [string]::IsNullOrWhiteSpace($Rule.ContentMatchQuery) -and -not [string]::IsNullOrWhiteSpace($Rule.ContentMatchQuery)) {
               $Settings = "Advanced/KQL" }
-        Elseif (-not [string]::IsNullOrWhiteSpace($Rule.ContentContainsSensitiveInformation) -and -not [string]::IsNullOrWhiteSpace($Rule.ContentContainsSensitiveInformation)) {
+        Elseif (-not [string]::IsNullOrWhiteSpace($Rule.ContentContainsSensitiveInformation) -and -not [string]::IsNullOrEmpty($Rule.ContentContainsSensitiveInformation)) {
              $Settings = "Advanced/Sensitive Data" }
         # Handle retention policy that simply retains and doesn't do anything else
         If ($Rule.RetentionDuration -eq $Null -and $Rule.ApplyComplianceTag -ne $Null) {
