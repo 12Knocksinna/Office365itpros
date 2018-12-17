@@ -2,17 +2,8 @@
 # Uses the Security and Compliance Center PowerShell module
 
 $Report = @()
-$RetentionPolicies = (Get-RetentionCompliancePolicy -ExcludeTeamsPolicy -DistributionDetail | ? {$_.SharePointLocation -ne $Null})
-# Now exclude all the retention policies that publish labels
-$Policies = @()
-ForEach ($P in $RetentionPolicies) {
-      $Rule = Get-RetentionComplianceRule -Policy $P.Name 
-      If ([string]::IsNullOrWhiteSpace($Rule.RetentionDuration) -and [string]::IsNullOrWhiteSpace($Rule.ApplyComplianceTag)) {
-        Write-Host "Policy" $P.Name "publishes retention labels to workloads - excluded from this report" }
-      Else  { 
-       $Policies += $P }
-}  
-# Now we have a cleansed set of retention policies that apply to SharePoint   
+# Fetch a set of retention policies that apply to SharePoint and aren't to publish labels
+$Policies = (Get-RetentionCompliancePolicy -ExcludeTeamsPolicy -DistributionDetail -RetentionRuleTypes | ? {$_.SharePointLocation -ne $Null -and $_.RetentionRuleTypes -ne "Publish"})
 ForEach ($P in $Policies) {
         $Duration = $Null
         Write-Host "Processing retention policy" $P.Name
@@ -24,7 +15,7 @@ ForEach ($P in $Policies) {
               $Settings = "Advanced/KQL" }
         Elseif (-not [string]::IsNullOrWhiteSpace($Rule.ContentContainsSensitiveInformation) -and -not [string]::IsNullOrWhiteSpace($Rule.ContentContainsSensitiveInformation)) {
              $Settings = "Advanced/Sensitive Data" }
-        # Handle retention policy using advanced settings (keyword search or sensitive data type)
+        # Handle retention policy that simply retains and doesn't do anything else
         If ($Rule.RetentionDuration -eq $Null -and $Rule.ApplyComplianceTag -ne $Null) {
            $Duration = (Get-ComplianceTag -Identity $Rule.ApplyComplianceTag | Select -Expandproperty RetentionDuration) }
         $RetentionAction = $Rule.RetentionComplianceAction
