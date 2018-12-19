@@ -7,7 +7,8 @@
 # Created 29-July-2016  Tony Redmond 
 # V2.0 5-Jan-2018
 # V3.0 17-Dec-2018
-
+# V3.1 19-Dec-2018
+cls
 # Check that we are connected to Exchange Online
 Write-Host "Checking that prerequisite PowerShell modules are loaded..."
 Try { $OrgName = (Get-OrganizationConfig).Name }
@@ -32,11 +33,11 @@ Try { $TeamsCheck = (Get-Team) }
 # OK, we seem to be fully connected to both Exchange Online and SharePoint Online...
 Write-Host "Checking for Obsolete Office 365 Groups in the tenant:" $OrgName
 
-# Setup some stuff we use
+# Setup variables that we use
 $WarningDate = (Get-Date).AddDays(-90)
 $WarningEmailDate = (Get-Date).AddDays(-365)
 $Today = (Get-Date)
-$Date = $Today.ToShortDateString()
+$Date = (Get-Date).ToShortDateString()
 $TeamsGroups = 0
 $TeamsEnabled = $False
 $ObsoleteSPOGroups = 0
@@ -92,13 +93,19 @@ ForEach ($G in $Groups) {
    $LastItemAddedtoTeams = "No chats"
    $MailboxStatus = $Null
 # Check who manages the group
-  $ManagedBy = $G.ManagedBy
-  If ([string]::IsNullOrWhiteSpace($ManagedBy) -and [string]::IsNullOrEmpty($ManagedBy)) {
-     $ManagedBy = "No owners"
+  $ManagerDetails = $G.ManagedBy
+  If ([string]::IsNullOrWhiteSpace($ManagerDetails) -and [string]::IsNullOrEmpty($ManagerDetails)) {
+     $ManagerDetails = $Null
      Write-Host $G.DisplayName "has no group owners!" -ForegroundColor Red}
   Else {
-     $ManagedBy = (Get-Mailbox -Identity $G.ManagedBy[0]).DisplayName}
-  
+     $ManagerDetails = (Get-Mailbox -Identity $G.ManagedBy[0]) | Select DisplayName, PrimarySmtpAddress}
+  If ($ManagerDetails -eq $Null) {
+     $ManagedBy = "No Group Owners" 
+     $ManagerSmtp = $Null }
+  Else {
+     $ManagedBy = $ManagerDetails.DisplayName
+     $ManagerSmtp = $ManagerDetails.PrimarySmtpAddress }
+
 # Fetch information about activity in the Inbox folder of the group mailbox  
    $Data = (Get-MailboxFolderStatistics -Identity $G.Alias -IncludeOldestAndNewestITems -FolderScope Inbox)
    $LastConversation = $Data.NewestItemReceivedDate
@@ -176,19 +183,22 @@ If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
     $ReportLine = [PSCustomObject][Ordered]@{
           GroupName           = $G.DisplayName
           ManagedBy           = $ManagedBy
+          ManagerSMTP         = $ManagerSmtp 
           Members             = $G.GroupMemberCount
           ExternalGuests      = $G.GroupExternalMemberCount
           Description         = $G.Notes
           MailboxStatus       = $MailboxStatus
+          LastConversation    = $LastConversation
+          NumberConversations = $NumberConversations
           TeamEnabled         = $TeamsEnabled
           LastChat            = $LastItemAddedtoTeams
           NumberChats         = $NumberofChats
-          LastConversation    = $LastConversation
-          NumberConversations = $NumberConversations
           SPOActivity         = $SPOActivity
           SPOStatus           = $SPOStatus
           NumberWarnings      = $NumberWarnings
-          Status              = $Status}
+          Status              = $Status
+          Alias               = $G.Alias
+          GroupId             = $G.ExternalDirectoryObjectId }
 # And store the line in the report object
    $Report += $ReportLine     
 #End of main loop
@@ -207,6 +217,9 @@ $htmlreport = $htmlhead + $htmlbody + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 
 # Summary note 
+CLS
+Write-Host "Processing complete!"
+Write-Host ""
 Write-Host $ObsoleteSPOGroups "obsolete group document libraries and" $ObsoleteEmailGroups "obsolete email groups found out of" $Groups.Count "checked"
 Write-Host "Summary report available in" $ReportFile "and CSV file saved in" $CSVFile
 $Report | Export-CSV -NoTypeInformation $CSVFile
