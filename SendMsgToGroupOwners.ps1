@@ -3,6 +3,7 @@
 # obsolete because no one is doing anything inside the group
 CLS
 Write-Host "Working..."
+$Date = Get-Date
 # Select groups with a fail status from the array populated by the TeamsGroupsActivityReport.ps1 script
 # Also exclude groups that don't have an owner as we can't send them email
 $FailedGroups = $Report | ? {$_.Status -eq "Fail" -and $_.ManagerSmtp -ne $Null}
@@ -10,19 +11,15 @@ $FailedGroups = $Report | ? {$_.Status -eq "Fail" -and $_.ManagerSmtp -ne $Null}
 $ProgDelta = 100/($FailedGroups.count)
 $CheckCount = 0
 $GroupNumber = 0
+# Check do we have suitable credentials
 If (-not $SmtpCred) {
     $SmtpCred = (Get-Credential)}
 
-# Credential is in $O365Cred, so we can fetch the SMTP address for the user
-#$SmtpFrom = $O365Cred.UserName  
-#$SmtpCred = $O365Cred
-#$SmtpServer = "office365itpros-com.mail.protection.outlook.com"
-#$SmtpPort = "25"
 $MsgFrom = $SmtpCred.UserName
 $SmtpServer = "smtp.office365.com"
 $SmtpPort = '587'
 
-#HTML HEAD with styles
+#HTML header with styles
 $htmlhead="<html>
      <style>
       BODY{font-family: Arial; font-size: 10pt;}
@@ -38,6 +35,18 @@ ForEach ($R in $FailedGroups) {
      $GroupStatus = $ToAddress + " for " + $($R.GroupName) + " ["+ $GroupNumber +"/" + $FailedGroups.Count + "]"
      Write-Progress -Activity "Sending email to" -Status $GroupStatus -PercentComplete $CheckCount
      $MsgSubject = "You need to check the activity for the " + $($R.GroupName) + " group"
+     If ($R.TeamEnabled -eq "True") {
+        $LastChatDate = ([DateTime]$R.LastChat).ToShortDateString()
+        $DaysSinceLastChat = (New-TimeSpan -Start $LastChatDate -End $Date).Days
+        $ChatMessage = "Last Teams activity on " + $LastChatDate + " (" + $DaysSinceLastChat + " days ago)" }
+     Else {
+        $ChatMessage = "No Teams activity for this group" }
+     If ($R.NumberConversations -gt 0) {
+        $LastGroupConversation = ([DateTime]$R.LastConversation).ToShortDateString()
+        $DaysSinceLastConversation = (New-TimeSpan -Start $LastGroupConversation -End $Date).Days
+        $GroupMessage = "Last Inbox activity on " + $LastGroupConversation + " (" + $DaysSinceLastConversation + " days ago)" }
+     Else {
+        $GroupMessage = "No inbox activity for this group" }
      $HtmlBody = "<body>
      <h1>Office 365 Group Non-Activity Notification</h1>
      <p><strong>Generated:</strong> $Date</p>
@@ -46,10 +55,10 @@ ForEach ($R in $FailedGroups) {
      <p>Member count:            <b>$($R.Members)</b>
      <p>Guests:                  <b>$($R.ExternalGuests)</b>
      <p>Mailbox status:          <b>$($R.MailboxStatus)</b></p>
-     <p>Last conversation:       <b>$($R.LastConversation)</b></p>
-     <p>Number of conversations: <b>$($R.Numberconversations)</b></p>
+     <p>Last conversation:       <b>$GroupMessage</b></p>
+     <p>Number of conversations: <b>$($R.NumberConversations)</b></p>
      <p>Team-enabled:            <b>$($R.TeamEnabled)</b></p>
-     <p>Last chat:               <b>$($R.LastChat)</b></p>
+     <p>Last chat:               <b>$ChatMessage/b></p>
      <p>Number of messages:      <b>$($R.NumberChats)</b></p>
      <p>SharePoint activity:     <b>$($R.SPOActivity)</b></p>
      <p>SharePoint status:       <b>$($R.SPOStatus)</b></p>
