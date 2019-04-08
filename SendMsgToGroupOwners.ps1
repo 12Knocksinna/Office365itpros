@@ -58,7 +58,7 @@ ForEach ($R in $FailedGroups) {
      <p>Last conversation:       <b>$GroupMessage</b></p>
      <p>Number of conversations: <b>$($R.NumberConversations)</b></p>
      <p>Team-enabled:            <b>$($R.TeamEnabled)</b></p>
-     <p>Last chat:               <b>$ChatMessage/b></p>
+     <p>Last chat:               <b>$ChatMessage</b></p>
      <p>Number of messages:      <b>$($R.NumberChats)</b></p>
      <p>SharePoint activity:     <b>$($R.SPOActivity)</b></p>
      <p>SharePoint status:       <b>$($R.SPOStatus)</b></p>
