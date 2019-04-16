@@ -62,8 +62,8 @@ ForEach ($T in $Teams) {
           Team                = $T.DisplayName
           Description         = $T.Description
           JoinLink            = $DeepLink
-          ManagedBy           = $ManagedBy
-          ManagerSMTP         = $ManagerSmtp 
+          Owner               = $ManagedBy
+          OwnerSMTP           = $ManagerSmtp 
           Members             = $G.GroupMemberCount
           ExternalGuests      = $G.GroupExternalMemberCount
           Access              = $Access }
