@@ -1,10 +1,10 @@
 # A script to report the email addresses for Teams channels that are mail-enabled
 # V1.0 August 2019
 Cls
-# Define the values applicable for the application used to connect to the Graph
+# Define the values applicable for the application used to connect to the Graph (different for each tenant, app, and secret)
 $AppId = "d716b32c-0edb-48be-9385-30a9cfd96155"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
+$TenantId = "b662313f-14fc-33a2-9a7a-d2e27f4f3478"
+$AppSecret = 's_rkvIn1oZ1cNceUBvJ2or10rrIsb*:='
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
