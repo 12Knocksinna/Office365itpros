@@ -7,9 +7,14 @@ ForEach ($User in $Users) {
    $SKUs = @(Get-MsolUser -UserPrincipalName $User.UserPrincipalName | Select -ExpandProperty Licenses)
    ForEach ($Sku in $Skus) {   
    $ReportLine = [PSCustomObject][Ordered]@{ 
-        User  = $User.UserPrincipalName
-        SKU   = $Sku.AccountSkuId.Split(":")[1]
-        Name  = $User.DisplayName} 
+        User       = $User.UserPrincipalName
+        SKU        = $Sku.AccountSkuId.Split(":")[1]
+        Name       = $User.DisplayName
+        Title      = $User.Title
+        City       = $User.City
+        Country    = $User.UsageLocation
+        Department = $User.Department
+        CreatedOn  = Get-Date($User.WhenCreated) -Format g} 
    $Report += $ReportLine }
 }
 Cls
