@@ -17,12 +17,13 @@ If ($Records.Count -eq 0) {
           If ($TimeStamp -eq $AADCheck) { # It's a new record, so let's write it out 
             $NewGuests++
             $ReportLine = [PSCustomObject][Ordered]@{
-              TimeStamp   = $TimeStamp
-              Action      = $AuditData.Operation
-              URL         = $AuditData.ObjectId
-              Site        = $AuditData.SiteUrl
-              Document    = $AuditData.SourceFileName
-              Guest       = $AuditData.TargetUserOrGroupName }      
+              TimeStamp    = $TimeStamp
+              InvitingUser = $AuditData.UserId
+              Action       = $AuditData.Operation
+              URL          = $AuditData.ObjectId
+              Site         = $AuditData.SiteUrl
+              Document     = $AuditData.SourceFileName
+              Guest        = $AuditData.TargetUserOrGroupName }      
            $Report += $ReportLine }}
       }}
 $Report | Format-Table TimeStamp, Guest, Document -AutoSize
