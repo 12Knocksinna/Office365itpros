@@ -1,7 +1,7 @@
 # Version 2 of the script to perform an activity-based analysis of AAD Guest User Accounts and report/highlight
-# accounts that aren't being used.
+# accounts that aren't being used.  Modules used are Azure AD (V2) and Exchange Online
 # Start by finding all Guest Accounts
-$Guests = (Get-AzureADUser -Filter "UserType eq 'Guest'" -All $True| Select Displayname, UserPrincipalName, Mail, RefreshTokensValidFromDateTime)
+$Guests = (Get-AzureADUser -Filter "UserType eq 'Guest'" -All $True| Select Displayname, UserPrincipalName, Mail, ObjectId)
 Write-Host $Guests.Count "guest accounts found. Checking their activity..."
 $StartDate = Get-Date(Get-Date).AddDays(-90) -Format g #For audit log
 $StartDate2 = Get-Date(Get-Date).AddDays(-10) -Format g #For message trace
@@ -27,8 +27,9 @@ ForEach ($G in $Guests) {
            If ($i -eq 0) { $GroupNames = $Group.DisplayName; $i++ }
          Else 
            {$GroupNames = $GroupNames + "; " + $Group.DisplayName }}}  
-     # Figure out age of guest account in days
-     $AccountAge = ($G.RefreshTokensValidFromDateTime | New-TimeSpan).Days
+     # Figure out age of guest account in days using the creation date in the extension properties of the guest account
+     $CreationDate = (Get-AzureADUserExtension -ObjectId $G.ObjectId).get_item("createdDateTime") 
+     $AccountAge = ($CreationDate | New-TimeSpan).Days
      # Flag the account for potential deletion if it is more than a year old and isn't a member of any Office 365 Groups.
      If (($AccountAge -gt 365) -and ($GroupNames -eq $Null))  {$ReviewFlag = $True} 
      # Write out report line     
@@ -36,7 +37,7 @@ ForEach ($G in $Guests) {
           Guest            = $G.Mail
           Name             = $G.DisplayName
           ReviewForDelete  = $ReviewFlag
-          Created          = $G.RefreshTokensValidFromDateTime 
+          Created          = $CreationDate 
           AgeInDays        = $AccountAge
           EmailCount       = $EmailRecs.Count
           LastConnectOn    = $LastAuditRecord
@@ -55,3 +56,4 @@ Write-Host "Active Guests           " $Active
 Write-Host "Audit Record foun       " $AuditRec
 Write-Host "Active on Email         " $EmailActive
 Write-Host "InActive Guests         " ($Guests.Count - $Active)
+
