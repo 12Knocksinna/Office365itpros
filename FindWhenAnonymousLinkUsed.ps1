@@ -46,3 +46,5 @@ Else {
 }}
 $Report | Sort FileName, IPAddress, User, SortTime | Export-CSV -NoTypeInformation "c:\Temp\AnonymousLinksUsed.CSV"
 Write-Host "All done. Output file is available in c:\temp\AnonymousLinksUsed.Csv"
+# Output in grid, making sure that any duplicates created at the same time are ignored
+$Report | Sort FileName, IPAddress, User, SortTime -Unique | Select Timestamp, Action, Filename, IPAddress, Workload, Site | Out-Gridview  
