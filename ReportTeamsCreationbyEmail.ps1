@@ -18,7 +18,7 @@ $HtmlBody = "<body>
      <p><strong>Generated:</strong> $(Get-Date -Format g)</p>  
      <h2><u>Details of Teams Created</u></h2>"
 #Person to get the email
-$EmailRecipient = "Tony.Redmond@Live.com"
+$EmailRecipient = "SomeoneinYourTenant@Tenant.com" # <- Update this with the real address
 
 If (-not $O365Cred) { #Make sure we have credentials
     $O365Cred = (Get-Credential)}
