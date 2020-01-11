@@ -7,43 +7,31 @@
 # Created 29-July-2016  Tony Redmond 
 # V2.0 5-Jan-2018
 # V3.0 17-Dec-2018
-# V3.1 19-Dec-2018
-cls
-# Check that we are connected to Exchange Online
+# V4.0 11-Jan-2020
+CLS
+# Check that we are connected to Exchange Online, SharePoint Online, and Teams
 Write-Host "Checking that prerequisite PowerShell modules are loaded..."
 Try { $OrgName = (Get-OrganizationConfig).Name }
    Catch  {
       Write-Host "Your PowerShell session is not connected to Exchange Online."
       Write-Host "Please connect to Exchange Online using an administrative account and retry."
       Break }
-
-# And check that we're connected to SharePoint Online as well
-Try { $SPOCheck = (Get-SPOTenant -ErrorAction SilentlyContinue ) }
-   Catch {
-      Write-Host "Your PowerShell session is not connected to SharePoint Online."
-      Write-Host "Please connect to SharePoint Online using an administrative account and retry."
-      Break }
-
-# And finally the Teams module
-Try { $TeamsCheck = (Get-Team) }
-    Catch {
-      Write-Host "Please connect to the Teams PowerShell module before proceeeding."
-      Break }
+$SPOCheck = Get-Module "Microsoft.Online.SharePoint.PowerShell"
+If ($SPOCheck -eq $Null) {
+     Write-Host "Your PowerShell session is not connected to SharePoint Online."
+     Write-Host "Please connect to SharePoint Online using an administrative account and retry."; Break }
+$TeamsCheck = Get-Module "MicrosoftTeams"
+If ($TeamsCheck -eq $Null) {
+     Write-Host "Your PowerShell session is not connected to Microsoft Teams."
+     Write-Host "Please connect to Microsoft Teams using an administrative account and retry."; Break }
        
 # OK, we seem to be fully connected to both Exchange Online and SharePoint Online...
 Write-Host "Checking for Obsolete Office 365 Groups in the tenant:" $OrgName
 
-# Setup variables that we use
-$WarningDate = (Get-Date).AddDays(-90)
-$WarningEmailDate = (Get-Date).AddDays(-365)
-$Today = (Get-Date)
-$Date = (Get-Date).ToShortDateString()
-$TeamsGroups = 0
-$TeamsEnabled = $False
-$ObsoleteSPOGroups = 0
-$ObsoleteEmailGroups = 0
-$Report = @()
-$ReportFile = "c:\temp\GroupsActivityReport.html"
+# Setup some stuff we use
+$WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
+$TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0
+$Report = [System.Collections.Generic.List[Object]]::new(); $ReportFile = "c:\temp\GroupsActivityReport.html"
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
 $htmlhead="<html>
 	   <style>
@@ -66,46 +54,31 @@ $htmlhead="<html>
 		
 # Get a list of all Office 365 Groups in the tenant
 Write-Host "Extracting list of Office 365 Groups for checking..."
-$Groups = Get-UnifiedGroup -ResultSize Unlimited | Sort-Object DisplayName
+$Groups = Get-Recipient -RecipientTypeDetails GroupMailbox -ResultSize Unlimited | Sort-Object DisplayName
 # And create a hash table of Teams
 $TeamsList = @{}
 Get-Team | ForEach { $TeamsList.Add($_.GroupId, $_.DisplayName) }
-
-Write-Host "Processing" $Groups.Count "groups"
-# Progress bar
-$ProgDelta = 100/($Groups.count)
-$CheckCount = 0
-$GroupNumber = 0
+CLS
+# Set up progress bar
+$ProgDelta = 100/($Groups.count); $CheckCount = 0; $GroupNumber = 0
 
 # Main loop
-ForEach ($G in $Groups) {
+ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Recipient, the first thing is to get the group properties
+   $G = Get-UnifiedGroup -Identity $Group.DistinguishedName
    $GroupNumber++
    $GroupStatus = $G.DisplayName + " ["+ $GroupNumber +"/" + $Groups.Count + "]"
    Write-Progress -Activity "Checking group" -Status $GroupStatus -PercentComplete $CheckCount
-   $CheckCount += $ProgDelta
-   $ObsoleteReportLine = $G.DisplayName
-   $SPOStatus = "Normal"
+   $CheckCount += $ProgDelta;  $ObsoleteReportLine = $G.DisplayName;    $SPOStatus = "Normal"
    $SPOActivity = "Document library in use"
-   $NumberWarnings = 0
-   $NumberofChats = 0
-   $TeamChatData = $Null
-   $TeamsEnabled = $False
-   $LastItemAddedtoTeams = "No chats"
-   $MailboxStatus = $Null
+   $NumberWarnings = 0;   $NumberofChats = 0;  $TeamChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "No chats";  $MailboxStatus = $Null
 # Check who manages the group
-  $ManagerDetails = $G.ManagedBy
-  If ([string]::IsNullOrWhiteSpace($ManagerDetails) -and [string]::IsNullOrEmpty($ManagerDetails)) {
-     $ManagerDetails = $Null
+  $ManagedBy = $G.ManagedBy
+  If ([string]::IsNullOrWhiteSpace($ManagedBy) -and [string]::IsNullOrEmpty($ManagedBy)) {
+     $ManagedBy = "No owners"
      Write-Host $G.DisplayName "has no group owners!" -ForegroundColor Red}
   Else {
-     $ManagerDetails = (Get-Mailbox -Identity $G.ManagedBy[0]) | Select DisplayName, PrimarySmtpAddress}
-  If ($ManagerDetails -eq $Null) {
-     $ManagedBy = "No Group Owners" 
-     $ManagerSmtp = $Null }
-  Else {
-     $ManagedBy = $ManagerDetails.DisplayName
-     $ManagerSmtp = $ManagerDetails.PrimarySmtpAddress }
-
+     $ManagedBy = (Get-Mailbox -Identity $G.ManagedBy[0]).DisplayName}
+  
 # Fetch information about activity in the Inbox folder of the group mailbox  
    $Data = (Get-MailboxFolderStatistics -Identity $G.Alias -IncludeOldestAndNewestITems -FolderScope Inbox)
    $LastConversation = $Data.NewestItemReceivedDate
@@ -126,9 +99,10 @@ ForEach ($G in $Groups) {
            $NumberWarnings++}
       }
 
-# Loop to check SharePoint document library
-   If ($G.SharePointDocumentsUrl -ne $Null) {
-      $SPOSite = (Get-SPOSite -Identity $G.SharePointDocumentsUrl.replace("/Shared Documents", ""))
+# Loop to check audit records for activity in the group's SharePoint document library
+   If ($G.SharePointSiteURL -ne $Null) {
+      $SPOStorage = (Get-SPOSite -Identity $G.SharePointSiteUrl).StorageUsageCurrent
+      $SPOStorage = [Math]::Round($SpoStorage/1024,2) # SharePoint site storage in GB
       $AuditCheck = $G.SharePointDocumentsUrl + "/*"
       $AuditRecs = 0
       $AuditRecs = (Search-UnifiedAuditLog -RecordType SharePointFileOperation -StartDate $WarningDate -EndDate $Today -ObjectId $AuditCheck -SessionCommand ReturnNextPreviewPage)
@@ -178,29 +152,25 @@ If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
             Write-Host "Team-enabled group" $G.DisplayName "has only" $TeamChatData.ItemsInFolder[1] "compliance record(s)" }
           }
       }
-
-# Generate a line for this group for our report
+# Generate a line for this group and store it in the report
     $ReportLine = [PSCustomObject][Ordered]@{
           GroupName           = $G.DisplayName
           ManagedBy           = $ManagedBy
-          ManagerSMTP         = $ManagerSmtp 
           Members             = $G.GroupMemberCount
           ExternalGuests      = $G.GroupExternalMemberCount
           Description         = $G.Notes
           MailboxStatus       = $MailboxStatus
-          LastConversation    = $LastConversation
-          NumberConversations = $NumberConversations
           TeamEnabled         = $TeamsEnabled
           LastChat            = $LastItemAddedtoTeams
           NumberChats         = $NumberofChats
+          LastConversation    = $LastConversation
+          NumberConversations = $NumberConversations
           SPOActivity         = $SPOActivity
+          SPOStorage          = $SPOStorage
           SPOStatus           = $SPOStatus
           NumberWarnings      = $NumberWarnings
-          Status              = $Status
-          Alias               = $G.Alias
-          GroupId             = $G.ExternalDirectoryObjectId }
-# And store the line in the report object
-   $Report += $ReportLine     
+          Status              = $Status}
+   $Report.Add($ReportLine)   
 #End of main loop
 }
 # Create the HTML report
@@ -217,9 +187,6 @@ $htmlreport = $htmlhead + $htmlbody + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 
 # Summary note 
-CLS
-Write-Host "Processing complete!"
-Write-Host ""
 Write-Host $ObsoleteSPOGroups "obsolete group document libraries and" $ObsoleteEmailGroups "obsolete email groups found out of" $Groups.Count "checked"
 Write-Host "Summary report available in" $ReportFile "and CSV file saved in" $CSVFile
 $Report | Export-CSV -NoTypeInformation $CSVFile
