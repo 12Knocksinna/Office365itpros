@@ -168,6 +168,7 @@ If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
           SPOActivity         = $SPOActivity
           SPOStorage          = $SPOStorage
           SPOStatus           = $SPOStatus
+	  WhenCreated         = Get-Date ($G.WhenCreated) -Format g
           NumberWarnings      = $NumberWarnings
           Status              = $Status}
    $Report.Add($ReportLine)   
