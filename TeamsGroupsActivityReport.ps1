@@ -8,7 +8,6 @@
 # V2.0 5-Jan-2018
 # V3.0 17-Dec-2018
 # V4.0 11-Jan-2020
-# V4.1 15-Jan-2020 (Added output of group age in days and creation date)
 CLS
 # Check that we are connected to Exchange Online, SharePoint Online, and Teams
 Write-Host "Checking that prerequisite PowerShell modules are loaded..."
@@ -80,23 +79,23 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
   Else {
      $ManagedBy = (Get-Mailbox -Identity $G.ManagedBy[0]).DisplayName}
 # Group Age
-  $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days  
+  $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
 # Fetch information about activity in the Inbox folder of the group mailbox  
    $Data = (Get-MailboxFolderStatistics -Identity $G.Alias -IncludeOldestAndNewestITems -FolderScope Inbox)
-   $LastConversation = $Data.NewestItemReceivedDate
+   $LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format g
    $NumberConversations = $Data.ItemsInFolder
    $MailboxStatus = "Normal"
   
    If ($Data.NewestItemReceivedDate -le $WarningEmailDate) {
       Write-Host "Last conversation item created in" $G.DisplayName "was" $Data.NewestItemReceivedDate "-> Obsolete?"
-      $ObsoleteReportLine = $ObsoleteReportLine + " Last conversation dated: " + $Data.NewestItemReceivedDate + "."
+      $ObsoleteReportLine = $ObsoleteReportLine + " Last Outlook conversation dated: " + $LastConversation + "."
       $MailboxStatus = "Group Inbox Not Recently Used"
       $ObsoleteEmailGroups++
       $NumberWarnings++ }
    Else
       {# Some conversations exist - but if there are fewer than 20, we should flag this...
       If ($Data.ItemsInFolder -lt 20) {
-           $ObsoleteReportLine = $ObsoleteReportLine + " Only " + $Data.ItemsInFolder + " conversation item(s) found."
+           $ObsoleteReportLine = $ObsoleteReportLine + " Only " + $Data.ItemsInFolder + " Outlook conversation item(s) found."
            $MailboxStatus = "Low number of conversations"
            $NumberWarnings++}
       }
@@ -143,17 +142,18 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
        $Status = "Fail"
     } 
 
-# If Team-Enabled, we can find the date of the last chat compliance record
+# If the group is team-Enabled, find the date of the last Teams conversation compliance record
 If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
       $TeamsEnabled = $True
       $TeamChatData = (Get-MailboxFolderStatistics -Identity $G.Alias -IncludeOldestAndNewestItems -FolderScope ConversationHistory)
-      If ($TeamChatData.ItemsInFolder[1] -ne 0) {
-          $LastItemAddedtoTeams = $TeamChatData.NewestItemReceivedDate[1]
-          $NumberofChats = $TeamChatData.ItemsInFolder[1] 
-          If ($TeamChatData.NewestItemReceivedDate -le $WarningEmailDate) {
-            Write-Host "Team-enabled group" $G.DisplayName "has only" $TeamChatData.ItemsInFolder[1] "compliance record(s)" }
-          }
-      }
+   ForEach ($T in $TeamChatData) { # We might have one or two subfolders in Conversation History; find the one for Teams
+   If ($T.FolderType -eq "TeamChat") {
+      If ($T.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($T.NewestItemReceivedDate) -Format g}
+      $NumberofChats = $T.ItemsInFolder
+      If ($T.NewestItemReceivedDate -le $WarningEmailDate) {
+            Write-Host "Team-enabled group" $G.DisplayName "has only" $T.ItemsInFolder "compliance record(s)" }
+     }}      
+}
 # Generate a line for this group and store it in the report
     $ReportLine = [PSCustomObject][Ordered]@{
           GroupName           = $G.DisplayName
@@ -168,10 +168,10 @@ If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
           LastConversation    = $LastConversation
           NumberConversations = $NumberConversations
           SPOActivity         = $SPOActivity
-          SPOStorage          = $SPOStorage
+          SPOStorageGB        = $SPOStorage
           SPOStatus           = $SPOStatus
-	  WhenCreated         = Get-Date ($G.WhenCreated) -Format g
-	  DaysOld             = $GroupAge
+          WhenCreated         = Get-Date ($G.WhenCreated) -Format g
+          DaysOld             = $GroupAge
           NumberWarnings      = $NumberWarnings
           Status              = $Status}
    $Report.Add($ReportLine)   
