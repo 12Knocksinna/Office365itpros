@@ -8,6 +8,7 @@
 # V2.0 5-Jan-2018
 # V3.0 17-Dec-2018
 # V4.0 11-Jan-2020
+# V4.1 15-Jan-2020 (Added output of group age in days and creation date)
 CLS
 # Check that we are connected to Exchange Online, SharePoint Online, and Teams
 Write-Host "Checking that prerequisite PowerShell modules are loaded..."
@@ -78,7 +79,8 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
      Write-Host $G.DisplayName "has no group owners!" -ForegroundColor Red}
   Else {
      $ManagedBy = (Get-Mailbox -Identity $G.ManagedBy[0]).DisplayName}
-  
+# Group Age
+  $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days  
 # Fetch information about activity in the Inbox folder of the group mailbox  
    $Data = (Get-MailboxFolderStatistics -Identity $G.Alias -IncludeOldestAndNewestITems -FolderScope Inbox)
    $LastConversation = $Data.NewestItemReceivedDate
@@ -169,6 +171,7 @@ If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
           SPOStorage          = $SPOStorage
           SPOStatus           = $SPOStatus
 	  WhenCreated         = Get-Date ($G.WhenCreated) -Format g
+	  DaysOld             = $GroupAge
           NumberWarnings      = $NumberWarnings
           Status              = $Status}
    $Report.Add($ReportLine)   
