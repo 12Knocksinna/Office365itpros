@@ -8,6 +8,7 @@
 # V2.0 5-Jan-2018
 # V3.0 17-Dec-2018
 # V4.0 11-Jan-2020
+# V4.1 15-Jan-2020  - Better handling of the Team Chat folder.
 CLS
 # Check that we are connected to Exchange Online, SharePoint Online, and Teams
 Write-Host "Checking that prerequisite PowerShell modules are loaded..."
