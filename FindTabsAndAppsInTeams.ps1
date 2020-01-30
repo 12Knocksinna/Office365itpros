@@ -45,6 +45,7 @@ ForEach ($Team in $Teams.Value) {
             Record = "App"
             Number = $TeamAppNumber
             Team   = $Team.DisplayName
+            TeamId = $Team.Id
             App    = $App.TeamsApp.DisplayName
             AppId  = $App.TeamsApp.Id
             Distribution = $App.TeamsApp.DistributionMethod }
@@ -61,12 +62,13 @@ ForEach ($Channel in $TeamChannels) {
         ForEach ($Tab in $Tabs) {
             $TabNumber++
             $ReportLine = [PSCustomObject][Ordered]@{
-              Record = "Channel tab"
-              Number = $TabNumber
-              Team   = $Team.DisplayName
+              Record  = "Channel tab"
+              Number  = $TabNumber
+              Team    = $Team.DisplayName
+              TeamId  = $Team.Id
               Channel = $Channel.DisplayName
-              Tab    = $Tab.DisplayName
-              AppId  = $Tab.TeamsApp.Id
+              Tab     = $Tab.DisplayName
+              AppId   = $Tab.TeamsApp.Id
               Distribution = $Tab.TeamsApp.DistributionMethod 
               WebURL  = $Tab.WebURL}
         $Report.Add($ReportLine) }}
