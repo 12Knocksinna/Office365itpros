@@ -39,7 +39,7 @@ ForEach ($M in $Mbx) {
    $PersonLine       = "<td padding='0'><B>" + $M.DisplayName + " </B> " + $JobTitle + "<BR>"
    # Create a Mailto: link for the user's email address
    $EmailLink        = '<a href=mailto:"' + $($M.WindowsEmailAddress) + '">' + $($M.WindowsEmailAddress) + '</a>'
-   $CompanyLine      = "<b>" + $CompanyName + "</b> " + $StreetAddress + ", " + $City + ", " + $PostalCode + "<BR>" + $M.Phone + "/" + $M.Mobile + " Email: " +  $EmailLink + "<br><br>"     
+   $CompanyLine      = "<b>" + $CompanyName + "</b> " + $StreetAddress + ", " + $City + ", " + $PostalCode + "<BR>" + $M.Phone + "/" + $M.MobilePhone + " Email: " +  $EmailLink + "<br><br>"     
    $SignatureHTML = $HeadingLine + $CompanyLogoLine + $PersonLine + $CompanyLine + $IconsLine + $EndLine
    Set-MailboxMessageConfiguration -Identity $M.UserPrincipalName -SignatureHTML $SignatureHTML -AutoAddSignature $True -AutoAddSignatureOnReply $False 
 }
