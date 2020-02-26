@@ -1,6 +1,7 @@
 # ReportPermissionsFolderLevel.PS1
 # Uses Exchange Online Management module (REST)
-# V1.0 26-Feb-2020
+# V1.0 26-Feb-2020  Office 365 for IT Pros https://gum.co/O365IT/
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportPermissionsFolderLevel.PS1
 
 # Check that we're connected to the Exchange Online Management module...
 $Modules = Get-Module | ? { $_.Name -eq "ExchangeOnlineManagement" }  
@@ -28,16 +29,24 @@ ForEach ($M in $Mbx) {
       ForEach ($Permission in $Permissions) { # Check each permission, ignoring ones we don't have any interest in
          $User = $Permission.User
          If (($User -ne "Default" -and $User -ne "Anonymous") -and ($User -ne $M.DisplayName -and $Permission.AccessRights -ne "None")) {
+            $i = 1
+            ForEach ($Access in $Permission.AccessRights) { # Break up the array of access rights into a formatted string for the report
+               If ($i -eq 1) { $AccessRights = $Access; $i++ }  Else {$AccessRights = $AccessRights + "; " + $Access }}
             $ReportLine = [PSCustomObject]@{
                 Mailbox    = $M.DisplayName
                 Folder     = $Folder.Name
-                Permission = $Permission.AccessRights
+                Permission = $AccessRights
                 Assignedto = $User }
             $Report.Add($ReportLine) }}
           # Debug line -uncomment if you want to see these messages
-          # Write-Host "Mailbox:" $M.Name "Permission" $Permission.AccessRights "on" $Folder.Name "for" $User 
+          # Write-Host "Mailbox:" $M.Name "Permission" $Permission.AccessRights "on" $Folder.Name "for" $User
 }}
 
 $Report | Export-CSV -NoTypeInformation c:\temp\FolderDelegatedPermissions.CSV
 CLS
-Write-Host "Finished processing" $Mbx.Count "mailboxes". The report file is in c:\temp\FolderDelegatedPermissions.CSV"
+Write-Host "Finished processing" $Mbx.Count "mailboxes. The report file is in c:\temp\FolderDelegatedPermissions.CSV"
+
+
+$i = 1
+ForEach ($Access in $Permission.AccessRights) {
+   If ($i -eq 1) { $AccessRights = $Access; $i++}  Else ($i  {$AccessRights = $AccessRights + "; " + $Access }}
