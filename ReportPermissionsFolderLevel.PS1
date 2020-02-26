@@ -27,15 +27,15 @@ ForEach ($M in $Mbx) {
     $Permissions = (Get-ExoMailboxFolderPermission -Identity $FolderName -ErrorAction SilentlyContinue) 
       ForEach ($Permission in $Permissions) { # Check each permission, ignoring ones we don't have any interest in
          $User = $Permission.User
-         If (($User -ne "Default" -and $User -ne "Anonymous") -and ($Permission.User -ne $M.DisplayName -and $Permission.AccessRights -ne "None")) {
+         If (($User -ne "Default" -and $User -ne "Anonymous") -and ($User -ne $M.DisplayName -and $Permission.AccessRights -ne "None")) {
             $ReportLine = [PSCustomObject]@{
                 Mailbox    = $M.DisplayName
                 Folder     = $Folder.Name
                 Permission = $Permission.AccessRights
-                Assignedto = $Permission.User }
+                Assignedto = $User }
             $Report.Add($ReportLine) }}
           # Debug line -uncomment if you want to see these messages
-          # Write-Host "Mailbox:" $M.Name "Permission" $Permission.AccessRights "on" $Folder.Name "for" $Permission.User.DisplayName 
+          # Write-Host "Mailbox:" $M.Name "Permission" $Permission.AccessRights "on" $Folder.Name "for" $User 
 }}
 
 $Report | Export-CSV -NoTypeInformation c:\temp\FolderDelegatedPermissions.CSV
