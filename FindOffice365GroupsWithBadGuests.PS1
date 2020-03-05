@@ -46,7 +46,6 @@ If (!$Groups.Count) { Write-Host "No Office 365 Groups found with guest users"}
              If ($U.Name -Match "#EXT#" -and $U.Name -NotLike "*teams.ms*") {
 ## Remember to edit the string to make sure it’s your tenant name…
 ##          $CheckName = $U.Name + "@EditMeTenantName.onmicrosoft.com"
-            $CheckName = $U.Name + "@redmondassociates.onmicrosoft.com"
             $User = (Get-AzureADUser -ObjectId $CheckName).DisplayName 
             $ReportLine = [PSCustomObject]@{
                Email           = $U.Name
