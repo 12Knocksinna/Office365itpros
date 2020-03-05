@@ -1,6 +1,7 @@
 # FindOffice365GroupsWithBadGuests.PS1
 # A script to scan Office 365 Groups to find groups with guest members that also have a sensitivity label that blocks guests
 # V1.0 March 2020
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindOffice365GroupsWithBadGuests.PS1
 
 # First Check for connection to compliance endpoint
 $TenantLabels = @{}
