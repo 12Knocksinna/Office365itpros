@@ -1,4 +1,5 @@
 # PurgeMessagesWithContentSearch.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/PurgeMessagesWithContentSearch.PS1
 #
 # A script to purge messages from Exchange Online using an Office 365 content search and a purge action applied to 
 # the results of that search.
