@@ -8,16 +8,22 @@
 # Some information to identify the messages we want to purge
 $Sender = "badactor@badboys.com"
 $Subject = "Special Offer for you"
+# Date range for the search - make this as precise as possible
+$StartDate = "10-Mar-2020"
+$EndDate = "13-Mar-2020"
+$Start = (Get-Date $StartDate).ToString('yyyy-MM-dd')   
+$End = (Get-Date $EndDate).ToString('yyyy-MM-dd')
+$ContentQuery = '(c:c)(received=' + $Start + '..' + $End +')(senderauthor=' + $Sender + ')(subjecttitle="' + $Subject + '")'
 
 CLS
 If (Get-ComplianceSearch -Identity "Remove Offensive Information") {
    Write-Host "Cleaning up old search"
    Try {
-      Remove-ComplianceSearch -Identity "Remove Offensive Information" -Confirm:$False -ErrorAction SilentlyContinue } 
+      $Status = Remove-ComplianceSearch -Identity "Remove Offensive Information" -Confirm:$False  } 
    Catch {
        Write-Host "We can't clean up the old search" ; break }}
 
-New-ComplianceSearch -Name "Remove Offensive Information" -ContentMatchQuery "(Received:6-Mar-2020..14-Mar-2020) AND (From:$Sender) AND (Subject:$Subject)" -ExchangeLocation All -AllowNotFoundExchangeLocationsEnabled $True | Out-Null
+New-ComplianceSearch -Name "Remove Offensive Information" -ContentMatchQuery $ContentQuery -ExchangeLocation All -AllowNotFoundExchangeLocationsEnabled $True | Out-Null
                                                                             
 Write-Host "Starting Search..."
 Start-ComplianceSearch -Identity "Remove Offensive Information" | Out-Null
@@ -27,7 +33,6 @@ While ((Get-ComplianceSearch -Identity "Remove Offensive Information").Status -n
   Write-Host "Still searching... (" $Seconds ")"
    Sleep -Seconds 1 }
 $ItemsFound = (Get-ComplianceSearch -Identity "Remove Offensive Information").Items
-
 
 If ($ItemsFound -gt 0) {
    $Stats = Get-ComplianceSearch -Identity "Remove Offensive Information" | Select -Expand SearchStatistics | Convertfrom-JSON
