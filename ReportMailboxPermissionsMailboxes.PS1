@@ -2,7 +2,7 @@
 # Quick and simple script to generate a report of non-standard permissions applied to Exchange Online user and shared mailboxes
 # Needs to be connected to Exchange Online PowerShell with an administrative account to run
 # V1.0 16-Mar-2020
-# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMailboxSendPermissionsMailboxes.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMailboxPermissionsMailboxes.PS1
 CLS
 Write-Host "Fetching mailboxes"
 $Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited -PropertySet Delivery -Properties RecipientTypeDetails, DisplayName | Select DisplayName, UserPrincipalName, RecipientTypeDetails, GrantSendOnBehalfTo
