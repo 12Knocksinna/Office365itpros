@@ -13,11 +13,11 @@ $ProgressDelta = 100/($Mbx.count); $PercentComplete = 0; $MbxNumber = 0
 ForEach ($M in $Mbx) {
     $MbxNumber++
     $MbxStatus = $M.DisplayName + " ["+ $MbxNumber +"/" + $Mbx.Count + "]"
-    Write-Progress -Activity "Checking Send permissions for mailbox" -Status $MbxStatus -PercentComplete $PercentComplete
+    Write-Progress -Activity "Checking permissions for mailbox" -Status $MbxStatus -PercentComplete $PercentComplete
     $PercentComplete += $ProgressDelta
     $Permissions = Get-ExoRecipientPermission -Identity $M.UserPrincipalName | ? {$_.Trustee -ne "NT AUTHORITY\SELF"}
     If ($Null -ne $Permissions) {
-    # Grab each permission and output it into the report
+    # Grab information about SendAs permission and output it into the report
        ForEach ($Permission in $Permissions) {
        $ReportLine  = [PSCustomObject] @{
            Mailbox     = $M.DisplayName
@@ -26,6 +26,19 @@ ForEach ($M in $Mbx) {
            AssignedTo  = $Permission.Trustee
            MailboxType = $M.RecipientTypeDetails } 
          $Report.Add($ReportLine) }}
+
+    # Grab information about FullAccess permissions
+    $Permissions = Get-ExoMailboxPermission -Identity $M.UserPrincipalName | ? {$_.User -Like "*@*" }    
+    If ($Null -ne $Permissions) {
+       # Grab each permission and output it into the report
+       ForEach ($Permission in $Permissions) {
+         $ReportLine  = [PSCustomObject] @{
+           Mailbox     = $M.DisplayName
+           UPN         = $M.UserPrincipalName
+           Permission  = $Permission | Select -ExpandProperty AccessRights
+           AssignedTo  = $Permission.User
+           MailboxType = $M.RecipientTypeDetails } 
+         $Report.Add($ReportLine) }} 
 
     # Check if this mailbox has granted Send on Behalf of permission to anyone
     If (![string]::IsNullOrEmpty($M.GrantSendOnBehalfTo)) {
@@ -39,5 +52,5 @@ ForEach ($M in $Mbx) {
          $Report.Add($ReportLine) }}
 }
 
-$Report | Sort -Property @{Expression = {$_.MailboxType}; Ascending= $False}, Mailbox | Export-CSV c:\temp\MailboxSendPermissions.csv -NoTypeInformation
-Write-Host "All done." $Mbx.Count "mailboxes scanned. Report of send permissions available in c:\temp\MailboxSendPermissions.csv"
+$Report | Sort -Property @{Expression = {$_.MailboxType}; Ascending= $False}, Mailbox | Export-CSV c:\temp\MailboxAccessPermissions.csv -NoTypeInformation
+Write-Host "All done." $Mbx.Count "mailboxes scanned. Report of send permissions available in c:\temp\MailboxAccessPermissions.csv"
