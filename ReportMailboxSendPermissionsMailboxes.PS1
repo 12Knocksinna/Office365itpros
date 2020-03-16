@@ -13,7 +13,7 @@ $ProgressDelta = 100/($Mbx.count); $PercentComplete = 0; $MbxNumber = 0
 ForEach ($M in $Mbx) {
     $MbxNumber++
     $MbxStatus = $M.DisplayName + " ["+ $MbxNumber +"/" + $Mbx.Count + "]"
-    Write-Progress -Activity "Checkiing Send permissions for mailbox" -Status $MbxStatus -PercentComplete $PercentComplete
+    Write-Progress -Activity "Checking Send permissions for mailbox" -Status $MbxStatus -PercentComplete $PercentComplete
     $PercentComplete += $ProgressDelta
     $Permissions = Get-ExoRecipientPermission -Identity $M.UserPrincipalName | ? {$_.Trustee -ne "NT AUTHORITY\SELF"}
     If ($Null -ne $Permissions) {
