@@ -43,6 +43,7 @@ ForEach ($M in $SharedMbx) {
            Mailbox         = $M.DisplayName
            UPN             = $M.UserPrincipalName
            Department      = "Shared Mailbox"
+           AuditingEnabled = "Y"
            MailboxType     = $M.RecipientTypeDetails} 
          $Report.Add($ReportLine) }
 }
