@@ -6,6 +6,7 @@ $Office365E3 = "6fd2c87f-b296-42f0-b197-1e91e994b900"
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 $ProgressDelta = 100/($Mbx.count); $PercentComplete = 0; $MbxNumber = 0; $SharedMailboxNumber = 0; $MbxUpdated = 0; $SharedMbxUpdated
 CLS
+Write-Host "Finding Office 365 E3 mailboxes"
 # Process mailboxes - Check Azure Active Directory to find accounts with Office 365 E3 licenses
 $Mbx = Get-AzureADUser -All $True | ? {$_.AssignedLicenses -Match $Office365E3}
 # Loop through accounts, find if they have not been enabled by checking CustomAttribute6, and enable if needed
