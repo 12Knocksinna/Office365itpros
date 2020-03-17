@@ -1,6 +1,6 @@
 # UpdateMailboxAuditing.PS1
 # A script to update Office 365 E3 user and shared mailboxes and make sure that they are enabled for mailbox auditing
-
+# https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateMailboxAuditing.PS1
 # GUID for Office 365 E3
 $Office365E3 = "6fd2c87f-b296-42f0-b197-1e91e994b900"
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
