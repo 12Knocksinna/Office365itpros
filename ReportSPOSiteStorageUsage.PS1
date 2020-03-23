@@ -1,6 +1,7 @@
 # ReportSPOSiteStorageUsage.PS1
 # Uses SharePoint Online and Exchange Online PowerShell modules
 # Session must be connected to an admin account
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSPOSiteStorageUsage.PS1
 
 # Check that we are connected to Exchange Online and SharePoint Online
 Try {
@@ -27,16 +28,16 @@ ForEach ($Site in $Sites) {
   $SiteStatus = $Site.Title + " ["+ $SiteNumber +"/" + $Sites.Count + "]"
   Write-Progress -Activity "Processing site" -Status $SiteStatus -PercentComplete $PercentComplete
   $PercentComplete += $ProgressDelta
-  Switch ($Site.Template) {  #Figure out the type of site and if we should process it
+  Switch ($Site.Template) {  #Figure out the type of site and if we should process it - this might not be an exhaustive set of site templates
    "RedirectSite#0"            {$SiteType = "Redirect"; $Process = $False }
    "GROUP#0"                   {$SiteType = "Group-enabled team site"}
    "TEAMCHANNEL#0"             {$SiteType = "Teams Private Channel" }
    "REVIEWCTR#0"               {$SiteType = "Review Center"; $Process = $False}
    "APPCATALOG#0"              {$SiteType = "App Catalog"; $Process = $False}
    "STS#3"                     {$SiteType = "Team Site"; $NoCheckGroup = $True; $SiteOwners = "System"}
-   "SPSMSSITEHOST#0"           {$SiteType = "Unknown"; $Process = $False}
+   "SPSMSITEHOST#0"            {$SiteType = "Unknown"; $Process = $False}
    "SRCHCEN#0"                 {$SiteType = "Search Center"; $Process = $False}
-   "EHS*"                      {$SiteType = "Team Site - SPO Configuration"; $NoCheckGroup = $True; $SiteOwners = "System"}
+   "EHS#1"                     {$SiteType = "Team Site - SPO Configuration"; $NoCheckGroup = $True; $SiteOwners = "System"}
    "EDISC#0"                   {$SiteType = "eDiscovery Center"; $Process = $False}
    "SITEPAGEPUBLISHING#0"      {$SiteType = "Site page"; $NoCheckGroup = $True; $SiteOwners = "System"}
    "POINTPUBLISHINGHUB#0"      {$SiteType = "Communications Site"; $NoCheckGroup = $True; $SiteOwners = "System" }
@@ -47,7 +48,7 @@ ForEach ($Site in $Sites) {
      $SiteOwners = ReturnO365GroupOwners($Site.URL) }
 
 $UsedGB = [Math]::Round($Site.StorageUsageCurrent/1024,2) 
-$PercentTenant = ([Math]::Round($Site.StorageUsageCurrent/1024,4)/$TotalSPOStorageUsed).tostring("P")             
+$PercentTenant = ([Math]::Round($Site.StorageUsageCurrent/1024,4)/$TotalSPOStorageUsed).tostring("P")           
 
 # And write out the information about the site
   If ($Process -eq $True) {
@@ -56,7 +57,7 @@ $PercentTenant = ([Math]::Round($Site.StorageUsageCurrent/1024,4)/$TotalSPOStora
          SiteName      = $Site.Title
          Owner         = $SiteOwners
          Template      = $SiteType
-         QuotaGB       = [Math]::Round($Site.StorageQuota/1024,2) 
+         QuotaGB       = [Math]::Round($Site.StorageQuota/1024,0) 
          UsedGB        = $UsedGB
          PercentUsed   = ([Math]::Round(($Site.StorageUsageCurrent/$Site.StorageQuota),4).ToString("P")) 
          PercentTenant = $PercentTenant}
@@ -64,7 +65,7 @@ $PercentTenant = ([Math]::Round($Site.StorageUsageCurrent/1024,4)/$TotalSPOStora
 
 # Now generate the report
 $Report | Export-CSV -NoTypeInformation c:\temp\SPOSiteConsumption.CSV
-Write-Host "Current SharePoint Online storage consumption is" $TotalSPOStorageUsed  "GB. Report is in C:\temp\SPOSiteConsumption.CSV"
+Write-Host "Current SharePoint Online storage consumption is" $TotalSPOStorageUsed "GB. Report is in C:\temp\SPOSiteConsumption.CSV"
 
 Function ReturnO365GroupOwners([String]$SiteURL) {
 # Function to return the owners of an Office 365 Group identified by the group GUID
