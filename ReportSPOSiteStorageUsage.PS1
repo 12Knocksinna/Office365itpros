@@ -8,7 +8,7 @@ Try {
 Catch
      { Write-Host "Error accessing Exchange Online - please connect to the service before retrying"; break }
 Try {
-    $TestSPO = Get-SPOTenant }
+    $TestSPO = (Get-SPOTenant).StorageQuota }
 Catch
     { Write-Host "Error accessing SharePoint Online - please connect to the service before retrying"; break }
 
@@ -65,7 +65,6 @@ $PercentTenant = ([Math]::Round($Site.StorageUsageCurrent/1024,4)/$TotalSPOStora
 # Now generate the report
 $Report | Export-CSV -NoTypeInformation c:\temp\SPOSiteConsumption.CSV
 Write-Host "Current SharePoint Online storage consumption is" $TotalODFBGBUsed "GB. Report is in C:\temp\SPOSiteConsumption.CSV"
-
 
 Function ReturnO365GroupOwners([String]$SiteURL) {
 # Function to return the owners of an Office 365 Group identified by the group GUID
