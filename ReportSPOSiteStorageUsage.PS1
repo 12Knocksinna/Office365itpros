@@ -2,6 +2,16 @@
 # Uses SharePoint Online and Exchange Online PowerShell modules
 # Session must be connected to an admin account
 
+# Check that we are connected to Exchange Online and SharePoint Online
+Try {
+    $TestEXO = (Get-OrganizationConfig).ExchangeVersion  }
+Catch
+     { Write-Host "Error accessing Exchange Online - please connect to the service before retrying"; break }
+Try {
+    $TestSPO = Get-SPOTenant }
+Catch
+    { Write-Host "Error accessing SharePoint Online - please connect to the service before retrying"; break }
+
 # Get all SPO sites
 CLS
 Write-Host "Fetching site information..."
