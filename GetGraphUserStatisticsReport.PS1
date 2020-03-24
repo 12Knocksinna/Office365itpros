@@ -1,6 +1,7 @@
 # GetGraphUserStatisticsReport.PS1
 # A sample script showing how to gather user activity information from the Graph and assemble it into one report
 # V1.0 21-Mar-2020
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1
 
 CLS
 # Define the values applicable for the application used to connect to the Graph
