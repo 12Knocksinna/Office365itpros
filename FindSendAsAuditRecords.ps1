@@ -1,5 +1,6 @@
 # A script to find SendAs records in the Office 365 audit log and identify events belonging to user/shared mailboxes
 # and those belonging to group mailboxes/Teams
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindSendAsAuditRecords.ps1
 # V1.0 10 Feb 2020
 # First populate the Recipients Hash Table with user mailboxes, group mailboxes, and shared mailboxes
 CLS
@@ -47,5 +48,5 @@ Else {
       $Report.Add($ReportLine) }
 }
 $Report | ? {$_.MailboxType -eq "UserMailbox"} | Out-GridView
-$Report |Export-Csv -NoTypeInformation -Path c:\temp\SendASAuditRecords.csv
+$Report | Export-Csv -NoTypeInformation -Path c:\temp\SendASAuditRecords.csv
 Write-Host "Report File saved in" c:\temp\SendASAuditRecords.csv
