@@ -2,6 +2,7 @@
 # Script to analyze the audit records extracted for SendAs events against the permissions assigned in a tenant
 # and report the permissions used and unused.
 # V1.0 24-Mar-2020
+# https://github.com/12Knocksinna/Office365itpros/blob/master/AnalyzeSendAsAuditData.ps1
 
 If (!(Test-Path -Path c:\temp\MailboxAccessPermissions.csv)) {
    Write-Host "Error: c:\temp\MailboxAccessPermissions.csv not found. Please run script to generate report of mailbox SendAs permissions" ; break}
