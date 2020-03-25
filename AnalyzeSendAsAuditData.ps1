@@ -29,13 +29,13 @@ ForEach ($S in $SendAsData) {
          Status     = "SendAs permission not used"}
        $PermissionsUsedReport.Add($ReportLine) }
     Else {
-       $AuditCheck | Sort {$_.TimeStamp -as [datetime]} -Descending  | Out-Null
+       $LastUsedDate  = $AuditCheck | Sort {$_.TimeStamp -as [datetime]} -Descending | Select -First 1  # Grab latest SendAs
        $PermissionsUsed++
        $ReportLine  = [PSCustomObject] @{
          Mailbox    = $S.Mailbox
          UPN        = $S.UPN
          Assignedto = $S.AssignedTo
-         Status     = [String]$AuditCheck.Count + " SendAs permissions used. Last use on " + $AuditCheck[0] }
+         Status     = [String]$AuditCheck.Count + " SendAs permissions used. Last use on " + $LastUsedDate }
        $PermissionsUsedReport.Add($ReportLine) }
 }
     
