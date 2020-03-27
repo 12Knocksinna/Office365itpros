@@ -25,7 +25,6 @@ $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "applicati
 $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 
 # Base URL
-$uri = "https://graph.microsoft.com/beta/"
 $headers = @{Authorization = "Bearer $token"}
 $ctype = "application/json"
 
