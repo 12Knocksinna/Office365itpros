@@ -9,22 +9,18 @@ $AppId = "d716b32c-0edb-48be-9385-30a9cfd96165"
 $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f2478"
 $AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
 
-# Construct URI and body needed for authentication
+# Build the request to get the OAuth 2.0 access token
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
 $body = @{
     client_id     = $AppId
     scope         = "https://graph.microsoft.com/.default"
     client_secret = $AppSecret
-    grant_type    = "client_credentials"
-}
+    grant_type    = "client_credentials"}
 
-# Get OAuth 2.0 Token
+# Request token
 $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
-
 # Unpack Access Token
 $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
-
-# Base URL
 $headers = @{Authorization = "Bearer $token"}
 $ctype = "application/json"
 
