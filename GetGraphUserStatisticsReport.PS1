@@ -22,7 +22,6 @@ $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "applicati
 # Unpack Access Token
 $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 $headers = @{Authorization = "Bearer $token"}
-$ctype = "application/json"
 
 Write-Host "Fetching user activity data from the Graph..."
 # Get Teams Usage Data
