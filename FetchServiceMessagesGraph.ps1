@@ -1,7 +1,8 @@
 # FetchServiceMessagesGraph.ps1
 # Fetch Service Messages from the Microsoft Graph
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FetchServiceMessagesGraph.ps1
 CLS
-
+Write-Host "Setting things up for the Graph"
 # Define the values applicable for the application used to connect to the Graph - change these details for your tenant
 $AppId = "e716b32c-0edb-48be-9385-30a9cfd96155"
 $TenantId = "c662313f-14fc-43a2-9a7a-d2e27f4f3478"
@@ -21,11 +22,13 @@ $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 $headers = @{Authorization = "Bearer $token"}
 
 # Fetch information from Graph
+Write-Host "Fetching Office 365 Message Center Notifications..."
 $MessageCenterURI = "https://manage.office.com/api/v1.0/$($tenantid)/ServiceComms/Messages"
 $ServiceData = (Invoke-RestMethod -Uri $MessageCenterURI -Headers $Headers -Method Get -ContentType "application/json") 
 $Messages = $ServiceData.Value | ? {$_.MessageType -eq "MessageCenter"}
 
 # And Report what we find
+Write-Host "Parsing what we got and creating a report..."
 $Report = [System.Collections.Generic.List[Object]]::new() 
 ForEach ($M in $Messages) {
    If ([string]::IsNullOrEmpty($M.AffectedWorkloadDisplayNames)) {  # Parse out workloads
