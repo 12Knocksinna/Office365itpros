@@ -23,7 +23,6 @@ $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "applicati
 # Unpack Access Token
 $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 $headers = @{Authorization = "Bearer $token"}
-$ctype = "application/json"
 
 Write-Host "Fetching SharePoint Online site data from the Graph..."
 # Get SharePoint files usage data - includes redirects, so we will have to remove them
