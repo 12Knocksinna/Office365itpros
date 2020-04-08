@@ -1,10 +1,14 @@
 # FindMailItemsAccessedAuditRecords.PS1
 # V1.0 8-Apr-2020
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindMailItemsAccessedAuditRecords.PS1
+# A script to process Office 365 "MailItemsAccessed" audit log records and put them into a more digestible format.
+# Tony Redmond 
 CLS
 $Now = Get-Date
 Write-Host "Finding MailItemsAccessed records..."
 $SearchStartDate = (Get-Date).AddDays(-10)  #For Message Trace
 $SearchEndDate = (Get-Date).AddDays(+1)
+# Edit this line to use whatever search terms you wnat to find audit records
 $Records = (Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-4) -EndDate $SearchEndDate -Operations MailItemsAccessed -ResultSize 3000) 
 If ($Records.Count -eq 0) {
     Write-Host "No audit records for mail access found." }
