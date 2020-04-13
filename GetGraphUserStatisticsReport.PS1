@@ -1,15 +1,17 @@
 # GetGraphUserStatisticsReport.PS1
 # A sample script showing how to gather user activity information from the Graph and assemble it into one report
-# V1.0 21-Mar-2020
+# V1.0 13-Apr-2020
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1
 
+# Guest user activity is not recorded by the Graph
+
 CLS
-# Define the values applicable for the application used to connect to the Graph
-$AppId = "d716b32c-0edb-48be-9385-30a9cfd96165"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f2478"
+# Define the values applicable for the application used to connect to the Graph (change these for your tenant)
+$AppId = "e716b32c-0edb-48be-9385-30a9cfd96155"
+$TenantId = "c662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
 
-# Build the request to get the OAuth 2.0 access token
+# Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
 $body = @{
     client_id     = $AppId
@@ -17,10 +19,13 @@ $body = @{
     client_secret = $AppSecret
     grant_type    = "client_credentials"}
 
-# Request token
+# Get OAuth 2.0 Token
 $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
+
 # Unpack Access Token
 $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
+
+# Base URL
 $headers = @{Authorization = "Bearer $token"}
 
 Write-Host "Fetching user activity data from the Graph..."
@@ -74,16 +79,17 @@ ForEach ($T in $TeamsUserData) {
 
 # Process Exchange Data
 ForEach ($E in $EmailData) {
+   $ExoDaysSinceActive = $Null
    If ([string]::IsNullOrEmpty($E."Last Activity Date")) { 
-      $MailLastActivity = "No activity"
+      $ExoLastActivity = "No activity"
       $ExoDaysSinceActive = "N/A" }
    Else {
-      $MailLastActivity = Get-Date($E."Last Activity Date") -format "dd-MMM-yyyy"
-      $ExoDaysSinceActive = (New-TimeSpan($MailLastActivity)).Days }
+      $ExoLastActivity = Get-Date($E."Last Activity Date") -format "dd-MMM-yyyy"
+      $ExoDaysSinceActive = (New-TimeSpan($ExoLastActivity)).Days }
   $ReportLine  = [PSCustomObject] @{          
      UPN                = $E."User Principal Name"
      DisplayName        = $E."Display Name"
-     LastActive         = $MailLastActivity   
+     LastActive         = $ExoLastActivity   
      DaysSinceActive    = $ExoDaysSinceActive    
      ReportDate         = Get-Date($E."Report Refresh Date") -format "dd-MMM-yyyy"  
      SendCount          = [int]$E."Send Count"
@@ -95,14 +101,14 @@ ForEach ($E in $EmailData) {
   
 ForEach ($M in $MailboxUsage) {
    If ([string]::IsNullOrEmpty($M."Last Activity Date")) { 
-      $MailLastActivity = "No activity" }
+      $ExoLastActivity = "No activity" }
    Else {
-      $MailLastActivity = Get-Date($M."Last Activity Date") -format "dd-MMM-yyyy"
-      $ExoDaysSinceActive = (New-TimeSpan($MailLastActivity)).Days }
+      $ExoLastActivity = Get-Date($M."Last Activity Date") -format "dd-MMM-yyyy"
+      $ExoDaysSinceActive = (New-TimeSpan($ExoLastActivity)).Days }
    $ReportLine  = [PSCustomObject] @{          
      UPN                = $M."User Principal Name"
      DisplayName        = $M."Display Name"
-     LastActive         = $MailLastActivity 
+     LastActive         = $ExoLastActivity 
      DaysSinceActive    = $ExoDaysSinceActive          
      ReportDate         = Get-Date($M."Report Refresh Date") -format "dd-MMM-yyyy"  
      QuotaUsed          = [Math]::Round($M."Storage Used (Byte)"/1GB,2) 
@@ -184,56 +190,123 @@ ForEach ($U in $Users) {
   Write-Progress -Activity "Extracting information for user" -Status $CurrentStatus -PercentComplete $PercentComplete
   $PercentComplete += $ProgressDelta
   $ExoData = $Null; $ExoActiveData = $Null; $TeamsData = $Null; $ODData = $Null; $SPOData = $Null; $YammerData = $Null
-  # Process Exchange Storage Data
+  
+# Process Exchange Data
   $ExoData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "Exchange Storage"}
   $ExoActiveData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "Exchange Activity"}
+  
+  If ($ExoActiveData -eq $Null -or $ExoActiveData.LastActive -eq "No Activity") {
+     $ExoLastActive       = "No Activity"
+     $ExoDaysSinceActive  = "N/A" }
+  Else {
+     $ExoLastActive = $ExoActiveData.LastActive
+     $ExoDaysSinceActive = $ExoActiveData.DaysSinceActive }
+
   $TeamsData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "Teams"}
-  $ODData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "OneDrive Storage"}
+  
   $SPOData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "SharePoint Usage"}
-  $YammerData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "Yammer Usage"}
+ 
+# Parse OneDrive for Business usage data 
+  $ODData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "OneDrive Storage"}
+  If ($ODData -eq $Null -or $ODData.LastActive -eq "No Activity") {
+     $ODLastActive       = "No Activity"
+     $ODDaysSinceActive  = "N/A"
+     $ODFiles            = 0
+     $ODStorage          = 0
+     $ODQuota            = 1024 }
+ Else {
+     $ODLastActive = $ODData.LastActive
+     $ODDaysSinceActive = $ODData.DaysSinceActive
+     $ODFiles = $ODData.FileCount
+     $ODStorage = $ODData.StorageUsed
+     $ODQuota = $ODData.Quota  }
+
+# Parse Yammer usage data
+  $YammerData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "Yammer Usage"} 
+# Yammer isn't used everywhere, so make sure that we record zero data 
+  If ($YammerData -eq $Null -or $YammerData.LastActive -eq "No Activity") {
+     $YammerLastActive       = "No Activity"
+     $YammerDaysSinceActive  = "N/A" 
+     $YammerPosts             = 0
+     $YammerReads             = 0
+     $YammerLikes             = 0 }
+ Else {
+     $YammerLastActive = $YammerData.LastActive
+     $YammerDaysSinceActive = $YammerData.DaysSinceActive
+     $YammerPosts = $YammerData.PostedCount
+     $YammerReads = $YammerData.ReadCount
+     $YammerLikes = $YammerData.LikedCount }
+     
+# Figure oout if the account is used
+# Base is 2 if someuse uses the five workloads because the Graph is usually 2 days behind, but we have some N/A values for days used
+  If ($ExoActiveData.DaysSinceActive -eq "N/A") {$ExoDays = 365} Else {$ExoDays = $ExoActiveData.DaysSinceActive}
+  If ($TeamsData.DaysSinceActive -eq "N/A") {$TeamsDays = 365} Else {$TeamsDays = $TeamsData.DaysSinceActive}
+  If ($SPOData.DaysSinceActive -eq "N/A") {$SPODays = 365} Else {$SPODays = $SPOData.DaysSinceActive}  
+  If ($ODDaysSinceActive -eq "N/A") {$ODDays = 365} Else {$ODDays = $ODDaysSinceActive}  
+  If ($YammerDaysSinceActive -eq "N/A") {$YammerDays = 365} Else {$YammerDays = $YammerDaysSinceActive}
+   
+# Average days per workload used...
+  $AverageDaysSinceUse = [Math]::Round((($ExoDays + $TeamsDays + $SPODays + $ODDays + $YammerDays)/5),2)
+
+  Switch ($AverageDaysSinceUse) { # Figure out if account is used
+   ({$PSItem -le 8})                          { $AccountStatus = "Heavy usage" }
+   ({$PSItem -ge 9 -and $PSItem -le 50} )     { $AccountStatus = "Moderate usage" }   
+   ({$PSItem -ge 51 -and $PSItem -le 120} )   { $AccountStatus = "Poor usage" }
+   ({$PSItem -ge 121 -and $PSItem -le 300 } ) { $AccountStatus = "Review account"  }
+   default                                    { $AccountStatus = "Account unused" }
+  } # End Switch
+
+# And an override if someone has been active in just one workload in the last 14 days
+  [int]$DaysCheck = 14 # Set this to your chosen value if you want to use a different period.
+  If (($ExoDays -le $DaysCheck) -or ($TeamsDays -le $DaysCheck) -or ($SPODays -le $DaysCheck) -or ($ODDays -le $DaysCheck) -or ($YammerDays -le $DaysCheck)) {
+     $AccountStatus = "Account in use"}
 
 If ((![string]::IsNullOrEmpty($ExoData.UPN))) {
 # Build a line for the report file with the collected data for all workloads and write it to the list
   $ReportLine  = [PSCustomObject] @{          
      UPN                     = $ExoData.UPN
      DisplayName             = $ExoData.DisplayName
-     EXOLastActive           = $ExoData.LastActive    
-     EXODaysSinceActive      = $ExoData.DaysSinceActive     
+     Status                  = $AccountStatus
+     EXOLastActive           = $ExoLastActive  
+     EXODaysSinceActive      = $ExoDays    
      EXOQuotaUsed            = $ExoData.QuotaUsed
      EXOItems                = $ExoData.Items
      EXOSendCount            = $ExoActiveData.SendCount
      EXOReadCount            = $ExoActiveData.ReadCount
      EXOReceiveCount         = $ExoActiveData.ReceiveCount
      TeamsLastActive         = $TeamsData.LastActive
-     TeamsDaysSinceActive    = $TeamsData.DaysSinceActive 
+     TeamsDaysSinceActive    = $TeamsDays 
      TeamsChannelChat        = $TeamsData.ChannelChats
      TeamsPrivateChat        = $TeamsData.PrivateChats
      TeamsMeetings           = $TeamsData.Meetings
      TeamsCalls              = $TeamsData.Calls
      SPOLastActive           = $SPOData.LastActive
-     SPODaysSinceActive      = $SPOData.DaysSinceActive 
+     SPODaysSinceActive      = $SPODays 
      SPOViewedEditedFiles    = $SPOData.ViewedEditedSPO
      SPOSyncedFiles          = $SPOData.SyncedFileCount
      SPOSharedExtFiles       = $SPOData.SharedExtSPO
      SPOSharedIntFiles       = $SPOData.SharedIntSPO
      SPOVisitedPages         = $SPOData.VisitedPagesSPO
-     OneDriveLastActive      = $ODData.LastActive
-     OneDriveDaysSinceActive = $ODData.DaysSinceActive 
-     OneDriveFiles           = $OneDriveFiles
-     OneDriveStorage         = $ODData.StorageUsed
-     OneDriveQuota           = $ODData.Quota
-     YammerLastActive        = $YammerData.LastActive
-     YammerDaysSinceActive   = $YammerData.DaysSinceActive 
-     YammerPosts             = $YammerData.PostedCount
-     YammerReads             = $YammerData.ReadCount
-     YammerLikes             = $YammerData.LikedCount
+     OneDriveLastActive      = $ODLastActive
+     OneDriveDaysSinceActive = $ODDays 
+     OneDriveFiles           = $ODFiles
+     OneDriveStorage         = $ODStorage
+     OneDriveQuota           = $ODQuota
+     YammerLastActive        = $YammerLastActive  
+     YammerDaysSinceActive   = $YammerDays 
+     YammerPosts             = $YammerPosts
+     YammerReads             = $YammerReads
+     YammerLikes             = $YammerLikes
      License                 = $TeamsData.License
      OneDriveSite            = $ODData.OneDriveSite
      IsDeleted               = $ExoActiveData.IsDeleted
      EXOReportDate           = $ExoData.ReportDate
-     TeamsReportDate         = $TeamsData.ReportDate }
+     TeamsReportDate         = $TeamsData.ReportDate
+     UsageFigure             = $AverageDaysSinceUse }
    $OutData.Add($ReportLine) } 
-  }
+ } #End processing user data
 
 Write-Host "Data processed for" $Users.Count "users"
 
+$OutData | Sort {$_.ExoLastActive -as [DateTime]} -Descending | Out-GridView  
+$OutData | Sort $AccountStatus | Export-CSV c:\temp\Office365TenantUsage.csv
