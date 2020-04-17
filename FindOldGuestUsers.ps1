@@ -1,13 +1,21 @@
+# FindOldGuestUsers.PS1
 # Script to find Guest User Accounts in an Office 365 Tenant that are older than 365 days and the groups they belong to
-# Find guest accounts
+# Script needs to connect to Azure Active Directory and Exchange Online PowerShell.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindOldGuestUsers.ps1
+Write-Host "Finding Guest Users..."
 $GuestUsers = Get-AzureADUser -All $true -Filter "UserType eq 'Guest'"
-$Today = (Get-Date); $StaleGuests = 0; $Report = @()
+$Today = (Get-Date); $StaleGuests = 0
+$Report = [System.Collections.Generic.List[Object]]::new()
+CLS
+$ProgressDelta = 100/($GuestUsers.Count); $PercentComplete = 0; $GuestNumber = 0
 # Check each account and find those over 365 days old
 ForEach ($Guest in $GuestUsers) {
-   $AADAccountAge = ($Guest.RefreshTokensValidFromDateTime | New-TimeSpan).Days
+   $AADAccountAge = ((Get-AzureADUser -ObjectId $Guest.UserPrincipalName).ExtensionProperty.createdDateTime | New-TimeSpan).Days
    If ($AADAccountAge -gt 365) {
-      $StaleGuests++
-      Write-Host "Processing" $Guest.DisplayName
+      $StaleGuests++; $GuestNumber++
+      $CurrentStatus = $Guest.DisplayName + " ["+ $GuestNumber +"/" + $GuestUsers.Count + "]"
+      Write-Progress -Activity "Extracting information for guest account" -Status $CurrentStatus -PercentComplete $PercentComplete
+      $PercentComplete += $ProgressDelta
       $i = 0; $GroupNames = $Null
       # Find what Office 365 Groups the guest belongs to... if any
       $DN = (Get-Recipient -Identity $Guest.UserPrincipalName).DistinguishedName 
@@ -18,13 +26,19 @@ ForEach ($Guest in $GuestUsers) {
          Else 
            {$GroupNames = $GroupNames + "; " + $G.DisplayName }
       }}
-      $ReportLine = [PSCustomObject][Ordered]@{
+      $ReportLine = [PSCustomObject]@{
            UPN     = $Guest.UserPrincipalName
            Name    = $Guest.DisplayName
            Age     = $AADAccountAge
            Created = $Guest.RefreshTokensValidFromDateTime  
            Groups  = $GroupNames
            DN      = $DN}      
-     $Report += $ReportLine }
+     $Report.Add($ReportLine) }
+   Else { # Update the number of guests processed so our progress bar looks good
+         $GuestNumber++
+         $CurrentStatus = $Guest.DisplayName + " ["+ $GuestNumber +"/" + $GuestUsers.Count + "]"
+         Write-Progress -Activity "Extracting information for guest account" -Status $CurrentStatus -PercentComplete $PercentComplete
+         $PercentComplete += $ProgressDelta} 
 }
+$Report | Out-GridView
 $Report | Sort Name | Export-CSV -NoTypeInformation c:\Temp\OldGuestAccounts.csv
