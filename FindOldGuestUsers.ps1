@@ -10,8 +10,9 @@ CLS
 $ProgressDelta = 100/($GuestUsers.Count); $PercentComplete = 0; $GuestNumber = 0
 # Check each account and find those over 365 days old
 ForEach ($Guest in $GuestUsers) {
-   $AADAccountAge = ((Get-AzureADUser -ObjectId $Guest.UserPrincipalName).ExtensionProperty.createdDateTime | New-TimeSpan).Days
-   If ($AADAccountAge -gt 365) {
+   $CreatedDate = ((Get-AzureADUser -ObjectId $Guest.UserPrincipalName).ExtensionProperty.createdDateTime)
+   $AccountAge = ($CreatedDate | New-TimeSpan).Days
+   If ($AccountAge -gt 365) {
       $StaleGuests++; $GuestNumber++
       $CurrentStatus = $Guest.DisplayName + " ["+ $GuestNumber +"/" + $GuestUsers.Count + "]"
       Write-Progress -Activity "Extracting information for guest account" -Status $CurrentStatus -PercentComplete $PercentComplete
@@ -29,8 +30,8 @@ ForEach ($Guest in $GuestUsers) {
       $ReportLine = [PSCustomObject]@{
            UPN     = $Guest.UserPrincipalName
            Name    = $Guest.DisplayName
-           Age     = $AADAccountAge
-           Created = $Guest.RefreshTokensValidFromDateTime  
+           Age     = $AccountAge
+           Created = $CreatedDate
            Groups  = $GroupNames
            DN      = $DN}      
      $Report.Add($ReportLine) }
