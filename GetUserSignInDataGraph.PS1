@@ -1,10 +1,11 @@
 # GetUserSignInDataGraph.PS1
 # A script to fetch user sign-in data from the Microsoft Graph
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetUserSignInDataGraph.PS1
 #
 CLS
 # Define the values applicable for the application used to connect to the Graph (change these for your tenant)
 $AppId = "d716b32c-0edb-48be-9385-30a9cfd96155"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$TenantId = "c662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
 
 # Construct URI and body needed for authentication
