@@ -27,7 +27,7 @@ $headers = @{Authorization = "Bearer $token"}
 
 # Get User sign in data
 Write-Host "Accessing the Graph to get user sign-in data..."
-$URI = "https://graph.microsoft.com/beta/users?`$select=displayName,userPrincipalName, mail, id, CreatedDateTime,signInActivity, UserType"
+$URI = "https://graph.microsoft.com/beta/users?`$select=displayName,userPrincipalName, mail, id, CreatedDateTime, signInActivity, UserType&`$top=999"
 $SignInData = (Invoke-RestMethod -Uri $URI -Headers $Headers -Method Get -ContentType "application/json") 
 $Report = [System.Collections.Generic.List[Object]]::new() 
 
