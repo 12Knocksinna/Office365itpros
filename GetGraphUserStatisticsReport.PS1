@@ -2,7 +2,7 @@
 # A sample script showing how to gather user activity information from the Graph and assemble it into one report
 # V1.0 13-Apr-2020
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1
-
+# Needs the app to be assigned the Graph Reports.Read.All permission. See https://docs.microsoft.com/en-us/graph/permissions-reference
 # Guest user activity is not recorded by the Graph
 
 CLS
