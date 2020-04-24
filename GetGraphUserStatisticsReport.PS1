@@ -1,13 +1,12 @@
 # GetGraphUserStatisticsReport.PS1
 # A sample script showing how to gather user activity information from the Graph and assemble it into one report
-# V1.0 13-Apr-2020
+# V1.0 24-Apr-2020
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1
-# Needs the app to be assigned the Graph Reports.Read.All permission. See https://docs.microsoft.com/en-us/graph/permissions-reference
-# Guest user activity is not recorded by the Graph
+# Note: Guest user activity is not recorded by the Graph only tenant accounts are processed
 
 CLS
 # Define the values applicable for the application used to connect to the Graph (change these for your tenant)
-$AppId = "e716b32c-0edb-48be-9385-30a9cfd96155"
+$AppId = "d716b32c-0edb-48be-9385-30a9cfd96155"
 $TenantId = "c662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
 
@@ -17,7 +16,7 @@ $body = @{
     client_id     = $AppId
     scope         = "https://graph.microsoft.com/.default"
     client_secret = $AppSecret
-    grant_type    = "client_credentials"}
+    grant_type    = "client_credentials" }
 
 # Get OAuth 2.0 Token
 $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
@@ -28,15 +27,17 @@ $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 # Base URL
 $headers = @{Authorization = "Bearer $token"}
 
-Write-Host "Fetching user activity data from the Graph..."
+Write-Host "Fetching Teams user activity data from the Graph..."
 # Get Teams Usage Data
 $TeamsUserReportsURI = "https://graph.microsoft.com/v1.0/reports/getTeamsUserActivityUserDetail(period='D90')"
 $TeamsUserData = (Invoke-RestMethod -Uri $TeamsUserReportsURI -Headers $Headers -Method Get -ContentType "application/json") -replace "ï»¿", "" | ConvertFrom-Csv 
 
+Write-Host "Fetching OneDrive for Business user activity data from the Graph..."
 # Get OneDrive for Business data
 $OneDriveUsageURI = "https://graph.microsoft.com/v1.0/reports/getOneDriveUsageAccountDetail(period='D90')"
 $OneDriveData = (Invoke-RestMethod -Uri $OneDriveUsageURI -Headers $Headers -Method Get -ContentType "application/json") -replace "ï»¿", "" | ConvertFrom-Csv 
  
+Write-Host "Fetching Exchange Online user activity data from the Graph..."
 # Get Exchange Activity Data
 $EmailReportsURI = "https://graph.microsoft.com/v1.0/reports/getEmailActivityUserDetail(period='D90')"
 $EmailData = (Invoke-RestMethod -Uri $EmailReportsURI -Headers $Headers -Method Get -ContentType "application/json") -replace "ï»¿", "" | ConvertFrom-Csv
@@ -45,13 +46,45 @@ $EmailData = (Invoke-RestMethod -Uri $EmailReportsURI -Headers $Headers -Method 
 $MailboxUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getMailboxUsageDetail(period='D90')"
 $MailboxUsage = (Invoke-RestMethod -Uri $MailboxUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -replace "ï»¿", "" | ConvertFrom-Csv
 
+Write-Host "Fetching SharePoint Online user activity data from the Graph..."
 # Get SharePoint usage data
 $SPOUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointActivityUserDetail(period='D90')"
 $SPOUsage = (Invoke-RestMethod -Uri $SPOUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -replace "ï»¿", "" | ConvertFrom-Csv
 
+Write-Host "Fetching Yammer user activity data from the Graph..."
 # Get Yammer usage data
 $YammerUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getYammerActivityUserDetail(period='D90')"
 $YammerUsage = (Invoke-RestMethod -Uri $YammerUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -replace "ï»¿", "" | ConvertFrom-Csv
+
+# Create hash table for user sign in data
+$UserSignIns = @{}
+# Get User sign in data
+Write-Host "Fetching user sign-in data from the Graph..."
+$URI = "https://graph.microsoft.com/beta/users?`$select=displayName,userPrincipalName, mail, id, CreatedDateTime, signInActivity, UserType&`$top=999"
+$SignInData = (Invoke-RestMethod -Uri $URI -Headers $Headers -Method Get -ContentType "application/json") 
+# Update the user sign in hash table
+ForEach ($U in $SignInData.Value) {
+   If ($U.UserType -eq "Member") {
+     If ($U.SignInActivity.LastSignInDateTime) {
+          $LastSignInDate = Get-Date($U.SignInActivity.LastSignInDateTime) -format g
+          $UserSignIns.Add([String]$U.UserPrincipalName, $LastSignInDate) }
+}}
+
+# Do we have extra data to fetch?
+$NextLink = $SignInData.'@Odata.NextLink'
+# If we have a next link, go and process the remaining set of users
+While ($NextLink -ne $Null) { 
+   Write-Host "Still processing..."
+   $SignInData = Invoke-WebRequest -Method GET -Uri $NextLink -ContentType "application/json" -Headers $Headers
+   $SignInData = $SignInData | ConvertFrom-JSon
+   ForEach ($U in $SignInData.Value) {  
+   If ($U.UserType -eq "Member") {
+     If ($U.SignInActivity.LastSignInDateTime) {
+          $LastSignInDate = Get-Date($U.SignInActivity.LastSignInDateTime) -format g
+          $UserSignIns.Add([String]$U.UserPrincipalName, $LastSignInDate) }
+   }}
+   $NextLink = $SignInData.'@Odata.NextLink'
+} # End while
 
 Write-Host "Processing activity data fetched from the Graph..."
 # Create a list file to normalize and assemble the information we've collected from the Graph
@@ -178,7 +211,7 @@ ForEach ($Y in $YammerUsage) {
  
 # Get a list of users to process
 CLS
-$Users = $Report | Sort UPN -Unique | Select -ExpandProperty UPN
+[array]$Users = $Report | Sort UPN -Unique | Select -ExpandProperty UPN
 $ProgressDelta = 100/($Users.Count); $PercentComplete = 0; $UserNumber = 0
 $StartDate = (Get-Date).AddDays(-30); $EndDate = (Get-Date) 
 $OutData = [System.Collections.Generic.List[Object]]::new() # Create merged output file
@@ -236,7 +269,13 @@ ForEach ($U in $Users) {
      $YammerPosts = $YammerData.PostedCount
      $YammerReads = $YammerData.ReadCount
      $YammerLikes = $YammerData.LikedCount }
-     
+  
+# Fetch the sign in data if available
+$LastAccountSignIn = $Null; $DaysSinceSinceIn = 0
+$LastAccountSignIn = $UserSignIns.Item($U)
+If ($LastAccountSignIn -eq $Null) { $LastAccountSignIn = "No sign in data found"; $DaysSinceSignIn = "N/A"}
+  Else { $DaysSinceSignIn = (New-TimeSpan($LastAccountSignIn)).Days }
+   
 # Figure oout if the account is used
 # Base is 2 if someuse uses the five workloads because the Graph is usually 2 days behind, but we have some N/A values for days used
   If ($ExoActiveData.DaysSinceActive -eq "N/A") {$ExoDays = 365} Else {$ExoDays = $ExoActiveData.DaysSinceActive}
@@ -267,6 +306,8 @@ If ((![string]::IsNullOrEmpty($ExoData.UPN))) {
      UPN                     = $ExoData.UPN
      DisplayName             = $ExoData.DisplayName
      Status                  = $AccountStatus
+     LastSignIn              = $LastAccountSignIn
+     DaysSinceSignIn         = $DaysSinceSignIn 
      EXOLastActive           = $ExoLastActive  
      EXODaysSinceActive      = $ExoDays    
      EXOQuotaUsed            = $ExoData.QuotaUsed
