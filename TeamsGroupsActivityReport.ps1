@@ -200,3 +200,4 @@ $htmlreport | Out-File $ReportFile  -Encoding UTF8
 Write-Host $ObsoleteSPOGroups "obsolete group document libraries and" $ObsoleteEmailGroups "obsolete email groups found out of" $Groups.Count "checked"
 Write-Host "Summary report available in" $ReportFile "and CSV file saved in" $CSVFile
 $Report | Export-CSV -NoTypeInformation $CSVFile
+$Report | Out-GridView
