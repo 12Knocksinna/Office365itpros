@@ -8,7 +8,11 @@
 # V2.0 5-Jan-2018
 # V3.0 17-Dec-2018
 # V4.0 11-Jan-2020
-# V4.1 15-Jan-2020  - Better handling of the Team Chat folder.
+# V4.1 15-Jan-2020 Better handling of the Team Chat folder
+# V4.2 30-Apr-2020 Replaced $G.Alias with $G.ExternalDirectoryObjectId. Fixed problem with getting last conversation from Groups where no conversations are present.
+#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
+#
 CLS
 # Check that we are connected to Exchange Online, SharePoint Online, and Teams
 Write-Host "Checking that prerequisite PowerShell modules are loaded..."
@@ -82,8 +86,9 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
 # Group Age
   $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
 # Fetch information about activity in the Inbox folder of the group mailbox  
-   $Data = (Get-MailboxFolderStatistics -Identity $G.Alias -IncludeOldestAndNewestITems -FolderScope Inbox)
-   $LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format g
+   $Data = (Get-MailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestITems -FolderScope Inbox)
+   If ([string]::IsNullOrEmpty($LastConversationDate)) {$LastConversation = "No items found"}           
+   Else {$LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format g }
    $NumberConversations = $Data.ItemsInFolder
    $MailboxStatus = "Normal"
   
@@ -107,11 +112,11 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
       $SPOStorage = [Math]::Round($SpoStorage/1024,2) # SharePoint site storage in GB
       $AuditCheck = $G.SharePointDocumentsUrl + "/*"
       $AuditRecs = 0
-      $AuditRecs = (Search-UnifiedAuditLog -RecordType SharePointFileOperation -StartDate $WarningDate -EndDate $Today -ObjectId $AuditCheck -SessionCommand ReturnNextPreviewPage)
+      $AuditRecs = (Search-UnifiedAuditLog -RecordType SharePointFileOperation -StartDate $WarningDate -EndDate $Today -ObjectId $AuditCheck -ResultSize 1)
       If ($AuditRecs -eq $null) {
          #Write-Host "No audit records found for" $SPOSite.Title "-> Potentially obsolete!"
          $ObsoleteSPOGroups++   
-         $ObsoleteReportLine = $ObsoleteReportLine + " No SPO activity detected in the last 90 days."  }          
+         $ObsoleteReportLine = $ObsoleteReportLine + " No SPO activity detected in the last 90 days." }          
        }
    Else
        {
@@ -146,7 +151,7 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
 # If the group is team-Enabled, find the date of the last Teams conversation compliance record
 If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
       $TeamsEnabled = $True
-      $TeamChatData = (Get-MailboxFolderStatistics -Identity $G.Alias -IncludeOldestAndNewestItems -FolderScope ConversationHistory)
+      $TeamChatData = (Get-MailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestItems -FolderScope ConversationHistory)
    ForEach ($T in $TeamChatData) { # We might have one or two subfolders in Conversation History; find the one for Teams
    If ($T.FolderType -eq "TeamChat") {
       If ($T.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($T.NewestItemReceivedDate) -Format g}
@@ -195,4 +200,3 @@ $htmlreport | Out-File $ReportFile  -Encoding UTF8
 Write-Host $ObsoleteSPOGroups "obsolete group document libraries and" $ObsoleteEmailGroups "obsolete email groups found out of" $Groups.Count "checked"
 Write-Host "Summary report available in" $ReportFile "and CSV file saved in" $CSVFile
 $Report | Export-CSV -NoTypeInformation $CSVFile
-
