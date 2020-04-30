@@ -196,8 +196,17 @@ $htmltail = "<p>Report created for: " + $OrgName + "
 $htmlreport = $htmlhead + $htmlbody + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 
-# Summary note 
-Write-Host $ObsoleteSPOGroups "obsolete group document libraries and" $ObsoleteEmailGroups "obsolete email groups found out of" $Groups.Count "checked"
-Write-Host "Summary report available in" $ReportFile "and CSV file saved in" $CSVFile
 $Report | Export-CSV -NoTypeInformation $CSVFile
 $Report | Out-GridView
+# Summary note
+CLS
+Write-Host " "
+Write-Host "Results"
+Write-Host "-------"
+Write-Host "Number of groups scanned                                        :" $Groups.Count
+Write-Host "Potentially obsolete groups (based on document library activity):" $ObsoleteSPOGroups
+Write-Host "Potentially obsolete groups (based on conversation activity)    :" $ObsoleteEmailGroups
+Write-Host "Number of Teams-enabled groups                                  :" $TeamsList.Count
+Write-Host "Percentage of Teams-enabled groups                              :" ($PercentTeams).tostring("P")
+Write-Host " "
+Write-Host "Summary report in" $ReportFile "and CSV in" $CSVFile
