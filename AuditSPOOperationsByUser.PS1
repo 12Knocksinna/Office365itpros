@@ -3,6 +3,7 @@
 # V1.0 4-May-2020
 # Requires the Exchange Online PowerShell module and/or Azure Active Directory module depending on if you want to
 # report on a tenant mailbox basis or tenant and guest user accounts.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/AuditSPOOperationsByUser.PS1
 
 $StartDate = (Get-Date).AddDays(-7); $EndDate = (Get-Date).AddDays(+1); $DroppedRecords = 0; $StartProcessingTime = (Get-Date)  
 $Operations = @('FileAccessed', 'FileDownloaded', 'FileUpdated', 'FileModified')
