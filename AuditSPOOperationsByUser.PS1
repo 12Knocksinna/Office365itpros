@@ -5,13 +5,29 @@
 # report on a tenant mailbox basis or tenant and guest user accounts.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/AuditSPOOperationsByUser.PS1
 
+Param ([String]$CheckUsers)
+CLS
+# Check do we have the right modules loaded....
+$Module = Get-Module 
+$AzureAD = $Module | ? {$_.Name -like "*AzureAD*"}
+If (!$AzureAD) { Write-Host "This script needs the Azure Active Directory PowerShell module" ; break}
+$Exo = $Module | ? {$_.Name -eq "ExchangeOnlineManagement"}
+If (!$Exo) { Write-Host "This script needs the Exchange Online Management PowerShell module" ; break }
+
+# Check what our parameter is. If no parameter is passed, we check both tenant users and guests. If Tenant is passed, we only check mailbox owners.
+Switch ($CheckUsers) {
+   "Tenant" { # Just check tenant users
+       $Type = "(Mailbox owners)"
+       $Users = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | Select UserPrincipalName,DisplayName }
+     default { #Check everyone
+       $Type = "(Tenant and guest user accounts)"
+       $Users = Get-AzureADUser -All $True -Filter ("UserType eq 'Guest' or UserType eq 'Member'") | Select UserPrincipalName, DisplayName }
+} #End switch
+
+Write-Host $Users.Count "accounts will be checked." $Type
+
 $StartDate = (Get-Date).AddDays(-90); $EndDate = (Get-Date).AddDays(+1); $DroppedRecords = 0; $StartProcessingTime = (Get-Date)  
 $Operations = @('FileAccessed', 'FileDownloaded', 'FileModified', 'FileDeleted', 'FileUploaded')
-CLS
-# Check only tenant users (people with mailboxes)
-$Users = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | Select UserPrincipalName,DisplayName
-# Check guest users too
-# $Users = Get-AzureADUser -All $True -Filter ("UserType eq 'Guest' or UserType eq 'Member'") | Select UserPrincipalName, DisplayName
 # Get a unique session identifier  
 $Sessionid = (New-Guid).Guid 
 $i = 0; $TotalRecordsProcessed = 0
@@ -47,7 +63,7 @@ While ($Records) { #Keep fetching until we have processed all records
           {$AuditData.UserAgent -Like "*Faraday*"} { #Yammer process for uploading and removing files
                 $UserAgent = "Yammer"
                 $Version = $AuditData.UserAgent.Split("v")[1] ; break }
-          {$AuditData.UserAgent -like "*Skydrive*"} { OneDrive for Business
+          {$AuditData.UserAgent -like "*Skydrive*"} { # OneDrive for Business
                 $UserAgent = "OneDrive for Business"
                 $Version = $AuditData.UserAgent.Split("nc ")[5] ; break }
           {$AuditData.UserAgent -like "*Microsoft Office PowerPoint*"} { #Word desktop
