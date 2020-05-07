@@ -213,7 +213,6 @@ ForEach ($Y in $YammerUsage) {
 CLS
 [array]$Users = $Report | Sort UPN -Unique | Select -ExpandProperty UPN
 $ProgressDelta = 100/($Users.Count); $PercentComplete = 0; $UserNumber = 0
-$StartDate = (Get-Date).AddDays(-30); $EndDate = (Get-Date) 
 $OutData = [System.Collections.Generic.List[Object]]::new() # Create merged output file
 
 # Process each user to extract Exchange, Teams, OneDrive, SharePoint, and Yammer statistics for their activity
