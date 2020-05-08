@@ -17,7 +17,7 @@ Else {
 }
 # Download the last seven days of Bing images
 CLS ; For ($i=0; $i -le 7; $i++) {
-  $BingUri = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=$i&n=1&mkt=$Market
+  $BingUri = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=$i&n=1&mkt=$Market"
   $BingResponse = Invoke-WebRequest -Method Get -Uri $BingUri
   $BingContent = ConvertFrom-Json -InputObject $BingResponse.Content # Unpack content
   $BingBackgroundFile = "https://www.bing.com/"+$BingContent.Images.Url
@@ -31,5 +31,5 @@ CLS ; For ($i=0; $i -le 7; $i++) {
          }
      Catch {
         Write-Host "Error occurred when downloading from Bing" }
-     } #End Try
+     } #End If
 } #End loop
