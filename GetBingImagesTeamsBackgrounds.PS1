@@ -1,7 +1,9 @@
 # A script to fetch the daily Bing photo and put it into the Teams background effects folder. Images are fetched for the last
 # seven days. See https://www.codeproject.com/Tips/1044421/Use-Bing-Photo-of-the-Day-in-Your-Application for more information
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetBingImagesTeamsBackgrounds.PS1
+# Define target folder for Teams background effects and Bing market code for the images (could be something like fr-FR for France)
 $TeamsBackgroundFiles = $env:APPDATA + "\Microsoft\Teams\Backgrounds\Uploads\" 
-$Market = "en-US" # Define what Bing market you want to fetch images for
+$Market = "en-US" 
 # Check that the Teams background effects folder exists. If not, create it
 If (-not (Test-Path -LiteralPath $TeamsBackgroundFiles)) {
     Try {
