@@ -22,16 +22,13 @@ $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "applicati
 $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 
 # Base URL
-$uri = "https://graph.microsoft.com/beta/"
+$uri = "https://graph.microsoft.com/beta/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')"
 $headers = @{Authorization = "Bearer $token"}
-$ctype = "application/json"
 
 # Create list of Teams in the tenant
 Write-Host "Fetching list of Teams in the tenant"
-# This call only returns 100 teams
-# $Teams = Invoke-WebRequest -Method GET -Uri "$($uri)groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')" -ContentType $ctype -Headers $headers | ConvertFrom-Json
-# This is how to paginate through and build a hashtable containing all the teams in a tenant using the NextLink
-$Teams = Invoke-WebRequest -Method GET -Uri "$($uri)groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')" -ContentType $ctype -Headers $headers | ConvertFrom-Json
+# Build a hashtable containing the temas. If more than 100 teams exist, fetch and continue processing using the NextLink
+$Teams = Invoke-WebRequest -Method GET -Uri $uri -ContentType "application/json" -Headers $headers | ConvertFrom-Json
 $TeamsHash = @{}
 $Teams.Value.ForEach( {
    $TeamsHash.Add($_.Id, $_.DisplayName) } )
