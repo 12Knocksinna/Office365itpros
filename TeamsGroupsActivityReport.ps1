@@ -57,7 +57,7 @@ $htmlhead="<html>
 	   </style>
 	   <body>
            <div align=center>
-           <p><h1>Office 365 Groups and Teams Activity Report</h1></p>
+           <p><h1>Microsoft 365 Groups and Teams Activity Report</h1></p>
            <p><h3>Generated: " + $date + "</h3></p></div>"
 		
 # Get a list of all Office 365 Groups in the tenant
