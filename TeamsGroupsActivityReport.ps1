@@ -10,6 +10,7 @@
 # V4.0 11-Jan-2020
 # V4.1 15-Jan-2020 Better handling of the Team Chat folder
 # V4.2 30-Apr-2020 Replaced $G.Alias with $G.ExternalDirectoryObjectId. Fixed problem with getting last conversation from Groups where no conversations are present.
+# V4.3 13-May-2020 Fixed bug and removed the need to load the Teams PowerShell module
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -25,11 +26,12 @@ $SPOCheck = Get-Module "Microsoft.Online.SharePoint.PowerShell"
 If ($SPOCheck -eq $Null) {
      Write-Host "Your PowerShell session is not connected to SharePoint Online."
      Write-Host "Please connect to SharePoint Online using an administrative account and retry."; Break }
-$TeamsCheck = Get-Module "MicrosoftTeams"
-If ($TeamsCheck -eq $Null) {
-     Write-Host "Your PowerShell session is not connected to Microsoft Teams."
-     Write-Host "Please connect to Microsoft Teams using an administrative account and retry."; Break }
-       
+# From V4.3 on, we don't load the Teams module because there's a faster way to get a list of Teams and we've fetched the info from Groups
+# $TeamsCheck = Get-Module "MicrosoftTeams"
+#If ($TeamsCheck -eq $Null) {
+#     Write-Host "Your PowerShell session is not connected to Microsoft Teams."
+#     Write-Host "Please connect to Microsoft Teams using an administrative account and retry."; Break }
+              
 # OK, we seem to be fully connected to both Exchange Online and SharePoint Online...
 Write-Host "Checking for Obsolete Office 365 Groups in the tenant:" $OrgName
 
@@ -62,7 +64,8 @@ Write-Host "Extracting list of Office 365 Groups for checking..."
 $Groups = Get-Recipient -RecipientTypeDetails GroupMailbox -ResultSize Unlimited | Sort-Object DisplayName
 # And create a hash table of Teams
 $TeamsList = @{}
-Get-Team | ForEach { $TeamsList.Add($_.GroupId, $_.DisplayName) }
+# Get-Team | ForEach { $TeamsList.Add($_.GroupId, $_.DisplayName) }  # Instead of the call to Get-Team, from V4.3 we do...
+$Groups | ? {$_.ResourceProvisioningOptions -eq "Team"} | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) }  
 CLS
 # Set up progress bar
 $ProgDelta = 100/($Groups.count); $CheckCount = 0; $GroupNumber = 0
@@ -87,7 +90,7 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
   $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
 # Fetch information about activity in the Inbox folder of the group mailbox  
    $Data = (Get-MailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestITems -FolderScope Inbox)
-   If ([string]::IsNullOrEmpty($LastConversationDate)) {$LastConversation = "No items found"}           
+   If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {$LastConversation = "No items found"}         
    Else {$LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format g }
    $NumberConversations = $Data.ItemsInFolder
    $MailboxStatus = "Normal"
