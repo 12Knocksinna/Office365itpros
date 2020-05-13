@@ -66,7 +66,7 @@ $Groups = Get-Recipient -RecipientTypeDetails GroupMailbox -ResultSize Unlimited
 # And create a hash table of Teams
 $TeamsList = @{}
 # Get-Team | ForEach { $TeamsList.Add($_.GroupId, $_.DisplayName) }  # Instead of the call to Get-Team, from V4.3 we do...
-$Groups | ? {$_.ResourceProvisioningOptions -eq "Team"} | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) }  
+Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) }   
 CLS
 # Set up progress bar
 $ProgDelta = 100/($Groups.count); $CheckCount = 0; $GroupNumber = 0
