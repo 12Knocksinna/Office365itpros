@@ -79,7 +79,7 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
    Write-Progress -Activity "Checking group" -Status $GroupStatus -PercentComplete $CheckCount
    $CheckCount += $ProgDelta;  $ObsoleteReportLine = $G.DisplayName;    $SPOStatus = "Normal"
    $SPOActivity = "Document library in use"
-   $NumberWarnings = 0;   $NumberofChats = 0;  $TeamChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "No chats";  $MailboxStatus = $Null
+   $NumberWarnings = 0;   $NumberofChats = 0;  $TeamChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $MailboxStatus = $Null
 # Check who manages the group
   $ManagedBy = $G.ManagedBy
   If ([string]::IsNullOrWhiteSpace($ManagedBy) -and [string]::IsNullOrEmpty($ManagedBy)) {
