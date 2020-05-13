@@ -196,7 +196,9 @@ $htmltail = "<p>Report created for: " + $OrgName + "
              "<p>Number of potentially obsolete groups (based on document library activity): " + $ObsoleteSPOGroups + "</p>" +
              "<p>Number of potentially obsolete groups (based on conversation activity): " + $ObsoleteEmailGroups + "<p>"+
              "<p>Number of Teams-enabled groups    : " + $TeamsList.Count + "</p>" +
-             "<p>Percentage of Teams-enabled groups: " + ($PercentTeams).tostring("P") + "</body></html>"	
+             "<p>Percentage of Teams-enabled groups: " + ($PercentTeams).tostring("P") + "</body></html>" +
+	     "<p>-----------------------------------------------------------------------------------------------------------------------------"+
+             "<p>Microsoft 365 Groups and Teams Activity Report <b>V4.3</b>"	
 $htmlreport = $htmlhead + $htmlbody + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 
