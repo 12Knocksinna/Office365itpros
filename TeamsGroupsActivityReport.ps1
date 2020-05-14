@@ -72,7 +72,7 @@ Write-Host 2
 $TeamsList = @{}
 # Get-Team | ForEach { $TeamsList.Add($_.GroupId, $_.DisplayName) }  # Instead of the call to Get-Team, from V4.3 we do...
 Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) }   
-[int]TeamsCount = $TeamsList.Count
+[int]$TeamsCount = $TeamsList.Count
 CLS
 # Set up progress bar
 $ProgDelta = 100/($GroupsCount); $CheckCount = 0; $GroupNumber = 0
