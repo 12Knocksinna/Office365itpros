@@ -12,6 +12,7 @@
 # V4.1 15-Jan-2020 Better handling of the Team Chat folder
 # V4.2 30-Apr-2020 Replaced $G.Alias with $G.ExternalDirectoryObjectId. Fixed problem with getting last conversation from Groups where no conversations are present.
 # V4.3 13-May-2020 Fixed bug and removed the need to load the Teams PowerShell module
+# V4.4 14-May-2020 Added check to exit script if no Microsoft 365 Groups are found
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -63,19 +64,24 @@ $htmlhead="<html>
 # Get a list of all Office 365 Groups in the tenant
 Write-Host "Extracting list of Office 365 Groups for checking..."
 $Groups = Get-Recipient -RecipientTypeDetails GroupMailbox -ResultSize Unlimited | Sort-Object DisplayName
+[Int]$GroupsCount = $Groups.Count 
+If ($GroupsCount -eq 0) {
+   Write-Host "No Microsoft 365 Groups found; script exiting" ; break}
+Write-Host 2
 # And create a hash table of Teams
 $TeamsList = @{}
 # Get-Team | ForEach { $TeamsList.Add($_.GroupId, $_.DisplayName) }  # Instead of the call to Get-Team, from V4.3 we do...
 Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) }   
+[int]TeamsCount = $TeamsList.Count
 CLS
 # Set up progress bar
-$ProgDelta = 100/($Groups.count); $CheckCount = 0; $GroupNumber = 0
+$ProgDelta = 100/($GroupsCount); $CheckCount = 0; $GroupNumber = 0
 
 # Main loop
 ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Recipient, the first thing is to get the group properties
    $G = Get-UnifiedGroup -Identity $Group.DistinguishedName
    $GroupNumber++
-   $GroupStatus = $G.DisplayName + " ["+ $GroupNumber +"/" + $Groups.Count + "]"
+   $GroupStatus = $G.DisplayName + " ["+ $GroupNumber +"/" + $GroupsCount + "]"
    Write-Progress -Activity "Checking group" -Status $GroupStatus -PercentComplete $CheckCount
    $CheckCount += $ProgDelta;  $ObsoleteReportLine = $G.DisplayName;    $SPOStatus = "Normal"
    $SPOActivity = "Document library in use"
@@ -187,18 +193,24 @@ If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
    $Report.Add($ReportLine)   
 #End of main loop
 }
+
+If ($TeamsCount -gt 0) { # We have some teams, so we can calculate a percentage of Team-enabled groups
+    $PercentTeams = ($TeamsCount/$GroupsCount)
+    $PercentTeams = ($PercentTeams).tostring("P") }
+Else {
+    $PercentTeams = "No teams found" }
+
 # Create the HTML report
-$PercentTeams = ($TeamsList.Count/$Groups.Count)
 $htmlbody = $Report | ConvertTo-Html -Fragment
 $htmltail = "<p>Report created for: " + $OrgName + "
              </p>
-             <p>Number of groups scanned: " + $Groups.Count + "</p>" +
+             <p>Number of groups scanned: " + $GroupsCount + "</p>" +
              "<p>Number of potentially obsolete groups (based on document library activity): " + $ObsoleteSPOGroups + "</p>" +
              "<p>Number of potentially obsolete groups (based on conversation activity): " + $ObsoleteEmailGroups + "<p>"+
-             "<p>Number of Teams-enabled groups    : " + $TeamsList.Count + "</p>" +
-             "<p>Percentage of Teams-enabled groups: " + ($PercentTeams).tostring("P") + "</body></html>" +
+             "<p>Number of Teams-enabled groups    : " + $TeamsCount + "</p>" +
+             "<p>Percentage of Teams-enabled groups: " + $PercentTeams + "</body></html>" +
 	     "<p>-----------------------------------------------------------------------------------------------------------------------------"+
-             "<p>Microsoft 365 Groups and Teams Activity Report <b>V4.3</b>"	
+             "<p>Microsoft 365 Groups and Teams Activity Report <b>V4.4</b>"	
 $htmlreport = $htmlhead + $htmlbody + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 
@@ -209,10 +221,10 @@ CLS
 Write-Host " "
 Write-Host "Results"
 Write-Host "-------"
-Write-Host "Number of groups scanned                                        :" $Groups.Count
+Write-Host "Number of Microsoft 365 Groups scanned                          :" $GroupsCount
 Write-Host "Potentially obsolete groups (based on document library activity):" $ObsoleteSPOGroups
 Write-Host "Potentially obsolete groups (based on conversation activity)    :" $ObsoleteEmailGroups
-Write-Host "Number of Teams-enabled groups                                  :" $TeamsList.Count
-Write-Host "Percentage of Teams-enabled groups                              :" ($PercentTeams).tostring("P")
+Write-Host "Number of Teams-enabled groups                                  :" $TeamsCount
+Write-Host "Percentage of Teams-enabled groups                              :" $PercentTeams
 Write-Host " "
 Write-Host "Summary report in" $ReportFile "and CSV in" $CSVFile
