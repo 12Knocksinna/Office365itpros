@@ -64,7 +64,7 @@ $htmlhead="<html>
 		
 # Get a list of Groups in the tenant
 Write-Host "Extracting list of Microsoft 365 Groups for checking..."
-[Int]$GroupsCount; [int]$TeamsCount; $TeamsList = @{}; $UsedGroups = $False
+[Int]$GroupsCount = 0; [int]$TeamsCount = 0; $TeamsList = @{}; $UsedGroups = $False
 $Groups = Get-Recipient -RecipientTypeDetails GroupMailbox -ResultSize Unlimited | Sort-Object DisplayName
 $GroupsCount = $Groups.Count
 # If we don't find any groups (possible with Get-Recipient on a bad day), try to find them with Get-UnifiedGroup before giving up.
