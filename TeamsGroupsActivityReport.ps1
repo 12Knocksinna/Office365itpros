@@ -1,5 +1,5 @@
 # TeamsGroupsActivityReport.PS1
-# A script to check the activity of Office 365 Groups and Teams and report the groups and teams that might be deleted because they're not used.
+# A script to check the activity of Microsoft 365 Groups and Teams and report the groups and teams that might be deleted because they're not used.
 # We check the group mailbox to see what the last time a conversation item was added to the Inbox folder. 
 # Another check sees whether a low number of items exist in the mailbox, which would show that it's not being used.
 # We also check the group document library in SharePoint Online to see whether it exists or has been used in the last 90 days.
@@ -13,6 +13,7 @@
 # V4.2 30-Apr-2020 Replaced $G.Alias with $G.ExternalDirectoryObjectId. Fixed problem with getting last conversation from Groups where no conversations are present.
 # V4.3 13-May-2020 Fixed bug and removed the need to load the Teams PowerShell module
 # V4.4 14-May-2020 Added check to exit script if no Microsoft 365 Groups are found
+# V4.5 15-May-2020 Some people reported that Get-Recipient is unreliable when fetching Groups, so added code to revert to Get-UnifiedGroup if nothing is returned by Get-Recipient
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -33,9 +34,9 @@ If ($SPOCheck -eq $Null) {
 #If ($TeamsCheck -eq $Null) {
 #     Write-Host "Your PowerShell session is not connected to Microsoft Teams."
 #     Write-Host "Please connect to Microsoft Teams using an administrative account and retry."; Break }
-              
+       
 # OK, we seem to be fully connected to both Exchange Online and SharePoint Online...
-Write-Host "Checking for Obsolete Office 365 Groups in the tenant:" $OrgName
+Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
 
 # Setup some stuff we use
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
@@ -61,18 +62,25 @@ $htmlhead="<html>
            <p><h1>Microsoft 365 Groups and Teams Activity Report</h1></p>
            <p><h3>Generated: " + $date + "</h3></p></div>"
 		
-# Get a list of all Office 365 Groups in the tenant
-Write-Host "Extracting list of Office 365 Groups for checking..."
+# Get a list of Groups in the tenant
+Write-Host "Extracting list of Microsoft 365 Groups for checking..."
+[Int]$GroupsCount = $Groups.Count; [int]$TeamsCount = $TeamsList.Count; $TeamsList = @{}; $UsedGroups = $False
 $Groups = Get-Recipient -RecipientTypeDetails GroupMailbox -ResultSize Unlimited | Sort-Object DisplayName
-[Int]$GroupsCount = $Groups.Count 
-If ($GroupsCount -eq 0) {
-   Write-Host "No Microsoft 365 Groups found; script exiting" ; break}
-Write-Host 2
-# And create a hash table of Teams
-$TeamsList = @{}
-# Get-Team | ForEach { $TeamsList.Add($_.GroupId, $_.DisplayName) }  # Instead of the call to Get-Team, from V4.3 we do...
-Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) }   
-[int]$TeamsCount = $TeamsList.Count
+# If we don't find any groups (possible with Get-Recipient on a bad day), try to find them with Get-UnifiedGroup before giving up.
+If ($GroupsCount -eq 0) { # 
+   Write-Host "Fetching Groups using Get-UnifiedGroup"
+   $Groups = Get-UnifiedGroup -ResultSize Unlimited | Sort-Object DisplayName 
+   $GroupsCount = $Groups.Count; $UsedGroups = $True
+   If ($GroupsCount -eq 0) {
+     Write-Host "No Microsoft 365 Groups found; script exiting" ; break} 
+} # End If
+
+Write-Host "Populating list of Teams..."
+If ($UsedGroups -eq $False) { # Populate the Teams hash table with a call to Get-UnifiedGroup
+   Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) } }
+Else { # We already have the $Groups variable populated with data, so extract the Teams from that data
+   $Groups | ? {$_.ResourceProvisioningOptions -eq "Team"} | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) } }
+
 CLS
 # Set up progress bar
 $ProgDelta = 100/($GroupsCount); $CheckCount = 0; $GroupNumber = 0
@@ -97,7 +105,7 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
   $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
 # Fetch information about activity in the Inbox folder of the group mailbox  
    $Data = (Get-MailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestITems -FolderScope Inbox)
-   If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {$LastConversation = "No items found"}         
+   If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {$LastConversation = "No items found"}           
    Else {$LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format g }
    $NumberConversations = $Data.ItemsInFolder
    $MailboxStatus = "Normal"
@@ -209,11 +217,10 @@ $htmltail = "<p>Report created for: " + $OrgName + "
              "<p>Number of potentially obsolete groups (based on conversation activity): " + $ObsoleteEmailGroups + "<p>"+
              "<p>Number of Teams-enabled groups    : " + $TeamsCount + "</p>" +
              "<p>Percentage of Teams-enabled groups: " + $PercentTeams + "</body></html>" +
-	     "<p>-----------------------------------------------------------------------------------------------------------------------------"+
-             "<p>Microsoft 365 Groups and Teams Activity Report <b>V4.4</b>"	
+             "<p>-----------------------------------------------------------------------------------------------------------------------------"+
+             "<p>Microsoft 365 Groups and Teams Activity Report <b>V4.5</b>"	
 $htmlreport = $htmlhead + $htmlbody + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
-
 $Report | Export-CSV -NoTypeInformation $CSVFile
 $Report | Out-GridView
 # Summary note
@@ -224,7 +231,7 @@ Write-Host "-------"
 Write-Host "Number of Microsoft 365 Groups scanned                          :" $GroupsCount
 Write-Host "Potentially obsolete groups (based on document library activity):" $ObsoleteSPOGroups
 Write-Host "Potentially obsolete groups (based on conversation activity)    :" $ObsoleteEmailGroups
-Write-Host "Number of Teams-enabled groups                                  :" $TeamsCount
+Write-Host "Number of Teams-enabled groups                                  :" $TeamsList.Count
 Write-Host "Percentage of Teams-enabled groups                              :" $PercentTeams
 Write-Host " "
 Write-Host "Summary report in" $ReportFile "and CSV in" $CSVFile
