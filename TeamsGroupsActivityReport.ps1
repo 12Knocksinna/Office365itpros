@@ -64,8 +64,9 @@ $htmlhead="<html>
 		
 # Get a list of Groups in the tenant
 Write-Host "Extracting list of Microsoft 365 Groups for checking..."
-[Int]$GroupsCount = $Groups.Count; [int]$TeamsCount = $TeamsList.Count; $TeamsList = @{}; $UsedGroups = $False
+[Int]$GroupsCount; [int]$TeamsCount; $TeamsList = @{}; $UsedGroups = $False
 $Groups = Get-Recipient -RecipientTypeDetails GroupMailbox -ResultSize Unlimited | Sort-Object DisplayName
+$GroupsCount = $Groups.Count
 # If we don't find any groups (possible with Get-Recipient on a bad day), try to find them with Get-UnifiedGroup before giving up.
 If ($GroupsCount -eq 0) { # 
    Write-Host "Fetching Groups using Get-UnifiedGroup"
@@ -80,6 +81,7 @@ If ($UsedGroups -eq $False) { # Populate the Teams hash table with a call to Get
    Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) } }
 Else { # We already have the $Groups variable populated with data, so extract the Teams from that data
    $Groups | ? {$_.ResourceProvisioningOptions -eq "Team"} | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) } }
+$TeamsCount = $TeamsList.Count
 
 CLS
 # Set up progress bar
