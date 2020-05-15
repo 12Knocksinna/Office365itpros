@@ -10,6 +10,7 @@
 #    .\ConvertDLtoO365Group -InputGroup Managers
 #
 #  First rudimentary version: 12-May-2015  Tony Redmond
+#  Moved to GitHub from the TechnNet Gallery in May 2020
 #
 
 param(
