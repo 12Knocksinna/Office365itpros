@@ -1,8 +1,10 @@
 # GetPlansForUser-DeviceCode.PS1
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GetPlansForUser-DeviceCode.PS1
 # Sample script to show how to use the Graph to create a report of the Planner plans a user has access to using delegated permissions with a device code
-# Get User to check from a credential object
-$User = $O365Cred.UserName 
+
+# Get the user we're going to use to get plans
+$UserCredential = Get-Credential -Message "Enter credentials for the account you want to use to fetch Plan information"
+$User = $UserCredential.UserName
 
 # Application (client) ID, tenant ID, resource and scope
 $ClientID = "ded88173-911c-42a5-892b-26d7bea4c788" #GetPlansV2
@@ -73,6 +75,9 @@ While ($NextLink -ne $Null) {
 CLS
 # We now have a list of Microsoft 365 Groups that the user belongs to, so we can check
 # the groups to find out which have plans and report details of the plans we find.
+$Activity = "Checking Plans for " + $User
+$Report = [System.Collections.Generic.List[Object]]::new(); $PlanNumber = 0
+$i = 0; $GroupCount = $GroupsMemberOf.Count
 ForEach ($Group in $GroupsMemberOf) {
   $i++
   $ProgressBar = "Processing group " + $Group.Name + " (" + $i + " of " + $GroupCount + ")"
