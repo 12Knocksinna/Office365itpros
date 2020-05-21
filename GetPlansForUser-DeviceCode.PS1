@@ -1,4 +1,5 @@
 # GetPlansForUser-DeviceCode.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetPlansForUser-DeviceCode.PS1
 # Sample script to show how to use the Graph to create a report of the Planner plans a user has access to using delegated permissions with a device code
 # Get User to check from a credential object
 $User = $O365Cred.UserName 
