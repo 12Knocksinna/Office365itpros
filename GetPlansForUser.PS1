@@ -1,4 +1,5 @@
 # GetPlansForUser.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetPlansForUser.PS1
 # Sample script to show how to use the Graph to create a report of the Planner plans a user has access to using delegated permissions.
 # Picks up the currently signed in user
 $AuthContext = New-Object "Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContext" -ArgumentList "https://login.windows.net/redmondassociates.onmicrosoft.com"
