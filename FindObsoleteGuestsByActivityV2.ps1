@@ -1,5 +1,7 @@
 # Version 2 of the script to perform an activity-based analysis of AAD Guest User Accounts and report/highlight
 # accounts that aren't being used.  Modules used are Azure AD (V2) and Exchange Online
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindObsoleteGuestsByActivityV2.ps1
+# 
 # Start by finding all Guest Accounts
 $Guests = (Get-AzureADUser -Filter "UserType eq 'Guest'" -All $True| Select Displayname, UserPrincipalName, Mail, ObjectId)
 Write-Host $Guests.Count "guest accounts found. Checking their activity..."
