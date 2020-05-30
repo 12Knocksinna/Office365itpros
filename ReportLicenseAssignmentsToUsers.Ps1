@@ -1,26 +1,45 @@
-# Create report of licenses assigned to users in a tenant
+# Report license assignments to users 
+# Uses Microsoft Online Services Module
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportLicenseAssignmentsToUsers.Ps1
+If (-Not (Get-Module -Name MsOnline)) {
+   Write-Host "Please run Connect-MSOnline before attempting to run this script"; break }
 
-$Report = @() 
+$Report = [System.Collections.Generic.List[Object]]::new()
 $Users = Get-MsolUser -All | where {$_.isLicensed -eq $true}
 Write-Host "Processing Users"
 ForEach ($User in $Users) {
    $SKUs = @(Get-MsolUser -UserPrincipalName $User.UserPrincipalName | Select -ExpandProperty Licenses)
-   ForEach ($Sku in $Skus) {   
+   ForEach ($Sku in $Skus) {  
+   $Sku = $Sku.AccountSkuId.Split(":")[1]
+   Switch ($Sku) {
+    "EMSPREMIUM" { $License = "Enterprise Mobility & Security E5" }
+    "ENTERPRISEPACK" { $License = "Office 365 E3" }
+    "ENTERPRISEPREMIUM_NOPSTNCONF" { $License = "Office 365 E5 No PSTN" }
+    "FLOW_FREE" { $License = "Power Automate" }
+    "POWER_BI_STANDARD" { $License = "Power BI" }
+    "RIGHTSMANAGEMENT_ADHOC" { $License = "Rights Management" }
+    "SMB_APPS" { $License = "Business Apps" }
+    "STREAM"  { $License = "Microsoft Stream"}
+    "WIN_DEF_ATP" { $License = "Windows Defender ATP" }
+    default   { $License = "Unknown license" }
+   } #End Switch 
    $ReportLine = [PSCustomObject][Ordered]@{ 
         User       = $User.UserPrincipalName
-        SKU        = $Sku.AccountSkuId.Split(":")[1]
+        SKU        = $Sku
+        License    = $License
         Name       = $User.DisplayName
         Title      = $User.Title
         City       = $User.City
         Country    = $User.UsageLocation
         Department = $User.Department
         CreatedOn  = Get-Date($User.WhenCreated) -Format g} 
-   $Report += $ReportLine }
+   $Report.Add($ReportLine) }
 }
 Cls
 Write-Host "License information"
-$Groupdata = $Report | Group-Object -Property SKU
-$Groupdata | Sort Count -Descending | Select Name, Count
+Write-Host "-------------------"
+$Groupdata = $Report | Group-Object -Property License | Sort Count -Descending | Select Name, Count
+$GroupData
 # Set sort properties so that we get ascending sorts for one property after another
 $Sort1 = @{Expression='SKU'; Ascending=$true }
 $Sort2 = @{Expression='Name'; Ascending=$true }
