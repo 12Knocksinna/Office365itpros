@@ -1,4 +1,6 @@
 # Script to report active Teams
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportActiveTeams.ps1
+# For Chapter 13 of Office 365 for IT Pros
 Write-Host "Fetching list of teams..."
 $Teams = (Get-Team)
 Write-Host "Starting to process" $Teams.Count "teams"
