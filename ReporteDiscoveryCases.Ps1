@@ -50,9 +50,9 @@ ForEach ($Case in $Cases) {
       $ReportLine = [PSCustomObject]@{
            Case           = $Case.Name
            Status         = $Case.Status
-           Created        = $Case.CreatedDateTime
+           Created        = Get-Date ($Case.CreatedDateTime) -format g
            ClosedBy       = $Case.ClosedBy
-           Closed         = $Case.ClosedDateTime
+           Closed         = Get-Date($Case.ClosedDateTime) -format g
            Members        = $Names
            Hold           = $Hold.Name
            HoldEnabled    = $Hold.Enabled
@@ -62,8 +62,8 @@ ForEach ($Case in $Cases) {
            MailboxCount   = $CountMbx
            SPOSites       = ($Hold.SharePointLocation.Name) -Join ","
            Query          = $HoldRule.ContentMatchQuery
-           HoldCreated    = $HoldRule.WhenCreatedUTC
-           HoldModifued   = $HoldRule.WhenChangedUTC }
+           HoldCreated    = Get-Date($HoldRule.WhenCreatedUTC) -format g
+           HoldModifued   = Get-Date($HoldRule.WhenChangedUTC) -format g }
         $Report.Add($ReportLine)  
    }
 }}
