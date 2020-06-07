@@ -1,4 +1,5 @@
 # Report eDiscovery Cases
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReporteDiscoveryCases.Ps1
 # Used in Chapter 20 of Office 365 for IT Pros
 $ClosedCases = 0 ;$ActiveHolds = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
