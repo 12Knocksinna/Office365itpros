@@ -1,5 +1,6 @@
 # ReportActivityAlertAuditEvents.PS1
 # Used as an example in Chapter 20 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportActivityAlertAuditEvents.PS1
 $Records = (Search-UnifiedAuditLog Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-90) -EndDate (Get-Date).AddDays(+1) -RecordType SecurityComplianceAlerts -Formatted -ResultSize 3000)
 If ($Records.Count -eq 0) {
    Write-Host "No alert audit records found." }
