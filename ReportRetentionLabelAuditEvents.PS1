@@ -1,4 +1,5 @@
 # ReportRetentionLabelsAuditEvents.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportRetentionLabelAuditEvents.PS1
 # Example used in Chapter 20 of how to find and report retention labels assigned to documents.
 $Records = (Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-90) -EndDate (Get-Date).AddDays(+1) -Operations "TagApplied" -Formatted -ResultSize 2000)
 If ($Records.Count -eq 0) {
