@@ -1,4 +1,6 @@
 # ReportSendAsAuditEvents.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSendAsAuditEvents.PS1
+# Example used in Chapter 20 of Office 365 for IT Pros to illustrate how to find and report SendAs audit events
 # First populate the Recipients Hash Table with user mailboxes, group mailboxes, and shared mailboxes
 CLS
 Write-Host "Populating Recipients Table..."
