@@ -9,20 +9,20 @@ $Records = (Search-UnifiedAuditLog -Operations StreamDeleteVideo -StartDate $Sta
 If ($Records.Count -eq 0) {
     Write-Host "No audit records for Stream video uploads found." }
 Else {
-    Write-Host "Processing" $Records.Count "audit records..."
+       Write-Host "Processing" $Records.Count "audit records..."
     $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
     # Scan each audit record to extract information
     ForEach ($Rec in $Records) {
       $AuditData = ConvertFrom-Json $Rec.Auditdata
       $DaysElapsed = ($EndDate - (Get-Date($AuditData.CreationTime)))
         $ReportLine = [PSCustomObject] @{
-           TimeStamp             = Get-Date($AuditData.CreationTime) -format g
            User                  = $AuditData.UserId
+           "Video Name"          = ($AuditData.OperationDetails  | ConvertFrom-Json).Name
            Action                = "Deleted Video"
-           VideoURL              = $AuditData.EntityPath
+           "Deleted on"          = Get-Date($AuditData.CreationTime) -format g
            "Days Since Deletion" = $DaysElapsed.Days
-           "Days Remaining"      = (30 - $DaysElapsed.Days)
-           "Video Name"          = ($AuditData.OperationDetails  | ConvertFrom-Json).Name  }
+           "Days Remaining"      = (30 - $DaysElapsed.Days)          
+           "Video Identifier"    = $AuditData.EntityPath  }
       $Report.Add($ReportLine) } }
 CLS
 Write-Host "Report produced - emailing it to the Administrator account"
@@ -54,11 +54,11 @@ $HtmlReport | Out-File $HtmlReportFile -Encoding UTF8
 # Import into email body
 $HtmlMsg =  Get-Content $HtmlReportFile
 $MsgFrom = $O365Cred.UserName ; $SmtpServer = "smtp.office365.com" ; $SmtpPort = '587'
-# Construct the message parameters and send it off...  Make sure that you complete the proper email addresses for the sending
-# and receiving mailboxes.
+$MsgTo = ("Administrator@domain.com", "Tony.Redmond@domain.com Change this to add your own set of addressees
+# Construct the message parameters and send it off...
     $MsgParam = @{
-      To = "Administrator"
-       From = "Administrator"
+      To = $MsgTo
+       From = $MsgFrom
        Subject = "Deleted Stream Videos in Recycle Bin"
        Body = $HtmlReport
        SmtpServer = $SmtpServer
