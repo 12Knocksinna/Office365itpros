@@ -1,6 +1,7 @@
 # SendMessageAboutDeletedStreamVideos.PS1
 # A script to show how to report videos waiting in the Stream recycle bin and send the report to an administrator account
 # V1.0 10-June-2020
+# https://github.com/12Knocksinna/Office365itpros/blob/master/SendMessageAboutDeletedStreamVideos.PS1
 
 $StartDate = (Get-Date).AddDays(-30); $EndDate = (Get-Date) 
 $HTMLReportFile = "c:\temp\StreamDeletedVideos.html" 
@@ -53,10 +54,11 @@ $HtmlReport | Out-File $HtmlReportFile -Encoding UTF8
 # Import into email body
 $HtmlMsg =  Get-Content $HtmlReportFile
 $MsgFrom = $O365Cred.UserName ; $SmtpServer = "smtp.office365.com" ; $SmtpPort = '587'
-# Construct the message parameters and send it off...
+# Construct the message parameters and send it off...  Make sure that you complete the proper email addresses for the sending
+# and receiving mailboxes.
     $MsgParam = @{
-      To = "Administrator@office365itpros.com"
-       From = "Administrator@Office365itpros.com"
+      To = "Administrator"
+       From = "Administrator"
        Subject = "Deleted Stream Videos in Recycle Bin"
        Body = $HtmlReport
        SmtpServer = $SmtpServer
