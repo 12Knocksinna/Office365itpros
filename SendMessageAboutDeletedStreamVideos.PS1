@@ -1,7 +1,17 @@
 # SendMessageAboutDeletedStreamVideos.PS1
 # A script to show how to report videos waiting in the Stream recycle bin and send the report to an administrator account
-# V1.0 10-June-2020
+# V1.1 11-June-2020
 # https://github.com/12Knocksinna/Office365itpros/blob/master/SendMessageAboutDeletedStreamVideos.PS1
+#
+# Make sure that we have credentials to send the message
+If (!$O365Cred) {$O365Cred = Get-Credential}
+
+# And that we're connected to Exchange Online
+Try { $OrgName = (Get-OrganizationConfig).Name }
+   Catch  {
+      Write-Host "Your PowerShell session is not connected to Exchange Online."
+      Write-Host "Please connect to Exchange Online using an administrative account and retry."
+      Break }
 
 $StartDate = (Get-Date).AddDays(-30); $EndDate = (Get-Date) 
 $HTMLReportFile = "c:\temp\StreamDeletedVideos.html" 
@@ -54,7 +64,7 @@ $HtmlReport | Out-File $HtmlReportFile -Encoding UTF8
 # Import into email body
 $HtmlMsg =  Get-Content $HtmlReportFile
 $MsgFrom = $O365Cred.UserName ; $SmtpServer = "smtp.office365.com" ; $SmtpPort = '587'
-$MsgTo = ("Administrator@domain.com", "Tony.Redmond@domain.com Change this to add your own set of addressees
+$MsgTo = ("Administrator@domain.com", "Tony.Redmond@domain.com") Change this to add your own set of addressees
 # Construct the message parameters and send it off...
     $MsgParam = @{
       To = $MsgTo
