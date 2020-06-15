@@ -351,4 +351,4 @@ If ((![string]::IsNullOrEmpty($ExoData.UPN))) {
 Write-Host "Data processed for" $Users.Count "users"
 
 $OutData | Sort {$_.ExoLastActive -as [DateTime]} -Descending | Out-GridView  
-$OutData | Sort $AccountStatus | Export-CSV c:\temp\Office365TenantUsage.csv
+$OutData | Sort $AccountStatus | Export-CSV c:\temp\Office365TenantUsage.csv -NoTypeInformation
