@@ -1,4 +1,5 @@
 # GetHoldsOnMailbox.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetHoldsOnMailbox.PS1
 # Example used in Chapter 19 of Office 365 for IT Pros.
 # Takes holds in place for a mailbox and interprets them
 # Needs a connection to both Exchange Online and the Compliance Center endpoint.
@@ -26,10 +27,11 @@ If ($OrgHolds.Count -gt 0) {
 $MbxHolds = $Mbx.InPlaceHolds
 If ($MbxHolds.Count -gt 0) {
    Write-Host ""
-   Write-Host "The following specific holds are in place on the mailbox..."
+   Write-Host "The following specific holds are in place on the" $Mbx.DisplayName "mailbox..."
    ForEach ($MHold in $MbxHolds) { 
    $RetentionPolicy = (($MHold -Split ":")[0].Substring(3))
    $HoldType = $MHold.Substring(0,3)
+   $Text = $Null
    Switch ($HoldType)
      {
        "grp" {$Type = "Groups"}
@@ -37,11 +39,13 @@ If ($MbxHolds.Count -gt 0) {
        "uni" {$Type = "Unified Hold" 
               $CaseHold = $RetentionPolicy.SubString(1)
               $Text = (Get-CaseHoldPolicy -Identity $CaseHold -ErrorAction SilentlyContinue).Name
-              Write-Host "eDiscovery Case:" $Text  }
+              If ($Text -ne $Null) {Write-Host "Hold Applied by:" $Text}  }
        "mbx" {$Type = "Mailbox"
-              Get-RetentionCompliancePolicy -Identity $RetentionPolicy | Select Name, Workload }
+              $Text = (Get-RetentionCompliancePolicy -Identity $RetentionPolicy | Select Name, Workload)
+              Write-Host "Hold Applied by:" $Text.Name "on" $Text.Workload }
       }
     # There might be an old Exchange in place hold...
+
     $int = $Mhold.substring(0,1)
     If ([bool]($int -as [int]) -eq $True)
     {  $Text = (Get-MailboxSearch -InPlaceHoldIdentity $MHold -ErrorAction SilentlyContinue).Name
