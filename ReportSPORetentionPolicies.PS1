@@ -57,4 +57,5 @@ ForEach ($P in $Policies) {
                $Report.Add($ReportLine)}                    
           }
 }
-$Report | Sort SiteName| Format-Table PolicyName, SiteName, RetentionDuration, RetentionAction, Settings -AutoSize
+$Policy = @{e={$_.PolicyName}; l= "Policy";width=30}
+$Report | Sort SiteName | Format-Table $Policy, @{e={$_.SiteName};l="Site"}, @{e={$_.RetentionDuration};l="Duration"}, @{e={$_.RetentionAction};l="Action"} -AutoSize
