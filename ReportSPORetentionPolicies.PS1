@@ -1,6 +1,6 @@
 # ReportSPORetentionPolicies.PS1
 # Example for Chapter 19 of Office 365 for IT Pros
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSPORetentionPolicies.PS1
 # Must connect to the Compliance Center endpoint to make this script work!
 $Report = [System.Collections.Generic.List[Object]]::new()
 # Fetch a set of retention policies that apply to SharePoint and aren't to publish labels
