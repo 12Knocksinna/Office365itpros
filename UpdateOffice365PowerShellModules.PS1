@@ -1,5 +1,9 @@
 # UpdateOffice365PowerShellModules.PS1
 # Mentioned in Chapter 4 of Office 365 for IT Pros
+# https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateOffice365PowerShellModules.PS1
+# Very simple script to check for updates to a defined set of PowerShell modules used to manage Office 365 services
+# If an update for a module is found, it is downloaded and applied.
+# Once all modules are checked for updates, we remove older versions that might be present on the workstation
 #
 # Define the set of modules installed and updated from the PowerShell Gallery that we want to maintain
 $O365Modules = @("MicrosoftTeams", "MSOnline", "AzureADPreview", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA")
