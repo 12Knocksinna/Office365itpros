@@ -1,4 +1,5 @@
 # GetLastActiveTimeMailboxes.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetLastActiveTimeMailboxes.PS1
 # Report last active time for mailboxes
 # Example script from Chapter 5 of Office 365 for IT Pros
 
