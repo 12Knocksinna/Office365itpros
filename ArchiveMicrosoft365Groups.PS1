@@ -76,3 +76,4 @@ Foreach ($Group in $ArchiveGroups) {
 }
 
 $Report | Out-GridView
+$Report | Export-CSV -NoTypeInformation c:\temp\ArchivedGroups.csv
