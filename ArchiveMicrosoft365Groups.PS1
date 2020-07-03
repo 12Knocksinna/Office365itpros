@@ -49,8 +49,7 @@ Foreach ($Group in $ArchiveGroups) {
 
 # Create SMTP Address for the archived group
   $OldSmtpAddress = $Group.PrimarySmtpAddress # Just for reporting
-  $SmtpAddress = $Group.PrimarySmtpAddress -Split "@"
-  $NewSmtpAddress = $SmtpAddress[0] +  "_archived" + "@" + $SmtpAddress[1]
+  $NewSmtpAddress = $Group.PrimarySmtpAddress.Split("@")[0] +  "_archived" + "@" + $Group.PrimarySmtpAddress.Split("@")[1]
   $AddressRemove = "smtp:"+ $Group.PrimarySmtpAddress
 
 # Update the archive info for the group… $O365Cred is a credentials object that we fetch 
