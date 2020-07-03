@@ -8,6 +8,14 @@ Write-Host "Preparing to archive" $ArchiveGroups.Count "Microsoft 365 Groups"
 # Find list of groups to be archived
 $ArchiveGroups = Get-UnifiedGroup -Filter {CustomAttribute1 -eq "Archive"} -ResultSize 1000 | Select DisplayName, DistinguishedName, Alias, PrimarySmtpAddress, SensitivityLabel
 
+# If you don't want to use custom attributes to mark groups to be archived, you can export the groups to a CSV file
+# review them with Excel, remove groups that you don't want to archive, and use the remaining set as the input to the
+# script. To do this, create the CSV file with:
+# $Groups = Get-UnifiedGroup -ResultSize Unlimited | Select DisplayName, Notes, DistinguishedName, Alias, PrimarySmtpAddress, SensitivityLabel
+# $Groups | Sort DisplayName | Export-CSV -NoTypeInformation c:\temp\GroupsForReview.CSV
+# and after the review is done, replace the call to Get-UnifiedGroup above with:
+# $ArchiveGroups = Import-CSV c:\temp\GroupsForReview.CSV
+
 If ($ArchiveGroups.Count -eq 0) {
     Write-Host "No groups found to archive"; break}
 
