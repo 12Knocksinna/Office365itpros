@@ -272,7 +272,7 @@ ForEach ($U in $Users) {
      $YammerLikes = $YammerData.LikedCount }
   
 # Fetch the sign in data if available
-$LastAccountSignIn = $Null; $DaysSinceSinceIn = 0
+$LastAccountSignIn = $Null; $DaysSinceSignIn = 0
 $LastAccountSignIn = $UserSignIns.Item($U)
 If ($LastAccountSignIn -eq $Null) { $LastAccountSignIn = "No sign in data found"; $DaysSinceSignIn = "N/A"}
   Else { $DaysSinceSignIn = (New-TimeSpan($LastAccountSignIn)).Days }
