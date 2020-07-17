@@ -3,15 +3,16 @@
 # A script to process a set of Microsoft 365 Groups and Archive them so that the information is kept and available
 # online for eDiscovery but can't be accessed nby users
 # Uses the Exchange Online Module. Must be run by a tenant admin.
+# Also needs the Microsoft Teams module to check for private channels - updated 17-Jul-2020
 
 Write-Host "Preparing to archive" $ArchiveGroups.Count "Microsoft 365 Groups"
 # Find list of groups to be archived
-$ArchiveGroups = Get-UnifiedGroup -Filter {CustomAttribute1 -eq "Archive"} -ResultSize 1000 | Select DisplayName, DistinguishedName, Alias, PrimarySmtpAddress, SensitivityLabel
+$ArchiveGroups = Get-UnifiedGroup -Filter {CustomAttribute1 -eq "Archive"} -ResultSize 1000 | Select DisplayName, DistinguishedName, Alias, PrimarySmtpAddress, SensitivityLabel, ExternalDirectoryObjectId
 
 # If you don't want to use custom attributes to mark groups to be archived, you can export the groups to a CSV file
 # review them with Excel, remove groups that you don't want to archive, and use the remaining set as the input to the
 # script. To do this, create the CSV file with:
-# $Groups = Get-UnifiedGroup -ResultSize Unlimited | Select DisplayName, Notes, DistinguishedName, Alias, PrimarySmtpAddress, SensitivityLabel
+# $Groups = Get-UnifiedGroup -ResultSize Unlimited | Select DisplayName, Notes, DistinguishedName, Alias, PrimarySmtpAddress, SensitivityLabel, ExternalDirectoryObjectId
 # $Groups | Sort DisplayName | Export-CSV -NoTypeInformation c:\temp\GroupsForReview.CSV
 # and after the review is done, replace the call to Get-UnifiedGroup above with:
 # $ArchiveGroups = Import-CSV c:\temp\GroupsForReview.CSV
@@ -41,7 +42,23 @@ Foreach ($Group in $ArchiveGroups) {
 # Add the administrator as an owner
   Add-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Members -Links $AdminAccount
   Add-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Owners -Links $AdminAccount
-# Remove the other members and owners
+
+# Need to check if the group is team-enabled
+  Try {
+      $Team = Get-Team -GroupId $Group.ExternalDirectoryObjectId }
+  Catch
+      { $Status = 0 }
+
+  If ($Team) { # Check channels
+     $TeamChannels = Get-TeamChannel -GroupId $Group.ExternalDirectoryObjectId -Membershiptype Private 
+     If ($TeamChannels) { # Add compliance admin as a member and owener for each private channel
+        ForEach ($Channel in $TeamChannels) {
+           Add-TeamChannelUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -DisplayName $Channel.DisplayName
+           Add-TeamChannelUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -DisplayName $Channel.DisplayName -Role Owner }
+     } #End if
+   } #End if 
+
+# Remove the existing members and owners (all except the $AdminOwner)
   ForEach ($Owner in $CurrentOwners) { 
         Remove-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Owners -Links $Owner.Name -Confirm:$False }
   ForEach ($Member in $CurrentMembers) { 
