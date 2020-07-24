@@ -1,9 +1,22 @@
-# ArchiveMicrosoft365Groups.PS1
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ArchiveMicrosoft365Groups.PS1
 # A script to process a set of Microsoft 365 Groups and Archive them so that the information is kept and available
 # online for eDiscovery but can't be accessed nby users
 # Uses the Exchange Online Module. Must be run by a tenant admin.
 # Also needs the Microsoft Teams module to check for private channels - updated 17-Jul-2020
+
+# Check that we're connected to Exchange Online and Teams
+Write-Host "Checking that prerequisite PowerShell modules are loaded..."
+Try { $OrgName = (Get-OrganizationConfig).Name }
+   Catch  {
+      Write-Host "Your PowerShell session is not connected to Exchange Online."
+      Write-Host "Please connect to Exchange Online using an administrative account and retry."
+      Break }
+
+$TeamsCheck = Get-Module -Name MicrosoftTeams
+If ($TeamsCheck -eq $Null) {
+     Write-Host "Your PowerShell session is not connected to Microsoft Teams."
+     Write-Host "Please connect to Microsoft Teams using an administrative account and retry."; Break }
+
 
 Write-Host "Preparing to archive" $ArchiveGroups.Count "Microsoft 365 Groups"
 # Find list of groups to be archived
@@ -35,34 +48,40 @@ Foreach ($Group in $ArchiveGroups) {
   $CurrentStatus = $Group.DisplayName + " ["+ $GroupNumber +"/" + $ArchiveGroups.Count + "]"
   Write-Progress -Activity "Archiving Microsoft 365 Group" -Status $CurrentStatus -PercentComplete $PercentComplete
   $PercentComplete += $ProgressDelta
-
-# Get lists of current owners and members
-  $CurrentOwners = (Get-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Owners | Select Name)
-  $CurrentMembers = (Get-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Members | Select Name)
-# Add the administrator as an owner
-  Add-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Members -Links $AdminAccount
-  Add-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Owners -Links $AdminAccount
-
 # Need to check if the group is team-enabled
   Try {
       $Team = Get-Team -GroupId $Group.ExternalDirectoryObjectId }
   Catch
       { $Status = 0 }
 
-  If ($Team) { # Check channels
-     $TeamChannels = Get-TeamChannel -GroupId $Group.ExternalDirectoryObjectId -Membershiptype Private 
-     If ($TeamChannels) { # Add compliance admin as a member and owener for each private channel
-        ForEach ($Channel in $TeamChannels) {
-           Add-TeamChannelUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -DisplayName $Channel.DisplayName
-           Add-TeamChannelUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -DisplayName $Channel.DisplayName -Role Owner }
-     } #End if
-   } #End if 
-
-# Remove the existing members and owners (all except the $AdminOwner)
+# Get lists of current owners and members and add the compliance admin as an owner, then remove the existing owners and members
+If ($Team) { # This group is team-enabled, so we process membership details with Teams cmdlets
+   $CurrentOwners = Get-TeamUser -GroupId $Group.ExternalDirectoryObjectId -Role Owner
+   $CurrentMembers = Get-TeamUser -GroupId $Group.ExternalDirectoryObjectId -Role Member
+   Add-TeamUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -Role Owner
+   Start-Sleep -Seconds 2 # Let membership settle down
+   $TeamChannels = Get-TeamChannel -GroupId $Group.ExternalDirectoryObjectId -Membershiptype Private 
+   If ($TeamChannels) { # Add compliance admin as a member and owener for each private channel
+       ForEach ($Channel in $TeamChannels) {
+         Add-TeamChannelUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -DisplayName $Channel.DisplayName
+         Add-TeamChannelUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -DisplayName $Channel.DisplayName -Role Owner }
+    } #End TeamChannel If
+   ForEach ($Owner in $CurrentOwners) { 
+      Remove-TeamUser -GroupId $Group.ExternalDirectoryObjectId -User $Owner.User }
+   ForEach ($Member in $CurrentMembers) { 
+      Remove-TeamUser -GroupId $Group.ExternalDirectoryObjectId -User $Member.User }
+} # End If to process group using Teams cmdlets
+Else { # it's a normal group, so use the EXO cmdlets to update group membership
+  $CurrentOwners = (Get-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Owners | Select Name)
+  $CurrentMembers = (Get-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Members | Select Name)
+  Add-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Members -Links $AdminAccount
+  Add-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Owners -Links $AdminAccount
+  Start-Sleep -Seconds 1
   ForEach ($Owner in $CurrentOwners) { 
         Remove-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Owners -Links $Owner.Name -Confirm:$False }
   ForEach ($Member in $CurrentMembers) { 
         Remove-UnifiedGroupLinks -Identity $Group.DistinguishedName -LinkType Members -Links $Member.Name -Confirm:$False }
+} # End Else
 
 # Create SMTP Address for the archived group
   $OldSmtpAddress = $Group.PrimarySmtpAddress # Just for reporting
