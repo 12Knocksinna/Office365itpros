@@ -1,4 +1,5 @@
 # RenameMicrosoft365GroupsNamingPolicy.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/RenameMicrosoft365GroupsNamingPolicy.PS1
 # A script to rename Microsoft 365 Groups that don't comply with the tenant naming policy
 
 # Check that we are connected to Exchange Online, SharePoint Online, and Teams
