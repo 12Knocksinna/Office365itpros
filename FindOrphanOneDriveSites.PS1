@@ -1,4 +1,5 @@
 # FindOrphanOneDriveSites.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindOrphanOneDriveSites.PS1
 # A script to find orphan OneDrive for Business Accounts and add an admin user to the accounts so that they can be accessed
 # Needs connections to the SharePoint Online and Azure AD modules
 
@@ -14,9 +15,9 @@ If(-not(Get-Module -name Microsoft.Online.Sharepoint.PowerShell)) {Import-Module
 Connect-SPOService -URL $TenantAdminUrl -Credential $O365Cred
 
 # Define the SharePoint admin endpoint for the tenant
-$TenantAdminUrl = "https://redmondassociates-admin.sharepoint.com"
+$TenantAdminUrl = "https://office365itpros-admin.sharepoint.com"
 # Define the account to add to each orphan site
-$NewSiteAdmin = "Administrator@Redmondassociates.org"
+$NewSiteAdmin = "Administrator@office365itpros.com"
 
 # Create list for output report
 $Report = [System.Collections.Generic.List[Object]]::new()
