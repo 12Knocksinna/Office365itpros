@@ -22,14 +22,16 @@ $NewSiteAdmin = "Administrator@office365itpros.com"
 # Create list for output report
 $Report = [System.Collections.Generic.List[Object]]::new()
 
-# Find Azure AD accounts
-$AADUsers = Get-AzureADUser -All $True -Filter "Usertype eq 'Member'"
 # Find OneDrive for Business accounts
 $ODSites = Get-SPOSite -IncludePersonalSite $True -Limit All -Filter "url -like '-my.sharepoint.com/personal/'"
-$i = 0
-# Do the checks...
+# Find Azure AD Accounts and create hash table for lookup
+$AADUsers = Get-AzureADUser -All $True -Filter "Usertype eq 'Member'" | Select UserPrincipalName, DisplayName
+$AADAccounts = @{} 
+$AADUsers.ForEach( {
+       $AADAccounts.Add([String]$_.UserPrincipalName, $_.DisplayName) } )
+# Process the sites
 ForEach ($Site in $ODSites) {
-   If ($Site.Owner -notin $AADUsers.UserPrincipalName) { #Allocate a new owner to the OneDrive site
+      If (!($AADAccounts.Item($Site.Owner))) { #Allocate a new owner to the OneDrive site
       Write-Host "Adding user to" $Site.URL
       $Status = $Null
       Try {
