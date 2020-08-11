@@ -1,7 +1,8 @@
 # ReportQuarantinedMessages.PS1
 # Showing how to download details of quarantined messages, do some analysis, and create a CSV file that can be edited
 # and then used to release good messages
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportQuarantinedMessages.PS1
+# 
 $ModuleCheck = Get-Module -Name ExchangeOnlineManagement
 If ($ModuleCheck -eq $Null) {
      Write-Host "Your PowerShell session is not connected to Exchange Online."
