@@ -4,13 +4,14 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1
 # See https://petri.com/graph-powershell-office365-usage for a description of what this script does
 # Note: Guest user activity is not recorded by the Graph - only tenant accounts are processed
-# Need the User.Read.All permission to get user login data
+# Needs the Reports.Read.All permission to get user login data
 
 CLS
 # Define the values applicable for the application used to connect to the Graph (change these for your tenant)
 $AppId = "d716b32c-0edb-48be-9385-30a9cfd96155"
 $TenantId = "c662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
+$TargetDir = 'c:\temp'
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -351,4 +352,4 @@ If ((![string]::IsNullOrEmpty($ExoData.UPN))) {
 Write-Host "Data processed for" $Users.Count "users"
 
 $OutData | Sort {$_.ExoLastActive -as [DateTime]} -Descending | Out-GridView  
-$OutData | Sort $AccountStatus | Export-CSV c:\temp\Office365TenantUsage.csv -NoTypeInformation
+$OutData | Sort $AccountStatus | Export-CSV $TargetDir\Office365TenantUsage.csv -NoTypeInformation
