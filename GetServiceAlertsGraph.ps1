@@ -1,4 +1,5 @@
 # GetServiceAlertsGraph.ps1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetServiceAlertsGraph.ps1
 # Define the values applicable for the application used to connect to the Graph
 $AppId = "d716b32c-0edb-48be-9385-30a9cfd96155"
 $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
