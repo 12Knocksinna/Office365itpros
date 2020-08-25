@@ -78,7 +78,7 @@ $NextLink = $SignInData.'@Odata.NextLink'
 # If we have a next link, go and process the remaining set of users
 While ($NextLink -ne $Null) { 
    Write-Host "Still processing..."
-   $SignInData = Invoke-WebRequest -Method GET -Uri $NextLink -ContentType "application/json" -Headers $Headers
+   $SignInData = Invoke-WebRequest -Method GET -Uri $NextLink -ContentType "application/json" -Headers $Headers -UseBasicParsing
    $SignInData = $SignInData | ConvertFrom-JSon
    ForEach ($U in $SignInData.Value) {  
    If ($U.UserType -eq "Member") {
