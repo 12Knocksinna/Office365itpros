@@ -45,8 +45,3 @@ ForEach ($M in $Mbx) {
 $Report | Export-CSV -NoTypeInformation c:\temp\FolderDelegatedPermissions.CSV
 CLS
 Write-Host "Finished processing" $Mbx.Count "mailboxes. The report file is in c:\temp\FolderDelegatedPermissions.CSV"
-
-
-$i = 1
-ForEach ($Access in $Permission.AccessRights) {
-   If ($i -eq 1) { $AccessRights = $Access; $i++}  Else ($i  {$AccessRights = $AccessRights + "; " + $Access }}
