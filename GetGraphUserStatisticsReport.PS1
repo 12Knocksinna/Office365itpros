@@ -1,6 +1,6 @@
 # GetGraphUserStatisticsReport.PS1
 # A sample script showing how to gather user activity information from the Graph and assemble it into one report
-# V1.1 12-June-2020
+# V1.2 26-Aug-2020
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1
 # See https://petri.com/graph-powershell-office365-usage for a description of what this script does
 # Note: Guest user activity is not recorded by the Graph - only tenant accounts are processed
@@ -226,9 +226,11 @@ ForEach ($U in $Users) {
   $PercentComplete += $ProgressDelta
   $ExoData = $Null; $ExoActiveData = $Null; $TeamsData = $Null; $ODData = $Null; $SPOData = $Null; $YammerData = $Null
   
+  $UserData = $Report | ? {$_.UPN -eq $U}  # Extract records from list for the user
+
 # Process Exchange Data
-  $ExoData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "Exchange Storage"}
-  $ExoActiveData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "Exchange Activity"}
+  $ExoData = $UserData | ? {$_.RecordType -eq "Exchange Storage"}
+  $ExoActiveData = $UserData | ? {$_.RecordType -eq "Exchange Activity"}
   
   If ($ExoActiveData -eq $Null -or $ExoActiveData.LastActive -eq "No Activity") {
      $ExoLastActive       = "No Activity"
@@ -237,12 +239,12 @@ ForEach ($U in $Users) {
      $ExoLastActive = $ExoActiveData.LastActive
      $ExoDaysSinceActive = $ExoActiveData.DaysSinceActive }
 
-  $TeamsData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "Teams"}
+  $TeamsData = $UserData | ? {$_.RecordType -eq "Teams"}
   
-  $SPOData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "SharePoint Usage"}
+  $SPOData = $UserData | ? {$_.RecordType -eq "SharePoint Usage"}
  
 # Parse OneDrive for Business usage data 
-  $ODData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "OneDrive Storage"}
+  $ODData = $UserData | ? {$_.RecordType -eq "OneDrive Storage"}
   If ($ODData -eq $Null -or $ODData.LastActive -eq "No Activity") {
      $ODLastActive       = "No Activity"
      $ODDaysSinceActive  = "N/A"
@@ -257,7 +259,7 @@ ForEach ($U in $Users) {
      $ODQuota = $ODData.Quota  }
 
 # Parse Yammer usage data
-  $YammerData = $Report | ? {$_.UPN -eq $U -and $_.RecordType -eq "Yammer Usage"} 
+  $YammerData = $UserData | ? {$_.RecordType -eq "Yammer Usage"} 
 # Yammer isn't used everywhere, so make sure that we record zero data 
   If ($YammerData -eq $Null -or $YammerData.LastActive -eq "No Activity") {
      $YammerLastActive       = "No Activity"
@@ -271,14 +273,14 @@ ForEach ($U in $Users) {
      $YammerPosts = $YammerData.PostedCount
      $YammerReads = $YammerData.ReadCount
      $YammerLikes = $YammerData.LikedCount }
-  
+   
 # Fetch the sign in data if available
 $LastAccountSignIn = $Null; $DaysSinceSignIn = 0
 $LastAccountSignIn = $UserSignIns.Item($U)
 If ($LastAccountSignIn -eq $Null) { $LastAccountSignIn = "No sign in data found"; $DaysSinceSignIn = "N/A"}
   Else { $DaysSinceSignIn = (New-TimeSpan($LastAccountSignIn)).Days }
    
-# Figure oout if the account is used
+# Figure out if the account is used
 # Base is 2 if someuse uses the five workloads because the Graph is usually 2 days behind, but we have some N/A values for days used
   If ($ExoActiveData.DaysSinceActive -eq "N/A") {$ExoDays = 365} Else {$ExoDays = $ExoActiveData.DaysSinceActive}
   If ($TeamsData.DaysSinceActive -eq "N/A") {$TeamsDays = 365} Else {$TeamsDays = $TeamsData.DaysSinceActive}
