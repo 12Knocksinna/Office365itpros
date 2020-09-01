@@ -226,11 +226,11 @@ ForEach ($U in $Users) {
   $PercentComplete += $ProgressDelta
   $ExoData = $Null; $ExoActiveData = $Null; $TeamsData = $Null; $ODData = $Null; $SPOData = $Null; $YammerData = $Null
   
-  $UserData = $Report | ? {$_.UPN -eq $U}  # Extract records from list for the user
+  $UserData = $Report.Where({$_.UPN -eq $U})  # Extract records from list for the user
 
 # Process Exchange Data
-  $ExoData = $UserData | ? {$_.RecordType -eq "Exchange Storage"}
-  $ExoActiveData = $UserData | ? {$_.RecordType -eq "Exchange Activity"}
+  $ExoData = $UserData.Where({$_.RecordType -eq "Exchange Storage"})
+  $ExoActiveData = $UserData.Where({$_.RecordType -eq "Exchange Activity"})
   
   If ($ExoActiveData -eq $Null -or $ExoActiveData.LastActive -eq "No Activity") {
      $ExoLastActive       = "No Activity"
@@ -239,12 +239,12 @@ ForEach ($U in $Users) {
      $ExoLastActive = $ExoActiveData.LastActive
      $ExoDaysSinceActive = $ExoActiveData.DaysSinceActive }
 
-  $TeamsData = $UserData | ? {$_.RecordType -eq "Teams"}
+  $TeamsData = $UserData.Where({$_.RecordType -eq "Teams"})
   
-  $SPOData = $UserData | ? {$_.RecordType -eq "SharePoint Usage"}
+  $SPOData = $UserData.Where({$_.RecordType -eq "SharePoint Usage"})
  
 # Parse OneDrive for Business usage data 
-  $ODData = $UserData | ? {$_.RecordType -eq "OneDrive Storage"}
+  $ODData = $UserData.Where({$_.RecordType -eq "OneDrive Storage"})
   If ($ODData -eq $Null -or $ODData.LastActive -eq "No Activity") {
      $ODLastActive       = "No Activity"
      $ODDaysSinceActive  = "N/A"
@@ -259,7 +259,7 @@ ForEach ($U in $Users) {
      $ODQuota = $ODData.Quota  }
 
 # Parse Yammer usage data
-  $YammerData = $UserData | ? {$_.RecordType -eq "Yammer Usage"} 
+  $YammerData = $UserData.Where({$_.RecordType -eq "Yammer Usage"})
 # Yammer isn't used everywhere, so make sure that we record zero data 
   If ($YammerData -eq $Null -or $YammerData.LastActive -eq "No Activity") {
      $YammerLastActive       = "No Activity"
