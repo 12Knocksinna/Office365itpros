@@ -1,6 +1,6 @@
 # GetGraphUserStatisticsReport.PS1
 # A sample script showing how to gather user activity information from the Graph and assemble it into one report
-# V1.2 26-Aug-2020
+# V1.3 2-Sep-2020
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1
 # See https://petri.com/graph-powershell-office365-usage for a description of what this script does
 # Note: Guest user activity is not recorded by the Graph - only tenant accounts are processed
