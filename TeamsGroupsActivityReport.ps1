@@ -14,7 +14,8 @@
 # V4.3 13-May-2020 Fixed bug and removed the need to load the Teams PowerShell module
 # V4.4 14-May-2020 Added check to exit script if no Microsoft 365 Groups are found
 # V4.5 15-May-2020 Some people reported that Get-Recipient is unreliable when fetching Groups, so added code to revert to Get-UnifiedGroup if nothing is returned by Get-Recipient
-#
+# V4.6 8-Sept-2020 Better handling of groups where the SharePoint team site hasn't been created
+# 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
 CLS
@@ -131,9 +132,9 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
       $SPOStorage = (Get-SPOSite -Identity $G.SharePointSiteUrl).StorageUsageCurrent
       $SPOStorage = [Math]::Round($SpoStorage/1024,2) # SharePoint site storage in GB
       $AuditCheck = $G.SharePointDocumentsUrl + "/*"
-      $AuditRecs = 0
+      $AuditRecs = $Null
       $AuditRecs = (Search-UnifiedAuditLog -RecordType SharePointFileOperation -StartDate $WarningDate -EndDate $Today -ObjectId $AuditCheck -ResultSize 1)
-      If ($AuditRecs -eq $null) {
+      If ($AuditRecs -eq $Null) {
          #Write-Host "No audit records found for" $SPOSite.Title "-> Potentially obsolete!"
          $ObsoleteSPOGroups++   
          $ObsoleteReportLine = $ObsoleteReportLine + " No SPO activity detected in the last 90 days." }          
@@ -141,8 +142,9 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
    Else
        {
 # The SharePoint document library URL is blank, so the document library was never created for this group
-         #Write-Host "SharePoint has never been used for the group" $G.DisplayName 
+        #Write-Host "SharePoint team site never created for the group" $G.DisplayName 
         $ObsoleteSPOGroups++  
+        $AuditRecs = $Null
         $ObsoleteReportLine = $ObsoleteReportLine + " SPO document library never created." 
        }
 # Report to the screen what we found - but only if something was found...   
@@ -220,7 +222,7 @@ $htmltail = "<p>Report created for: " + $OrgName + "
              "<p>Number of Teams-enabled groups    : " + $TeamsCount + "</p>" +
              "<p>Percentage of Teams-enabled groups: " + $PercentTeams + "</body></html>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------"+
-             "<p>Microsoft 365 Groups and Teams Activity Report <b>V4.5</b>"	
+             "<p>Microsoft 365 Groups and Teams Activity Report <b>V4.6</b>"	
 $htmlreport = $htmlhead + $htmlbody + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 $Report | Export-CSV -NoTypeInformation $CSVFile
