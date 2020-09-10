@@ -103,8 +103,6 @@ While ($NextLink -ne $Null) {
 } # End while
 
 Write-Host "Processing activity data fetched from the Graph..."
-# Create a list file to normalize and assemble the information we've collected from the Graph
-$Report = [System.Collections.Generic.List[Object]]::new() 
 # Process Teams Data
 ForEach ($T in $TeamsUserData) {
    If ([string]::IsNullOrEmpty($T."Last Activity Date")) { 
@@ -124,7 +122,6 @@ ForEach ($T in $TeamsUserData) {
      TeamsCalls             = $T."Call Count"
      TeamsMeetings          = $T."Meeting Count"
      TeamsRecordType        = "Teams"}
-   $Report.Add($ReportLine) 
    $DataTable[$T."User Principal Name"] = $ReportLine} 
 
 # Process Exchange Data
@@ -147,7 +144,6 @@ ForEach ($E in $EmailData) {
      ExoReceiveCount       = [int]$E."Receive Count"
      ExoIsDeleted          = $E."Is Deleted"
      ExoRecordType         = "Exchange Activity"}
-   $Report.Add($ReportLine)
    [Array]$ExistingData = $DataTable[$E."User Principal Name"] 
    [Array]$NewData = $ExistingData + $ReportLine
    $DataTable[$E."User Principal Name"] = $NewData } 
@@ -167,7 +163,6 @@ ForEach ($M in $MailboxUsage) {
      MbxQuotaUsed          = [Math]::Round($M."Storage Used (Byte)"/1GB,2) 
      MbxItems              = [int]$M."Item Count"
      MbxRecordType         = "Exchange Storage"}
-   $Report.Add($ReportLine)  
    [Array]$ExistingData = $DataTable[$M."User Principal Name"] 
    [Array]$NewData = $ExistingData + $ReportLine
    $DataTable[$M."User Principal Name"] = $NewData } 
@@ -190,7 +185,6 @@ ForEach ($S in $SPOUsage) {
      SPOSharedInt        = [int]$S."Shared Internally File Count"
      SPOVisitedPages     = [int]$S."Visited Page Count" 
      SPORecordType       = "SharePoint Usage"}
-   $Report.Add($ReportLine) 
    [Array]$ExistingData = $DataTable[$S."User Principal Name"] 
    [Array]$NewData = $ExistingData + $ReportLine
    $DataTable[$S."User Principal Name"] = $NewData }  
@@ -214,7 +208,6 @@ ForEach ($O in $OneDriveData) {
      ODStorageUsed       = [Math]::Round($O."Storage Used (Byte)"/1GB,4) 
      ODQuota             = [Math]::Round($O."Storage Allocated (Byte)"/1GB,2) 
      ODRecordType        = "OneDrive Storage"}
-   $Report.Add($ReportLine) 
    [Array]$ExistingData = $DataTable[$O."Owner Principal Name"] 
    [Array]$NewData = $ExistingData + $ReportLine
    $DataTable[$O."Owner Principal Name"] = $NewData }  
@@ -236,7 +229,6 @@ ForEach ($Y in $YammerUsage) {
      YReadCount       = [int]$Y."Read Count"
      YLikedCount      = [int]$Y."Liked Count"
      YRecordType      = "Yammer Usage"}
-   $Report.Add($ReportLine) 
    [Array]$ExistingData = $DataTable[$Y."User Principal Name"] 
    [Array]$NewData = $ExistingData + $ReportLine
    $DataTable[$Y."User Principal Name"] = $NewData }
