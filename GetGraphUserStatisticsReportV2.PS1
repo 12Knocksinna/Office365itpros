@@ -20,7 +20,8 @@ $AppId = "d716b32c-0edb-48be-9385-30a9cfd96155"
 $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3479"
 $AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
 
-$TargetDir = "C:\temp\" # For output of CSV file
+$OutputCSV = "c:\temp\Office365TenantUsage.csv"
+$StartTime1 = Get-Date
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -102,6 +103,7 @@ While ($NextLink -ne $Null) {
    $NextLink = $SignInData.'@Odata.NextLink'
 } # End while
 
+$StartTime2 = Get-Date
 Write-Host "Processing activity data fetched from the Graph..."
 # Process Teams Data
 ForEach ($T in $TeamsUserData) {
@@ -242,6 +244,7 @@ ForEach ($UserPrincipalName in $DataTable.Keys) {
       UPN  = $UserPrincipalName}
    $Users.add($obj) | Out-Null }
 }
+$StartTime3 = Get-Date
 # Set up progress bar
 $ProgressDelta = 100/($Users.Count); $PercentComplete = 0; $UserNumber = 0
 $OutData = [System.Collections.Generic.List[Object]]::new() # Create merged output file
@@ -323,11 +326,11 @@ If ($LastAccountSignIn -eq $Null) { $LastAccountSignIn = "No sign in data found"
 [int]$ExoDays = 365; [int]$TeamsDays = 365; [int]$SPODays = 365; [int]$ODDays = 365; [int]$YammerDays = 365
 
 # Base is 2 if someuse uses the five workloads because the Graph is usually 2 days behind, but we have some N/A values for days used
-  If ($ExoDaysSinceActive -ne "N/A") {$ExoDays = $ExoDaysSinceActive}
-  If ($TeamsDaysSinceActive -eq "N/A") {$TeamsDays = 365} Else {$TeamsDays = $TeamsDaysSinceActive}
-  If ($SPODaysSinceActive -eq "N/A") {$SPODays = 365} Else {$SPODays = $SPODaysSinceActive}  
-  If ($ODDaysSinceActive -eq "N/A") {$ODDays = 365} Else {$ODDays = $ODDaysSinceActive} 
-  If ($YammerDaysSinceActive -eq "N/A") {$YammerDays = 365} Else {$YammerDays = $YammerDaysSinceActive}
+  If ($ExoDaysSinceActive -ne "N/A") {$ExoDays = $ExoDaysSinceActive -as [int]}
+  If ($TeamsDaysSinceActive -eq "N/A") {$TeamsDays = 365} Else {$TeamsDays = $TeamsDaysSinceActive -as [int]}
+  If ($SPODaysSinceActive -eq "N/A") {$SPODays = 365} Else {$SPODays = $SPODaysSinceActive -as [int]}  
+  If ($ODDaysSinceActive -eq "N/A") {$ODDays = 365} Else {$ODDays = $ODDaysSinceActive -as [int]} 
+  If ($YammerDaysSinceActive -eq "N/A") {$YammerDays = 365} Else {$YammerDays = $YammerDaysSinceActive -as [int]}
    
 # Average days per workload used...
   $AverageDaysSinceUse = [Math]::Round((($ExoDays + $TeamsDays + $SPODays + $ODDays + $YammerDays)/5),2)
@@ -392,7 +395,25 @@ If ((![string]::IsNullOrEmpty($ExoUPN))) {
    $OutData.Add($OutLine)   } 
  } #End processing user data
 
+CLS
+$StartTime4 = Get-Date
+$GraphTime = $StartTime2 - $StartTime1
+$PrepTime = $StartTime3 - $StartTime2
+$ReportTime = $StartTime4 - $StartTime3
+$ScriptTime = $StartTime4 - $StartTime1
+$AccountsPerMinute = [math]::Round(($Outdata.count/($ScriptTime.TotalSeconds/60)),2)
+
 Write-Host "Data processed for" $Users.Count "users"
+Write-Host "Statistics for Graph Report Script V2.0"
+Write-Host "---------------------------------------"
+Write-Host "Time to fetch data from Microsoft Graph:" $GraphTime.Minutes ":" $GraphTime.Seconds
+Write-Host "Time to prepare date for processing:    " $PrepTime.Minutes ":" $PrepTime.Seconds
+Write-Host "Time to create report from data:        " $ReportTime.Minutes ":" $ReportTime.Seconds
+Write-Host "Total time for script:                  " $ScriptTime.Minutes ":" $ScriptTime.Seconds
+Write-Host "Total accounts processed:               " $Outdata.count
+Write-Host "Accounts processsed per minute:         " $AccountsPerMinute
+Write-Host " "
+Write-Host "Output CSV file available in " $OutputCSV
 
 $OutData | Sort {$_.ExoLastActive -as [DateTime]} -Descending | Out-GridView  
-$OutData | Sort $AccountStatus | Export-CSV $TargetDir\Office365TenantUsage.csv -NoTypeInformation
+$OutData | Sort $AccountStatus | Export-CSV $OutputCSV -NoTypeInformation
