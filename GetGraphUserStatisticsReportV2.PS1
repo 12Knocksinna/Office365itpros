@@ -402,14 +402,18 @@ $PrepTime = $StartTime3 - $StartTime2
 $ReportTime = $StartTime4 - $StartTime3
 $ScriptTime = $StartTime4 - $StartTime1
 $AccountsPerMinute = [math]::Round(($Outdata.count/($ScriptTime.TotalSeconds/60)),2)
+$GraphElapsed = $GraphTime.Minutes.ToString() + ":" + $GraphTime.Seconds.ToString()
+$PrepElapsed = $PrepTime.Minutes.ToString() + ":" + $PrepTime.Seconds.ToString()
+$ReportElapsed = $ReportTime.Minutes.ToString() + ":" + $ReportTime.Seconds.ToString()
+$ScriptElapsed = $ScriptTime.Minutes.ToString() + ":" + $ScriptTime.Seconds.ToString()
 
-Write-Host "Data processed for" $Users.Count "users"
+Write-Host " "
 Write-Host "Statistics for Graph Report Script V2.0"
 Write-Host "---------------------------------------"
-Write-Host "Time to fetch data from Microsoft Graph:" $GraphTime.Minutes ":" $GraphTime.Seconds
-Write-Host "Time to prepare date for processing:    " $PrepTime.Minutes ":" $PrepTime.Seconds
-Write-Host "Time to create report from data:        " $ReportTime.Minutes ":" $ReportTime.Seconds
-Write-Host "Total time for script:                  " $ScriptTime.Minutes ":" $ScriptTime.Seconds
+Write-Host "Time to fetch data from Microsoft Graph:" $GraphElapsed
+Write-Host "Time to prepare date for processing:    " $PrepElapsed
+Write-Host "Time to create report from data:        " $ReportElapsed
+Write-Host "Total time for script:                  " $ScriptElapsed
 Write-Host "Total accounts processed:               " $Outdata.count
 Write-Host "Accounts processsed per minute:         " $AccountsPerMinute
 Write-Host " "
