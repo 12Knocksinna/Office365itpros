@@ -1,4 +1,5 @@
 # UpdateSensitivityLabelsForGroups.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateSensitivityLabelsForGroups.PS1
 # A script to remap the sensitivity labels assigned to groups so that only labels with container settings are used.
 # First Check for connection to compliance endpoint
 $TenantLabels = @{}
