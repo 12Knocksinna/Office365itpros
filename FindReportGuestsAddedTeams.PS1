@@ -58,7 +58,7 @@ If ($Report) { # Some records have been created, so let's report them.
    Write-Progress -Activity "Processing user" -Status $UserStatus -PercentComplete $PercentComplete
    $PercentComplete += $ProgressDelta
 
-   $BodyText = "<p><b><u>Details</u></b></p><p>Guest email address: $($R.Guest)</p><p>Guest name: $($R.Name)</p><p>Date added: $($R.DateAddedTeams)</p><p>Team added to: $($R.TeamName)</p><p>Recently you added a new guest user to our tenant by including them as a member in the $($R.TeamName) team. Please confirm that it is business-critical to allow this person access to tenant resources. If you do not confirm within the next week, we will automatically remove this guest account.</i></p><p>Best Regards</p><p><b>Your Friendly Admin/b></p>"
+   $BodyText = "<p><b><u>Details</u></b></p><p>Guest email address: $($R.Guest)</p><p>Guest name: $($R.Name)</p><p>Date added: $($R.DateAddedTeams)</p><p>Team added to: $($R.TeamName)</p><p>Recently you added a new guest user to our tenant by including them as a member in the $($R.TeamName) team. Please confirm that it is business-critical to allow this person access to tenant resources. If you do not confirm within the next week, we will automatically remove this guest account.</i></p><p>Best Regards</p><p><b>Your Friendly Admin</b></p>"
    $htmlHeaderUser = "<h2>A new guest user has been created in our tenant</h2>"; $htmlbody = $htmlheaderUser + $BodyText + "<p>"
    $HtmlMsg = "</body></html>" + $HtmlHead + $HtmlBody
   # Construct the message parameters and send it off...
