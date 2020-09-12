@@ -1,4 +1,5 @@
 # FindReportGuestsAddedTeams.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindReportGuestsAddedTeams.PS1
 # Find and report guest users added to Teams in the last week
 # Some tenants like to keep a close eye on the guest user accounts that are added to Teams and want to report those accounts. This script
 # looks for audit records noting the guest additions over the last 7 days and extracts details of guest accounts if the accounts are created
