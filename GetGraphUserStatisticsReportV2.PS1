@@ -4,7 +4,8 @@
 # Tony Redmond
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReportV2.PS1
-# See https://petri.com/graph-powershell-office365-usage for a description of what this script does
+# See https://petri.com/graph-powershell-office365-usage for a description of what this script does and 
+# https://office365itpros.com/2020/09/14/speed-powershell-hash-tables-office365-data/ for an update about this version
 # Note: Guest user activity is not recorded by the Graph - only tenant accounts are processed
 
 # V2.0 is the transitition from PowerShell lists to hash tables as the repository for data extracted from the Microsoft Graph
