@@ -3,6 +3,8 @@
 # V1.3 2-Sep-2020
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1
 # See https://petri.com/graph-powershell-office365-usage for a description of what this script does
+# And see https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReportV2.PS1 for a version with
+# better performance.
 # Note: Guest user activity is not recorded by the Graph - only tenant accounts are processed
 # Needs the Reports.Read.All permission to get user login data
 
