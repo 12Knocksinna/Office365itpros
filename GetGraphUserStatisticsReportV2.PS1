@@ -13,7 +13,7 @@
 # There isn't a lot of error checking/handling in this script because it's designed to show the principles of how to grab and 
 # process Office 365 usage data from the Graph rather than being something that meets the needs of everyone. Have fun editing it!
 
-# Needs the Reports.Read.All permission to get user login data
+# Needs the Reports.Read.All and User.Read.All permissions for app to get user login data
 # -------------------------------------------------------------------------------------------------------------------------------
 CLS
 # Define the values applicable for the application used to connect to the Graph (change these for your tenant)
