@@ -1,4 +1,5 @@
 # UpdateSubscribersInGroupsUsedByTeams.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateSubscribersInGroupsUsedByTeams.PS1
 # Update the subscriber list for Teams-enabled groups so that members receive calendar updates
 
 CLS
