@@ -1,33 +1,33 @@
 # Script to report active Teams
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportActiveTeams.ps1
 # For Chapter 13 of Office 365 for IT Pros
+# Updated because Microsoft changed the location of the Teams compliance records
 Write-Host "Fetching list of teams..."
 $Teams = (Get-Team)
 Write-Host "Starting to process" $Teams.Count "teams"
 $Count = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
-ForEach ($T in $Teams) {
+ForEach ($T in $Teams | Sort DisplayName) {
   $ActiveStatus = "Inactive"
   $G = Get-UnifiedGroup -Identity $T.GroupId | Select Alias, ManagedBy, WhenCreated, GroupMemberCount, DisplayName
-  $TeamsData = (Get-MailboxFolderStatistics -Identity $G.Alias -FolderScope ConversationHistory -IncludeOldestAndNewestItems)
-  ForEach ($Folder in $TeamsData) { # We might have one or two subfolders in Conversation History; find the one for Teams      
-  If ($Folder.FolderType -eq "TeamChat" -and $Folder.ItemsInFolder -gt 0) {
+  $TeamsData = (Get-ExoMailboxFolderStatistics -Identity $G.Alias -FolderScope NonIpmRoot -IncludeOldestAndNewestItems | ? {$_.FolderType -eq "TeamsMessagesData"})
+  If ($TeamsData.ItemsInFolder) {
        Write-Host "Processing" $G.DisplayName
-       $TimeSinceCreation = (Get-Date) - $Folder.CreationTime
+       $TimeSinceCreation = (Get-Date) - $TeamsData.CreationTime
        $Count++  
-       $ChatCount = $Folder.ItemsInFolder
-       $NewestChat = $Folder.NewestItemReceivedDate
+       $ChatCount = $TeamsData.ItemsInFolder
+       $NewestChat = $TeamsData.NewestItemReceivedDate
        $ChatsPerDay = $ChatCount/$TimeSinceCreation.Days
-       $ChatsPerDay = [math]::round($ChatsPerday,2)}
-  If ($Folder.ItemsInFolder -eq 0 -and $Folder.FolderType -eq "TeamChat" ) {
+       $ChatsPerDay = [math]::round($ChatsPerday,2)
+  } #End if
+  If ($TeamsData.ItemsInFolder -eq 0) {
      Write-Host "No Teams compliance records found for” $T.DisplayName -foregroundcolor Red
      $ChatsPerDay = 0 
      $NewestChat = "N/A"
-     $ChatCount = 0 } }
-
+     $ChatCount = 0 } 
   If ($ChatsPerDay -gt 0 -and $ChatsPerDay -le 2) { $ActiveStatus = "Moderate" }
   Elseif ($ChatsPerDay -gt 2 -and $ChatsPerDay -le 5) { $ActiveStatus = "Reasonable"}
-  Elseif ($ChatPerDay -gt 5) { $ActiveStatus = "Heavy" }   
+  Elseif ($ChatPerDay -gt 5) { $ActiveStatus = "Heavy" } 
  
   $ReportLine = [PSCustomObject]@{
      Alias        = $G.Alias
