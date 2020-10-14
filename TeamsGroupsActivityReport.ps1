@@ -15,6 +15,7 @@
 # V4.4 14-May-2020 Added check to exit script if no Microsoft 365 Groups are found
 # V4.5 15-May-2020 Some people reported that Get-Recipient is unreliable when fetching Groups, so added code to revert to Get-UnifiedGroup if nothing is returned by Get-Recipient
 # V4.6 8-Sept-2020 Better handling of groups where the SharePoint team site hasn't been created
+# V4.7 13-Oct-2020 Teams compliance records are now in a different location in group mailboxes
 # 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -170,18 +171,35 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
        $Status = "Fail"
     } 
 
-# If the group is team-Enabled, find the date of the last Teams conversation compliance record
+# If the group is team-enabled, find the date of the last Teams conversation compliance record
 If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
-      $TeamsEnabled = $True
-      $TeamChatData = (Get-MailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestItems -FolderScope ConversationHistory)
-   ForEach ($T in $TeamChatData) { # We might have one or two subfolders in Conversation History; find the one for Teams
-   If ($T.FolderType -eq "TeamChat") {
-      If ($T.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($T.NewestItemReceivedDate) -Format g}
-      $NumberofChats = $T.ItemsInFolder
-      If ($T.NewestItemReceivedDate -le $WarningEmailDate) {
-            Write-Host "Team-enabled group" $G.DisplayName "has only" $T.ItemsInFolder "compliance record(s)" }
-     }}      
-}
+    $TeamsEnabled = $True
+    [datetime]$DateOldTeams = "31-Dec-2020" # After this date, Microsoft should have moved the old Teams data to the new location
+    $CountOldTeamsData = $False
+
+# Start by looking in the new location (TeamsMessagesData in Non-IPMRoot)
+    $TeamsChatData = (Get-MailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot | ? {$_.FolderType -eq "TeamsMessagesData" })
+    If ($TeamsChatData.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($TeamsChatData.NewestItemReceivedDate) -Format g}
+    $NumberOfChats = $TeamsChatData.ItemsInFolder
+    
+# If the script is running before 31-Dec-2020, we need to check the old location of the Teams compliance records
+If ($Today -lt $DateOldTeams) {
+     $CountOldTeamsData = $True
+     $OldTeamsChatData = (Get-MailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestItems -FolderScope ConversationHistory)
+     ForEach ($T in $OldTeamsChatData) { # We might have one or two subfolders in Conversation History; find the one for Teams
+     If ($T.FolderType -eq "TeamChat") {
+        If ($T.ItemsInFolder -gt 0) {$OldLastItemAddedtoTeams = Get-Date ($T.NewestItemReceivedDate) -Format g}
+        $OldNumberofChats = $T.ItemsInFolder
+}}}
+
+If ($CountOldTeamsData -eq $True) { # We have counted the old date, so let's put the two sets together
+   $NumberOfChats = $NumberOfChats + $OldNumberOfChats
+   If (!$LastItemAddedToTeams) { $LastItemAddedToTeams = $OldLastItemAddedToTeams }
+} # End if
+
+If ($NumberOfChats -le 100) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" }    
+} # End if Processing Teams data
+
 # Generate a line for this group and store it in the report
     $ReportLine = [PSCustomObject][Ordered]@{
           GroupName           = $G.DisplayName
@@ -222,7 +240,7 @@ $htmltail = "<p>Report created for: " + $OrgName + "
              "<p>Number of Teams-enabled groups    : " + $TeamsCount + "</p>" +
              "<p>Percentage of Teams-enabled groups: " + $PercentTeams + "</body></html>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------"+
-             "<p>Microsoft 365 Groups and Teams Activity Report <b>V4.6</b>"	
+             "<p>Microsoft 365 Groups and Teams Activity Report <b>V4.7</b>"	
 $htmlreport = $htmlhead + $htmlbody + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 $Report | Export-CSV -NoTypeInformation $CSVFile
