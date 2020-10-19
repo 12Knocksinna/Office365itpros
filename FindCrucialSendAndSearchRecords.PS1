@@ -1,4 +1,5 @@
 # FindCrucialSendAndSearchRecords.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindCrucialSendAndSearchRecords.PS1
 # Examples used in Chapter 21 of Office 365 for IT Pros.
 
 $Records = Search-UnifiedAuditLog -StartDate "18-Oct-2020 12:30" -EndDate "20-Oct-2020" -ResultSize 5000 -Operations Send
