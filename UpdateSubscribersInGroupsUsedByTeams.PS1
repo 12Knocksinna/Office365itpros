@@ -5,7 +5,7 @@
 CLS
 Write-Host "Finding team-enabled Groups to process..."
 $Groups = Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited
-$Groups  = $Groups | ? {$_.AutoSubscribeNewMembers -eq $False}
+$Groups = $Groups | ? {$_.AutoSubscribeNewMembers -eq $False -Or $_.AlwaysSubscribeMembersToCalendarEvents -eq $False}
 
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 #initialize progress bar
