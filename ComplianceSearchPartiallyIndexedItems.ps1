@@ -2,6 +2,7 @@
 # Original version written by Microsoft and published at https://docs.microsoft.com/en-us/microsoft-365/compliance/investigating-partially-indexed-items-in-ediscovery?view=o365-worldwide
 # Updated by Tony Redmond to add what I hope is better analysis of the partial items
 # Cited in Chapter 20 of the Office 365 for IT Pros eBook
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ComplianceSearchPartiallyIndexedItems.ps1
  
   write-host "**************************************************"
   write-host "     Microsoft 365 Compliance Center      " -foregroundColor yellow -backgroundcolor darkgreen
