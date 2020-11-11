@@ -1,20 +1,17 @@
 # Find Updated Service Notifications - FindUpdatedOffice365Notifications.ps1
-
-$AppId = "d716b32c-0edb-48be-9385-30a9cfd96155"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
+# Download the Office 365 notifications posted in the message center in the Microsoft 365 admin center and process them with PowerShell.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FetchServiceMessagesGraph.ps1
+# Need to make sure that these values are correct for the target tenant and the app being used to access the data
+#
+$AppId = "d716b32c-0edb-48be-9385-30a9cfd96155"         # Registered App in Azure AD
+$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f347a"      # Renant GUID (use Get-AzureTenantDetail to get this information
+$AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='         # App Secret for the registered app
 
 $body = @{grant_type="client_credentials";resource="https://manage.office.com";client_id=$AppId;client_secret=$AppSecret }
 $oauth = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$($tenantId)/oauth2/token?api-version=1.0" -Body $body
 $token = @{'Authorization' = "$($oauth.token_type) $($oauth.access_token)" }
 
-$StartTime = (Get-Date).AddDays(-60)
-$StartTime = (Get-Date $StartTime -format u)
-$EndTime = Get-Date
-$EndTime = (Get-Date $EndTime -format u)
-
-
-$Uri = "https://manage.office.com/api/v1.0/b662313f-14fc-43a2-9a7a-d2e27f4f3478/ServiceComms/Messages?`$filter=MessageType eq 'MessageCenter' & starttime $StartTime &endtime $EndTime `$top=999"
+$Uri = "https://manage.office.com/api/v1.0/b662313f-14fc-43a2-9a7a-d2e27f4f3478/ServiceComms/Messages?`$filter=MessageType eq 'MessageCenter'"
 $Messages = Invoke-RestMethod -Uri $uri -Headers $token -Method Get
 
 $Report = [System.Collections.Generic.List[Object]]::new()
