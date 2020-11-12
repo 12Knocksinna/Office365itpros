@@ -65,10 +65,8 @@ If ($M.Messages.MessageText -Like "Updated*") {
      $UpdateText = $M.Messages.MessageText.SubString(3,203) 
      $UpdateDate = $Null 
      $DaysUpdate = "N/A" }
-    
-
-[DateTime]$MStartDate = Get-Date($M.StartTime)
-If ($MStartDate -gt $StartDate) {
+     
+# Generate output report line for the notification    
     $ReportLine = [PSCustomObject]@{  
      Id           = $M.Id
      Title        = $M.Title
@@ -103,9 +101,9 @@ If ($MStartDate -gt $StartDate) {
      Yammer       = $Yammer
      Office365    = $Office365  
     }
-  $Report.Add($ReportLine) }
+  $Report.Add($ReportLine) 
 
 } # End ForEach
-
+# Generate array of updated notifications 
 [array]$Updates = $Report | ?{$_.Title -Like "*(Updated)*"}
 
