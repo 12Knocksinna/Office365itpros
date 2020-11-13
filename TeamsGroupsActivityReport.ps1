@@ -96,7 +96,7 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
    $GroupStatus = $G.DisplayName + " ["+ $GroupNumber +"/" + $GroupsCount + "]"
    Write-Progress -Activity "Checking group" -Status $GroupStatus -PercentComplete $CheckCount
    $CheckCount += $ProgDelta;  $ObsoleteReportLine = $G.DisplayName;    $SPOStatus = "Normal"
-   $SPOActivity = "Document library in use"
+   $SPOActivity = "Document library in use"; $SPOStorage = 0
    $NumberWarnings = 0;   $NumberofChats = 0;  $TeamChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $MailboxStatus = $Null
 # Check who manages the group
   $ManagedBy = $G.ManagedBy
