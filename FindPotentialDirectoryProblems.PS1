@@ -1,5 +1,5 @@
 # FindPotentialDirectoryProblems.PS1
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindPotentialDirectoryProblems.PS1
 # Quick and dirty script to highlight potential issues which might exist in an Office 365 tenant directory
 # 
 # Get list of user mailboxes in the directory
