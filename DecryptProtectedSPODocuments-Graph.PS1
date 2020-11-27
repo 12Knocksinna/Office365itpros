@@ -3,6 +3,8 @@
 # A script to show how to use Microsoft Graph calls to retrieve a set of documents protected by sensitivity labels 
 # with encryption from a selected SharePoint Online site (and optional folder) and decrypt them by running the 
 # SPO cmdlet Unlock-SPOSensitivityLabelEncryptedFile
+# https://github.com/12Knocksinna/Office365itpros/blob/master/DecryptProtectedSPODocuments-Graph.PS1
+#
 # Usage .\DecryptProtectedSPODocuments-Graph.PS1 -SearchSite MySite -SearchFolder OptionalFolder
 # e.g.  .\DecryptProtectedSPODocuments-Graph.PS1 -SearchSite Projects -SearchFolder "Blog Posts"
 # Make sure to fill in all the required variables before running the script
