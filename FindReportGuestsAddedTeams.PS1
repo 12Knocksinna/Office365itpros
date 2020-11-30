@@ -11,10 +11,12 @@ $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 $Records = Search-UnifiedAuditLog -StartDate ((Get-Date).AddDays(-7)) -EndDate ((Get-Date).AddDays(1)) -ResultSize 5000 -Operations MemberAdded -RecordType MicrosoftTeams
 
 If ($Records) {
+   $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
    Write-Host "Processing" $Records.Count "audit records for addition of users to Microsoft Teams"
-   $AuditData = Convertfrom-Json $Rec.AuditData # Get payload
-   ForEach ($M in $AuditData.Members) { # Examine users added to see if any are guests
-      If ($M -Like "*#EXT#@*") { # We have a guest user
+   ForEach ($Rec in $Records) {
+     $AuditData = Convertfrom-Json $Rec.AuditData # Get payload
+     ForEach ($M in $AuditData.Members) { # Examine users added to see if any are guests
+      If (($M -Like "*#EXT#@*") -and ($AuditData.CommunicationType -eq "Team")) { # We have a guest user who's been added to a team rather than a group chat
          $GuestUser = (Get-AzureADUser -ObjectId $M.UPN)
          $CreationDate = (Get-AzureADUserExtension -ObjectId $GuestUser.ObjectId).get_item("createdDateTime") 
          $AccountAge = ($CreationDate | New-TimeSpan).Days
@@ -30,9 +32,10 @@ If ($Records) {
                AADGroupId       = $AuditData.AADGroupId} 
             $Report.Add($ReportLine) 
          } # End if (AccountAge)   
-   } # End if (Guest user check)
- } # End ForEach
-} #End if
+     } # End if (Guest user check)
+   } # End Foreach (Members)
+ } # End ForEach (Records)
+} #End if (Records)
 
 If ($Report) { # Some records have been created, so let's report them.
   CLS
