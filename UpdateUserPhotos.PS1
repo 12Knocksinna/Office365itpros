@@ -1,6 +1,8 @@
 # UpdateUserPhotos.PS1
 # A script to illustrate how to update user photos in Microsoft 365 accounts
 # 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateUserPhotos.PS1
+#
 Write-Host "Checking for connection to Exchange Online"
 $Check = Get-Module -Name ExchangeOnlineManagement
 If (!$Check) {
