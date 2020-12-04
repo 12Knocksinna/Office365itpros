@@ -3,7 +3,7 @@
 # Script needs to connect to Azure Active Directory and Exchange Online PowerShell.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindOldGuestUsers.ps1
 Write-Host "Finding Guest Users..."
-$GuestUsers = Get-AzureADUser -All $true -Filter "UserType eq 'Guest'"
+$GuestUsers = Get-AzureADUser -All $true -Filter "UserType eq 'Guest'" | Sort DisplayName
 $Today = (Get-Date); $StaleGuests = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 CLS
