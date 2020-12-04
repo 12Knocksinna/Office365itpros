@@ -1,8 +1,10 @@
 # FindOldGuestUsers.PS1
-# Script to find Guest User Accounts in an Office 365 Tenant that are older than 365 days and the groups they belong to
+# Script to find Guest User Accounts in an Office 365 Tenant that are older than 365 days (update the $GuestAccountAge variable to set a different
+# number of days to check for) and the groups they belong to
 # Script needs to connect to Azure Active Directory and Exchange Online PowerShell.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindOldGuestUsers.ps1
 Write-Host "Finding Guest Users..."
+$GuestAccountAge = 365 # Value used for guest age comparison. If you want this to be a different value (like 30 days), change this here.
 $GuestUsers = Get-AzureADUser -All $true -Filter "UserType eq 'Guest'" | Sort DisplayName
 $Today = (Get-Date); $StaleGuests = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
@@ -12,7 +14,7 @@ $ProgressDelta = 100/($GuestUsers.Count); $PercentComplete = 0; $GuestNumber = 0
 ForEach ($Guest in $GuestUsers) {
    $CreatedDate = ((Get-AzureADUser -ObjectId $Guest.UserPrincipalName).ExtensionProperty.createdDateTime)
    $AccountAge = ($CreatedDate | New-TimeSpan).Days
-   If ($AccountAge -gt 365) {
+   If ($AccountAge -gt $GuestAccountAge) {
       $StaleGuests++; $GuestNumber++
       $CurrentStatus = $Guest.DisplayName + " ["+ $GuestNumber +"/" + $GuestUsers.Count + "]"
       Write-Progress -Activity "Extracting information for guest account" -Status $CurrentStatus -PercentComplete $PercentComplete
