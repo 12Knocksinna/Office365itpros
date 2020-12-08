@@ -22,7 +22,7 @@ CLS ; For ($i=0; $i -le 7; $i++) {
   $BingContent = ConvertFrom-Json -InputObject $BingResponse.Content # Unpack content
   $BingBackgroundFile = "https://www.bing.com/"+$BingContent.Images.Url
   $BingFileName = $BingContent.Images.UrlBase.Split(".")[1]; $BingFileName = $BingFileName.Split("_")[0]+".jpg" 
-  $TeamsBackgroundFile = $TeamsBackgroundFiles + $BingFileName
+  $TeamsBackgroundFile = $TeamsBackgroundFiles + "Bing-" + $BingFileName
   If (([System.IO.File]::Exists($TeamsBackgroundFile) -eq $False)) { 
      # File isn't there, so we can download
      Try {
@@ -33,3 +33,13 @@ CLS ; For ($i=0; $i -le 7; $i++) {
         Write-Host "Error occurred when downloading from Bing" }
      } #End If
 } #End loop
+
+# Clean up Bing images older than 30 days so we keep the number of background images to a reasonable number
+$RemoveDate = Get-Date.AddDays(-30)
+$BingFiles = Get-ChildItem $TeamsBackgroundFiles | ? {($_.LastWriteTime -lt $RemoveDate) -and ($_.Name.Substring(0,5) -eq "Bing-")}
+If ($BingFiles) {
+   Write-Host "Cleaning up old Bing background images"
+   ForEach ($File in $BingFiles) { Del $File.FullName -Force}
+}
+
+Write-Host "All done"
