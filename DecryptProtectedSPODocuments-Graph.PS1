@@ -75,7 +75,7 @@ If ($SearchFolder) { # We've been asked to look in a specific folder, so find it
    Else { # We didn't... so exit to let the user try again
       $DriveId = $Null
       Write-Host "Can't find the" $SearchFolder "folder" in the $SiteName "site"; break }}
-Else { # Search folder isn't defined, so we look in the original site
+Else { # Search folder isn't defined, so we look in the default folder of the document library in chosen site
       $Uri = "https://graph.microsoft.com/v1.0/sites/$($Siteid)/lists/Documents/Drive/root/"
       $SiteData = (Invoke-RestMethod -Uri $URI -Headers $Headers -Method Get -ContentType "application/json")
       $TargetFolder = $SiteData.Id }
