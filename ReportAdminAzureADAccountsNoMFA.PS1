@@ -1,6 +1,8 @@
 # ReportAdminAzureADAccountsNoMFA.PS1
 # A script to find Azure AD accounts with privileged roles that aren't protected by MFA
 # 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportAdminAzureADAccountsNoMFA.PS1
+#
 # Uses both AzureAD and MSOnline modules
 
 $ModulesLoaded = Get-Module | Select Name
