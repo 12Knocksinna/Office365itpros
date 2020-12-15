@@ -4,13 +4,13 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportAdminAzureADAccountsNoMFA.PS1
 #
 # Uses both AzureAD and MSOnline modules
-
+CLS
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "AzureAD")) {Write-Host "Please connect to the Azure AD module and then restart the script" ; break}
 If (!($ModulesLoaded -match "MSOnline")) {Write-Host "Please connect to the Microsoft Online Services module and then restart the script"; break}
 
-# Define GUIDs for the Privileged Roles (from Get-AzureADDirectoryRole)
-
+# Retrieve GUIDs for the Privileged Roles (from Get-AzureADDirectoryRole)
+Write-Host "Finding Azure Active Directory administrative roles..."
 $UserAccountAdmin = Get-AzureADDirectoryRole | Where-Object {$_.DisplayName -eq ‘User Account Administrator’} | Select ObjectId
 $TenantAdmin = Get-AzureADDirectoryRole | Where-Object {$_.DisplayName -eq ‘Company Administrator’} | Select ObjectId
 $TeamsAdmin = Get-AzureADDirectoryRole | Where-Object {$_.DisplayName -eq ‘Teams Service Administrator’} | Select ObjectId
@@ -25,8 +25,7 @@ $ExchangeAdmins = Get-AzureADDirectoryRoleMember -ObjectId $ExchangeAdmin.Object
 $SharePointAdmins = Get-AzureADDirectoryRoleMember -ObjectId $SharePointAdmin.ObjectID | Select ObjectId, UserPrincipalName
 
 $MFAReport = [System.Collections.Generic.List[Object]]::new() # Create output file 
-$i = 0
-Write-Host "Checking MFA status for accounts..."
+Write-Host "Finding Azure AD user accounts and checking their MFA status..."
 $Users = (Get-MsolUser -All | ? {$_.UserType -eq "Member" -and $_.Islicensed -eq $True} | Sort DisplayName)
 ForEach ($User in $Users) {
    $MFAMethods = $User.StrongAuthenticationMethods.MethodType
@@ -58,7 +57,8 @@ ForEach ($User in $Users) {
 $MFAUsers = $MFAReport | ? {$_.MFAUsed -ne "Enforced"}
 If (!($MFAUsers)) { Write-Host "No privileged accounts found without MFA protection" ; break}
 
-Write-Host "Checking holders of admin roles..."
+Write-Host "Checking MFA status for accounts holding admin roles..."
+$i = 0
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 # Check Admin Roles if MFA not enabled
 ForEach ($User in $MFAUsers) {
@@ -66,7 +66,7 @@ ForEach ($User in $MFAUsers) {
   If ($UserAccountAdmins.ObjectId -Contains $User.ObjectId) {
          Write-Host $User.DisplayName "Account holds the User Account Admin role" -ForegroundColor Red 
          $Roles = "Account Admin" }
-  If ($TenantAccountAdmins.ObjectId -Contains $User.ObjectId) {
+  If ($TenantAdmins.ObjectId -Contains $User.ObjectId) {
          Write-Host $User.DisplayName "Account holds the Tenant Admin role" -ForegroundColor Red 
          If ($Roles -eq $Null) { $Roles = "Tenant Admin" } Else { $Roles = $Roles + "; Tenant Admin" } }
   If ($TeamsAdmins.ObjectId -Contains $User.ObjectId) {
