@@ -12,12 +12,12 @@ If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please con
 $StartDate = "1-Jan-2019"
 $EndDate = "1-Dec-2019"
 $Query = "Received:$($StartDate)..$($EndDate) kind:meetings" + ' AND (-subject:"Thread Id")'
-$UserReport = [System.Collections.Generic.List[Object]]::new() # Create output file 
 
 # Find the mailboxes to process - this example uses a check against the custom attribute 12. You could also read in user details from a CSV file
 $Users = Get-ExoMailbox -Filter {CustomAttribute12 -eq "Search"} -Properties CustomAttribute12 -RecipientTypeDetails UserMailbox -ResultSize Unlimited
+$UserReport = [System.Collections.Generic.List[Object]]::new() # Create output file 
 ForEach ($User in $Users)  {
-    $Status = (Search-Mailbox -Identity $User.UserPrincipalName-SearchQuery $Query -EstimateResultOnly -DoNotIncludeArchive)
+    $Status = (Search-Mailbox -Identity $User.UserPrincipalName-SearchQuery $Query -EstimateResultOnly -DoNotIncludeArchive -SearchDumpster:$False)
     If ($Status) {
       $ReportLine = [PSCustomObject] @{
            UserPrincipalName  = $User.UserPrincipalName
@@ -43,7 +43,7 @@ Switch ($PromptDecision) {
   "0" { 
        ForEach ($User in $ProcessUsers) {
          Write-Host "Removing items from the mailbox of" $User.DisplayName
-         $Status = (Search-Mailbox -Identity $User.UserPrincipalName -SearchQuery $Query -DeleteContent -DoNotIncludeArchive -Confirm:$False -Force)
+         $Status = (Search-Mailbox -Identity $User.UserPrincipalName -SearchQuery $Query -DeleteContent -DoNotIncludeArchive -SearchDumpster:$False -Confirm:$False -Force)
          If ($Status) { Write-Host "Mailbox for" $User.DisplayName "processed to remove" $User.ItemsFound "items" }
        } #End ForEach
       Write-Host "All done." $ProcessUsers.Count "mailboxes processed and cleaned up. Details stored in c:\temp\SearchMailboxRemovals.csv"
