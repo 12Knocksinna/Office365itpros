@@ -15,6 +15,8 @@ $Query = "Received:$($StartDate)..$($EndDate) kind:meetings" + ' AND (-subject:"
 
 # Find the mailboxes to process - this example uses a check against the custom attribute 12. You could also read in user details from a CSV file
 $Users = Get-ExoMailbox -Filter {CustomAttribute12 -eq "Search"} -Properties CustomAttribute12 -RecipientTypeDetails UserMailbox -ResultSize Unlimited
+If (!$Users) {Write-Host "No matching users found - exiting" ; break}
+
 $UserReport = [System.Collections.Generic.List[Object]]::new() # Create output file 
 ForEach ($User in $Users)  {
     $Status = (Search-Mailbox -Identity $User.UserPrincipalName-SearchQuery $Query -EstimateResultOnly -DoNotIncludeArchive -SearchDumpster:$False)
@@ -23,8 +25,10 @@ ForEach ($User in $Users)  {
            UserPrincipalName  = $User.UserPrincipalName
            DisplayName        = $User.DisplayName
            ItemsFound         = $Status.ResultItemsCount
-           ItemsSize          = $Status.ResultItemsSize }                 
-    $UserReport.Add($ReportLine) } #End if
+           ItemsSize          = $Status.ResultItemsSize
+           SearchType         = "Estimate"
+           SearchTime         = Get-Date }                
+     $UserReport.Add($ReportLine) } #End if
 } # End For
 
 # Filter the users where we have found some items
@@ -44,7 +48,17 @@ Switch ($PromptDecision) {
        ForEach ($User in $ProcessUsers) {
          Write-Host "Removing items from the mailbox of" $User.DisplayName
          $Status = (Search-Mailbox -Identity $User.UserPrincipalName -SearchQuery $Query -DeleteContent -DoNotIncludeArchive -SearchDumpster:$False -Confirm:$False -Force)
-         If ($Status) { Write-Host "Mailbox for" $User.DisplayName "processed to remove" $User.ItemsFound "items" }
+         If ($Status) {  # Add record to capture what we did
+             Write-Host "Mailbox for" $User.DisplayName "processed to remove" $Status.ResultItemsCount "items"
+             $ReportLine = [PSCustomObject] @{
+                 UserPrincipalName  = $User.UserPrincipalName
+                 DisplayName        = $User.DisplayName
+                 ItemsFound         = $Status.ResultItemsCount
+                 ItemsSize          = $Status.ResultItemsSize
+                 SearchType         = "Removal"
+                 SearchTime         = Get-Date }                 
+             $ProcessUsers.Add($ReportLine)
+            }
        } #End ForEach
       Write-Host "All done." $ProcessUsers.Count "mailboxes processed and cleaned up. Details stored in c:\temp\SearchMailboxRemovals.csv"
       $ProcessUsers | Export-CSV -NoTypeInformation c:\temp\SearchMailboxRemovals.csv
