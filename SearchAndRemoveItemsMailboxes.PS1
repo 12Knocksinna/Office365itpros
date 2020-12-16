@@ -1,5 +1,6 @@
 #
 # SearchAndRemoveItemsMailboxes.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/SearchAndRemoveItemsMailboxes.PS1
 # A script to use the Search-Mailbox cmdlet to remove calendar items from user mailboxes.
 # Requires the Exchange Online management module
 
