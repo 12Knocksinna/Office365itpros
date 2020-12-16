@@ -16,30 +16,21 @@
 # V4.5 15-May-2020 Some people reported that Get-Recipient is unreliable when fetching Groups, so added code to revert to Get-UnifiedGroup if nothing is returned by Get-Recipient
 # V4.6 8-Sept-2020 Better handling of groups where the SharePoint team site hasn't been created
 # V4.7 13-Oct-2020 Teams compliance records are now in a different location in group mailboxes
+# V4.8 16-Dec-2020 Some updates after review of code to create 5.0 (Graph based version)
 # 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
 CLS
 # Check that we are connected to Exchange Online, SharePoint Online, and Teams
 Write-Host "Checking that prerequisite PowerShell modules are loaded..."
-Try { $OrgName = (Get-OrganizationConfig).Name }
-   Catch  {
-      Write-Host "Your PowerShell session is not connected to Exchange Online."
-      Write-Host "Please connect to Exchange Online using an administrative account and retry."
-      Break }
-$SPOCheck = Get-Module "Microsoft.Online.SharePoint.PowerShell"
-If ($SPOCheck -eq $Null) {
-     Write-Host "Your PowerShell session is not connected to SharePoint Online."
-     Write-Host "Please connect to SharePoint Online using an administrative account and retry."; Break }
-# From V4.3 on, we don't load the Teams module because there's a faster way to get a list of Teams and we've fetched the info from Groups
-# $TeamsCheck = Get-Module "MicrosoftTeams"
-#If ($TeamsCheck -eq $Null) {
-#     Write-Host "Your PowerShell session is not connected to Microsoft Teams."
-#     Write-Host "Please connect to Microsoft Teams using an administrative account and retry."; Break }
+$ModulesLoaded = Get-Module | Select Name
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+If (!($ModulesLoaded -match "Microsoft.Online.SharePoint.PowerShell")) {Write-Host "Please connect to the SharePoint Online module and then restart the script"; break}
+   
+$OrgName = (Get-OrganizationConfig).Name  
        
 # OK, we seem to be fully connected to both Exchange Online and SharePoint Online...
 Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
-
 # Setup some stuff we use
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0
@@ -97,7 +88,7 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
    Write-Progress -Activity "Checking group" -Status $GroupStatus -PercentComplete $CheckCount
    $CheckCount += $ProgDelta;  $ObsoleteReportLine = $G.DisplayName;    $SPOStatus = "Normal"
    $SPOActivity = "Document library in use"; $SPOStorage = 0
-   $NumberWarnings = 0;   $NumberofChats = 0;  $TeamChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $MailboxStatus = $Null
+   $NumberWarnings = 0;   $NumberofChats = 0;  $TeamChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $MailboxStatus = $Null; $ObsoleteReportLine = $Null
 # Check who manages the group
   $ManagedBy = $G.ManagedBy
   If ([string]::IsNullOrWhiteSpace($ManagedBy) -and [string]::IsNullOrEmpty($ManagedBy)) {
@@ -197,7 +188,7 @@ If ($CountOldTeamsData -eq $True) { # We have counted the old date, so let's put
    If (!$LastItemAddedToTeams) { $LastItemAddedToTeams = $OldLastItemAddedToTeams }
 } # End if
 
-If ($NumberOfChats -le 100) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" }    
+If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" }      
 } # End if Processing Teams data
 
 # Generate a line for this group and store it in the report
