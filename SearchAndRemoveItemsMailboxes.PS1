@@ -43,6 +43,7 @@ $cancel = New-Object System.Management.Automation.Host.ChoiceDescription "&cance
 $PromptOptions = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no, $cancel)
 $PromptDecision = $host.ui.PromptForChoice($PromptTitle, $PromptMessage, $PromptOptions, 0) 
 
+$i = 0
 Switch ($PromptDecision) {
   "0" { 
        ForEach ($User in $ProcessUsers) {
@@ -58,9 +59,10 @@ Switch ($PromptDecision) {
                  SearchType         = "Removal"
                  SearchTime         = Get-Date }                 
              $ProcessUsers.Add($ReportLine)
+             $i++
             }
        } #End ForEach
-      Write-Host "All done." $ProcessUsers.Count "mailboxes processed and cleaned up. Details stored in c:\temp\SearchMailboxRemovals.csv"
+      Write-Host "All done." $i "mailboxes processed and cleaned up. Details stored in c:\temp\SearchMailboxRemovals.csv"
       $ProcessUsers | Export-CSV -NoTypeInformation c:\temp\SearchMailboxRemovals.csv
       }
   "1" {
