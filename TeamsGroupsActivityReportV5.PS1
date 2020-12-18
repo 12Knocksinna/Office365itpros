@@ -35,6 +35,7 @@ Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0
 [datetime]$DateOldTeams = "01-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
+$Version = "V5.0"
 
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
 $htmlhead="<html>
@@ -116,17 +117,12 @@ ForEach ($Group in $Groups) {
        $SPODocLib = $SPOUrl + "/Shared Documents" 
        $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
        $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g }
-   ELse { CLS } # Get rid of mucky SharePoint error  308 
-   # Get Member counts
-   $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/members?`$count=true"
-   $GroupData = Get-GraphData -AccessToken $Token -Uri $uri
-   $GroupMemberCount = 0; $GuestMemberCount = 0
-   ForEach ($User in $GroupData) {
-       $uri = "https://graph.microsoft.com/v1.0/users/" + $User.id + "?`$Select=displayname,usertype"
-       $UserData = Get-GraphData -AccessToken $Token -Uri $uri
-       $GroupMemberCount++
-       If ($UserData.UserType -eq "Guest") {$GuestMemberCount++}
-      }
+   Else { CLS; Write-Host "Continuing to fetch information about Microsoft 365 Groups..." } # Get rid of mucky SharePoint error  308 
+     # Get Member and Guest member counts
+   $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Guest'"
+   $GuestMemberCount = Get-GraphData -AccessToken $Token -Uri $uri
+   $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Member'"
+   $GroupMemberCount = Get-GraphData -AccessToken $Token -Uri $uri   
    # Update list with group information
    $ReportLine = [PSCustomObject][Ordered]@{
        DisplayName      = $Group.DisplayName
@@ -307,7 +303,7 @@ $htmltail = "<p>Report created for: " + $OrgName + "
              "<p>Number of Teams-enabled groups    : " + $TeamsCount + "</p>" +
              "<p>Percentage of Teams-enabled groups: " + $PercentTeams + "</body></html>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------"+
-             "<p>Microsoft 365 Groups and Teams Activity Report <b>V5.0</b>"	
+             "<p>Microsoft 365 Groups and Teams Activity Report <b>" + $Version + "</b>"	
 $htmlreport = $htmlhead + $htmlbody + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 $Report | Export-CSV -NoTypeInformation $CSVFile
@@ -315,7 +311,7 @@ $Report | Out-GridView
 # Summary note
 CLS
 Write-Host " "
-Write-Host "Results - Teams and Microsoft 365 Groups Activity Report V5.0"
+Write-Host "Results - Teams and Microsoft 365 Groups Activity Report" $Version
 Write-Host "-------------------------------------------------------------"
 Write-Host "Number of Microsoft 365 Groups scanned                          :" $GroupsCount
 Write-Host "Potentially obsolete groups (based on document library activity):" $ObsoleteSPOGroups
@@ -342,9 +338,10 @@ function Get-GraphData {
     # Check if authentication was successful.
     if ($AccessToken) {
         # Format headers.
-        $HeaderParams = @{
-            'Content-Type'  = "application\json"
-            'Authorization' = "Bearer $AccessToken"    }
+       $HeaderParams = @{
+         'Content-Type'  = "application\json"
+         'Authorization' = "Bearer $AccessToken" 
+         'ConsistencyLevel' = "eventual"  }
 
         # Create an empty array to store the result.
         $QueryResults = @()
