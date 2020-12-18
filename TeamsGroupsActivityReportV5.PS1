@@ -34,7 +34,7 @@ Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
 # Setup some stuff we use
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0
-[datetime]$DateOldTeams = "31-Dec-2020" # After this date, Microsoft should have moved the old Teams data to the new location
+[datetime]$DateOldTeams = "01-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
 
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
 $htmlhead="<html>
