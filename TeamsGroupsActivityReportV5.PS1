@@ -80,7 +80,10 @@ $body = @{
 $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
 # Unpack Access Token
 $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
-$headers = @{Authorization = "Bearer $token"}
+$Headers = @{
+            'Content-Type'  = "application\json"
+            'Authorization' = "Bearer $Token" 
+            'ConsistencyLevel' = "eventual" }
 
 # Create list of Microsoft 365 Groups in the tenant. We also get a list of Teams. In both cases, we build a hashtable
 # to store the object identifier and display name for the group. If more than 100 groups exist, fetch and continue processing using the NextLink
@@ -92,16 +95,18 @@ $Groups = Get-GraphData -AccessToken $Token -Uri $uri
 $GroupsList = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Group in $Groups) {
    # Get Group Owners
-  # Write-Host "Processing" $Group.DisplayName
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/owners?`$count=true"
-   $GroupData = Get-GraphData -AccessToken $Token -Uri $uri
-   $x = 0; $OwnerNames = $Null
-   ForEach ($Owner in $GroupData) {
-       $uri = "https://graph.microsoft.com/v1.0/users/" + $Owner.id
-       $OwnerName = Get-GraphData -AccessToken $Token -Uri $uri
-           $OwnerName = $OwnerName.DisplayName ; $x++ 
-       If ($x -eq 1) { $OwnerNames = $OwnerName } Else { $OwnerNames = $OwnerNames + "; " + $OwnerName }
-   }
+   $GroupData = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET"
+   If ($GroupData."@odata.count" -eq 0) {
+       $OwnerNames = "No owners found" }
+   Else  { # Extract owner names
+       $x = 0; $OwnerNames = $Null
+       ForEach ($Owner in $GroupData.Value) {
+          $uri = "https://graph.microsoft.com/v1.0/users/" + $Owner.id
+          $OwnerName = Get-GraphData -AccessToken $Token -Uri $uri
+            $OwnerName = $OwnerName.DisplayName ; $x++ 
+          If ($x -eq 1) { $OwnerNames = $OwnerName } Else { $OwnerNames = $OwnerNames + "; " + $OwnerName }
+   }}
    # Get extended group properties 
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
    $GroupData = Get-GraphData -AccessToken $Token -Uri $uri
@@ -169,11 +174,6 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
    $CheckCount += $ProgDelta;  $ObsoleteReportLine = $G.DisplayName;    $SPOStatus = "Normal"
    $SPOActivity = "Document library in use"
    $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $MailboxStatus = $Null; $ObsoleteReportLine = $Null
-# Check who manages the group
-  $ManagedBy = $G.ManagedBy
-  If ([string]::IsNullOrEmpty($ManagedBy)) {
-     $ManagedBy = "No owners"
-     Write-Host $G.DisplayName "has no group owners!" -ForegroundColor Red}
 # Group Age
   $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
 # Fetch information about activity in the Inbox folder of the group mailbox  
@@ -258,7 +258,7 @@ If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-
 # Generate a line for this group and store it in the report
     $ReportLine = [PSCustomObject][Ordered]@{
           GroupName           = $G.DisplayName
-          ManagedBy           = $ManagedBy
+          ManagedBy           = $G.ManagedBy
           Visibility          = $G.Visibility
           Members             = $G.GroupMembers
           ExternalGuests      = $G.GuestMembers
@@ -338,7 +338,7 @@ function Get-GraphData {
     # Check if authentication was successful.
     if ($AccessToken) {
         # Format headers.
-       $HeaderParams = @{
+       $Headers = @{
          'Content-Type'  = "application\json"
          'Authorization' = "Bearer $AccessToken" 
          'ConsistencyLevel' = "eventual"  }
@@ -353,7 +353,7 @@ function Get-GraphData {
 
             do {
                 try {
-                    $Results = Invoke-RestMethod -Headers $HeaderParams -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json"
+                    $Results = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json"
 
                     $StatusCode = $Results.StatusCode
                 } catch {
