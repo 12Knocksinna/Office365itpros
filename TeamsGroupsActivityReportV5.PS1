@@ -61,10 +61,10 @@ Write-Host "Extracting list of Microsoft 365 Groups for checking..."
 [Int]$GroupsCount = 0; [int]$TeamsCount = 0; $UsedGroups = $False
 
 Cls
-# Define the values applicable for the application used to connect to the Graph
-$AppId = "0ade5c24-d775-4017-a824-0a993c60787c"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = '7RplGSLWoSs~y4uHYy2041-jbm.4~_r.~q'
+# Define the values applicable for the application used to connect to the Graph - these will be different for your tenant
+$AppId = "0ade5c24-d775-4017-a824-0a993c60787d"
+$TenantId = "b762313f-14fc-43a2-9a7a-d2e27f4f3478"
+$AppSecret = '7RplGSLWoSs~y5uHYy2041-jbm.4~_r.~q'
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
