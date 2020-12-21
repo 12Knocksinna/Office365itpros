@@ -22,10 +22,9 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
 CLS
-# Check that we are connected to Exchange Online and SharePoint Online
+# Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
-If (!($ModulesLoaded -match "Microsoft.Online.SharePoint.PowerShell")) {Write-Host "Please connect to the SharePoint Online module and then restart the script"; break}
        
 $OrgName = (Get-OrganizationConfig).Name
 # OK, we seem to be fully connected to both Exchange Online and SharePoint Online...
@@ -89,6 +88,32 @@ $Headers = @{
 # to store the object identifier and display name for the group. If more than 100 groups exist, fetch and continue processing using the NextLink
 Write-Host "Fetching data about Microsoft 365 Groups..."
 $S1 = Get-Date #Start of processing
+
+   # Get SharePoint site usage data
+   $SPOUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D7')"
+   $SPOUsage = (Invoke-RestMethod -Uri $SPOUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+   $DataTable = @{} # Build hashtable with SharePoint usage information per site
+   ForEach ($Site in $SPOUsage) {
+    If ($Site."Root Web Template" -eq "Group") {
+     If ([string]::IsNullOrEmpty($Site."Last Activity Date")) { # No activity for this site 
+        $LastActivityDate = $Null }
+     Else {
+        $LastActivityDate = Get-Date($Site."Last Activity Date") -format g
+        $LastActivityDate = $LastActivityDate.Split(" ")[0] }
+     $SiteDisplayName = $Site."Owner Display Name".IndexOf("Owners") # Extract site name
+     If ($SiteDisplayName -ge 0) {
+         $SiteDisplayName = $Site."Owner Display Name".SubString(0,$SiteDisplayName) }
+     Else { 
+         $SiteDisplayName = $Site."Owner Display Name" }
+     $StorageUsed = [string]([math]::round($Site."Storage Used (Byte)"/1GB,2)) + " GB"
+     $SingleSiteData = @{
+       'DisplayName'      = $SiteDisplayName
+       'LastActivityDate' = $LastActivityDate
+       'FileCount'        = $Site."File Count" 
+       'StorageUsed'      = $StorageUsed }
+     $DataTable.Add([String]$Site."Site URL",$SingleSiteData)
+     }
+}
 
 $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=groupTypes/any(a:a eq 'unified')"
 $Groups = Get-GraphData -AccessToken $Token -Uri $uri
@@ -197,20 +222,23 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
            $NumberWarnings++}
       }
 
-# Check for activity in the group's SharePoint document library
-   If ($G.SharePointURL -ne $Null) {
-      $SPOStorage = (Get-SPOSite -Identity $G.SharePointUrl).StorageUsageCurrent
-      $SPOStorage = [Math]::Round($SpoStorage/1024,2) # SharePoint site storage in GB
-      $DaysSinceLastSPOActivity = (New-TimeSpan -Start $G.LastSPOActivity -End $Today).Days
-      If ($DaysSinceLastSPOActivity -gt 90) {
-         $ObsoleteSPOGroups++; $ObsoleteReportLine = $ObsoleteReportLine + " No SharePoint activity detected in the last 90 days." 
-         $NumberWarnings++; $SPOActivity = "No SharePoint activity detected in the last 90 days"}
-      Else {
-         $SPOActivity = $G.LastSPOActivity }}
+# Check for activity in the group's SharePoint site
+   $SPOFileCount = 0; $SPOStorageUsed = "N/A"; $SPOLastActivityDate = $Null; $DaysSinceLastSPOActivity = "N/A"
+   If ($G.SharePointURL -ne $Null) {    
+      If ($Datatable[$G.SharePointURL]) { # Look up hash table to find usage information for the site
+        $ThisSiteData = $Datatable[$G.SharePointURL]
+        $SPOFileCount = $ThisSiteData.FileCount
+        $SPOStorageUsed = $ThisSiteData.StorageUsed
+        $SPOLastActivityDate = $ThisSiteData.LastActivityDate 
+        If ($SPOLastActivityDate -ne $Null) {
+           $DaysSinceLastSPOActivity = (New-TimeSpan -Start $SPOLastActivityDate -End $Today).Days }
+   }
    Else { # The SharePoint document library URL is blank, so the document library was never created for this group
         $ObsoleteSPOGroups++;  
         $ObsoleteReportLine = $ObsoleteReportLine + " SharePoint document library never created." 
-       }
+       }}
+   If ($DaysSinceLastSPOActivity -gt 90) { # No activity in more than 90 days
+       $ObsoleteSPOGroups++; $ObsoleteReportLine = $ObsoleteReportLine + " No SPO activity detected in the last 90 days." }  
 
 # Generate the number of warnings to decide how obsolete the group might be...   
    If ($G.SharePointDocLib -eq $Null) {
