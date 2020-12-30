@@ -35,7 +35,7 @@ CLS ; For ($i=0; $i -le 7; $i++) {
 } #End loop
 
 # Clean up Bing images older than 30 days so we keep the number of background images to a reasonable number
-$RemoveDate = Get-Date.AddDays(-30)
+$RemoveDate = (Get-Date).AddDays(-30)
 $BingFiles = Get-ChildItem $TeamsBackgroundFiles | ? {($_.LastWriteTime -lt $RemoveDate) -and ($_.Name.Substring(0,5) -eq "Bing-")}
 If ($BingFiles) {
    Write-Host "Cleaning up old Bing background images"
