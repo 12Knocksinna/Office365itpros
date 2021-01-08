@@ -142,16 +142,15 @@ Else {
       $Report.Add($ReportLine) }
 }
 Cls
-Write-Host "All done!" $Records.Count "Sensitivity Label records found for the last 90 days"
-Write-Host "Site Labels Applied:             " $GroupLabels
-Write-Host "Labels applied to new documents: " $NewDocLabels
-Write-Host "Labels updated on documents:     " $LabelsChanged
-Write-Host "Labeled files renamed:           " $LabelsRenamed
-Write-Host "Labeled files opened (desktop):  " $OfficeFileOpens
-Write-Host "Labels removed from documents:   " $LabelsRemoved
-Write-Host "Mismatches detected:             " $MisMatches     
+Write-Host "Job complete." $Records.Count "Sensitivity Label audit records found for the last 90 days"
+Write-Host " "
+Write-Host "Labels applied to SharePoint sites: " $GroupLabels
+Write-Host "Labels applied to new documents:    " $NewDocLabels
+Write-Host "Labels updated on documents:        " $LabelsChanged
+Write-Host "Labeled files renamed:              " $LabelsRenamed
+Write-Host "Labeled files opened (desktop):     " $OfficeFileOpens
+Write-Host "Labels removed from documents:      " $LabelsRemoved
+Write-Host "Mismatches detected:                " $MisMatches     
 Write-Host "----------------------"
+Write-Host " "
 Write-Host "Report file written to" $OutputCSVFile
-
-$Report = $Report | Sort {$_.TimeStamp -as [datetime]} 
-$Report | Export-CSV -NoTypeInformation $OutputCSVFile
