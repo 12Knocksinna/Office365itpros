@@ -20,7 +20,7 @@ $Labels.ForEach( {
 Write-Host "Searching Office 365 Audit Log to find audit records for sensitivity labels"
 $StartDate = (Get-Date).AddDays(-90); $EndDate = (Get-Date) 
 $OutputCSVFile = "C:\temp\SensitivityLabelsAuditRecords.csv"
-$Operations = "SensitivityLabeledFileOpened", "SensitivityLabeledFileRenamed", "SensitivityLabeledRemoved", "SensitivityLabelApplied", "FileSensitivityLabelApplied", "FileSensitivityLabelRemoved", "FileSensitivityLabelChanged", "Assign label to group."
+$Operations = "SensitivityLabeledFileOpened", "SensitivityLabeledFileRenamed", "SensitivityLabelRemoved", "SensitivityLabelApplied", "FileSensitivityLabelApplied", "FileSensitivityLabelRemoved", "FileSensitivityLabelChanged", "Assign label to group."
 
 $GroupLabels = 0; $LabelsChanged = 0; $MisMatches = 0; $NewDocLabels = 0; $LabelsRemoved = 0; $GroupLabels = 0; $LabelsRenamed = 0; $OfficeFileOpens = 0
 $Records = (Search-UnifiedAuditLog -Operations $Operations -StartDate $StartDate -EndDate $EndDate -ResultSize 2000)
