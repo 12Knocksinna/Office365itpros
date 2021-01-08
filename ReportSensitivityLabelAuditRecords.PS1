@@ -1,5 +1,6 @@
 # ReportSensitivityLabelAuditRecords.PS1
 # Extracts audit events from the Office 365 audit log to generate a report
+# https://github.com/12Knocksinna/Office365itpros/edit/master/ReportSensitivityLabelAuditRecords.PS1
 # Needs connections to Exchange Online and the compliance endpoints
 CLS
 # Check that we are connected to Exchange Online
