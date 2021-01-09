@@ -1,7 +1,7 @@
 # ConvertDLtoO365Group.PS1
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ConvertDLtoO365Group.PS1
 #    .SYNOPSIS
-#    Converts a distribution group to an Office 365 Group.
+#    Converts a distribution list to an Microsoft 365 Group.
 #   
 #    .PARAMETER InputGroup
 #    The name (or alias) of the input distribution group to process
@@ -29,7 +29,7 @@ $Test = Get-UnifiedGroup -Identity $InputGroup -ErrorAction SilentlyContinue
 
 if ($Test -ne $null)
  { 
-  Write-Host "An Office 365 Group with the same alias already exists (" $InputGroup "). Exiting..."
+  Write-Host "A Microsoft 365 Group with the same alias already exists (" $InputGroup "). Exiting..."
   EXIT
 }
 
@@ -39,7 +39,7 @@ $DlType = $InputDL.RecipientTypeDetails
 
 if ($DlType -ne "MailUniversalDistributionGroup")
 { 
-  Write-Host $InputGroup " is a" $DlType "group and cannot be converted to an Office 365 Group"
+  Write-Host $InputGroup " is a" $DlType "group and cannot be converted to a Microsoft 365 Group"
   EXIT
 }
 
@@ -49,10 +49,10 @@ $DisplayName = $InputDL.DisplayName
 [Array]$ManagedBy = $InputDL.ManagedBy
 [Array]$Members = Get-DistributionGroupMember -Identity $InputGroup
 
-# Filter so we know the DL members that can be added to the Office 365 Group
+# Filter so we know the DL members that can be added to the Microsoft 365 Group
 [Array]$NewO365GroupMembers = $Members | Where-Object {$_.RecipientTypeDetails –eq “UserMailbox”}
 
-# Create a new alias to give to the DL so that we can reuse its alias for the new OFfice 365 Group
+# Create a new alias to give to the DL so that we can reuse its alias for the new Microsoft 365 Group
 $O365GroupAlias = $InputDL.Alias
 $NewAlias = $O365GroupAlias + "-convert"
 $NewDLDisplayName = $InputDL.DisplayName + " (Converted to O365 Group)"
@@ -83,18 +83,18 @@ Foreach ($Member in $Members) {
 
 # Phew... Now that we know what we're going to do, let's tell the admin and ask them if it's OK to proceed...
 Write-Host " "
-Write-Host "Now ready to convert the Distribution Group" $DisplayName "to a new Office 365 Group"
-Write-Host "The Alias and email address for the Distribution Group will be switched to the Office 365 Group"
+Write-Host "Now ready to convert the Distribution Group" $DisplayName "to a new Microsoft 365 Group"
+Write-Host "The Alias and email address for the Distribution Group will be switched to the Microsoft 365 Group"
 Write-Host "The new alias for the Distribution Group will be" $NewAlias "and its email address will be" $NewDLAddress
 Write-Host "The Distribution Group will be renamed to" $NewDLDisplayName "and it will be hidden from the GAL"
 if ($BadType -gt 0) {
-   Write-Host "Warning!" $BadType "recipients of" $Members.Count "will be dropped from the Office 365 Group because their recipient type is unsupported"
+   Write-Host "Warning!" $BadType "recipients of" $Members.Count "will be dropped from the Microsoft 365 Group because their recipient type is unsupported"
    Write-Host "The recipients that will be dropped are:"
    $BadMembers
    Write-Host " "
     }
  else {
-   Write-Host $Members.Count "recipients will be transferred to the new Office 365 Group"
+   Write-Host $Members.Count "recipients will be transferred to the new Microsoft 365 Group"
  }
 Write-Host $ManagedBy.Count "manager(s) for the $DisplayName group will be transferred"
 Write-Host " "
@@ -108,7 +108,7 @@ if ($Confirmation -eq "N")
 
 Write-Host "Processing..."
 
-# Prepare for the conversion by first switching the alias so we can reuse it for the new Office 365 Group
+# Prepare for the conversion by first switching the alias so we can reuse it for the new Microsoft 365 Group
 Set-DistributionGroup $InputGroup -Alias $NewAlias
 $InputDL.Alias = $NewAlias
 
@@ -116,15 +116,15 @@ $InputDL.Alias = $NewAlias
 # First, initialize $Answer with 1 because a public group is the default
 $Answer = 1
 if ($InputDL.MemberJoinRestriction -eq "Closed" -or $InputDL.MemberJoinRestriction -eq "ApprovalRequired") {
-   $Message = "The source distribution group is closed. Do you want the Office 365 Group to be private?"
-   $Caption = "Select the type of Office 365 group to create";
+   $Message = "The source distribution group is closed. Do you want the Microsoft 365 Group to be private?"
+   $Caption = "Select the type of Microsoft 365 group to create";
    $PrivateOption= new-Object System.Management.Automation.Host.ChoiceDescription "&Private Group","Private Group";
    $PublicOption = new-Object System.Management.Automation.Host.ChoiceDescription "&Open (Public)","Open (Public)";
    $Choices = [System.Management.Automation.Host.ChoiceDescription[]]($PrivateOption,$PublicOption);
    $Answer = $host.ui.PromptForChoice($Caption,$Message,$Choices,0)
 }
 
-# The alias for the source DL is updated so we can now create a new Office 365 Group based on the old alias
+# The alias for the source DL is updated so we can now create a new Microsoft 365 Group based on the old alias
 # When Microsoft updates Exchange Online to support creation of private and public groups, this code will be updated
 # to use the following code for private groups:
 # New-UnifiedGroup -Alias $O365GroupAlias -DisplayName $DisplayName -AccessType Private
@@ -132,7 +132,7 @@ if ($InputDL.MemberJoinRestriction -eq "Closed" -or $InputDL.MemberJoinRestricti
 # New-UnifiedGroup -Alias $O365GroupAlias -DisplayName $DisplayName -AccessType Public
 # for the moment, a public group is all we can create
 
-Write-Host "Creating new Office 365 Group:" $DisplayName "   This might take a moment..."
+Write-Host "Creating new Microsoft 365 Group:" $DisplayName "   This might take a moment..."
 If ($Answer -eq 1) {
     # Create a public group
     New-UnifiedGroup -Alias $O365GroupAlias -DisplayName $DisplayName
@@ -179,7 +179,7 @@ Set-UnifiedGroup -Identity $O365GroupAlias -ExtensionCustomAttribute1 $InputDL.E
 # as well as having access to group resources. Note that there is a bug in Office 365 groups that prevents subscriber records being added, which is
 # why the silentlycontinue error handler is place 
 
-Write-Host "Adding members to the new Office 365 Group"
+Write-Host "Adding members to the new Microsoft 365 Group"
 # Using the filtered array created earlier to only add the mailbox members of the DL who can be added
 Foreach ($Member in $NewO365GroupMembers) { 
    $MType = (Get-Recipient -Identity $Member.alias -ErrorAction SilentlyContinue).RecipientTypeDetails 
@@ -198,8 +198,8 @@ Foreach ($Manager in $ManagedBy) {
    Add-UnifiedGroupLinks -Identity $O365GroupAlias -Links (Get-Recipient $Manager).Alias -LinkType "Owners" 
  }
 
-# To make sure that messages sent to the old DL now go to the new Office 365 Group, we switch the primary email address of the old DL to the new group
-Write-Host "Switching email addresses to route messages to new Office 365 Group..."
+# To make sure that messages sent to the old DL now go to the new Microsoft 365 Group, we switch the primary email address of the old DL to the new group
+Write-Host "Switching email addresses to route messages to new Microsoft 365 Group..."
 
 Set-DistributionGroup -Identity $NewAlias -PrimarySMTPAddress $NewDLAddress 
 Set-DistributionGroup -Identity $NewAlias -EmailAddresses $NewDLAddress
@@ -213,7 +213,7 @@ Set-DistributionGroup -Identity $NewAlias -HiddenFromAddressListsEnabled $True -
 
 # All done - tell the user what we have done
 $DisplayName = (Get-UnifiedGroup -Identity $O365GroupAlias).DisplayName
-Write-Host "Details of new Office 365 Group alias:" $O365GroupAlias " Display name:" $DisplayName
+Write-Host "Details of new Microsoft 365 Group alias:" $O365GroupAlias " Display name:" $DisplayName
 Write-Host "Email address for the new group is set to: " (Get-UnifiedGroup -Identity $O365GroupAlias).PrimarySmtpAddress
 Write-Host " "
 Write-Host "Group Members" 
@@ -222,7 +222,7 @@ Write-Host "Group Managers"
 Get-UnifiedGroupLinks -Identity $O365GroupAlias -LinkType Owners | Format-Table DisplayName
 Write-Host " "
 
-Write-Host "Process complete. New Office 365 Group created:" (Get-UnifiedGroup -Identity $O365GroupAlias).DisplayName
+Write-Host "Process complete. New Microsoft 365 Group created:" (Get-UnifiedGroup -Identity $O365GroupAlias).DisplayName
 Write-Host "Note that the old distribution group is hidden from GAL and is now called:" (Get-DistributionGroup -Identity $NewAlias).DisplayName
 
 # Done and dusted...
