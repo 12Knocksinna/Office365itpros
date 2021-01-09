@@ -1,6 +1,6 @@
 # FindInactiveDls
 # Find inactive distribution lists based on the message trace informnation, which means we can only go back 7 days...
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindInactiveDLs.PS1
 $EndDate = Get-Date
 $StartDate = $EndDate.AddDays(-10)
 $Messages = $null 
