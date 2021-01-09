@@ -1,4 +1,5 @@
 # DecryptProtectedSPODocuments.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/DecryptProtectedSPODocuments.PS1
 # Example of how to use the Unlock-SPOSensitivityLabelEncryptedFile to decrypt labelled SharePoint Online documents
 # Uses SharePnP and SharePoint Online Management module - example used in https://petri.com/decrypt-sharepointonline-documents
 
