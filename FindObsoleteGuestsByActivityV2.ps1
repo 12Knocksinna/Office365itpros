@@ -7,7 +7,8 @@ $Guests = (Get-AzureADUser -Filter "UserType eq 'Guest'" -All $True| Select Disp
 Write-Host $Guests.Count "guest accounts found. Checking their activity..."
 $StartDate = Get-Date(Get-Date).AddDays(-90) -Format g #For audit log
 $StartDate2 = Get-Date(Get-Date).AddDays(-10) -Format g #For message trace
-$EndDate = Get-Date -Format g; $Active = 0; $EmailActive = 0; $Inactive = 0; $AuditRec = 0; $Report = @(); $GNo = 0
+$EndDate = Get-Date -Format g; $Active = 0; $EmailActive = 0; $Inactive = 0; $AuditRec = 0; $GNo = 0
+$Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 CLS
 ForEach ($G in $Guests) {
     $GNo++
@@ -45,7 +46,7 @@ ForEach ($G in $Guests) {
           LastConnectOn    = $LastAuditRecord
           LastConnect      = $LastAuditAction
           O365Groups       = $GroupNames } 
-       $Report += $ReportLine  
+       $Report.Add($ReportLine) 
 } 
 $Report | Sort Name | Export-CSV -NoTypeInformation c:\temp\GuestActivity.csv   
 Cls; Write-Host "All Done... The output file is in c:\temp\GuestActivity.csv"      
