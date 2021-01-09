@@ -1,5 +1,6 @@
 # Add all Teams that aren't already covered by the Groups expiration policy 
 # to the policy
+# https://github.com/12Knocksinna/Office365itpros/blob/master/AddTeamstoGroupsExpirationPolicy.ps1
 $PolicyId = (Get-AzureADMSGroupLifecyclePolicy).Id
 $TeamsCount = 0
 Write-Host "Fetching list of Teams in the tenant..."
