@@ -99,12 +99,12 @@ Else {
                  $Document    = $AuditData.ObjectId
                  $Site        = "Local workstation (" + $AuditData.DeviceName + ")"
                  $Reason      = "Labeled document opened by " + $AuditData.Application             }
-            "SensitivityLabeledFileRenamed" { #Label renamed by an Office desktop app
+            "SensitivityLabeledFileRenamed" { #Labelled file renamed or edited (locally) by an Office desktop app
                  $LabelsRenamed++
                  $Application  = $AuditData.Application
                  $Device       = $AuditData.DeviceName
                  $LabelId      = $AuditData.LabelId
-                 $Reason       = "Labeled file renamed" }
+                 $Reason       = "Labeled file edited locally or renamed" }
             "SensitivityLabelRemoved" { #Label removed by an Office desktop app
                  $LabelsRemoved++
                  $Application  = $AuditData.Application
@@ -144,13 +144,13 @@ Else {
 Cls
 Write-Host "Job complete." $Records.Count "Sensitivity Label audit records found for the last 90 days"
 Write-Host " "
-Write-Host "Labels applied to SharePoint sites: " $GroupLabels
-Write-Host "Labels applied to new documents:    " $NewDocLabels
-Write-Host "Labels updated on documents:        " $LabelsChanged
-Write-Host "Labeled files renamed:              " $LabelsRenamed
-Write-Host "Labeled files opened (desktop):     " $OfficeFileOpens
-Write-Host "Labels removed from documents:      " $LabelsRemoved
-Write-Host "Mismatches detected:                " $MisMatches     
+Write-Host "Labels applied to SharePoint sites   :   " $GroupLabels
+Write-Host "Labels applied to new documents:         " $NewDocLabels
+Write-Host "Labels updated on documents:             " $LabelsChanged
+Write-Host "Labeled files edited locally or renamed: " $LabelsRenamed
+Write-Host "Labeled files opened (desktop):          " $OfficeFileOpens
+Write-Host "Labels removed from documents:           " $LabelsRemoved
+Write-Host "Mismatches detected:                     " $MisMatches     
 Write-Host "----------------------"
 Write-Host " "
 Write-Host "Report file written to" $OutputCSVFile
