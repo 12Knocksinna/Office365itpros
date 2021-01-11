@@ -1,4 +1,5 @@
 # Find out when an anonymous link is used by someone outside an Office 365 tenant to access SharePoint Online and OneDrive for Business documents
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindWhenAnonymousLinkUsed.ps1
 $StartDate = (Get-Date).AddDays(-90); $EndDate = (Get-Date) #Maximum search range for audit log for E3 users
 CLS; Write-Host "Searching Office 365 Audit Records to find anonymous sharing activity"
 $Records = (Search-UnifiedAuditLog -Operations AnonymousLinkUsed -StartDate $StartDate -EndDate $EndDate -ResultSize 1000)
