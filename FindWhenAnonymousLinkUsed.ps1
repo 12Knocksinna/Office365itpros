@@ -21,7 +21,7 @@ Else {
       Site      = $AuditData.SiteUrl
       FileName  = $AuditData.SourceFileName 
       SortTime  = $AuditData.CreationTime }
-    $Report += $ReportLine }
+    $Report.Add($ReportLine) }
   # Now that we have parsed the information for the link used audit records, let's track what happened to each link
   $RecNo = 0; CLS; $TotalRecs = $Report.Count
   ForEach ($R in $Report) {
