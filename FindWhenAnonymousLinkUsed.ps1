@@ -7,7 +7,7 @@ If ($Records.Count -eq 0) {
     Write-Host "No anonymous share records found." }
 Else {
     Write-Host "Processing" $Records.Count "audit records..."
-    $Report = @() # Create output file for report
+    $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
     # Scan each audit record to extract information
     ForEach ($Rec in $Records) {
       $AuditData = ConvertFrom-Json $Rec.Auditdata
@@ -43,7 +43,7 @@ Else {
             Site      = $AuditData.SiteUrl
             FileName  = $AuditData.SourceFileName 
             SortTime  = $AuditData.CreationTime }}
-         $Report += $ReportLine }
+         $Report.Add($ReportLine) }
 }}
 $Report | Sort FileName, IPAddress, User, SortTime | Export-CSV -NoTypeInformation "c:\Temp\AnonymousLinksUsed.CSV"
 Write-Host "All done. Output file is available in c:\temp\AnonymousLinksUsed.Csv"
