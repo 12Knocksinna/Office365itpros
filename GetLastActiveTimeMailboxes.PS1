@@ -27,3 +27,4 @@ $Mbx = (Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited |
         LastFile = Get-Date($LastFile) -Format g} 
    $Report.Add($ReportLine)} 
 $Report | Export-csv -NoTypeInformation Users.csv
+$Report | Sort {$_.LastLogon -as [datetime] -descending | Out-GridView
