@@ -1,5 +1,5 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindTabsAndAppsInTeams.ps1
-# The correct tenant values for the app id etc. are in this script.
+# Remember to insert the correct values for the tenant id, app id, and app secret before running the script.
 Cls
 # Define the values applicable for the application used to connect to the Graph
 $AppId = "d716b32c-0edb-48be-9385-30a9cfd96153"    # Change this
