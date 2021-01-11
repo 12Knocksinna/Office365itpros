@@ -1,6 +1,7 @@
 # GenerateTeamsDirectory.Ps1
 # A script to generate a list of Teams with deep links that can be turned into a teams directory with clickable hyperlinks
 # V1.0 16 Apr 2019
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GenerateTeamsDirectory.ps1
 # Tony Redmond
 
 # Example Link https://teams.microsoft.com/l/team/19%3a099f14ec32cc4793a7ef99238dbaac86%40thread.skype/conversations?groupId=5b617155-a124-4e32-a230-022dfe0b80ac&tenantId=b662313f-14fc-43a2-9a7a-d2e27f4f3478
