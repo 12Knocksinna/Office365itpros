@@ -24,11 +24,12 @@ Else {
     $Report.Add($ReportLine) }
   # Now that we have parsed the information for the link used audit records, let's track what happened to each link
   $RecNo = 0; CLS; $TotalRecs = $Report.Count
+  $AuditReport = [System.Collections.Generic.List[Object]]::new() # Create output file 
   ForEach ($R in $Report) {
      $RecNo++
      $ProgressBar = "Processing audit records for " + $R.FileName + " (" + $RecNo + " of " + $TotalRecs + ")" 
      Write-Progress -Activity "Checking Sharing Activity With Anonymous Links" -Status $ProgressBar -PercentComplete ($RecNo/$TotalRecs*100)
-     $StartSearch = $R.TimeStamp; $EndSearch = (Get-Date $R.TimeStamp).AddDays(+7) # We'll search for any audit records 
+     $StartSearch = (Get-Date $R.TimeStamp); $EndSearch = (Get-Date $R.TimeStamp).AddDays(+7) # We'll search for any audit records 
      $AuditRecs = (Search-UnifiedAuditLog -StartDate $StartSearch -EndDate $EndSearch -IPAddresses $R.IPAddress -Operations FileAccessedExtended, FilePreviewed, FileModified, FileAccessed, FileDownloaded -ResultSize 100)
      Foreach ($AuditRec in $AuditRecs) {
        If ($AuditRec.UserIds -Like "*urn:spo:*") { # It's a continuation of anonymous access to a document
@@ -43,9 +44,9 @@ Else {
             Site      = $AuditData.SiteUrl
             FileName  = $AuditData.SourceFileName 
             SortTime  = $AuditData.CreationTime }}
-         $Report.Add($ReportLine) }
+         $AuditReport.Add($ReportLine) }
 }}
-$Report | Sort FileName, IPAddress, User, SortTime | Export-CSV -NoTypeInformation "c:\Temp\AnonymousLinksUsed.CSV"
+$AuditReport | Sort FileName, IPAddress, User, SortTime -Unique | Export-CSV -NoTypeInformation "c:\Temp\AnonymousLinksUsed.CSV"
 Write-Host "All done. Output file is available in c:\temp\AnonymousLinksUsed.Csv"
 # Output in grid, making sure that any duplicates created at the same time are ignored
-$Report | Sort FileName, IPAddress, User, SortTime -Unique | Select Timestamp, Action, Filename, IPAddress, Workload, Site | Out-Gridview  
+$AuditReport | Sort FileName, IPAddress, User, SortTime -Unique | Select Timestamp, Action, Filename, IPAddress, Workload, Site | Out-Gridview  
