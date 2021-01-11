@@ -5,7 +5,7 @@
 # Tony Redmond
 
 # Example Link https://teams.microsoft.com/l/team/19%3a099f14ec32cc4793a7ef99238dbaac86%40thread.skype/conversations?groupId=5b617155-a124-4e32-a230-022dfe0b80ac&tenantId=b662313f-14fc-43a2-9a7a-d2e27f4f3478
-$OrgName = "ABC Tenant"
+$OrgName = (Get-OrganizationConfig).Name
 $Today = (Get-Date)
 $Date = (Get-Date).ToShortDateString()
 $TenantId = "&tenantId=b662313f-14fc-43a2-9a7a-d2e27f4f3478"
@@ -34,9 +34,8 @@ $htmlhead="<!DOCTYPE html>
 		
 Write-Host "Fetching List of Teams"
 $Teams = Get-Team | Sort DisplayName
-$Public = 0
-$Private = 0
-$Report = @()
+$Public = 0; $Private = 0
+$Report = [System.Collections.Generic.List[Object]]::new() # Create output file
 Write-Host "Processing" $Teams.Count "teams"
 ForEach ($T in $Teams) {
    $DeepLink = $DeepLinkPrefix + $T.GroupId + $TenantId
@@ -69,7 +68,7 @@ ForEach ($T in $Teams) {
           ExternalGuests      = $G.GroupExternalMemberCount
           Access              = $Access }
    # And store the line in the report object
-   $Report += $ReportLine     }
+   $Report.Add($ReportLine)     }
 #End of processing teams - now create the HTML report and CSV file
 $Private = $Teams.Count - $Public
 $htmlbody = $Report | ConvertTo-Html -Fragment
