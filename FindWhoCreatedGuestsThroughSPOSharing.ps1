@@ -1,4 +1,5 @@
 # A script to find who created new guest accounts in an Office 365 tenant through SharePoint Online sharing invitations
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindWhoCreatedGuestsThroughSPOSharing.ps1
 $EndDate = (Get-Date).AddDays(1); $StartDate = (Get-Date).AddDays(-90); $NewGuests = 0
 $Records = (Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations "SharingInvitationCreated" -ResultSize 2000 -Formatted)
 If ($Records.Count -eq 0) {
