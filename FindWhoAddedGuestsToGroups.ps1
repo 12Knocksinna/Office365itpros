@@ -1,4 +1,5 @@
 # A script to find and report who added new guest members to Office 365 Groups over the last 90 days
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindWhoAddedGuestsToGroups.ps1
 $EndDate = (Get-Date).AddDays(1); $StartDate = (Get-Date).AddDays(-90); $NewGuests = 0
 $Records = (Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations "Add Member to Group" -ResultSize 2000 -Formatted)
 If ($Records.Count -eq 0) {
