@@ -8,6 +8,7 @@
 
 $MsgFrom = "o365itprosrenewals@office365itpros.com" # Set your own address for email notifications here.
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 # Set TLS 1.2 for SMTP
 $Records = Search-UnifiedAuditLog -StartDate ((Get-Date).AddDays(-7)) -EndDate ((Get-Date).AddDays(1)) -ResultSize 5000 -Operations MemberAdded -RecordType MicrosoftTeams
 
 If ($Records) {
