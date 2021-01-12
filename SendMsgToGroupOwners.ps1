@@ -71,7 +71,8 @@ ForEach ($R in $FailedGroups) {
      <p>If a group has a <b><u>Fail</b></u> overall status, it means that the group is a candidate for removal due to lack of use.</p>
      </body></html>"
      $HtmlMsg = $HtmlHead + $HtmlBody
-
+     # Set TLS version
+     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
      # Construct the message parameters and send it off...
      $MsgParam = @{
          To = $MsgTo
