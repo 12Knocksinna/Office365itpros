@@ -1,5 +1,5 @@
 # SendWelcomeEmail.PS1
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/SendWelcomeEmail.PS1
 # How to send a welcome message to new mailboxes using SMTP AUTH
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 # Date to Check for new accounts - we use the last 7 days here, but that's easily changable.
