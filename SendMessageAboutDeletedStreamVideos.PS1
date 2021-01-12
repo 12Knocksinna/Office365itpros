@@ -61,6 +61,8 @@ $HtmlBody = $Report | Sort "Days Remaining" -Descending | ConvertTo-Html -Fragme
 $HtmlTail = "<p><b>Please review and make sure that it is OK to allow these videos to be deleted. After Stream removes videos from its Recycle Bin, the videos are no longer recoverable.</b></p>"
 $HtmlReport = $HtmlHeader + $HtmlBody + $HtmlTail
 $HtmlReport | Out-File $HtmlReportFile -Encoding UTF8
+# Set TLS
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 # Import into email body
 $HtmlMsg =  Get-Content $HtmlReportFile
 $MsgFrom = $O365Cred.UserName ; $SmtpServer = "smtp.office365.com" ; $SmtpPort = '587'
