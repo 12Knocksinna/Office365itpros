@@ -24,7 +24,7 @@ $EmailRecipient = "SomeoneinYourTenant@Tenant.com" # &lt;- Update this with the 
 If (-not $O365Cred) { #Make sure we have credentials
     $O365Cred = (Get-Credential)}
 $MsgFrom = $O365Cred.UserName ; $SmtpServer = "smtp.office365.com" ; $SmtpPort = '587'
-
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 # Find records for team creation in the Office 365 audit log
 Write-Host "Looking for Team Creation Audit Records..."
 $Records = (Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations "TeamCreated" -ResultSize 1000)
