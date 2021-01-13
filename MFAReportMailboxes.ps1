@@ -1,7 +1,9 @@
 # MFAReportMailboxes.ps1
 # List mailboxes and the last time the Mailbox Folder Assistant processed each mailbox
-$Mbx = Get-Mailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited
-$Report = @()
+# https://github.com/12Knocksinna/Office365itpros/blob/master/MFAReportMailboxes.ps1
+$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited
+$Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
+Write-Host "Fetching details of user mailboxes..."
 ForEach ($M in $Mbx) {
    $LastProcessed = $Null
    Write-Host "Processing" $M.DisplayName
@@ -15,6 +17,7 @@ ForEach ($M in $Mbx) {
            User          = $M.DisplayName
            LastProcessed = $LastProcessed
            ItemsDeleted  = $ItemsDeleted.Value}      
-    $Report += $ReportLine
+    $Report.Add($ReportLine)
   }
 $Report | Select User, LastProcessed, ItemsDeleted
+$Report | Out-GridView
