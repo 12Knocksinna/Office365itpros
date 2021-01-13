@@ -1,6 +1,6 @@
 # Adapted from the original https://github.com/einast/PS_M365_scripts/blob/master/M365RoadmapUpdates.ps1
 # See https://thingsinthe.cloud/Teams-message-cards-Getting-Office-365-roadmap-into-channel/ for details
-
+£ https://github.com/12Knocksinna/Office365itpros/blob/master/PostNewMicrosoft365RoadmapItems.ps1
 # A script to grab roadmap items from the Microsoft 365 roadmap, store them in a list that's written to a CSV file after parsing
 # the items to figure out what they relate to. The second part of the script looks for recent roadmap items and posts them to a 
 # Teams channel using the Office 365 incoming webhook connector.
