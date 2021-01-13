@@ -1,5 +1,5 @@
 # MFAReportMailboxes.ps1
-# List mailboxes and the last time MFA processed each mailbox
+# List mailboxes and the last time the Mailbox Folder Assistant processed each mailbox
 $Mbx = Get-Mailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited
 $Report = @()
 ForEach ($M in $Mbx) {
