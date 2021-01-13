@@ -1,6 +1,6 @@
 # LastLoggedInByExternalUsers
 # Find the last time that external users (guest accounts) logged into our Office 365 tenant
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/LastLoggedOnByExternalUsers.ps1
 
 $Guests = (Get-AzureADUser -Filter "UserType eq 'Guest'" -All $True| Select Displayname, Mail, RefreshTokensValidFromDateTime | Sort RefreshTokensValidFromDateTime)
 Write-Host $Guests.Count "guest accounts found. Checking last connections..."
