@@ -1,4 +1,5 @@
 # ReportMailboxQuotaUsed.Ps1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMailboxQuotaUsed.Ps1
 # Script to report mailbox quota assigned and percentage used and to signal warning if quota used exceeds set threshold
 # Set threshold % of quota to use as warning level
 $Threshold = 85
