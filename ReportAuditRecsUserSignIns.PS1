@@ -11,10 +11,10 @@ If ($Records.Count -eq 0) {
       $AuditData = ConvertFrom-Json $Rec.Auditdata
       If ($AuditData.Workload -eq "MicrosoftTeams")
          { $Client =  $Auditdata.ObjectId 
-           $Status = "OK"}
+           $Status = "Succeeded"}
       Else
          { $Client = $AuditData.ExtendedProperties[0].Value
-           $Status = $AuditData.ExtendedProperties[3].Value  }
+           $Status = $AuditData.ResultStatus  }
       $ReportLine = [PSCustomObject]@{
            TimeStamp   = $Rec.CreationDate
            User        = $AuditData.UserId
