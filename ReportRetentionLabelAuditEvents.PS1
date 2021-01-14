@@ -9,7 +9,7 @@ Else {
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Rec in $Records) {
   $AuditData = ConvertFrom-Json $Rec.Auditdata
-  If ($AuditData.UserType -ne "Regular") { # Library-applied Label
+  If ($AuditData.UserType -ne "Regular") { # auto-applied Label
       $ReportLine = [PSCustomObject]@{
        TimeStamp = $Rec.CreationDate
        User      = "Auto-Applied Label"
