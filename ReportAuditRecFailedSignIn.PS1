@@ -1,4 +1,5 @@
 # ReportAuditRecFailedSignIn.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportAuditRecFailedSignIn.PS1
 # Example used in Chapter 21 of Office 365 for IT Pros
 $Records = (Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-90) -EndDate (Get-Date).AddDays(+1)  -Operations UserLoginFailed  -SessionCommand  ReturnLargeSet     -ResultSize 5000 -Formatted)
 If ($Records.Count -eq 0) {
