@@ -32,3 +32,5 @@ ForEach ($Rec in $Records) {
        Site      = $AuditData.SiteURL }
        $Report.Add($ReportLine) }
 }}
+Write-Host "All done!"
+$Report | Out-GridView
