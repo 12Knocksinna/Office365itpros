@@ -4,9 +4,7 @@
 # V1.0 25-Feb-2020
 CLS
 Write-Host "Fetching mailboxes"
-$Mbx = Get-Mailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited | Select DisplayName, UserPrincipalName, RecipientTypeDetails
-# REST version if you prefer to use this
-# $Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -Properties RecipientTypeDetails -ResultSize Unlimited
+$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -Properties RecipientTypeDetails -ResultSize Unlimited
 
 If ($Mbx.Count -eq 0) { Write-Error "No mailboxes found. Script exiting..." -ErrorAction Stop } 
 # We have some mailboxes, so we can process them...
