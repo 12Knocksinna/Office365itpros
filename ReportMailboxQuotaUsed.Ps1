@@ -6,14 +6,14 @@ $Threshold = 85
 # Get all user mailboxes
 Cls
 Write-Host "Finding mailboxes..."
-$Mbx = Get-Mailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox | Select DisplayName, ProhibitSendReceiveQuota, DistinguishedName
-$Report = @() 
+$Mbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox -Properties ProhibitSendReceiveQuota | Select DisplayName, ProhibitSendReceiveQuota, DistinguishedName
+$Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 ForEach ($M in $Mbx) {
     # Find current usage
     Write-Host "Processing" $M.DisplayName
     $Mailbox = $M.DisplayName
     $ErrorText = $Null
-    $MbxStats = Get-MailboxStatistics $M.DistinguishedName | Select ItemCount, TotalItemSize
+    $MbxStats = Get-ExoMailboxStatistics $M.DistinguishedName | Select ItemCount, TotalItemSize
     # Return byte count of quota used
     [INT64]$QuotaUsed = [convert]::ToInt64(((($MbxStats.TotalItemSize.ToString().split("(")[-1]).split(")")[0]).split(" ")[0]-replace '[,]',''))
     # Byte count for mailbox quota
@@ -32,7 +32,7 @@ ForEach ($M in $Mbx) {
         MbxSizeGB        = $QuotaUsedGB
         QuotaPercentUsed = $QuotaPercentUsed
         ErrorText        = $ErrorText} 
-   $Report += $ReportLine 
+   $Report.Add($ReportLine)
 } 
 # Export to CSV
 $Report | Sort Mailbox | Export-csv -NoTypeInformation MailboxQuotaReport.csv
