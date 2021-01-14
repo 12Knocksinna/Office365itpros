@@ -1,4 +1,5 @@
 # Example from Chapter 21 of Office 365 for IT Pros
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportAuditRecsUserSignIns.PS1
 # Find audit records for user sign ins, including connections to Teams
 $Records = (Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-90) -EndDate (Get-Date).AddDays(+1)   -Operations  UserLoggedIn,  TeamsSessionStarted  -SessionCommand ReturnLargeSet -ResultSize 5000 -Formatted)
 If ($Records.Count -eq 0) {
