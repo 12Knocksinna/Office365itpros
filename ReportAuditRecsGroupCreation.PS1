@@ -1,4 +1,5 @@
 # Example for Chapter 21 of Office 365 for IT Pros
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportAuditRecsGroupCreation.PS1
 $Records = (Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-90) -EndDate (Get-Date).AddDays(+1) -Operations "Add Group" -ResultSize 1000)
 If ($Records.Count -eq 0) {
    Write-Host "No group creation records found." }
