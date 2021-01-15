@@ -1,13 +1,14 @@
 # GetAzureADAccessReviewDetailsGraph.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetAzureADAccessReviewDetailsGraph.PS1
 # A script to show how to navigate the Graph interface for Azure AD Access Reviews, especially a review set up for all Groups and Teams
 # V1.0 15-Jan-2021
 # Needs to be assigned the delegated Graoh AccessReview.ReadWrite.All permission to work, also Group.ReadAll to read group information
 #
 
 # Define the values applicable for the application used to connect to the Graph (change these details for your tenant and registered app)
-$AppId = "0ade5c24-d775-4017-a824-0a993c60787c"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = '7RplGSLWoSs~y4uHYy2041-jbm.4~_r.~q'
+$AppId = "0ade5c24-d775-4017-a824-0a993c60787d"
+$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3428"
+$AppSecret = '7RplGSLWoSs~y4uHYy2041-jbm.4~_s.~q'
 
 $OutputCSV = "c:\temp\AzureADGuestReviews.CSV"
 
