@@ -9,7 +9,7 @@ Try {
     $Recipients = Get-Mailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox, SharedMailbox}
 Catch {
     Write-Host "Can't find recipients" ; break}
-# Now Populate hash table with label data  
+# Now Populate hash table with recipient data  
 $Recipients.ForEach( {
        $RecipientsTable.Add([String]$_.PrimarySmtpAddress, $_.RecipientTypeDetails) } )
 # And include group mailboxes
