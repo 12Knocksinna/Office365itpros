@@ -1,0 +1,187 @@
+# GetAzureADAccessReviewDetailsGraph.PS1
+# A script to show how to navigate the Graph interface for Azure AD Access Reviews, especially a review set up for all Groups and Teams
+# V1.0 15-Jan-2021
+# Needs to be assigned the delegated Graoh AccessReview.ReadWrite.All permission to work, also Group.ReadAll to read group information
+#
+
+# Define the values applicable for the application used to connect to the Graph (change these details for your tenant and registered app)
+$AppId = "0ade5c24-d775-4017-a824-0a993c60787c"
+$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$AppSecret = '7RplGSLWoSs~y4uHYy2041-jbm.4~_r.~q'
+
+$OutputCSV = "c:\temp\AzureADGuestReviews.CSV"
+
+# Construct URI and body needed for authentication
+$uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
+$body = @{
+    client_id     = $AppId
+    scope         = "https://graph.microsoft.com/.default"
+    client_secret = $AppSecret
+    grant_type    = "client_credentials"
+}
+
+# Get OAuth 2.0 Token
+$tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
+# Unpack Access Token
+$token = ($tokenRequest.Content | ConvertFrom-Json).access_token
+$Headers = @{
+            'Content-Type'  = "application\json"
+            'Authorization' = "Bearer $Token" 
+            'ConsistencyLevel' = "eventual" }
+
+Write-Host "Fetching Azure AD Access Review Data..."
+# Get Access Reviews currently running 
+$Uri = "https://graph.microsoft.com/beta/identityGovernance/accessReviews/definitions"
+$AccessData = Get-GraphData -AccessToken $Token -Uri $uri 
+# Find the access review for Teams and Groups    
+$Id = $Accessdata |?{$_.displayname -eq "Review guest access across Microsoft 365 Groups"} | Select -ExpandProperty Id
+# Find the instances (groups being reviewed)
+$Uri = "https://graph.microsoft.com/beta/identityGovernance/accessReviews/definitions/" + $Id +"/instances"
+$AccessData = Get-GraphData -AccessToken $Token -Uri $uri   
+$CountOfGroups = $AccessData.Count
+
+$Report = [System.Collections.Generic.List[Object]]::new()
+$ApproveCount = 0; $DenyCount = 0; $NoDecision = 0
+ForEach ($Instance in $AccessData) {
+    $InstanceId = $Instance.Id
+    # Get group id
+    $Start = $Instance.scope.query.IndexOf("s/")
+    $End = $Instance.scope.query.IndexOf("/members")
+    $GroupId = $Instance.scope.query.substring($Start + 2,$End - 8)
+    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $GroupId
+    $GroupDetails = Get-GraphData -AccessToken $Token -Uri $uri 
+    $GroupName = $GroupDetails.DisplayName
+    Write-Host "Reviewing decisions for" $GroupName
+    # Now get the instances (people being reviewed) and what's happened to each
+    $Uri = "https://graph.microsoft.com/beta/identityGovernance/accessReviews/definitions/" + $Id +"/instances/" + $instanceId + "/decisions"
+    $InstanceData = Get-GraphData -AccessToken $Token -Uri $uri 
+    Write-Host "Number of Guests to review:" $InstanceData.id.Count
+     ForEach ($Decision in $InstanceData) {
+       Switch ($Decision.decision) {
+         "Deny"  {
+             $DenyCount++
+             $Verdict = $Decision.decision
+             $User = $decision.target.userprincipalname
+             $Name = $decision.target.userdisplayname
+             $justification = $decision.justification
+             $Recommendation = $Decision.recommendation
+             $reviewer = $decision.reviewedby.displayname
+             $ReviewDate = (get-date $decision.revieweddatetime -format g) }
+         "Approve" {
+             $ApproveCount++
+             $Verdict = $Decision.decision
+             $User = $decision.target.userprincipalname
+             $Name = $decision.target.userdisplayname
+             $justification = $decision.justification
+             $Recommendation = $Decision.recommendation
+             $reviewer = $decision.reviewedby.displayname
+             $ReviewDate = (get-date $decision.revieweddatetime -format g) }
+         "NotReviewed" {
+             $NoDecision++
+             $Verdict = $Decision.decision
+             $User = $decision.target.userprincipalname
+             $Name = $decision.target.userdisplayname
+             $justification = $decision.justification
+             $Recommendation = $Decision.recommendation
+             $reviewer = $decision.reviewedby.displayname
+             $ReviewDate = "No decision made" }
+         } #End Switch
+     # Report decision
+     $ReportLine = [PSCustomObject] @{
+           User           = $User
+           Name           = $Name
+           Verdict        = $Verdict
+           Recommendation = $Recommendation.Trim()
+           Reviewer       = $Reviewer
+           ReviewDate     = $ReviewDate
+           Justification  = $Justification.Trim()
+           Group          = $GroupName }             
+    $Report.Add($ReportLine) 
+    } #End ForEach InstanceData
+} #End ForEach AccessData
+
+# Quick way of reporting counts for the various verdicts is to group the report data, but we want some nice figures 
+# $Report |  Group Verdict | format-Table Name, Count
+$CountOfApprovals = ($Report | ? {$_.Verdict -eq "Approve"} | Measure)
+$CountOfDeny = ($Report | ? {$_.Verdict -eq "Deny"} | Measure ) 
+$CountOfNoDecision = ($Report | ? {$_.Verdict -eq "NotReviewed"} | Measure)    
+Write-Host "Number of Groups with reviews for Guest Members: " $CountOfGroups
+
+CLS
+Write-Host ""
+Write-Host "Decision Profile"
+Write-Host "----------------"
+Write-Host ""
+Write-Host "Total decisions to be made:               " $Report.Count
+Write-Host "Review decisions to approve guest access: " $CountOfApprovals.Count "(" ($CountOfApprovals.Count/$Report.Count).ToString("P") ")"
+Write-Host "Review decisions to deny guest access:    " $CountOfDeny.Count "(" ($CountOfDeny.Count/$Report.Count).ToString("P") ")"
+Write-Host "No decisions made so far:                 " $CountOfNoDecision.Count "(" ($CountOfNoDecision.Count/$Report.Count).ToString("P") ")"
+Write-Host " "
+Write-Host "A CSV file for current Access Review decision status is available in" $OutputCSV
+
+# Output files
+$Report | Sort User | Export-CSV -NoTypeInformation $OutputCSV
+$Report | Sort User | Out-GridView
+
+function Get-GraphData {
+# GET data from Microsoft Graph.
+# Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
+    param (
+        [parameter(Mandatory = $true)]
+        $AccessToken,
+
+        [parameter(Mandatory = $true)]
+        $Uri
+    )
+
+    # Check if authentication was successful.
+    if ($AccessToken) {
+        # Format headers.
+        $Headers = @{
+            'Content-Type'  = "application\json"
+            'Authorization' = "Bearer $AccessToken" 
+            'ConsistencyLevel' = "eventual"   }
+
+        # Create an empty array to store the result.
+        $QueryResults = @()
+
+        # Invoke REST method and fetch data until there are no pages left.
+        do {
+            $Results = ""
+            $StatusCode = ""
+
+            do {
+                try {
+                    $Results = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json"
+
+                    $StatusCode = $Results.StatusCode
+                } catch {
+                    $StatusCode = $_.Exception.Response.StatusCode.value__
+
+                    if ($StatusCode -eq 429) {
+                        Write-Warning "Got throttled by Microsoft. Sleeping for 45 seconds..."
+                        Start-Sleep -Seconds 45
+                    }
+                    else {
+                        Write-Error $_.Exception
+                    }
+                }
+            } while ($StatusCode -eq 429)
+
+            if ($Results.value) {
+                $QueryResults += $Results.value
+            }
+            else {
+                $QueryResults += $Results
+            }
+
+            $uri = $Results.'@odata.nextlink'
+        } until (!($uri))
+
+        # Return the result.
+        $QueryResults
+    }
+    else {
+        Write-Error "No Access Token"
+    }
+}
