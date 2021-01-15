@@ -9,7 +9,9 @@ If ($ModuleCheck -eq $Null) {
      Write-Host "Please connect to Exchange Online using an administrative account and retry."; Break }
 
 Write-Host "Finding messages in quarantine"
-$QMessages = Get-QuarantineMessage
+# Check https://docs.microsoft.com/en-us/powershell/module/exchange/get-quarantinemessage?view=exchange-ps for other 
+# parameters that can be used to refine the set of quarantined messages
+$QMessages = Get-QuarantineMessage 
 $Report = [System.Collections.Generic.List[Object]]::new(); $Now = Get-Date
 
 # Extract the data we want to report abouit each quarantined message
