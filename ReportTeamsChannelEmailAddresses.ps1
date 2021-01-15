@@ -1,5 +1,6 @@
 # A script to report the email addresses for Teams channels that are mail-enabled
 # V1.0 August 2019; V2.0 January 2020; V3.0 February 2020 (add pagination support)
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportTeamsChannelEmailAddresses.ps1
 
 Cls
 # Define the values applicable for the application used to connect to the Graph (these are specific to a tenant)
@@ -82,5 +83,3 @@ ForEach ($Team in $TeamsHash.Keys) {
 } 
 $Report | Sort Team | Export-CSV C:\Temp\TeamsChannelsWithEmailAddress.Csv -NoTypeInformation
 Write-Host $EmailAddresses "mail-enabled channels found. Details are in C:\Temp\TeamsChannelsWithEmailAddress.Csv"
- 
-
