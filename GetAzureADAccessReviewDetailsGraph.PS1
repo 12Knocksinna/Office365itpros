@@ -52,15 +52,15 @@ ForEach ($Instance in $AccessData) {
     $Uri = "https://graph.microsoft.com/v1.0/groups/" + $GroupId
     $GroupDetails = Get-GraphData -AccessToken $Token -Uri $uri 
     $GroupName = $GroupDetails.DisplayName
-    Write-Host "Reviewing decisions for" $GroupName
     # Now get the instances (people being reviewed) and what's happened to each
+    $GroupUnderReview = 0 # Flag to track if a group has started review. Set if a Deny or Approve decision is made
     $Uri = "https://graph.microsoft.com/beta/identityGovernance/accessReviews/definitions/" + $Id +"/instances/" + $instanceId + "/decisions"
     $InstanceData = Get-GraphData -AccessToken $Token -Uri $uri 
-    Write-Host "Number of Guests to review:" $InstanceData.id.Count
+    Write-Host "Number of Guests to review in" $GroupName ":" $InstanceData.id.Count
      ForEach ($Decision in $InstanceData) {
        Switch ($Decision.decision) {
          "Deny"  {
-             $DenyCount++
+             $DenyCount++; $GroupUnderReview = 1
              $Verdict = $Decision.decision
              $User = $decision.target.userprincipalname
              $Name = $decision.target.userdisplayname
@@ -70,7 +70,7 @@ ForEach ($Instance in $AccessData) {
              $ReviewDate = (get-date $decision.revieweddatetime -format g) }
          "Approve" {
              $ApproveCount++
-             $Verdict = $Decision.decision
+             $Verdict = $Decision.decision; $GroupUnderReview = 1
              $User = $decision.target.userprincipalname
              $Name = $decision.target.userdisplayname
              $justification = $decision.justification
@@ -99,6 +99,7 @@ ForEach ($Instance in $AccessData) {
            Group          = $GroupName }             
     $Report.Add($ReportLine) 
     } #End ForEach InstanceData
+    If ($GroupUnderReview -eq 1) { $GroupsWithReview++ }
 } #End ForEach AccessData
 
 # Quick way of reporting counts for the various verdicts is to group the report data, but we want some nice figures 
@@ -113,6 +114,9 @@ Write-Host ""
 Write-Host "Decision Profile"
 Write-Host "----------------"
 Write-Host ""
+Write-Host "Total Groups with Guests:                 " $CountOfGroups
+Write-Host "Groups started reviews:                   " $GroupsWithReview
+Write-Host "Groups not started reviews                " ($CountOfGroups - $GroupsWithReview)
 Write-Host "Total decisions to be made:               " $Report.Count
 Write-Host "Review decisions to approve guest access: " $CountOfApprovals.Count "(" ($CountOfApprovals.Count/$Report.Count).ToString("P") ")"
 Write-Host "Review decisions to deny guest access:    " $CountOfDeny.Count "(" ($CountOfDeny.Count/$Report.Count).ToString("P") ")"
@@ -186,3 +190,7 @@ function Get-GraphData {
         Write-Error "No Access Token"
     }
 }
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the need of your organization.
