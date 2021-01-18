@@ -1,6 +1,7 @@
 # UpdateOutlookSignature.PS1 A script to Update the Outlook signature on a PC
 # Written as an example, not as a final production-ready script
 # V1.0 17-Feb-2020  Tony Redmond
+# https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateOutlookSignature.PS1
 # ==============================================================================
 
 # Define the name of the signature
