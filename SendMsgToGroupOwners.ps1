@@ -1,6 +1,7 @@
 # SendMsgToGroupOwners.PS1
 # Script to send a polite informational message to owners of Office 365 Groups to tell them that their groups might be a tad
 # obsolete because no one is doing anything inside the group
+# https://github.com/12Knocksinna/Office365itpros/blob/master/SendMsgToGroupOwners.ps1
 # Send-MailMessage https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/send-mailmessage?view=powershell-6
 CLS
 Write-Host "Working..."
