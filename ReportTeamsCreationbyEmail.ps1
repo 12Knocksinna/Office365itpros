@@ -1,4 +1,5 @@
 # TeamsCreationReportByEmail.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportTeamsCreationbyEmail.ps1
 # A script to locate Office 365 audit records for the creation of new Teams and report the fact via email.
 # V2.0 22 Oct 2019
 # Uses the Exchange Online PowerShell module...
