@@ -1,4 +1,5 @@
 # UpdateOWASignatures.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateOWASignatures.ps1
 # Update the OWA signature data for all mailboxes to make sure that they comply with company rules
 CLS
 # Define some variables that we'll use in the HTML output
