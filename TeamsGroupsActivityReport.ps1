@@ -165,7 +165,7 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
 # If the group is team-enabled, find the date of the last Teams conversation compliance record
 If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
     $TeamsEnabled = $True
-    [datetime]$DateOldTeams = "1-Jun-2021 # After this date, Microsoft should have moved the old Teams data to the new location
+    [datetime]$DateOldTeams = "1-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
     $CountOldTeamsData = $False
 
 # Start by looking in the new location (TeamsMessagesData in Non-IPMRoot)
