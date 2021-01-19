@@ -32,10 +32,13 @@ If ($Records.Count -eq 0) {
     Write-Host "No Team Creation records found." }
 Else {
     Write-Host "Processing" $Records.Count "audit records..."
-    $Report = @()
+    $Report = [System.Collections.Generic.List[Object]]::new()
     ForEach ($Rec in $Records) {
       $AuditData = ConvertFrom-Json $Rec.Auditdata
-      $O365Group = (Get-UnifiedGroup -Identity $AuditData.TeamName) # Need some Office 365 Group properties
+      $O365Group = (Get-UnifiedGroup -Identity $AuditData.TeamName) # Need some Microsoft 365 Group properties
+      # If you're using sensitivity labels for container management, you should resolve the GUID returned for classification to a display name
+      If ($O365Group.Classification -eq $Null) { $Classification = $O365Group.SensitivityLabel.Guid }
+         Else { $Classification = $O365Group.Classification }
       $ReportLine = [PSCustomObject][Ordered]@{
         TimeStamp      = Get-Date($AuditData.CreationTime) -format g
         User           = $AuditData.UserId
@@ -46,7 +49,7 @@ Else {
         MemberCount    = $O365Group.GroupMemberCount 
         GuestCount     = $O365Group.GroupExternalMemberCount
         ManagedBy      = $O365Group.ManagedBy}
-     $Report += $ReportLine }
+     $Report.Add($ReportLine) }
 }
 
 # Add details of each team
