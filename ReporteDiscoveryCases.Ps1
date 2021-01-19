@@ -1,6 +1,6 @@
 # Report eDiscovery Cases
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReporteDiscoveryCases.Ps1
-# Used in Chapter 20 of Office 365 for IT Pros
+# Used in Chapter 20 of Office 365 for IT Pros. Need to be connected to the Security and Compliance Center endpoint (use Connect-IPPSSession in EXO module)
 $ClosedCases = 0 ;$ActiveHolds = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 Write-Host "Finding eDiscovery Cases"
@@ -52,7 +52,7 @@ ForEach ($Case in $Cases) {
            Status         = $Case.Status
            Created        = Get-Date ($Case.CreatedDateTime) -format g
            ClosedBy       = $Case.ClosedBy
-           Closed         = Get-Date($Case.ClosedDateTime) -format g
+           Closed         = $Case.ClosedDateTime
            Members        = $Names
            Hold           = $Hold.Name
            HoldEnabled    = $Hold.Enabled
@@ -67,6 +67,7 @@ ForEach ($Case in $Cases) {
         $Report.Add($ReportLine)  
    }
 }}
+CLS
 Write-Host "EDiscovery Cases found: " $Cases.Count
 Write-Host "Active Cases:           " ($Cases.Count - $ClosedCases)
 Write-Host "Closed Cases:           " $ClosedCases
