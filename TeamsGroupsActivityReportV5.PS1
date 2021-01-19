@@ -19,8 +19,7 @@
 # V4.7 13-Oct-2020 Teams compliance records are now in a different location in group mailboxes
 # V5.0 17-Dec-2020 Use Graph API to get Groups and Teams data
 #
-# https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
-#
+
 CLS
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
