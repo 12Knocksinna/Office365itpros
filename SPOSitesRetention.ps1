@@ -30,7 +30,7 @@ ForEach ($P in $Policies) {
               RetentionDuration = $Duration
               RetentionAction   = $RetentionAction 
               Settings           = $Settings}
-           $Report.($ReportLine) } 
+           $Report.Add($ReportLine) } 
             If ($P.SharePointLocationException -ne $Null) {
                $Locations = ($P | Select -ExpandProperty SharePointLocationException)
                ForEach ($L in $Locations) {
@@ -39,7 +39,7 @@ ForEach ($P in $Policies) {
                     PolicyName = $P.Name
                     SiteName   = $Exception
                     SiteURL    = $L.Name }
-               $Report.($ReportLine) }
+               $Report.Add($ReportLine) }
         }
         ElseIf ($P.SharePointLocation.Name -ne "All") {
            $Locations = ($P | Select -ExpandProperty SharePointLocation)
@@ -52,7 +52,7 @@ ForEach ($P in $Policies) {
                   RetentionDuration = $Duration
                   RetentionAction   = $RetentionAction
                   Settings          = $Settings}
-               $Report.($ReportLine)  }                    
+               $Report.Add($ReportLine)  }                    
           }
 }
 $Report | Sort SiteName| Format-Table PolicyName, SiteName, RetentionDuration, RetentionAction, Settings -AutoSize
