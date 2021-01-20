@@ -32,7 +32,7 @@ Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
 # Setup some stuff we use
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0
-[datetime]$DateOldTeams = "01-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
+[datetime]$DateOldTeams = "30-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
 $Version = "V5.0"
 
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
@@ -264,7 +264,7 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {
     If ($TeamsChatData.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($TeamsChatData.NewestItemReceivedDate) -Format g}
     $NumberOfChats = $TeamsChatData.ItemsInFolder
     
-# If the script is running before 31-Dec-2020, we need to check the old location of the Teams compliance records
+# If the script is running before 30-Jun-2021, we need to check the old location of the Teams compliance records
 If ($Today -lt $DateOldTeams) {
      $CountOldTeamsData = $True
      $OldTeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestItems -FolderScope ConversationHistory)
