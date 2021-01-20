@@ -118,9 +118,9 @@ Write-Host "Total Groups with Guests:                 " $CountOfGroups
 Write-Host "Groups started reviews:                   " $GroupsWithReview
 Write-Host "Groups not started reviews                " ($CountOfGroups - $GroupsWithReview)
 Write-Host "Total decisions to be made:               " $Report.Count
-Write-Host "Review decisions to approve guest access: " $CountOfApprovals.Count "(" ($CountOfApprovals.Count/$Report.Count).ToString("P") ")"
-Write-Host "Review decisions to deny guest access:    " $CountOfDeny.Count "(" ($CountOfDeny.Count/$Report.Count).ToString("P") ")"
-Write-Host "No decisions made so far:                 " $CountOfNoDecision.Count "(" ($CountOfNoDecision.Count/$Report.Count).ToString("P") ")"
+Write-Host ("Review decisions to approve guest access:  {0} ({1})" -f $CountOfApprovals.Count, ($CountOfApprovals.Count/$Report.Count).ToString("P") )
+Write-Host ("Review decisions to deny guest access:     {0} ({1})" -f $CountOfDeny.Count, ($CountOfDeny.Count/$Report.Count).ToString("P") )
+Write-Host ("No decisions made so far:                  {0} ({1})" -f $CountOfNoDecision.Count, ($CountOfNoDecision.Count/$Report.Count).ToString("P") )
 Write-Host " "
 Write-Host "A CSV file for current Access Review decision status is available in" $OutputCSV
 
