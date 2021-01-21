@@ -83,9 +83,6 @@ $Headers = @{
             'Authorization' = "Bearer $Token" 
             'ConsistencyLevel' = "eventual" }
 
-# Create list of Microsoft 365 Groups in the tenant. We also get a list of Teams. In both cases, we build a hashtable
-# to store the object identifier and display name for the group. If more than 100 groups exist, fetch and continue processing using the NextLink
-Write-Host "Fetching data about Microsoft 365 Groups..."
 $S1 = Get-Date #Start of processing
 
    # Get SharePoint site usage data
@@ -114,6 +111,9 @@ $S1 = Get-Date #Start of processing
      }
 }
 
+# Create list of Microsoft 365 Groups in the tenant. We also get a list of Teams. In both cases, we build a hashtable
+# to store the object identifier and display name for the group. If more than 100 groups exist, fetch and continue processing using the NextLink
+Write-Host "Fetching data about Microsoft 365 Groups..."
 $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=groupTypes/any(a:a eq 'unified')"
 $Groups = Get-GraphData -AccessToken $Token -Uri $uri
 $GroupsList = [System.Collections.Generic.List[Object]]::new()
