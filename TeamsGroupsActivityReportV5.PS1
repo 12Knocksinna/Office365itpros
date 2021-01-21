@@ -17,7 +17,8 @@
 # V4.5 15-May-2020 Some people reported that Get-Recipient is unreliable when fetching Groups, so added code to revert to Get-UnifiedGroup if nothing is returned by Get-Recipient
 # V4.6 8-Sept-2020 Better handling of groups where the SharePoint team site hasn't been created
 # V4.7 13-Oct-2020 Teams compliance records are now in a different location in group mailboxes
-# V5.0 17-Dec-2020 Use Graph API to get Groups and Teams data
+# V5.0 21-Dec-2020 Use Graph API to get Groups and Teams data
+# V5.1 21-Jan-2021 Add check for archived teams
 #
 
 CLS
@@ -33,7 +34,7 @@ Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0
 [datetime]$DateOldTeams = "30-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
-$Version = "V5.0"
+$Version = "V5.1"
 
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
 $htmlhead="<html>
@@ -279,12 +280,18 @@ If ($CountOldTeamsData -eq $True) { # We have counted the old date, so let's put
    If (!$LastItemAddedToTeams) { $LastItemAddedToTeams = $OldLastItemAddedToTeams }}
 } # End if
     
-If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" }    
+If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" } 
+
+   # Discover if team is archived
+   $Uri = "https://graph.microsoft.com/v1.0/teams/" + $Group.Id
+   $TeamDetails = Get-GraphData -AccessToken $Token -Uri $Uri
+   If ($TeamDetails.IsArchived -eq $False) { $DisplayName = $G.DisplayName }
+   Else { $DisplayName = $G.DisplayName + " (Archived team)" }
 # End if Processing Teams data
 
 # Generate a line for this group and store it in the report
     $ReportLine = [PSCustomObject][Ordered]@{
-          GroupName           = $G.DisplayName
+          GroupName           = $DisplayName
           ManagedBy           = $G.ManagedBy
           Visibility          = $G.Visibility
           Members             = $G.GroupMembers
