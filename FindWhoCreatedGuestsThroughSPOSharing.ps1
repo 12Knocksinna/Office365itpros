@@ -6,7 +6,7 @@ If ($Records.Count -eq 0) {
    Write-Host "No Sharing Invitations records found." }
  Else {
    Write-Host "Processing" $Records.Count "audit records..."
-   $Report = @()
+   $Report = [System.Collections.Generic.List[Object]]::new()
    ForEach ($Rec in $Records) {
       $AuditData = ConvertFrom-Json $Rec.Auditdata
       # Only process the additions of guest users to groups
@@ -25,7 +25,7 @@ If ($Records.Count -eq 0) {
               Site         = $AuditData.SiteUrl
               Document     = $AuditData.SourceFileName
               Guest        = $AuditData.TargetUserOrGroupName }      
-           $Report += $ReportLine }}
+           $Report.Add($ReportLine)}}
       }}
 $Report | Format-Table TimeStamp, Guest, Document -AutoSize
 
