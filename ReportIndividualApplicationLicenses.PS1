@@ -1,4 +1,5 @@
 # ReportIndividualApplicationLicenses.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportIndividualApplicationLicenses.PS1
 # An exmaple of how to report license assignments for applications like Forms or Teams assigned to users through license bundles like Office 365 E3.
 # Requires a connection to the Azure AD PowerShell endpoint. Run Connect-AzureAD before running this code.
 If (!(Get-Module -Name AzureAD).Name -eq "AzureAD") 
