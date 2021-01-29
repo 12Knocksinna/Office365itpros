@@ -353,7 +353,7 @@ Write-Host "Potentially obsolete groups (based on conversation activity)    :" $
 Write-Host "Number of Teams-enabled groups                                  :" $TeamsCount
 Write-Host "Percentage of Teams-enabled groups                              :" $PercentTeams
 Write-Host " "
-Write-Host "Total Elapsed time: " $OverAllElapsed " seconds"
+Write-Host "Total Elapsed time: " $OverAllElapsed "seconds"
 Write-Host "Summary report in" $ReportFile "and CSV in" $CSVFile
 
 #+-------------------------- Functions etc. -------------------------
