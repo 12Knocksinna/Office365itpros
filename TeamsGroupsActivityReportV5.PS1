@@ -87,7 +87,7 @@ $Headers = @{
 $S1 = Get-Date #Start of processing
 
    # Get SharePoint site usage data
-   $SPOUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D7')"
+   $SPOUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D90')"
    $SPOUsage = (Invoke-RestMethod -Uri $SPOUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
    $DataTable = @{} # Build hashtable with SharePoint usage information per site
    ForEach ($Site in $SPOUsage) {
