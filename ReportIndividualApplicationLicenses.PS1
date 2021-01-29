@@ -5,6 +5,8 @@
 If (!(Get-Module -Name AzureAD).Name -eq "AzureAD") 
      {Write-Host "Please connect to Azure Active Directory PowerShell module before continuing"; break }
 
+# Define hash table of application licenses we might want to change - add more as you wish. Application identifiers and 
+# plan identifiers can be found at https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-service-plan-reference
 $Plans = @{}
 $Plans.Add(“199a5c09-e0ca-4e37-8f7c-b05d533e1ea2”, “Bookings”)
 $Plans.Add(“efb87545-963c-4e0d-99df-69c6916d9eb0”, “Exchange Online”)
@@ -15,6 +17,12 @@ $Plans.Add(“57ff2da0-773e-42df-b2af-ffb7a2317929”, “Teams”)
 $Plans.Add(“2789c901-c14e-48ab-a76a-be334d9d793a”, “Forms”)
 $Plans.Add(“9e700747-8b1d-45e5-ab8d-ef187ceec156”, “Stream”)
 $Plans.Add(“b737dad2-2f6c-4c65-90e3-ca563267e8b9”, “Planner”)
+
+# Define the SKU identifiers for bundled plans we expect to search - again, you can add more if your tenant uses other plans
+$Office365E5NoConf = "26d45bd9-adf1-46cd-a9e1-51e9a5524128"
+$Office365E5 = "c7df2760-2c81-4ef7-b578-5b5392b571df"
+$Office365E3 = "6fd2c87f-b296-42f0-b197-1e91e994b900"
+
 Write-Host “Finding Azure AD Account Information”
 $Users = Get-AzureADUser -All $True -Filter "Usertype eq 'Member'"
 CLS
@@ -26,8 +34,15 @@ Foreach ($Key in $Plans.Keys) { # Lookup hash table to find product SKU
 }
 $PlanUsers = [System.Collections.Generic.List[Object]]::new() 
 ForEach ($User in $Users) {
+  $License = $Null
   If ($PlanId -in $User.AssignedPlans.ServicePlanId) {
     $Status = ($User.AssignedPlans | ? {$_.ServicePlanId -eq $PlanId} | Select -ExpandProperty CapabilityStatus )
+    If ($Office365E3 -in $User.AssignedLicenses.SkuId) {$LicenseName = "Office 365 E3"}
+       ElseIf ($Office365E5 -in $User.AssignedLicenses.SkuId) {$LicenseName = "Office 365 E5"}
+       ElseIf ($Office365E5NoConf -in $User.AssignedLicenses.SkuId) {$LicenseName = "Office 365 E5 without Audio Conferencing"}
+       ElseIf ($Status -eq "Enabled") {$LicenseName = $Product }
+       Else {$LicenseName = "Product not enabled"}
+
     $ReportLine  = [PSCustomObject] @{
           User       = $User.DisplayName 
           UPN        = $User.UserPrincipalName
@@ -35,7 +50,8 @@ ForEach ($User in $Users) {
           Country    = $User.Country
           SKU        = $PlanId
           Product    = $Product
-          Status    = $Status } 
+          License    = $LicenseName
+          Status     = $Status } 
     $PlanUsers.Add($ReportLine) }
 }
 Write-Host "Total Accounts scanned:" $PlanUsers.Count
