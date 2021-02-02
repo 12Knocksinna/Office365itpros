@@ -20,7 +20,8 @@
 # V5.0 21-Dec-2020 Use Graph API to get Groups and Teams data
 # V5.1 21-Jan-2021 Add check for archived teams
 #
-
+# Needs the following Graph permissions:
+# Group.Read.All, Reports.Read.All
 CLS
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
