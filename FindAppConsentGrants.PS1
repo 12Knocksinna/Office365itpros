@@ -1,7 +1,8 @@
 # FindAppConsentGrants.PS1
 # Find consent grants for app permissions from records captured in the Office 365 audit log
 # Requires the Exchange Online management module
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindAppConsentGrants.PS1
+
 $Records = Search-UnifiedAuditLog -StartDate ((Get-Date).AddDays(-90)) -EndDate ((Get-Date).AddDays(1)) -ResultSize 5000 -Operations "Consent to application."
 
 If ($Records) {
