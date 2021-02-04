@@ -126,7 +126,6 @@ ForEach ($Group in $Groups) {
    If ($GroupData."@odata.count" -eq 0) {
        $OwnerNames = "No owners found" }
    Else  { # Extract owner names
-   Else  { # Extract owner names
         $OwnerNames = $GroupData.Value.DisplayName -join ", " }
    # Get extended group properties 
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
