@@ -100,6 +100,8 @@ Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
 # Setup some stuff we use
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0
+$SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%Partages" 
+$SharedDocFolder2 = "/Shared Documents"  # Add both values
 [datetime]$DateOldTeams = "30-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
 $Version = "V5.1"
 
@@ -124,10 +126,10 @@ $htmlhead="<html>
            <p><h3>Generated: " + $date + "</h3></p></div>"
 		
 # Get a list of Groups in the tenant
+CLS
 Write-Host "Extracting list of Microsoft 365 Groups for checking..."
 [Int]$GroupsCount = 0; [int]$TeamsCount = 0; $UsedGroups = $False
 
-Cls
 # Define the values applicable for the application used to connect to the Graph - these will be different for your tenant
 $AppId = "0ade5c24-d775-4017-a824-0a993c60787d"
 $TenantId = "b762313f-14fc-43a2-9a7a-d2e27f4f3478"
@@ -203,9 +205,9 @@ ForEach ($Group in $Groups) {
    $SPOUrl = $Null; $SPODocLib = $Null; $SPOQuotaUsed = 0; $SPOLastDateActivity = $Null
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/drive"
    $SPOData = Get-GraphData -AccessToken $Token -Uri $uri
-   If ($SPOData) {
-       $SPOUrl = $SPOData.WebUrl.SubString(0,$SpoData.weburl.IndexOf("/Shared%20Documents"))
-       $SPODocLib = $SPOUrl + "/Shared Documents" 
+   If ($SPOData) { # Using language-specific values to identify the document library defined
+       $SPOUrl = $SPOData.WebUrl.SubString(0,$SpoData.weburl.IndexOf($SharedDocFolder))
+       $SPODocLib = $SPOUrl + $SharedDocFolder2 
        $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
        $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g }
    Else { CLS; Write-Host "Continuing to fetch information about Microsoft 365 Groups..." } # Get rid of mucky SharePoint error  308 
