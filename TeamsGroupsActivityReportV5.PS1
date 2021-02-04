@@ -23,6 +23,72 @@
 # Needs the following Graph permissions:
 # Group.Read.All, Reports.Read.All
 CLS
+#+-------------------------- Functions etc. -------------------------
+function Get-GraphData {
+# Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
+# GET data from Microsoft Graph.
+    param (
+        [parameter(Mandatory = $true)]
+        $AccessToken,
+
+        [parameter(Mandatory = $true)]
+        $Uri
+    )
+
+    # Check if authentication was successful.
+    if ($AccessToken) {
+        # Format headers.
+       $Headers = @{
+         'Content-Type'  = "application\json"
+         'Authorization' = "Bearer $AccessToken" 
+         'ConsistencyLevel' = "eventual"  }
+
+        # Create an empty array to store the result.
+        $QueryResults = @()
+
+        # Invoke REST method and fetch data until there are no pages left.
+        do {
+            $Results = ""
+            $StatusCode = ""
+
+            do {
+                try {
+                    $Results = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json"
+
+                    $StatusCode = $Results.StatusCode
+                } catch {
+                    $StatusCode = $_.Exception.Response.StatusCode.value__
+
+                    if ($StatusCode -eq 429) {
+                        Write-Warning "Got throttled by Microsoft. Sleeping for 45 seconds..."
+                        Start-Sleep -Seconds 45
+                    }
+                    else {
+                        Write-Error $_.Exception
+                    }
+                }
+            } while ($StatusCode -eq 429)
+
+            if ($Results.value) {
+                $QueryResults += $Results.value
+            }
+            else {
+                $QueryResults += $Results
+            }
+
+            $uri = $Results.'@odata.nextlink'
+        } until (!($uri))
+
+        # Return the result.
+        $QueryResults
+    }
+    else {
+        Write-Error "No Access Token"
+    }
+}
+# End functions
+
+# Start Code
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
@@ -350,71 +416,6 @@ Write-Host "Percentage of Teams-enabled groups                              :" $
 Write-Host " "
 Write-Host "Total Elapsed time: " $OverAllElapsed "seconds"
 Write-Host "Summary report in" $ReportFile "and CSV in" $CSVFile
-
-#+-------------------------- Functions etc. -------------------------
-
-function Get-GraphData {
-# Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
-# GET data from Microsoft Graph.
-    param (
-        [parameter(Mandatory = $true)]
-        $AccessToken,
-
-        [parameter(Mandatory = $true)]
-        $Uri
-    )
-
-    # Check if authentication was successful.
-    if ($AccessToken) {
-        # Format headers.
-       $Headers = @{
-         'Content-Type'  = "application\json"
-         'Authorization' = "Bearer $AccessToken" 
-         'ConsistencyLevel' = "eventual"  }
-
-        # Create an empty array to store the result.
-        $QueryResults = @()
-
-        # Invoke REST method and fetch data until there are no pages left.
-        do {
-            $Results = ""
-            $StatusCode = ""
-
-            do {
-                try {
-                    $Results = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json"
-
-                    $StatusCode = $Results.StatusCode
-                } catch {
-                    $StatusCode = $_.Exception.Response.StatusCode.value__
-
-                    if ($StatusCode -eq 429) {
-                        Write-Warning "Got throttled by Microsoft. Sleeping for 45 seconds..."
-                        Start-Sleep -Seconds 45
-                    }
-                    else {
-                        Write-Error $_.Exception
-                    }
-                }
-            } while ($StatusCode -eq 429)
-
-            if ($Results.value) {
-                $QueryResults += $Results.value
-            }
-            else {
-                $QueryResults += $Results
-            }
-
-            $uri = $Results.'@odata.nextlink'
-        } until (!($uri))
-
-        # Return the result.
-        $QueryResults
-    }
-    else {
-        Write-Error "No Access Token"
-    }
-}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
