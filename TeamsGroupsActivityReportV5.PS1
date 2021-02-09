@@ -99,7 +99,7 @@ Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
 
 # Setup some stuff we use
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
-$TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0
+$TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%Partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 [datetime]$DateOldTeams = "30-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
@@ -299,9 +299,10 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
     #### END of Check if token is older than 50 minutes and request a refresh token #######
 
    $GroupNumber++
-   $GroupStatus = $G.DisplayName + " ["+ $GroupNumber +"/" + $GroupsCount + "]"
+    $DisplayName = $G.DisplayName
+   $GroupStatus = $DisplayName + " ["+ $GroupNumber +"/" + $GroupsCount + "]"
    Write-Progress -Activity "Checking group" -Status $GroupStatus -PercentComplete $CheckCount
-   $CheckCount += $ProgDelta;  $ObsoleteReportLine = $G.DisplayName;    $SPOStatus = "Normal"
+   $CheckCount += $ProgDelta;  $ObsoleteReportLine = $DisplayName;    $SPOStatus = "Normal"
    $SPOActivity = "Document library in use"
    $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $MailboxStatus = $Null; $ObsoleteReportLine = $Null
 # Group Age
@@ -387,11 +388,14 @@ If ($CountOldTeamsData -eq $True) { # We have counted the old date, so let's put
     
 If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" } 
 
-   # Discover if team is archived
-   $Uri = "https://graph.microsoft.com/v1.0/teams/" + $G.ObjectId
-   $TeamDetails = Get-GraphData -AccessToken $Token -Uri $Uri
-   If ($TeamDetails.IsArchived -eq $False) { $DisplayName = $G.DisplayName }
-   Else { $DisplayName = $G.DisplayName + " (Archived team)" }
+# Discover if team is archived
+   If ($TeamsEnabled -eq $True) {
+     $Uri = "https://graph.microsoft.com/v1.0/teams/" + $G.ObjectId
+     $TeamDetails = Get-GraphData -AccessToken $Token -Uri $Uri 
+     Switch ($TeamDetails.IsArchived) {
+      $False { $DisplayName = $G.DisplayName }
+      $True  { $DisplayName = $G.DisplayName + " (Archived team)" }
+   }}
 # End if Processing Teams data
 
 # Generate a line for this group and store it in the report
@@ -452,11 +456,12 @@ CLS
 Write-Host " "
 Write-Host "Results - Teams and Microsoft 365 Groups Activity Report" $Version
 Write-Host "-------------------------------------------------------------"
-Write-Host "Number of Microsoft 365 Groups scanned                          : $GroupsCount"
-Write-Host "Potentially obsolete groups (based on document library activity): $ObsoleteSPOGroups"
-Write-Host "Potentially obsolete groups (based on conversation activity)    : $ObsoleteEmailGroups"
-Write-Host "Number of Teams-enabled groups                                  : $TeamsCount"
-Write-Host "Percentage of Teams-enabled groups                              : $PercentTeams"
+Write-Host ("Number of Microsoft 365 Groups scanned:                          {0}" -f $GroupsCount)
+Write-Host ("Potentially obsolete groups (based on document library activity: {0}" -f $ObsoleteSPOGroups)
+Write-Host ("Potentially obsolete groups (based on conversation activity):    {0}" -f $ObsoleteEmailGroups)
+Write-Host ("Number of Teams-enabled groups:                                  {0}" -f $TeamsCount)
+Write-Host ("Number of archived teams:                                        {0}" -f $ArchivedTeams)
+Write-Host ("Percentage of Teams-enabled groups:                              {0}" -f $PercentTeams)
 Write-Host " "
 Write-Host "Total Elapsed time: " $OverAllElapsed "seconds"
 Write-Host "Summary report in" $ReportFile "and CSV in" $CSVFile
