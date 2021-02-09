@@ -388,7 +388,7 @@ If ($CountOldTeamsData -eq $True) { # We have counted the old date, so let's put
 If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" } 
 
    # Discover if team is archived
-   $Uri = "https://graph.microsoft.com/v1.0/teams/" + $Group.Id
+   $Uri = "https://graph.microsoft.com/v1.0/teams/" + $G.ObjectId
    $TeamDetails = Get-GraphData -AccessToken $Token -Uri $Uri
    If ($TeamDetails.IsArchived -eq $False) { $DisplayName = $G.DisplayName }
    Else { $DisplayName = $G.DisplayName + " (Archived team)" }
