@@ -4,7 +4,68 @@
 # V1.0 15-Jan-2021
 # Needs to be assigned the delegated Graoh AccessReview.ReadWrite.All permission to work, also Group.ReadAll to read group information
 #
+function Get-GraphData {
+# GET data from Microsoft Graph.
+# Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
+    param (
+        [parameter(Mandatory = $true)]
+        $AccessToken,
 
+        [parameter(Mandatory = $true)]
+        $Uri
+    )
+
+    # Check if authentication was successful.
+    if ($AccessToken) {
+        # Format headers.
+        $Headers = @{
+            'Content-Type'  = "application\json"
+            'Authorization' = "Bearer $AccessToken" 
+            'ConsistencyLevel' = "eventual"   }
+
+        # Create an empty array to store the result.
+        $QueryResults = @()
+
+        # Invoke REST method and fetch data until there are no pages left.
+        do {
+            $Results = ""
+            $StatusCode = ""
+
+            do {
+                try {
+                    $Results = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json"
+
+                    $StatusCode = $Results.StatusCode
+                } catch {
+                    $StatusCode = $_.Exception.Response.StatusCode.value__
+
+                    if ($StatusCode -eq 429) {
+                        Write-Warning "Got throttled by Microsoft. Sleeping for 45 seconds..."
+                        Start-Sleep -Seconds 45
+                    }
+                    else {
+                        Write-Error $_.Exception
+                    }
+                }
+            } while ($StatusCode -eq 429)
+
+            if ($Results.value) {
+                $QueryResults += $Results.value
+            }
+            else {
+                $QueryResults += $Results
+            }
+
+            $uri = $Results.'@odata.nextlink'
+        } until (!($uri))
+
+        # Return the result.
+        $QueryResults
+    }
+    else {
+        Write-Error "No Access Token"
+    }
+}
 # Define the values applicable for the application used to connect to the Graph (change these details for your tenant and registered app)
 $AppId = "0ade5c24-d775-4017-a824-0a993c60787d"
 $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3428"
@@ -128,68 +189,7 @@ Write-Host "A CSV file for current Access Review decision status is available in
 $Report | Sort User | Export-CSV -NoTypeInformation $OutputCSV
 $Report | Sort User | Out-GridView
 
-function Get-GraphData {
-# GET data from Microsoft Graph.
-# Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
-    param (
-        [parameter(Mandatory = $true)]
-        $AccessToken,
 
-        [parameter(Mandatory = $true)]
-        $Uri
-    )
-
-    # Check if authentication was successful.
-    if ($AccessToken) {
-        # Format headers.
-        $Headers = @{
-            'Content-Type'  = "application\json"
-            'Authorization' = "Bearer $AccessToken" 
-            'ConsistencyLevel' = "eventual"   }
-
-        # Create an empty array to store the result.
-        $QueryResults = @()
-
-        # Invoke REST method and fetch data until there are no pages left.
-        do {
-            $Results = ""
-            $StatusCode = ""
-
-            do {
-                try {
-                    $Results = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json"
-
-                    $StatusCode = $Results.StatusCode
-                } catch {
-                    $StatusCode = $_.Exception.Response.StatusCode.value__
-
-                    if ($StatusCode -eq 429) {
-                        Write-Warning "Got throttled by Microsoft. Sleeping for 45 seconds..."
-                        Start-Sleep -Seconds 45
-                    }
-                    else {
-                        Write-Error $_.Exception
-                    }
-                }
-            } while ($StatusCode -eq 429)
-
-            if ($Results.value) {
-                $QueryResults += $Results.value
-            }
-            else {
-                $QueryResults += $Results
-            }
-
-            $uri = $Results.'@odata.nextlink'
-        } until (!($uri))
-
-        # Return the result.
-        $QueryResults
-    }
-    else {
-        Write-Error "No Access Token"
-    }
-}
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
