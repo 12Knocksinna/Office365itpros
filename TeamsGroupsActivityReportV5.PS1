@@ -21,7 +21,7 @@
 # V5.1 21-Jan-2021 Add check for archived teams
 #
 # Needs the following Graph permissions:
-# Group.Read.All, Reports.Read.All
+# Group.Read.All, Reports.Read.All, User.Read.All | For returning owner's info https://docs.microsoft.com/fr-fr/graph/permissions-reference#limited-information-returned-for-inaccessible-member-objects
 CLS
 #+-------------------------- Functions etc. -------------------------
 function Get-GraphData {
@@ -104,6 +104,7 @@ $SharedDocFolder = "/Shared%20Documents" # These values are to allow internation
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 [datetime]$DateOldTeams = "30-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
 $Version = "V5.1"
+$TimeToRefreshToken = "50"
 
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
 $htmlhead="<html>
@@ -148,6 +149,11 @@ $body = @{
 $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
 # Unpack Access Token
 $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
+
+#Get Creation Date of the initial Token (59min and 59sec life long) and add 50 minutes to renew the token later in the main loop
+$TokenCreationDate = (Get-Date)
+$TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
+
 $Headers = @{
             'Content-Type'  = "application\json"
             'Authorization' = "Bearer $Token" 
@@ -189,12 +195,11 @@ $Groups = Get-GraphData -AccessToken $Token -Uri $uri
 $GroupsList = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Group in $Groups) {
    # Get Group Owners
-   $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/owners?`$count=true"
-   $GroupData = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET"
-   If ($GroupData."@odata.count" -eq 0) {
-       $OwnerNames = "No owners found" }
-   Else  { # Extract owner names
-        $OwnerNames = $GroupData.Value.DisplayName -join ", " }
+   $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/owners"
+   $GroupData = Get-GraphData -AccessToken $Token -Uri $Uri
+   If ($GroupData.count -eq 0) {$OwnerNames = "No owners found" }
+    Else {$OwnerNames = $GroupData.DisplayName -join ", " }
+   }
    # Get extended group properties 
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
    $GroupData = Get-GraphData -AccessToken $Token -Uri $uri
@@ -256,6 +261,43 @@ $ProgDelta = 100/($GroupsCount); $CheckCount = 0; $GroupNumber = 0
 $Report = [System.Collections.Generic.List[Object]]::new(); $ReportFile = "c:\temp\GroupsActivityReport.html"
 # Main loop
 ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Graph call, the first thing is to get the group properties
+    #### Check if token is older than 50 minutes and request a refresh token ##############
+        $TimeRightNow = (Get-date)
+        if($TimeRightNow  -ge $TokenExpiredDate){
+            $body = @{
+                client_id     = $AppId
+                scope         = "https://graph.microsoft.com/.default"
+                client_secret = $AppSecret
+                grant_type    = "client_credentials"
+            }
+            
+            $Params = @{
+                'Uri' = "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token"
+                'Method' = 'Post'
+                'Body' = $Body
+                'ContentType' = 'application/x-www-form-urlencoded'
+            }
+            
+        # Get OAuth 2.0 Token
+        try{
+            $Refreshtoken = Invoke-RestMethod @Params
+        }
+        catch{
+            Write-Host "An error occurred:"
+            Write-Host $_ -ForegroundColor Red
+            Write-ErrorLog 'An error occurred: {Error}' -PropertyValues $_
+        }
+        # Unpack Access Token
+        
+        if ($null -ne $Refreshtoken) {
+            $Token = $Refreshtoken.access_token
+            Write-Host "Token Refreshed at $TimeRightNow" -ForegroundColor Red
+        }
+        else {Write-Host "Not refreshed, Token is empty" -ForegroundColor Red}
+        $TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
+        }
+    #### END of Check if token is older than 50 minutes and request a refresh token #######
+
    $GroupNumber++
    $GroupStatus = $G.DisplayName + " ["+ $GroupNumber +"/" + $GroupsCount + "]"
    Write-Progress -Activity "Checking group" -Status $GroupStatus -PercentComplete $CheckCount
@@ -346,7 +388,7 @@ If ($CountOldTeamsData -eq $True) { # We have counted the old date, so let's put
 If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" } 
 
    # Discover if team is archived
-   $Uri = "https://graph.microsoft.com/v1.0/teams/" + $Group.Id
+   $Uri = "https://graph.microsoft.com/v1.0/teams/" + $G.ObjectId
    $TeamDetails = Get-GraphData -AccessToken $Token -Uri $Uri
    If ($TeamDetails.IsArchived -eq $False) { $DisplayName = $G.DisplayName }
    Else { $DisplayName = $G.DisplayName + " (Archived team)" }
@@ -410,11 +452,11 @@ CLS
 Write-Host " "
 Write-Host "Results - Teams and Microsoft 365 Groups Activity Report" $Version
 Write-Host "-------------------------------------------------------------"
-Write-Host "Number of Microsoft 365 Groups scanned                          :" $GroupsCount
-Write-Host "Potentially obsolete groups (based on document library activity):" $ObsoleteSPOGroups
-Write-Host "Potentially obsolete groups (based on conversation activity)    :" $ObsoleteEmailGroups
-Write-Host "Number of Teams-enabled groups                                  :" $TeamsCount
-Write-Host "Percentage of Teams-enabled groups                              :" $PercentTeams
+Write-Host "Number of Microsoft 365 Groups scanned                          : $GroupsCount"
+Write-Host "Potentially obsolete groups (based on document library activity): $ObsoleteSPOGroups"
+Write-Host "Potentially obsolete groups (based on conversation activity)    : $ObsoleteEmailGroups"
+Write-Host "Number of Teams-enabled groups                                  : $TeamsCount"
+Write-Host "Percentage of Teams-enabled groups                              : $PercentTeams"
 Write-Host " "
 Write-Host "Total Elapsed time: " $OverAllElapsed "seconds"
 Write-Host "Summary report in" $ReportFile "and CSV in" $CSVFile
