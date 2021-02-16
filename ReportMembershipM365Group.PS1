@@ -1,5 +1,6 @@
 # ReportMembershipM365Group.PS1
 # Report the membership of a Microsoft 365 Group
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMembershipM365Group.PS1
 CLS
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
