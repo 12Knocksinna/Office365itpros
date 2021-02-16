@@ -92,10 +92,8 @@ function Get-GraphData {
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
-       
+# OK, we seem to be fully connected to Exchange Online      
 $OrgName = (Get-OrganizationConfig).Name
-# OK, we seem to be fully connected to both Exchange Online and SharePoint Online...
-Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
 
 # Setup some stuff we use
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
@@ -128,7 +126,7 @@ $htmlhead="<html>
 		
 # Get a list of Groups in the tenant
 CLS
-Write-Host "Extracting list of Microsoft 365 Groups for checking..."
+Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
 [Int]$GroupsCount = 0; [int]$TeamsCount = 0; $UsedGroups = $False
 
 # Define the values applicable for the application used to connect to the Graph - these will be different for your tenant
