@@ -1,6 +1,6 @@
 # ReportM365GroupMemberships.PS1
 # A script to report the membership of all Microsoft 365 Groups in a tenant
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportM365GroupMemberships.PS1
 
 CLS
 # Check that we are connected to Exchange Online
