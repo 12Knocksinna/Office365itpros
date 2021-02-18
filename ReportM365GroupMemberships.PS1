@@ -82,7 +82,6 @@ $S2 = Get-Date
 $TotalSeconds = [math]::round(($S2-$S1).TotalSeconds,2)
 $SecondsPerUser = [math]::round(($TotalSeconds/$Users.count),2)
 
-Write-Host "Processed" $GroupNumber "groups in" $TotalSeconds "- Currently processing at" $SecondsPerGroup "seconds per group"
 # Create the HTML report
 $htmlhead="<html>
 	   <style>
