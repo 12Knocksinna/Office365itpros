@@ -231,7 +231,7 @@ $htmltail = "<p>Report created for: " + $OrgName + "
              "<p>Number of Teams-enabled groups    : " + $TeamsCount + "</p>" +
              "<p>Percentage of Teams-enabled groups: " + $PercentTeams + "</body></html>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------"+
-             "<p>Microsoft 365 Groups and Teams Activity Report <b>V4.7</b>"	
+             "<p>Microsoft 365 Groups and Teams Activity Report <b>V4.8</b>"	
 $htmlreport = $htmlhead + $htmlbody + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 $Report | Export-CSV -NoTypeInformation $CSVFile
