@@ -1,7 +1,6 @@
 # ReportM365GroupMemberships-Graph.PS1
 # A script to report the membership of all Microsoft 365 Groups in a tenant using Graph calls instead of PowerShell
-# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportM365GroupMemberships.PS1
-
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportM365GroupMemberships-Graph.PS1
 
 # Needs the following Graph permissions:
 # Group.Read.All, GroupMember.Read.All, User.Read.All
