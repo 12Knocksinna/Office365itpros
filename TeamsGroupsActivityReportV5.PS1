@@ -197,7 +197,6 @@ ForEach ($Group in $Groups) {
    $GroupData = Get-GraphData -AccessToken $Token -Uri $Uri
    If ($GroupData.count -eq 0) {$OwnerNames = "No owners found" }
     Else {$OwnerNames = $GroupData.DisplayName -join ", " }
-   }
    # Get extended group properties 
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
    $GroupData = Get-GraphData -AccessToken $Token -Uri $uri
