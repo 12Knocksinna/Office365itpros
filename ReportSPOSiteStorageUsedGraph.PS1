@@ -11,23 +11,23 @@ $TenantId = "c662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
 
 # Build the request to get the OAuth 2.0 access token
-$uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
-$body = @{
+$Uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
+$Body = @{
     client_id     = $AppId
     scope         = "https://graph.microsoft.com/.default"
     client_secret = $AppSecret
     grant_type    = "client_credentials"}
 
 # Request token
-$tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
+$TokenRequest = Invoke-WebRequest -Method Post -Uri $Uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
 # Unpack Access Token
-$token = ($tokenRequest.Content | ConvertFrom-Json).access_token
-$headers = @{Authorization = "Bearer $token"}
+$Token = ($tokenRequest.Content | ConvertFrom-Json).access_token
+$Headers = @{Authorization = "Bearer $token"}
 
 Write-Host "Fetching SharePoint Online site data from the Graph..."
 # Get SharePoint files usage data - includes redirects, so we will have to remove them
-$SPOFilesReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D7')"
-$Sites = (Invoke-RestMethod -Uri $SPOFilesReportsURI -Headers $Headers -Method Get -ContentType "application/json") -replace "ï»¿", "" | ConvertFrom-Csv
+$URI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D7')"
+$Sites = (Invoke-RestMethod -Uri $URI -Headers $Headers -Method Get -ContentType "application/json") -replace "ï»¿", "" | ConvertFrom-Csv
 
 $TotalSPOStorageUsed = [Math]::Round(($Sites."Storage Used (Byte)" | Measure-Object -Sum).Sum /1GB,2)
 $Report = [System.Collections.Generic.List[Object]]::new() 
