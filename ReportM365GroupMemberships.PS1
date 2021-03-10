@@ -11,7 +11,7 @@ $OrgName = (Get-OrganizationConfig).Name
 $Version = "1.0"
 $ReportFile = "c:\temp\M365MembersReport.html"
 $CSVFileSummary = "c:\temp\M365MembersSummaryReport.csv"
-$CSVCileMembers = "c:\temp\M365MembersReport.csv"
+$CSVFileMembers = "c:\temp\M365MembersReport.csv"
 
 $MemberList = [System.Collections.Generic.List[Object]]::new()
 $SummaryData = [System.Collections.Generic.List[Object]]::new()
@@ -120,7 +120,7 @@ $htmltail = "<p>Report created for: " + $OrgName + "</p>" +
 $htmlreport = $htmlhead + $htmlbody1 + "<p><p>" + $htmlbody2 + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 
-$MemberList | Export-CSV -NoTypeInformation $CSVCileMembers
+$MemberList | Export-CSV -NoTypeInformation $CSVFileMembers
 $SummaryData | Export-CSV -NoTypeInformation $CSVFileSummary
 CLS
 Write-Host "Microsoft 365 Group Membership Report - Job Complete"
