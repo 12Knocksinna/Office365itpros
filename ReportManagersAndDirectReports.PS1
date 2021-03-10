@@ -1,7 +1,6 @@
 # ReportManagersAndDirectReports.PS1
 # A script to report the managers and their direct reports in a tenant
-# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportM365GroupMemberships.PS1
-
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportManagersAndDirectReports.PS1
 CLS
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
