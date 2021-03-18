@@ -244,7 +244,7 @@ $Teams.ForEach( {
    $TeamsHash.Add($_.Id, $_.DisplayName) } )
 
 # All groups and teams found...
-$TeamsCount = $TeamsHash.Count
+$TeamsCount = $Teams.Count
 $GroupsCount = $GroupsList.Count
 If (!$GroupsCount) {Write-Host "No Microsoft 365 Groups can be found - exiting"; break}
 If (!$TeamsCount) {Write-Host "No Microsoft Teams found in the tenant - continuing..." }
