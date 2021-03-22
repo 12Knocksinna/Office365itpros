@@ -21,7 +21,7 @@
 # V5.1 21-Jan-2021 Add check for archived teams
 #
 # Needs the following Graph permissions:
-# Group.Read.All, Reports.Read.All, User.Read.All | For returning owner's info https://docs.microsoft.com/fr-fr/graph/permissions-reference#limited-information-returned-for-inaccessible-member-objects
+# Group.Read.All, Reports.Read.All, User.Read.All, GroupMember.Read.All 
 CLS
 #+-------------------------- Functions etc. -------------------------
 function Get-GraphData {
