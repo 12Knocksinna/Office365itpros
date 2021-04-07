@@ -410,7 +410,7 @@ If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-
           LastConversation    = $LastConversation
           NumberConversations = $NumberConversations
           LastSPOActivity     = $SPOActivity
-          SPOStorageGB        = $SPOStorage
+          SPOStorageGB        = $SPOStorageUsed
           SPOStatus           = $SPOStatus
           WhenCreated         = $G.WhenCreated
           DaysOld             = $GroupAge
