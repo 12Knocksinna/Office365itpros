@@ -3,6 +3,35 @@
 # Session must be connected to an admin account
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSPOSiteStorageUsage.PS1
 
+Function ReturnO365GroupOwners([String]$SiteURL) {
+# Function to return the owners of an Office 365 Group identified by the group GUID
+$Owners = $Null; $DeletedGroup = $False; $i = 0; $SiteOwners = $Null
+# Get the site properties. We need a separate call here because Get-SPOSite doesn't return all properties when it fetches a set of sites
+$GroupId = (Get-SPOSite -Identity $SiteURL) 
+If ($GroupId.Template -eq  "TEAMCHANNEL#0") { # If Teams private channel, we use the Related Group Id
+   $GroupId = $GroupId | Select-Object -ExpandProperty RelatedGroupId }
+Else { # And for all other group-enabled sites, we use the GroupId
+   $Groupid = $GroupId | Select-Object -ExpandProperty GroupId }
+
+If ($GroupId.Guid -eq "00000000-0000-0000-0000-000000000000") { # Null group id stored in site
+       $SiteOwners = "Deleted group"; $DeletedGroup = $True }
+If ($DeletedGroup -eq $False) {      
+     Try { 
+       $Owners = (Get-UnifiedGroupLinks -Identity $GroupId.Guid -LinkType Owners -ErrorAction SilentlyContinue) }
+    Catch 
+       { $SiteOwners = "Possibly deleted Office 365 Group"; $DeletedGroup = $True }}
+
+If ($Null -eq $Owners) { # Got nothing back, maybe because of an error
+      $SiteOwners = "Possibly deleted Office 365 Group"}
+    Else { # We have some owners, now format them
+      $Owners = $Owners | Select-Object -ExpandProperty DisplayName
+      ForEach ($Owner in $Owners)  {
+        If ($i -eq 0) 
+         { $SiteOwners = $Owner; $i = 1 } 
+       Else { $SiteOwners = $SiteOwners + "; " + $Owner}}}
+
+Return $SiteOwners }
+
 # Check that we are connected to Exchange Online and SharePoint Online
 Try {
     $TestEXO = (Get-OrganizationConfig).ExchangeVersion  }
@@ -67,34 +96,6 @@ $PercentTenant = ([Math]::Round($Site.StorageUsageCurrent/1024,4)/$TotalSPOStora
 $Report | Export-CSV -NoTypeInformation c:\temp\SPOSiteConsumption.CSV
 Write-Host "Current SharePoint Online storage consumption is" $TotalSPOStorageUsed "GB. Report is in C:\temp\SPOSiteConsumption.CSV"
 
-Function ReturnO365GroupOwners([String]$SiteURL) {
-# Function to return the owners of an Office 365 Group identified by the group GUID
-$Owners = $Null; $DeletedGroup = $False; $i = 0; $SiteOwners = $Null
-# Get the site properties. We need a separate call here because Get-SPOSite doesn't return all properties when it fetches a set of sites
-$GroupId = (Get-SPOSite -Identity $SiteURL) 
-If ($GroupId.Template -eq  "TEAMCHANNEL#0") { # If Teams private channel, we use the Related Group Id
-   $GroupId = $GroupId | Select-Object -ExpandProperty RelatedGroupId }
-Else { # And for all other group-enabled sites, we use the GroupId
-   $Groupid = $GroupId | Select-Object -ExpandProperty GroupId }
-
-If ($GroupId.Guid -eq "00000000-0000-0000-0000-000000000000") { # Null group id stored in site
-       $SiteOwners = "Deleted group"; $DeletedGroup = $True }
-If ($DeletedGroup -eq $False) {      
-     Try { 
-       $Owners = (Get-UnifiedGroupLinks -Identity $GroupId.Guid -LinkType Owners -ErrorAction SilentlyContinue) }
-    Catch 
-       { $SiteOwners = "Possibly deleted Office 365 Group"; $DeletedGroup = $True }}
-
-If ($Null -eq $Owners) { # Got nothing back, maybe because of an error
-      $SiteOwners = "Possibly deleted Office 365 Group"}
-    Else { # We have some owners, now format them
-      $Owners = $Owners | Select-Object -ExpandProperty DisplayName
-      ForEach ($Owner in $Owners)  {
-        If ($i -eq 0) 
-         { $SiteOwners = $Owner; $i = 1 } 
-       Else { $SiteOwners = $SiteOwners + "; " + $Owner}}}
-
-Return $SiteOwners }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
