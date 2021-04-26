@@ -1,4 +1,5 @@
 # MailTrafficStatistics.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/MailTrafficStatistics.PS1
 # Illustration of how to use the data produced by the Get-MailTrafficSummaryReport cmdlet to create a useful per-mailbox report
 # of messages sent and received.
 # Uses the Exchange Online PowerShell module
