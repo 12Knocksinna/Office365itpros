@@ -22,7 +22,7 @@ $ManagersWithoutDR = [System.Collections.Generic.List[Object]]::new()
 Write-Host "Finding direct reports..."
 ForEach ($Manager in $Managers) {
     $Dn = $Manager.DistinguishedName
-    If ($Dn -like "*CN=O'*")  {
+    If ($Dn -like "*'*")  {
        $DNNew = "'" + "$($Dn.Replace("'","''''"))" + "'"
        $Cmd = "Get-User -Filter 'Members -eq '$DNnew''"
        [array]$Reports = Invoke-Expression $Cmd }
