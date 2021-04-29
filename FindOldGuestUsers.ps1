@@ -21,10 +21,8 @@ ForEach ($Guest in $GuestUsers) {
       $ProgressBar = "Processing Guest " + $Guest.DisplayName + " " + $AAdAccountAge + " days old " +  " (" + $i + " of " + $GuestUsers.Count + ")"
       Write-Progress -Activity "Checking Guest Account Information" -Status $ProgressBar -PercentComplete ($i/$GuestUsers.Count*100)
       $StaleGuests++
-      $GroupNames = $Null
       # Find what Office 365 Groups the guest belongs to... if any
       $DN = (Get-Recipient -Identity $Guest.UserPrincipalName).DistinguishedName 
-
 #    The distinguished name for some accounts might contain an apostrophe, so we need to process them in a certain way
      If ($Dn -like "*CN=O'*")  {
        $DNNew = "'" + "$($dn.Replace("'","''''"))" + "'"
