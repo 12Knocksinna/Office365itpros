@@ -22,7 +22,12 @@ $ManagersWithoutDR = [System.Collections.Generic.List[Object]]::new()
 Write-Host "Finding direct reports..."
 ForEach ($Manager in $Managers) {
     $Dn = $Manager.DistinguishedName
-    [array]$Reports = Get-User -Filter "Manager -eq '$Dn'"
+    If ($Dn -like "*CN=O'*")  {
+       $DNNew = "'" + "$($Dn.Replace("'","''''"))" + "'"
+       $Cmd = "Get-User -Filter 'Members -eq '$DNnew''"
+       [array]$Reports = Invoke-Expression $Cmd }
+    Else {
+       [array]$Reports = Get-User -Filter "Manager -eq '$Dn'" }
     If ($Reports.Count -eq 0) { $ManagersWithoutDR.Add($Manager.DisplayName) }
     $ReportLine = [PSCustomObject][Ordered]@{  # Write out details of the manager's reports
        Mnaager             = $Manager.DisplayName
@@ -74,3 +79,9 @@ $htmlreport | Out-File $ReportFile  -Encoding UTF8
 $ReportsList | Export-CSV -NoTypeInformation $CSVFileMembers
 CLS
 Write-Host "All done. Output files are" $CSVFileMembers "and" $ReportFile
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# first validating the code in a non-production environment.
