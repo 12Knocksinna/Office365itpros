@@ -24,7 +24,7 @@ ForEach ($Guest in $GuestUsers) {
       # Find what Office 365 Groups the guest belongs to... if any
       $DN = (Get-Recipient -Identity $Guest.UserPrincipalName).DistinguishedName 
 #    The distinguished name for some accounts might contain an apostrophe, so we need to process them in a certain way
-     If ($Dn -like "*CN=O'*")  {
+     If ($Dn -like "*'*")  {
        $DNNew = "'" + "$($dn.Replace("'","''''"))" + "'"
        $Cmd = "Get-Recipient -Filter 'Members -eq '$DNnew'' -RecipientTypeDetails GroupMailbox | Select DisplayName, ExternalDirectoryObjectId"
        $GuestGroups = Invoke-Expression $Cmd }
