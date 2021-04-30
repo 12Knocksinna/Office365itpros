@@ -52,7 +52,7 @@ ForEach ($G in $Guests) {
      $ReportLine = [PSCustomObject]@{ 
           Guest             = $G.Mail
           Name              = $G.DisplayName
-          ReviewForDelete   = $ReviewFlag
+          Inactive          = $ReviewFlag
           Created           = $CreationDate 
           AgeInDays         = $AccountAge
           EmailCount        = $EmailRecs.Count
