@@ -19,7 +19,7 @@ CLS; $GNo = 0
 ForEach ($G in $Guests) {
     $GNo++
     $ProgressBar = "Processing guest " + $G.DisplayName + " (" + $GNo + " of " + $Guests.Count + ")" 
-    Write-Progress -Activity "Checking Azure Active Directory Guest Accounts" -Status $ProgressBar -PercentComplete ($GNo/$Guests.Count*100)
+    Write-Progress -Activity "Checking Azure Active Directory Guest Accounts for activity" -Status $ProgressBar -PercentComplete ($GNo/$Guests.Count*100)
     $LastAuditRecord = $Null; $GroupNames = $Null; $LastAuditAction = $Null; $i = 0; $ReviewFlag = $False
     # Search for audit records for this user
     $Recs = (Search-UnifiedAuditLog -UserIds $G.Mail, $G.UserPrincipalName -Operations UserLoggedIn, SecureLinkUsed, TeamsSessionStarted -StartDate $StartDate -EndDate $EndDate -ResultSize 1)
@@ -56,22 +56,26 @@ ForEach ($G in $Guests) {
           Created           = $CreationDate 
           AgeInDays         = $AccountAge
           EmailCount        = $EmailRecs.Count
-          "Last Connection" = $LastAuditRecord
+          "Last Sign-in"    = $LastAuditRecord
           "Last Action"     = $LastAuditAction
-          O365Groups        = $GroupNames } 
+          "Members of"      = $GroupNames } 
        $Report.Add($ReportLine) 
 } 
 $Report | Sort Name | Export-CSV -NoTypeInformation c:\temp\GuestActivity.csv   
-Cls; Write-Host "All Done... The output file is in c:\temp\GuestActivity.csv"      
+Cls     
 $Active = $AuditRec + $EmailActive  
+$PercentInactive = (($Guests.Count - $Active)/$Guests.Count).toString("P")
 Write-Host ""
 Write-Host "Statistics"
 Write-Host "----------"
 Write-Host "Guest Accounts          " $Guests.Count
 Write-Host "Active Guests           " $Active
-Write-Host "Audit Record foun       " $AuditRec
+Write-Host "Audit Record found      " $AuditRec
 Write-Host "Active on Email         " $EmailActive
 Write-Host "InActive Guests         " ($Guests.Count - $Active)
+Write-Host "Percent inactive guests " $PercentInactive
+Write-Host " "
+Write-Host "The output file containing detailed results is in c:\temp\GuestActivity.csv" 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
