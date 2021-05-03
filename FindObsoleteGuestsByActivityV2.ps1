@@ -30,8 +30,9 @@ ForEach ($G in $Guests) {
     # Check email tracking logs because guests might receive email through membership of Outlook Groups. Email address must be valid for the check to work
     If ($G.Mail -ne $Null) {$EmailRecs = (Get-MessageTrace -StartDate $StartDate2 -EndDate $EndDate -Recipient $G.Mail)}           
     If ($EmailRecs.Count -gt 0) {$EmailActive++}
- 
-   # Find what Microsoft 365 Groups the guest belongs to
+    # Figure out the domain the guest is from so that we can report this information
+    $Domain = ($G.UserPrincipalName.Split("#EXT#")[0]).Split("_")[1]
+    # Find what Microsoft 365 Groups the guest belongs to
     $GroupNames = $Null
     $Dn = (Get-Recipient -Identity $G.UserPrincipalName).DistinguishedName
     If ($Dn -like "*'*")  {
@@ -52,6 +53,7 @@ ForEach ($G in $Guests) {
      $ReportLine = [PSCustomObject]@{ 
           Guest             = $G.Mail
           Name              = $G.DisplayName
+          Domain            = $Domain
           Inactive          = $ReviewFlag
           Created           = $CreationDate 
           AgeInDays         = $AccountAge
@@ -64,6 +66,13 @@ ForEach ($G in $Guests) {
 $Report | Sort Name | Export-CSV -NoTypeInformation c:\temp\GuestActivity.csv   
 Cls     
 $Active = $AuditRec + $EmailActive  
+# Figure out the domains guests come from
+$Domains = $Report.Domain | Sort
+$DomainsCount = @{}
+$Domains | ForEach {$DomainsCount[$_]++}
+$DomainsCount = $DomainsCount.GetEnumerator() | Sort -Property Value -Descending
+$DomainNames = $Domains | Sort -Unique
+
 $PercentInactive = (($Guests.Count - $Active)/$Guests.Count).toString("P")
 Write-Host ""
 Write-Host "Statistics"
@@ -74,6 +83,8 @@ Write-Host "Audit Record found      " $AuditRec
 Write-Host "Active on Email         " $EmailActive
 Write-Host "InActive Guests         " ($Guests.Count - $Active)
 Write-Host "Percent inactive guests " $PercentInactive
+Write-Host ("Domain with most guests  {0} ({1})" -f $DomainsCount[0].Name, $DomainsCount[0].Value)
+Write-Host "Guests from domains     " ($DomainNames -join ", ")
 Write-Host " "
 Write-Host "The output file containing detailed results is in c:\temp\GuestActivity.csv" 
 
