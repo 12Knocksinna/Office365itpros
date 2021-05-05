@@ -61,7 +61,8 @@ Write-Host " "
 Write-Host ("Guest accounts from blocked domains: {0}" -f ($BadGuests -join ", "))
 Write-Host "-----------------------------------------------------------------------------------------------------------"
 Write-Host " "
-Write-Host "Problem Groups"
+Write-Host "Problem Groups:"
+Write-Host "---------------"
 $BadGroups
 Write-Host " "
 Write-Host "Report data is available in" $OutputFile
