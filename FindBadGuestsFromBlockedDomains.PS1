@@ -1,5 +1,13 @@
 # FindBadGuestsFromBlockedDomains.PS1
 # Script showing how to report any existing guests in Microsoft 365 Groups which come from domains blocked by the Azure B2B Collaboration policy
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindBadGuestsFromBlockedDomains.PS1
+
+# Check that the right modules are loaded
+$Modules = Get-Module
+If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
+If ("AzureAD" -notin  $Modules.Name) {Write-Host "Please connect to Azure AD before continuing...";break}
+
+# Define output file for report
 $OutputFile = "C:\Temp\BadGuestAccounts.csv"
 
 # Get Blocked domains from the Azure AD B2B Collaboration settings
@@ -13,8 +21,11 @@ Else {
 $Groups = Get-UnifiedGroup -ResultSize Unlimited -Filter {GroupExternalMemberCount -gt 0}
 If (!($Groups)) { Write-Host "No Groups with external guests found"; break }
 $Report = [System.Collections.Generic.List[Object]]::new() 
+CLS; $GroupNumber = 0
 ForEach ($Group in $Groups) {
-   Write-Host "Processing" $Group.DisplayName
+   $GroupNumber++
+   $ProgressBar = "Processing Group " + $Group.DisplayName + " (" + $GroupNumber + " of " + $Groups.Count + ")" 
+   Write-Progress -Activity "Checking Microsoft 365 Groups for guest members from blocked domains" -Status $ProgressBar -PercentComplete ($GroupNumber/$Groups.Count*100)
    $Members = Get-UnifiedGroupLinks -Identity $Group.ExternalDirectoryObjectId -LinkType Member | ? {$_.RecipientTypeDetails -eq "GuestMailUser" } | Select ExternalEmailAddress, DisplayName, ExternalDirectoryObjectId
    ForEach ($Guest in $Members) {
       $Domain = $Guest.ExternalEmailAddress.Split(":")[1].Split("@")[1]
