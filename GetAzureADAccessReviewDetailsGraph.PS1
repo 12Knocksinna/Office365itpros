@@ -2,7 +2,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GetAzureADAccessReviewDetailsGraph.PS1
 # A script to show how to navigate the Graph interface for Azure AD Access Reviews, especially a review set up for all Groups and Teams
 # V1.0 15-Jan-2021
-# Needs to be assigned the delegated Graoh AccessReview.ReadWrite.All permission to work, also Group.ReadAll to read group information
+# App must be assigned the AccessReview.ReadWrite.All, AccessReview.ReadWrite.Members, Group.Read.All, and User.Read.All (application) permissions to work
 #
 function Get-GraphData {
 # GET data from Microsoft Graph.
