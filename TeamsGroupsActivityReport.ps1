@@ -95,11 +95,11 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
      $ManagedBy = "No owners"
      Write-Host $G.DisplayName "has no group owners!" -ForegroundColor Red}
   Else {
-     $ManagedBy = (Get-Mailbox -Identity $G.ManagedBy[0]).DisplayName}
+     $ManagedBy = (Get-ExoMailbox -Identity $G.ManagedBy[0]).DisplayName}
 # Group Age
   $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
 # Fetch information about activity in the Inbox folder of the group mailbox  
-   $Data = (Get-MailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestITems -FolderScope Inbox)
+   $Data = (Get-ExoMailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestITems -FolderScope Inbox)
    If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {$LastConversation = "No items found"}           
    Else {$LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format g }
    $NumberConversations = $Data.ItemsInFolder
@@ -169,14 +169,14 @@ If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
     $CountOldTeamsData = $False
 
 # Start by looking in the new location (TeamsMessagesData in Non-IPMRoot)
-    $TeamsChatData = (Get-MailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot | ? {$_.FolderType -eq "TeamsMessagesData" })
+    $TeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot | ? {$_.FolderType -eq "TeamsMessagesData" })
     If ($TeamsChatData.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($TeamsChatData.NewestItemReceivedDate) -Format g}
     $NumberOfChats = $TeamsChatData.ItemsInFolder
     
 # If the script is running before 1-Jun-2021, we need to check the old location of the Teams compliance records
 If ($Today -lt $DateOldTeams) {
      $CountOldTeamsData = $True
-     $OldTeamsChatData = (Get-MailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestItems -FolderScope ConversationHistory)
+     $OldTeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestItems -FolderScope ConversationHistory)
      ForEach ($T in $OldTeamsChatData) { # We might have one or two subfolders in Conversation History; find the one for Teams
      If ($T.FolderType -eq "TeamChat") {
         If ($T.ItemsInFolder -gt 0) {$OldLastItemAddedtoTeams = Get-Date ($T.NewestItemReceivedDate) -Format g}
