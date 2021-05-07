@@ -98,6 +98,7 @@ $AccessData = Get-GraphData -AccessToken $Token -Uri $uri
 # Find the access review for Teams and Groups    
 # This check depends on the display name you assign to the access review in the Azure AD admin center
 $Id = $Accessdata |?{$_.displayname -eq "Review guest access across Microsoft 365 Groups"} | Select -ExpandProperty Id
+If ($Id -eq $Null) { Write-Host "Can't find access review - please check the display name"; break }
 # Find the instances (groups being reviewed)
 $Uri = "https://graph.microsoft.com/beta/identityGovernance/accessReviews/definitions/" + $Id +"/instances"
 $AccessData = Get-GraphData -AccessToken $Token -Uri $uri   
