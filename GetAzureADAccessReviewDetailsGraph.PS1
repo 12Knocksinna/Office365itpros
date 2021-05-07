@@ -109,7 +109,7 @@ ForEach ($Instance in $AccessData) {
     # Get group id
     $Start = $Instance.scope.query.IndexOf("s/")
     $End = $Instance.scope.query.IndexOf("/members")
-    $GroupId = $Instance.scope.query.substring($Start + 2,$End - 8)
+    $GroupId = $Instance.scope.query.substring($Start + 2,$End - 13)
     $Uri = "https://graph.microsoft.com/v1.0/groups/" + $GroupId
     $GroupDetails = Get-GraphData -AccessToken $Token -Uri $uri 
     $GroupName = $GroupDetails.DisplayName
@@ -118,8 +118,9 @@ ForEach ($Instance in $AccessData) {
     $Uri = "https://graph.microsoft.com/beta/identityGovernance/accessReviews/definitions/" + $Id +"/instances/" + $instanceId + "/decisions"
     $InstanceData = Get-GraphData -AccessToken $Token -Uri $uri 
     Write-Host "Number of Guests to review in" $GroupName ":" $InstanceData.id.Count
+    If ($InstanceData.id.Count -gt 0) {
      ForEach ($Decision in $InstanceData) {
-       Switch ($Decision.decision) {
+       Switch ($Decision.decision) {  # Only generate report if guests are present to review
          "Deny"  {
              $DenyCount++; $GroupUnderReview = 1
              $Verdict = $Decision.decision
@@ -149,7 +150,7 @@ ForEach ($Instance in $AccessData) {
              $ReviewDate = "No decision made" }
          } #End Switch
      # Report decision
-     $ReportLine = [PSCustomObject] @{
+       $ReportLine = [PSCustomObject] @{
            User           = $User
            Name           = $Name
            Verdict        = $Verdict
@@ -158,7 +159,8 @@ ForEach ($Instance in $AccessData) {
            ReviewDate     = $ReviewDate
            Justification  = $Justification.Trim()
            Group          = $GroupName }             
-    $Report.Add($ReportLine) 
+      $Report.Add($ReportLine) 
+     } # End report if any guests are found to review
     } #End ForEach InstanceData
     If ($GroupUnderReview -eq 1) { $GroupsWithReview++ }
 } #End ForEach AccessData
