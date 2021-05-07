@@ -4,6 +4,10 @@
 # Script needs to connect to Azure Active Directory and Exchange Online PowerShell.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindOldGuestUsers.ps1
 
+# Make sure the right modules are loaded...
+If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
+If ("AzureAD" -notin  $Modules.Name) {Write-Host "Please connect to Azure AD before continuing...";break}
+
 # Set age threshold for reporting a guest account
 [int]$AgeThreshold = 365
 # Output report name
@@ -34,13 +38,23 @@ ForEach ($Guest in $GuestUsers) {
      If ($GuestGroups -ne $Null) {
        $GroupNames = $GuestGroups.DisplayName -join ", " }
 
+#    Find the last sign-in date for the guest account, which might indicate how active the account is
+     $UserLastLogonDate = $Null
+     $UserObjectId = $Guest.ObjectId
+     $UserLastLogonDate = (Get-AzureADAuditSignInLogs -Top 1  -Filter "userid eq '$UserObjectId' and status/errorCode eq 0").CreatedDateTime 
+     If ($UserLastLogonDate -ne $Null) {
+        $UserLastLogonDate = Get-Date ($UserLastLogonDate) -format g }
+     Else {
+        $UserLastLogonDate = "No recent sign in records found" }
+
      $ReportLine = [PSCustomObject][Ordered]@{
-           UPN     = $Guest.UserPrincipalName
-           Name    = $Guest.DisplayName
-           Age     = $AADAccountAge
-           Created = $Guest.RefreshTokensValidFromDateTime  
-           Groups  = $GroupNames
-           DN      = $DN}      
+           UPN               = $Guest.UserPrincipalName
+           Name              = $Guest.DisplayName
+           Age               = $AADAccountAge
+           "Account created" = $Guest.RefreshTokensValidFromDateTime  
+           "Last sign in"    = $UserLastLogonDate 
+           Groups            = $GroupNames
+           DN                = $DN}         
      $Report.Add($ReportLine) }
 }
 
