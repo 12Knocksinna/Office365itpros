@@ -96,6 +96,7 @@ Write-Host "Fetching Azure AD Access Review Data..."
 $Uri = "https://graph.microsoft.com/beta/identityGovernance/accessReviews/definitions"
 $AccessData = Get-GraphData -AccessToken $Token -Uri $uri 
 # Find the access review for Teams and Groups    
+# This check depends on the display name you assign to the access review in the Azure AD admin center
 $Id = $Accessdata |?{$_.displayname -eq "Review guest access across Microsoft 365 Groups"} | Select -ExpandProperty Id
 # Find the instances (groups being reviewed)
 $Uri = "https://graph.microsoft.com/beta/identityGovernance/accessReviews/definitions/" + $Id +"/instances"
