@@ -47,6 +47,14 @@ ForEach ($G in $Guests) {
      # Figure out age of guest account in days using the creation date in the extension properties of the guest account
      $CreationDate = (Get-AzureADUserExtension -ObjectId $G.ObjectId).get_item("createdDateTime") 
      $AccountAge = ($CreationDate | New-TimeSpan).Days
+      # Find if there's been any recent sign on activity
+     $UserLastLogonDate = $Null
+     $UserObjectId = $G.ObjectId
+     $UserLastLogonDate = (Get-AzureADAuditSignInLogs -Top 1  -Filter "userid eq '$UserObjectId' and status/errorCode eq 0").CreatedDateTime 
+     If ($UserLastLogonDate -ne $Null) {
+        $UserLastLogonDate = Get-Date ($UserLastLogonDate) -format g }
+     Else {
+        $UserLastLogonDate = "No recent sign in records found" }
      # Flag the account for potential deletion if it is more than a year old and isn't a member of any Office 365 Groups.
      If (($AccountAge -gt 365) -and ($GroupNames -eq $Null))  {$ReviewFlag = $True} 
      # Write out report line     
@@ -58,8 +66,9 @@ ForEach ($G in $Guests) {
           Created           = $CreationDate 
           AgeInDays         = $AccountAge
           EmailCount        = $EmailRecs.Count
-          "Last Sign-in"    = $LastAuditRecord
-          "Last Action"     = $LastAuditAction
+          "Last sign-in"       =  $UserLastLogonDate
+          "Last Audit record"  = $LastAuditRecord
+          "Last Audit action"  = $LastAuditAction
           "Members of"      = $GroupNames } 
        $Report.Add($ReportLine) 
 } 
