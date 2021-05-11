@@ -1,5 +1,5 @@
 # SendWelcomeEmailGraph.PS1
-# https://github.com/12Knocksinna/Office365itpros/blob/master/SendWelcomeEmail.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/SendWelcomeEmailGraph.PS1
 # How to send a welcome message to new mailboxes using SMTP AUTH
 # Updated version of the SendWelcomeEmail.PS1 script using the Graph API call to send mail instead of the Send-MailMessage cmdlet
 # Needs an app registered in Azure AD with consent given for the Application Mail Send permission
