@@ -99,8 +99,8 @@ ForEach ($User in $Users) {
              @{
               "@odata.type" = "#microsoft.graph.fileAttachment"
               "name" = $AttachmentFile
-             "contenttype" = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-               "contentBytes" = $ContentBase64 } )  
+              "contenttype" = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              "contentBytes" = $ContentBase64 } )  
            "toRecipients" = @(
            @{
              "emailAddress" = @{"address" = $EmailRecipient }
