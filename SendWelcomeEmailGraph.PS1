@@ -8,12 +8,12 @@
 $Modules = Get-Module
 If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
 # Date to Check for new accounts - we use the last 7 days here, but that's easily changable.
-[string]$CheckDate = (Get-Date).AddDays(-75)
+[string]$CheckDate = (Get-Date).AddDays(-7)
 
 # Get Graph access token - change these values for the app you use.
-$AppId = "970e01d1-ce75-46ba-a054-4b61c787f682"
+$AppId = "770e01d1-ce75-46ba-a054-4b61c787f682"
 $AppSecret = "~_Q2.IPI3kpbmhOG.VtCb1r0_J9G4-D8jG"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$TenantId = "b632313f-14fc-43a2-9a7a-d2e27f4f3478"
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
