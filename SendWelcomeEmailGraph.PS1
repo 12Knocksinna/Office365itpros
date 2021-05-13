@@ -59,15 +59,17 @@ $Users = (Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$CheckDate'" -Recipien
 If (!($Users)) {Write-Host "No users found - exiting" ; break} Else { Write-Host $Users.Count "mailboxes found to process"}
 
 # Mail.Send can send from any user. In this example, because we're sending messages to welcome people, we look up the mailboxes on the system to
-# find one tagged as the HR admin. You can use whatever method you like as long as the result is an SMTP address resolvable for a mailbox.
-$MsgFrom = Get-ExoMailbox -Filter {CustomAttribute1 -eq "HRAdmin"} | Select -ExpandProperty PrimarySmtpAddress
+# find one tagged as the HR admin. You can use whatever method you like as long as the result is a resolveable SMTP address. If you use an application
+# access policy to restrict access to the API, make sure this user is included.
+$MsgFrom = Get-Recipient -Filter {CustomAttribute1 -eq "HRAdmin"} | Select -ExpandProperty PrimarySmtpAddress
 
 If ($MsgFrom -eq $Null) { Write-Host "Can't find user defined as the sender for the messages - exiting!"; break}
 
 # Use the same approach to define CC recipients for the message
-$ccRecipient1 = Get-ExoMailbox -Filter {CustomAttribute1 -eq "HRCC1"} | Select -ExpandProperty PrimarySmtpAddress
-$ccRecipient2 = Get-ExoMailbox -Filter {CustomAttribute1 -eq "HRCC2"} | Select -ExpandProperty PrimarySmtpAddress
+$ccRecipient1 = Get-Recipient -Filter {CustomAttribute1 -eq "HRCC1"} | Select -ExpandProperty PrimarySmtpAddress
+$ccRecipient2 = Get-Recipient -Filter {CustomAttribute1 -eq "HRCC2"} | Select -ExpandProperty PrimarySmtpAddress
 If (($ccRecipient1 -eq $Null) -or ($ccRecipient2 -eq $Null)) { Write-Host "CC Recipients are not defined. Exiting!" ; break}
+Write-Host "Messages will be sent from" $MsgFrom "and CC'd to" $ccRecipient1 "and" $ccRecipient2
 
 # Define attachment to send to new users
 $AttachmentFile = "C:\temp\WelcomeToOffice365ITPros.docx"
