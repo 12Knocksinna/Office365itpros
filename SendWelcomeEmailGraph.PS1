@@ -29,8 +29,7 @@ $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "applicati
 $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 $Headers = @{
             'Content-Type'  = "application\json"
-            'Authorization' = "Bearer $Token" 
-            'ConsistencyLevel' = "eventual" }
+            'Authorization' = "Bearer $Token" }
 
 # Define some variables for the message
 #HTML header with styles
