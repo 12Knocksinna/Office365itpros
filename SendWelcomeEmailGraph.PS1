@@ -58,19 +58,21 @@ Write-Host ("Finding User mailboxes created since {0}" -f (Get-Date($DisplayDate
 $Users = (Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$CheckDate'" -RecipientTypeDetails UserMailbox -ResultSize Unlimited -Properties WhenMailboxCreated | Select WhenMailboxCreated, DisplayName, UserPrincipalName, PrimarySmtpAddress)
 If (!($Users)) {Write-Host "No users found - exiting" ; break} Else { Write-Host $Users.Count "mailboxes found to process"}
 
-# Message is from the logged in account, so make sure that we have valid credentials - if not, get some - you can change this code to 
-# use whatever method you want to identify the mail sender. Make sure that $MsgFrom is populated with a valid email address that resolves
-# against the directory.
-If (-not $O365Cred) { #Make sure we have credentials
-    $O365Cred = (Get-Credential)}
-$MsgFrom = $O365Cred.UserName
+# Mail.Send can send from any user. In this example, because we're sending messages to welcome people, we look up the mailboxes on the system to
+# find one tagged as the HR admin. You can use whatever method you like as long as the result is an SMTP address resolvable for a mailbox.
+$MsgFrom = Get-ExoMailbox -Filter {CustomAttribute1 -eq "HRAdmin"} | Select -ExpandProperty PrimarySmtpAddress
 
-# Define CC recipients for the message
-$ccRecipient1 = "Kim.Akers@office365itpros.com"
-$ccRecipient2 = "James.Ryan@Office365itpros.com"
+If ($MsgFrom -eq $Null) { Write-Host "Can't find user defined as the sender for the messages - exiting!"; break}
+
+# Use the same approach to define CC recipients for the message
+$ccRecipient1 = Get-ExoMailbox -Filter {CustomAttribute1 -eq "HRCC1"} | Select -ExpandProperty PrimarySmtpAddress
+$ccRecipient2 = Get-ExoMailbox -Filter {CustomAttribute1 -eq "HRCC2"} | Select -ExpandProperty PrimarySmtpAddress
+If (($ccRecipient1 -eq $Null) -or ($ccRecipient2 -eq $Null)) { Write-Host "CC Recipients are not defined. Exiting!" ; break}
+
 # Define attachment to send to new users
 $AttachmentFile = "C:\temp\WelcomeToOffice365ITPros.docx"
 $ContentBase64 = [convert]::ToBase64String( [system.io.file]::readallbytes($AttachmentFile))
+$SentMessages = 0
 
 # Create and send welcome message for each user
 ForEach ($User in $Users) {
