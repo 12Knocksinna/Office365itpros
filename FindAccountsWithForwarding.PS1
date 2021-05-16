@@ -35,7 +35,7 @@ ForEach ($M in $Mbx) {
                    $EmailAddress = ($Recipient -Split "SMTP:")[1].Trim("]") }
              }
              Write-Host $M.RecipientTypeDetails $M.DisplayName "has a rule to forward email to" $EmailAddress -ForegroundColor Red
-             # Remove the rule if the address is unknown to the directory
+             # Remove the rule if the address is unknown to the directory - uncomment these lines if you want rule removal to happen.
              # If ($Ex -ne $Null) {
              # Remove-InboxRule -Identity $Rule.Identity -Confirm:$False
              # Write-Host "Rule" $Rule.Name "removed from mailbox!" }
