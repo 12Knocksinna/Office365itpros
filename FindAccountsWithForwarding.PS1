@@ -1,5 +1,6 @@
-! FindAccountsWithForwarding.PS1
-! Script to find accounts with mail forwarding addresses enanled or with rules to forward messages
+# FindAccountsWithForwarding.PS1
+# Script to find accounts with mail forwarding addresses enanled or with rules to forward messages
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindAccountsWithForwarding.PS1
 
 $Modules = Get-Module
 If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
