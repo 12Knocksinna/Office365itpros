@@ -28,7 +28,7 @@ $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "applicati
 # Unpack Access Token
 $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 $Headers = @{
-            'ContentType'  = "application\json"
+            'Content-Type'  = "application\json"
             'Authorization' = "Bearer $Token" }
 
 # Define some variables for the message
