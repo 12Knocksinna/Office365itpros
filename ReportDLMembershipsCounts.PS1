@@ -38,7 +38,7 @@ param(
 # Check we have the right modules loaded
 $Modules = Get-Module
 If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
-If ("AzureADPreview" -notin  $Modules.Name) {Write-Host "Please connect to Azure AD  before continuing...";break}
+If ("AzureAD" -notin  $Modules.Name) {Write-Host "Please connect to Azure AD  before continuing...";break}
 
 # Find all distribution lists
 Write-Host "Finding Exchange Online Distribution Lists..."
