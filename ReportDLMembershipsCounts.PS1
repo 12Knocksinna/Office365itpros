@@ -1,6 +1,6 @@
 # ReportDLMembershipsCounts.PS1
 # Report the membership and counts for distribution lists in Exchange Online
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportDLMembershipsCounts.PS1
 
 Function Get-RecursiveAzureAdGroupMemberUsers{
 [cmdletbinding()]
