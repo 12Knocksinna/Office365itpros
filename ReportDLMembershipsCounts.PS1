@@ -13,7 +13,6 @@ param(
         If(-not(Get-AzureADCurrentSessionInfo)){Connect-AzureAD}
     }
     Process {
-        Write-Verbose -Message "Enumerating $($AzureGroup.DisplayName)"
         [array]$Members = Get-AzureADGroupMember -ObjectId $AzureGroup.ObjectId -All $true
         [array]$GroupMembers = $Members | ? {$_.ObjectType -eq 'Group'} | Select ObjectId, DisplayName, Mail, @{Name="Type"; e={$_.ObjectType}}
         
@@ -43,7 +42,7 @@ If ("AzureAD" -notin  $Modules.Name) {Write-Host "Please connect to Azure AD  be
 # Find all distribution lists
 Write-Host "Finding Exchange Online Distribution Lists..."
 # Find distribution lists, excluding room lists
-$DLs = Get-DistributionGroup -ResultSize Unlimited -Filter {RecipientTypeDetails -ne "Roomlist"} | Select DisplayName, ExternalDirectoryObjectId
+$DLs = Get-DistributionGroup -ResultSize Unlimited -Filter {RecipientTypeDetails -ne "Roomlist"} | Select DisplayName, ExternalDirectoryObjectId, ManagedBy
 If (!($DLs)) { Write-Host "No distribution lists found... sorry! "; break }
  Else { Write-Host ("{0} distribution lists found" -f $DLs.count) }
 
@@ -64,6 +63,7 @@ ForEach ($DL in $DLs) {
 
      $ReportLine = [PSCustomObject][Ordered]@{  
        DLName             = $DL.DisplayName
+       ManagedBy          = $DL.ManagedBy -join ", "
        "Members"          = $CountOfMembers
        "Tenant Users"     = $TenantMembers.Count
        "Groups"           = $GroupMembers.Count
