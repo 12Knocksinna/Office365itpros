@@ -46,7 +46,7 @@ $DLCSVOutput = "c:\temp\DLMemberCounts.CSV"
 ForEach ($DL in $DLs) { 
   $DLNumber++
   $ProgressBar = "Processing distribution list" + $DL.DisplayName + " (" + $DLNumber + " of " + $DLs.Count + ")" 
-  Write-Progress -Activity "Analzying membership of distribution list" -Status $ProgressBar -PercentComplete ($DLNumber/$DLs.Count*100)
+  Write-Progress -Activity "Analzying membership of distribution list " -Status $ProgressBar -PercentComplete ($DLNumber/$DLs.Count*100)
   [array]$Members =  Get-AzureADGroup -ObjectId $DL.ExternalDirectoryObjectId | Get-RecursiveAzureAdGroupMemberUsers
   If (!($Members)) { $CountOfMembers = 0 }
     Else { 
@@ -55,7 +55,7 @@ ForEach ($DL in $DLs) {
        [array]$GroupMembers = ( $Members | ? {$_.Type -eq "Group" })
        [array]$GuestMembers = ( $Members | ? {$_.Type -eq "Guest" })
        [array]$OtherMembers = ( $Members | ? {$_.Type -eq $Null })
-       $MemberNames = $Members.DisplayName -join ", "
+       $MemberNames = $Members.DisplayName -join ", " | Out-String
     }
 
      $ReportLine = [PSCustomObject][Ordered]@{  
