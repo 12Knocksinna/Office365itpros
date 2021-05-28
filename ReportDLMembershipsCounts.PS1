@@ -30,7 +30,7 @@ param(
 # Check we have the right modules loaded
 $Modules = Get-Module
 If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
-If ("AzureAD" -notin  $Modules.Name) {Write-Host "Please connect to Azure AD  before continuing...";break}
+If ("AzureADPreview" -notin  $Modules.Name) {Write-Host "Please connect to Azure AD  before continuing...";break}
 
 # Find all distribution lists
 Write-Host "Finding Exchange Online Distribution Lists..."
@@ -39,10 +39,14 @@ $DLs = Get-DistributionGroup -ResultSize Unlimited -Filter {RecipientTypeDetails
 If (!($DLs)) { Write-Host "No distribution lists found... sorry! "; break }
  Else { Write-Host ("{0} distribution lists found" -f $DLs.count) }
 
+CLS; $DLNumber = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
+$DLCSVOutput = "c:\temp\DLMemberCounts.CSV"
 
 ForEach ($DL in $DLs) { 
-  Write-Host "Processing" $DL.DisplayName ($Dl.ExternalDirectoryObjectId)
+  $DLNumber++
+  $ProgressBar = "Processing distribution list" + $DL.DisplayName + " (" + $DLNumber + " of " + $DLs.Count + ")" 
+  Write-Progress -Activity "Analzying membership of distribution list" -Status $ProgressBar -PercentComplete ($DLNumber/$DLs.Count*100)
   [array]$Members =  Get-AzureADGroup -ObjectId $DL.ExternalDirectoryObjectId | Get-RecursiveAzureAdGroupMemberUsers
   If (!($Members)) { $CountOfMembers = 0 }
     Else { 
@@ -67,5 +71,13 @@ ForEach ($DL in $DLs) {
     $Report.Add($ReportLine) 
 
 }
+
+Write-Host ("All done. {0} distribution lists analyzed. Output is in {1}" -f $DLs.Count, $DLCSVOutput)
 $Report | Out-GridView
-$Report | Export-CSV -NoTypeInformation c:\temp\DLMemberCounts.CSV
+$Report | Export-CSV -NoTypeInformation $DLCSVOutput
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# first validating the code in a non-production environment.
