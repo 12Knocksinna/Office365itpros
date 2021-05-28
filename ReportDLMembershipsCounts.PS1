@@ -55,9 +55,9 @@ ForEach ($DL in $DLs) {
        [array]$GroupMembers = ( $Members | ? {$_.Type -eq "Group" })
        [array]$GuestMembers = ( $Members | ? {$_.Type -eq "Guest" })
        [array]$OtherMembers = ( $Members | ? {$_.Type -eq $Null })
-       [string]$MemberNames = $Members.DisplayName -join ", " | Out-String
+       $MemberNames = $Members.DisplayName -join ", " | Out-String
     }
-
+    [string]$OutputNames = $MemberNames
      $ReportLine = [PSCustomObject][Ordered]@{  
        DLName             = $DL.DisplayName
        ManagedBy          = $DL.ManagedBy -join ", "
@@ -66,10 +66,9 @@ ForEach ($DL in $DLs) {
        "Groups"           = $GroupMembers.Count
        "Guest members"    = $GuestMembers.Count
        "Other Recipients" = $OtherMembers.Count
-       "Member names"     = $MemberNames}
+       "Member names"     = $OutputNames}
 
     $Report.Add($ReportLine) 
-
 }
 
 Write-Host ("All done. {0} distribution lists analyzed. Output is in {1}" -f $DLs.Count, $DLCSVOutput)
