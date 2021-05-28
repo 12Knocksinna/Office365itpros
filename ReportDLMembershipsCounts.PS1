@@ -4,34 +4,27 @@
 
 Function Get-RecursiveAzureAdGroupMemberUsers{
 [cmdletbinding()]
-# Fron https://saemundsson.se/?p=734
+# Modified from the code on https://saemundsson.se/?p=734
 param(
    [parameter(Mandatory=$True,ValueFromPipeline=$true)]
    $AzureGroup
 )
-    Begin{
-        If(-not(Get-AzureADCurrentSessionInfo)){Connect-AzureAD}
-    }
-    Process {
-        [array]$Members = Get-AzureADGroupMember -ObjectId $AzureGroup.ObjectId -All $true
-        [array]$GroupMembers = $Members | ? {$_.ObjectType -eq 'Group'} | Select ObjectId, DisplayName, Mail, @{Name="Type"; e={$_.ObjectType}}
+   [array]$Members = Get-AzureADGroupMember -ObjectId $AzureGroup.ObjectId -All $true
+   [array]$GroupMembers = $Members | ? {$_.ObjectType -eq 'Group'} | Select ObjectId, DisplayName, Mail, @{Name="Type"; e={$_.ObjectType}}
         
-        [array]$UserMembers = $Members | ? {$_.ObjectType -ne 'Group'} | Select ObjectId, DisplayName, Mail, @{Name="Type"; e= {$_.UserType}}
-        If($GroupMembers) {
-           [array]$ExtractedMembers = $Members | Where-Object{$_.ObjectType -eq 'Group'} | ForEach-Object{ Get-RecursiveAzureAdGroupMemberUsers -AzureGroup $_}
-           $UserMembers += $ExtractedMembers
-        }
-    }
-    end {
-        # Figure out what mix of user (including mail contacts and other recipients) and group members we have
-        [array]$ReturnMembers = $Null
-        If ($UserMembers) { $ReturnMembers = $UserMembers}
-        If ($GroupMembers) { $ReturnMembers += $GroupMembers }
+   [array]$UserMembers = $Members | ? {$_.ObjectType -ne 'Group'} | Select ObjectId, DisplayName, Mail, @{Name="Type"; e= {$_.UserType}}
+   If($GroupMembers) {
+       [array]$ExtractedMembers = $Members | Where-Object{$_.ObjectType -eq 'Group'} | ForEach-Object{ Get-RecursiveAzureAdGroupMemberUsers -AzureGroup $_}
+        $UserMembers += $ExtractedMembers }
 
-        # Remove duplicates if found in multiple DLs
-        $ReturnMembers = $ReturnMembers | Sort ObjectId -Unique
-        Return $ReturnMembers
-    }
+   # Figure out what mix of user (including mail contacts and other recipients) and group members we have
+   [array]$ReturnMembers = $Null
+   If ($UserMembers) { $ReturnMembers = $UserMembers}
+   If ($GroupMembers) { $ReturnMembers += $GroupMembers }
+
+   # Remove duplicates if found in multiple (nested) DLs
+   $ReturnMembers = $ReturnMembers | Sort ObjectId -Unique
+   Return $ReturnMembers
 }
 
 # Check we have the right modules loaded
