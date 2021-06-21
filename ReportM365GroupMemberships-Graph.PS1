@@ -76,7 +76,7 @@ CLS
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
-
+# The need for the Exchange Online module only exists to get the organization name. If you want to hard code this variable, you can eliminate the need to load the EXO module
 $OrgName = (Get-OrganizationConfig).Name
 $S1 = Get-Date       
 $Version = "1.0"
