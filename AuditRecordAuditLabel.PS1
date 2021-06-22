@@ -2,6 +2,7 @@
 # AuditRecordAuditLabel.PS1
 # A script to look for audit records for the application of retention labels and report those which
 # are applied by an auto-label policy. 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/AuditRecordAuditLabel.PS1
 
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
@@ -57,3 +58,9 @@ $AverageTimeToTag = [timespan]::fromseconds($AverageSeconds)
 $AverageTimeToTagFormatted = "{0:dd}d:{0:hh}h:{0:mm}m" -f $AverageTimeToTag
 Write-Host ("Average elapsed time to auto-label recordings: {0}" -f $AverageTimeToTagFormatted)
 Write-Host ("The report file is available in {0}. -f $OutputCSVFile}
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# first validating the code in a non-production environment.
