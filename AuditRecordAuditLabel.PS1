@@ -9,6 +9,7 @@ If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please con
 
 # Retention label to check for - change this to your preferred label name
 $RetentionLabel = "Teams recordings"
+$TotalSeconds = 0
 
 # Start and end date for the audit scan. By default, we look for 14 days, but you can choose any value you like up to 365 (assuming Office 365 E5)
 $StartDate = (Get-Date).AddDays(-14); $EndDate = (Get-Date) 
@@ -57,7 +58,7 @@ $AverageSeconds = $TotalSeconds/$TaggedRecordings.Count
 $AverageTimeToTag = [timespan]::fromseconds($AverageSeconds)
 $AverageTimeToTagFormatted = "{0:dd}d:{0:hh}h:{0:mm}m" -f $AverageTimeToTag
 Write-Host ("Average elapsed time to auto-label recordings: {0}" -f $AverageTimeToTagFormatted)
-Write-Host ("The report file is available in {0}. -f $OutputCSVFile}
+Write-Host ("The report file is available in {0}." -f $OutputCSVFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
