@@ -1,6 +1,6 @@
 # ReportDLMembershipsCountsGraph.PS1
 # Report the membership and counts for distribution lists in Exchange Online - the Graph version. The pure PowerShell version is in
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportDLMembershipsCountsGraph.PS1
 # 
 # The registered app needs Directory.Read.All, Group.Read.All, User.Read.All application permissions.
 
