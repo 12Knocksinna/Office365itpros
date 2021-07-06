@@ -1,6 +1,6 @@
 # ReportYammerCommunityActivity.PS1
 # Report the activity of Yammer communities (for networks configured in Microsoft 365 mode) using the compliance records stored in Exchange Online
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportYammerCommunityActivity.PS1
 
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
