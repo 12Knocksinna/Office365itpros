@@ -1,5 +1,6 @@
 # HideGroupsUsedByTeams.PS1
 # Hide the Microsoft 365 Groups used by Teams which might be still visible to Exchange clients and the Exchange address lists
+# https://github.com/12Knocksinna/Office365itpros/blob/master/HideGroupsUsedByTeams.PS1
 
 CLS
 $ModulesLoaded = Get-Module | Select Name
