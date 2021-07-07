@@ -1,6 +1,7 @@
 # GetTenantFeatureUpdatesGraph.PS1
 # Example of using the Office 365 Service Communications Graph API to retrieve information about feature updates coming to a tenant
 # The registered app needs the ServiceMessage.Read.All permission to read service feature updates 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetTenantFeatureUpdatesGraph.PS1
 
 function Get-GraphData {
 # Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
