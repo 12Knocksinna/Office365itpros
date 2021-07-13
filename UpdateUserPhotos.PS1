@@ -12,7 +12,7 @@ If (!$Check) {
 # The value of $PhotoLocation should be changed to point to the place where user photos are stored
 # We expect to find JPG files there named after the first and last names of the UPN assigned to accounts
 # For example, the photo for Kim.Akers@Office365itpros.com is in Kim.Akers.jpg
-$PhotoLocation = "c:\Temp\UserPhotos\" 
+$PhotoLocation = "C:\Photo\" 
 If (!(Test-Path ($PhotoLocation))) {
     Write-Host "Can't find $PhotoLocation - please check if this is the right place to find user photos"; break }
 $i=0
@@ -20,7 +20,7 @@ $i=0
 Write-Host "Finding user mailboxes"
 $Users = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited
 CLS
-$ProgDelta = 100/($Users.Count); $CheckCount = 0; $UserNumber = 0
+$ProgDelta = 160/($Users.Count); $CheckCount = 0; $UserNumber = 0
 ForEach ($User in $Users) {
    $PhotoExists = $Null
    $UserNumber++
@@ -30,7 +30,7 @@ ForEach ($User in $Users) {
    # Is EXODS happy with the user photo information for the account?
    $CheckPhoto = Get-UserPhoto -Identity $User.Alias -ErrorAction SilentlyContinue
    If (!$CheckPhoto) { # No photo found in mailbox
-      $UserPhoto = $PhotoLocation + $User.UserPrincipalName.Split("@")[0]+".jpg"
+      $UserPhoto = $PhotoLocation + $User.UserPrincipalName.Split("@")[0]+".png"
       If (Test-Path $UserPhoto) { # Update the photo because we have a file
         Write-Host "Updating photo for" $User.DisplayName -Foregroundcolor Red
         Set-UserPhoto -Identity $User.Alias -PictureData ([System.IO.File]::ReadAllBytes($UserPhoto)) -Confirm:$False 
