@@ -30,7 +30,7 @@ ForEach ($Manager in $Managers) {
        [array]$Reports = Get-User -Filter "Manager -eq '$Dn'" }
     If ($Reports.Count -eq 0) { $ManagersWithoutDR.Add($Manager.DisplayName) }
     $ReportLine = [PSCustomObject][Ordered]@{  # Write out details of the manager's reports
-       Mnaager             = $Manager.DisplayName
+       Manager             = $Manager.DisplayName
        UPN                 = $Manager.UserPrincipalName
        "Number of reports" = $Reports.Count
        "Direct Reports"    = $Reports.DisplayName -join ", " }
@@ -81,7 +81,7 @@ CLS
 Write-Host "All done. Output files are" $CSVFileMembers "and" $ReportFile
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
