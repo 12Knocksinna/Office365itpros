@@ -48,7 +48,13 @@ ForEach ($DL in $DLs) {
   $ProgressBar = "Processing distribution list " + $DL.DisplayName + " (" + $DLNumber + " of " + $DLs.Count + ")" 
   Write-Progress -Activity "Analzying membership of distribution list " -Status $ProgressBar -PercentComplete ($DLNumber/$DLs.Count*100)
   [array]$Members =  Get-AzureADGroup -ObjectId $DL.ExternalDirectoryObjectId | Get-RecursiveAzureAdGroupMemberUsers
-  If (!($Members)) { $CountOfMembers = 0 }
+  If (!($Members)) { # For whatever reason, no members in this group, so we zeroize everything to prepare for the next group
+        $CountOfMembers = 0
+        [array]$TenantMembers = @() 
+        [array]$GroupMembers = @() 
+        [array]$GuestMembers = @() 
+        [array]$OtherMembers = @() 
+        $MemberNames = $Null }  
     Else { 
        [int]$CountOfMembers = $Members.Count
        [array]$TenantMembers = ( $Members | ? {$_.Type -eq "Member" })
