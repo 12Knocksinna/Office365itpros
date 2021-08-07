@@ -206,13 +206,26 @@ ForEach ($Group in $Groups) {
    # Get SharePoint site URL
    $SPOUrl = $Null; $SPODocLib = $Null; $SPOQuotaUsed = 0; $SPOLastDateActivity = $Null
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/drive"
-   $SPOData = Get-GraphData -AccessToken $Token -Uri $uri
-   If ($SPOData) { # Using language-specific values to identify the document library defined
-       $SPOUrl = $SPOData.WebUrl.SubString(0,$SpoData.weburl.IndexOf($SharedDocFolder))
-       $SPODocLib = $SPOUrl + $SharedDocFolder2 
-       $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
-       $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g }
-   Else { CLS; Write-Host "Continuing to fetch information about Microsoft 365 Groups..." } # Get rid of mucky SharePoint error  308 
+   [array]$SPOData = Get-GraphData -AccessToken $Token -Uri $uri
+   [int]$LLVValue = $SPOData.WebUrl.IndexOf($SharedDocFolder) # Can we find a local-language value for the document library in the data returned?
+   If (($SPOData.id) -and ($SPOData.DriveType -eq "documentLibrary")) { # Using language-specific values to identify the document library defined
+       If ($LLVValue -gt 0) {  # If we have a local language value, parse it to extract the document library URL
+          $SPOUrl = $SPOData.WebUrl.SubString(0,$SPOData.WebUrl.IndexOf($SharedDocFolder))
+          $SPODocLib = $SPOUrl + $SharedDocFolder2 
+          $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
+          $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g 
+       } # End if
+       Else  { # Just report what we read from the Graph
+         $SPOUrl = $SPOData.WebUrl
+          $SPODocLib = $SPOUrl + $SharedDocFolder2 
+          $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
+          $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g 
+       } # End Else
+   } # End if against $SPOData
+   Else { 
+       CLS; Write-Host "Continuing to fetch information about Microsoft 365 Groups..." 
+   } # Get rid of mucky SharePoint error  308 
+   
      # Get Member and Guest member counts
    $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Guest'"
    $GuestMemberCount = Get-GraphData -AccessToken $Token -Uri $uri
