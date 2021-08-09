@@ -9,7 +9,10 @@
 # GroupAllowedToCreate is the display name of a Microsoft 365 Group or security group used to hold the set of users allowed to create new Microsoft 365 Groups
 # OnOffSwitch is $True to enable control of group creation or $False to disable it
 
-Param ([Parameter(Mandatory)]$GroupAllowedToCreate, [string]$OnOffSwitch)
+Param ([Parameter(Mandatory)]$GroupAllowedToCreate, [string] [ValidateSet($True, $False)]$OnOffSwitch=$True)
+
+If ($GroupAllowedToCreate.length -eq $0) { Write-Host "No group name specified - please rerun"; break }
+If ($OnOffSwitch -ne $True -and $OnOffSwitch -ne $False) { Write-Host "No mode specified - please rerun" ; break }
 
 # Check that we have the right module loaded
 $ModulesLoaded = Get-Module | Select Name
