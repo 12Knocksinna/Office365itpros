@@ -1,8 +1,13 @@
 # EnableMicrosoft365GroupCreationControl.PS1
 # https://github.com/12Knocksinna/Office365itpros/blob/master/EnableMicrosoft365GroupCreationControl.PS1
-Connect-AzureAD
-# Define values for the grou
-$GroupAllowedToCreate = "GroupCreationControl"
+
+# Check that we have the right module loaded
+$ModulesLoaded = Get-Module | Select Name
+If (!($ModulesLoaded -match "AzureADPreview")) {Write-Host "Please run Connect-AzureAD using the Azure AD Preview module and then restart the script"; break}
+
+# Define values for the group used to control group creation - change this for your tenant
+[string]$GroupAllowedToCreate = "GroupCreationControl"
+# Define whether you want to turn group creation on or off ($True or $False)
 $OnOffSwitch = $True
 # Just for formatting...
 Switch ($OnOffSwitch) {
@@ -10,8 +15,24 @@ Switch ($OnOffSwitch) {
    $False { $Control = "Off" }
 }
 
-$GroupId = (Get-AzureADGroup -SearchString $GroupAllowedToCreate).ObjectId
-If (!$GroupId) { Write-Host ("Can't find the group identifier for {0} - is it the correct group name?" -f $GroupAllowedToCreate) ; break }
+# Check whether we can find the group and if we find more than one, ask the administrator to select a group
+[array]$Group = (Get-AzureADGroup -SearchString $GroupAllowedToCreate)
+If (!$Group) { Write-Host ("Can't find the group identifier for {0} - is it the correct group name?" -f $GroupAllowedToCreate) ; break }
+If ($Group.Count -eq 1) { # Just one group found
+   [string]$GroupId = $Group.ObjectId }
+Elseif ($Group.Count -gt 1) { # More than one groupfound. Ask which to use
+   CLS; Write-Host "More than one matching group was found."; [int]$i=1
+   ForEach ($GroupOption in $Group) {
+      Write-Host $i ":" $GroupOption.DisplayName; $i++ }
+   [Int]$Answer = Read-Host "Enter the number of the group to use"
+   If (($Answer -gt 0) -and ($Answer -le $i)) {
+      [int]$i = ($Answer-1)
+      [string]$GroupId = $Group[$i].ObjectId 
+      [string]$GroupAllowedToCreate = $Group[$i].DisplayName
+      Write-Host "OK. Selected group is" $GroupAllowedToCreate
+    } #end if
+  }
+
 
 Write-Host ("Setting group creation control to {0} using group name {1}." -f $Control, $GroupAllowedToCreate)
 
