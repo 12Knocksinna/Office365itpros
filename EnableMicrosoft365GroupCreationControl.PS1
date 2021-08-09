@@ -1,14 +1,20 @@
 # EnableMicrosoft365GroupCreationControl.PS1
 # https://github.com/12Knocksinna/Office365itpros/blob/master/EnableMicrosoft365GroupCreationControl.PS1
 
+# A script to update the setting in the Azure AD policy for Microsoft 365 Groups used to control if group creation is restricted.
+
+# Usage .\.EnableMicrosoft365GroupCreationControl.PS1 -GroupAllowedToCreate GroupUsedtoControlGroups -OnOffSwitch $True/$False
+# e.g.  .\.EnableMicrosoft365GroupCreationControl.PS1 -GroupAllowedToCreate GroupUsedtoControlGroups -OnOffSwitch $True
+
+# GroupAllowedToCreate is the display name of a Microsoft 365 Group or security group used to hold the set of users allowed to create new Microsoft 365 Groups
+# OnOffSwitch is $True to enable control of group creation or $False to disable it
+
+Param ([Parameter(Mandatory)]$GroupAllowedToCreate, [string]$OnOffSwitch)
+
 # Check that we have the right module loaded
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "AzureADPreview")) {Write-Host "Please run Connect-AzureAD using the Azure AD Preview module and then restart the script"; break}
 
-# Define values for the group used to control group creation - change this for your tenant
-[string]$GroupAllowedToCreate = "GroupCreationControl"
-# Define whether you want to turn group creation on or off ($True or $False)
-$OnOffSwitch = $True
 # Just for formatting...
 Switch ($OnOffSwitch) {
    $True { $Control = "On" }
