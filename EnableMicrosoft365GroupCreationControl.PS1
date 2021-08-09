@@ -1,4 +1,5 @@
 # EnableMicrosoft365GroupCreationControl.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/EnableMicrosoft365GroupCreationControl.PS1
 Connect-AzureAD
 # Define values for the grou
 $GroupAllowedToCreate = "GroupCreationControl"
