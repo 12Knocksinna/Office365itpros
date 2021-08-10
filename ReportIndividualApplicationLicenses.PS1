@@ -24,7 +24,7 @@ $Office365E5 = "c7df2760-2c81-4ef7-b578-5b5392b571df"
 $Office365E3 = "6fd2c87f-b296-42f0-b197-1e91e994b900"
 
 Write-Host “Finding Azure AD Account Information”
-$Users = Get-AzureADUser -All $True -Filter "Usertype eq 'Member'"
+$Users = Get-AzureADUser -All $True -Filter "Usertype eq 'rann@daa.com'"
 CLS
 $Product = Read-Host "Enter the Office 365 application for a license check"
 if (!($Plans.ContainsValue($Product))) { # Not found
