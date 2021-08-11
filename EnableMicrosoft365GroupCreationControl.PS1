@@ -3,8 +3,8 @@
 
 # A script to update the setting in the Azure AD policy for Microsoft 365 Groups used to control if group creation is restricted.
 
-# Usage .\.EnableMicrosoft365GroupCreationControl.PS1 -GroupAllowedToCreate GroupUsedtoControlGroups -OnOffSwitch $True/$False
-# e.g.  .\.EnableMicrosoft365GroupCreationControl.PS1 -GroupAllowedToCreate GroupUsedtoControlGroups -OnOffSwitch $True
+# Usage .\EnableMicrosoft365GroupCreationControl.PS1 -GroupAllowedToCreate GroupUsedtoControlGroups -OnOffSwitch $True/$False
+# e.g.  .\EnableMicrosoft365GroupCreationControl.PS1 -GroupAllowedToCreate GroupUsedtoControlGroups -OnOffSwitch $True
 
 # GroupAllowedToCreate is the display name of a Microsoft 365 Group or security group used to hold the set of users allowed to create new Microsoft 365 Groups
 # OnOffSwitch is $True to enable control of group creation or $False to disable it
@@ -64,8 +64,8 @@ $GroupId = $CurrentValues.Values |?{$_.Name -eq "GroupCreationAllowedGroupId" } 
 $OnOffSwitch = $CurrentValues.Values |?{$_.Name -eq "EnableGroupCreation" } | Select -ExpandProperty Value
 
 Switch ($OnOffSwitch) {
-   $True { $Control = "Restricted" }
-   $False { $Control = "Unrestricted" }
+   $True { $Control = "Unrestricted" }
+   $False { $Control = "Restricted" }
 }
 CLS
 Write-Host ""
