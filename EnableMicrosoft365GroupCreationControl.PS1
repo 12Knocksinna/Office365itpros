@@ -69,8 +69,12 @@ Switch ($OnOffSwitch) {
 }
 CLS
 Write-Host ""
-Write-Host ("Group creation is currently {0}. The name of the group defined by policy to control group creation is {1} and its object identifier is {2}" -f $Control, (Get-AzureADGroup -ObjectId $GroupId).DisplayName, $GroupId)
-# List the members of the group
+$Owners = (Get-AzureADGroupOwner -ObjectId $GroupId).DisplayName
+$Owners = $Owners -join ", "
+Write-Host ("Group creation is currently {0}. The name of the group controlling group creation is {1}. Its object identifier is {2} and the group owners are {3}." -f $Control, (Get-AzureADGroup -ObjectId $GroupId).DisplayName, $GroupId, $Owners)
+# List the members of the control group
+Write-Host ""
+Write-Host “The accounts allowed to create new Microsoft 365 groups are:”
 Get-AzureADGroupMember -ObjectId $GroupId
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
