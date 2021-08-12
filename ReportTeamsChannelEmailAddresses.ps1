@@ -29,7 +29,7 @@ $ctype = "application/json"
 
 # Create list of Teams in the tenant
 Write-Host "Fetching list of Teams in the tenant"
-$Teams = Invoke-WebRequest -Method GET -Uri "$($uri)groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')" -ContentType $ctype -Headers $headers | ConvertFrom-Json
+[array]$Teams = Invoke-WebRequest -Method GET -Uri "$($uri)groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')" -ContentType $ctype -Headers $headers | ConvertFrom-Json
 $TeamsHash = @{}
 $Teams.Value.ForEach( {
    $TeamsHash.Add($_.Id, $_.DisplayName) } )
