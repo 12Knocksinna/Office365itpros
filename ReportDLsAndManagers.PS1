@@ -1,4 +1,5 @@
 # ReportDLsAndManagers.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportDLsAndManagers.PS1
 # Quick and dirty script to report the managers of distribution lists
 CLS
 # Check that we are connected to Exchange Online
