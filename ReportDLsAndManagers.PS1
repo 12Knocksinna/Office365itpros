@@ -13,7 +13,7 @@ $ReportFile = "c:\temp\DLManagersReport.html"
 $CSVFileMembers = "c:\temp\DLManagersReport.csv"
 
 Write-Host "Finding Distribution lists in" $OrgName "..."
-[array]$DLs = Get-DistributionGroup -ResultSize 5000
+[array]$DLs = Get-DistributionGroup -ResultSize Unlimited -Filter {RecipientTypeDetails -ne "Roomlist"} | Select DisplayName, ExternalDirectoryObjectId, ManagedBy
 If (!($DLs)) { Write-Host "No distribution lists found - exiting" ; break }
 
 $Report = [System.Collections.Generic.List[Object]]::new()
