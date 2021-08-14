@@ -99,11 +99,11 @@ Write-Host "Finding Exchange Online Distribution Lists..."
 $DLs = Get-DistributionGroup -ResultSize Unlimited -Filter {RecipientTypeDetails -ne "Roomlist"} | Select DisplayName, ExternalDirectoryObjectId, ManagedBy
 If (!($DLs)) { Write-Host "No distribution lists found... sorry! "; break }
  Else { Write-Host ("{0} distribution lists found" -f $DLs.count) }
-CLS; $DLNumber = 0
-$Report = [System.Collections.Generic.List[Object]]::new()
+CLS; $Report = [System.Collections.Generic.List[Object]]::new()
 $DLCSVOutput = "c:\temp\DLMemberCounts.CSV"
 
 # Loop down through each DL and fetch the membership using the Graph transitivemembers call to return a complete set.
+$DLNumber = 0
 ForEach ($DL in $DLs) {
 $DLNumber++
   $ProgressBar = "Processing distribution list " + $DL.DisplayName + " (" + $DLNumber + " of " + $DLs.Count + ")" 
@@ -139,10 +139,23 @@ $DLNumber++
    # Remove any duplicates
    $MembersNames = $MembersNames | Sort MemberId -Unique
    $OutputNames =  $MembersNames.MemberName -join ", " 
+   
+   #  Figure out DL manager names - can't be done using the Graph at present
+   $ManagerList = [System.Collections.Generic.List[Object]]::new()
+    ForEach ($Manager in $DL.ManagedBy) {
+       $Recipient = Get-Recipient -Identity $Manager -ErrorAction SilentlyContinue
+       If (!($Recipient)) { # Can't resolve manager
+           $Recipient = "Unknown user" }
+       $ManagerLine = [PSCustomObject][Ordered]@{  
+         DisplayName = $Recipient.DisplayName
+         UPN         = $Recipient.WIndowsLiveID }
+       $ManagerList.Add($ManagerLine) 
+    } # End processing managers
+    $Managers = $ManagerList.DisplayName -join ", "
 
    $ReportLine = [PSCustomObject][Ordered]@{  
        DLName             = $DL.DisplayName
-       ManagedBy          = $DL.ManagedBy -join ", "
+       ManagedBy          = $Managers
        "Members"          = $CountOfMembers
        "Tenant Users"     = $CountTenantMembers
        "Groups"           = $CountGroups
