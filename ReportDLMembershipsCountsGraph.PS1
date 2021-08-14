@@ -100,7 +100,6 @@ $DLs = Get-DistributionGroup -ResultSize Unlimited -Filter {RecipientTypeDetails
 If (!($DLs)) { Write-Host "No distribution lists found... sorry! "; break }
  Else { Write-Host ("{0} distribution lists found" -f $DLs.count) }
 CLS; $Report = [System.Collections.Generic.List[Object]]::new()
-$DLCSVOutput = "c:\temp\DLMemberCounts.CSV"
 
 # Loop down through each DL and fetch the membership using the Graph transitivemembers call to return a complete set.
 $DLNumber = 0
@@ -167,7 +166,46 @@ $DLNumber++
 
 } # End processing DLs
 
-Write-Host ("All done. {0} distribution lists analyzed. Output is in {1}" -f $DLs.Count, $DLCSVOutput)
+# Create output files
+$DLCSVOutput = "c:\temp\DLData.CSV"
+$ReportFile = "c:\temp\DLData.html"
+# Create the HTML report
+$OrgName = (Get-OrganizationConfig).Name
+$CreationDate = Get-Date -format g
+$Version = "1.0"
+$htmlhead="<html>
+	   <style>
+	   BODY{font-family: Arial; font-size: 8pt;}
+	   H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
+	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
+	   TD{border: 1px solid #969595; padding: 5px; }
+	   td.pass{background: #B7EB83;}
+	   td.warn{background: #FFF275;}
+	   td.fail{background: #FF2626; color: #ffffff;}
+	   td.info{background: #85D4FF;}
+	   </style>
+	   <body>
+           <div align=center>
+           <p><h1>Distribution List Manager Report</h1></p>
+           <p><h2><b>For the " + $Orgname + " organization</b></h2></p>
+           <p><h3>Generated: " + (Get-Date -format g) + "</h3></p></div>"
+
+$htmlbody1 = $Report | ConvertTo-Html -Fragment
+
+$htmltail = "<p>Report created for: " + $OrgName + "</p>" +
+             "<p>Created: " + $CreationDate + "<p>" +
+             "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
+             "<p>Number of distribution lists found:    " + $DLs.Count + "</p>" +
+             "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
+             "<p>Distribution List Manager Report<b> " + $Version + "</b>"	
+
+$htmlreport = $htmlhead + $htmlbody1 + $htmltail
+$htmlreport | Out-File $ReportFile  -Encoding UTF8
+
+Write-Host ("All done. {0} distribution lists analyzed. CSV file is available at {1} and a HTML report at {2}" -f $DLs.Count, $DLCSVOutput, $ReportFile)
 $Report | Out-GridView
 $Report | Export-CSV -NoTypeInformation $DLCSVOutput
 
