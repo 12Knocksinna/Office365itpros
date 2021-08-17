@@ -1,6 +1,7 @@
 # RemoveServicePlan.PS1
 # A script to show how to remove a single service plan from the licenses assigned to a Microsoft 365 account.
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan.PS1
+
 # Check loaded modules
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
