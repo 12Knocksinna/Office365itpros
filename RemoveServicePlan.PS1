@@ -52,7 +52,7 @@ Switch ($ServiceDomains.Count) {
 If (!($TenantName)) { Write-Host "Exiting..." ; break}
 
 # Find the set of SKUs used in the tenant
-$Skus = (Get-AzureADSubscribedSku | Select -Property SkuPartNumber, ConsumedUnits, ServicePlans)
+[array]$Skus = (Get-AzureADSubscribedSku)
 Write-Host " "
 Write-Host "Which Office 365 product do you want to remove a service plan from?"; [int]$i=0
    ForEach ($Sku in $Skus) {
@@ -106,7 +106,7 @@ ForEach ($M in $Mbx) {
             $RemoveServicePlan = (New-MsolLicenseOptions -AccountSkuId $FullLicenseName -DisabledPlans $ServicePlanName )
             Write-Host ("Removing service plan {0} from SKU {1} for account {2}" -f $ServicePlanName, $SelectedSKUId, $M.DisplayName) -foregroundcolor Red
             Set-MsolUserLicense -ObjectId $M.ExternalDirectoryObjectId -LicenseOptions $RemoveServicePlan
-            $LicenseUpdateMsg = $ServicePlanName + " service plan removed from account" + $M.UserPrincipalName + " on " + (Get-Date) + " from " + $FullLicenseName
+            $LicenseUpdateMsg = $ServicePlanName + " service plan removed from account " + $M.UserPrincipalName + " on " + (Get-Date) + " from " + $FullLicenseName
             Set-Mailbox -Identity $M.Alias -ExtensionCustomAttribute2 $LicenseUpdateMsg
             Write-Host ("Service plan {0} removed from SKU {1} for {2}" -f $ServicePlanName, $SelectedSkuID, $M.DisplayName)
             $LicensesRemoved++
