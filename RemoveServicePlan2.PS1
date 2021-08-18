@@ -1,7 +1,7 @@
 # RemoveServicePlan2.PS1
 # Remove an individual service plan from a SKU assigned to Microsoft 365 accounts
-# Version of https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan.PS1 using the Azure AD cmdlets to remove service plans from licenses.
-
+# Version of https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan.PS1 using the Azure AD cmdlets instead of MSOL cmdlets to remove service plans from licenses.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan2.PS1
 # Check loaded modules
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
