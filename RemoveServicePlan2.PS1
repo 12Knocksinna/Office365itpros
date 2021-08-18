@@ -80,7 +80,7 @@ ForEach ($M in $Mbx) {
             $UserLicenses.AddLicenses += $License
             Write-Host ("Removing service plan {0} from SKU {1} for account {2}" -f $ServicePlanName, $SelectedSKUId, $M.DisplayName) -foregroundcolor Red
             Set-AzureADUserLicense -ObjectId $User.ObjectId -AssignedLicenses $userLicenses
-            $LicenseUpdateMsg = $ServicePlanName + " service plan removed from account" + $M.UserPrincipalName + " on " + (Get-Date) + " from " + $FullLicenseName
+            $LicenseUpdateMsg = $ServicePlanName + " service plan removed from account " + $M.UserPrincipalName + " on " + (Get-Date) + " from " + $FullLicenseName
             Set-Mailbox -Identity $M.Alias -ExtensionCustomAttribute2 $LicenseUpdateMsg
             Write-Host ("Service plan {0} removed from SKU {1} for {2}" -f $ServicePlanName, $SelectedSku, $M.DisplayName)
             $LicensesRemoved++
