@@ -1,6 +1,6 @@
 # ReportDelveInsightsDisabled.PS1
 # Report Microsoft 365 accounts that are disabled for the Delve Document Insights feature
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportDelveInsightsDisabled.PS1
 # The app registered in Azure AD needs the User.Read.All application permission.
 
 function Get-GraphData {
