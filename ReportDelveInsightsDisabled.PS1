@@ -69,9 +69,9 @@ $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 # OK, we seem to be fully connected to Exchange Online. 
 
-# Define all the stuff necessary to use a registered app to interact with the Graph APIs
-$AppId = "77c31534-ca1f-4d46-959a-6159fcb2f77a"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+# Define all the stuff necessary to use a registered app to interact with the Graph APIs. Amend these values for your tenant and app!
+$AppId = "76c31534-ca1f-4d46-959a-6159fcb2f77a"
+$TenantId = "aa62313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = "7FP4Nj~kiU.yBXY9~yQB3sMrvpLv5Rx_._"
 
 # Construct URI and body needed for authentication
