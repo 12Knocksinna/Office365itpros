@@ -26,12 +26,12 @@ Switch ($DeleteItems) {
 } #EndSwitch
 
 # Some information to identify the messages we want to purge
-$Sender = "Office 365 Roadmap Watcher"
+$Sender = "no-reply@microsoft.com"
 # Date range for the search - make this as precise as possible
 $StartDate = "1-Jan-2019"
 $EndDate = "13-Sep-2021"
-$BodyText = "Additions"
-$Subject = "Office 365 Roadmap"
+$BodyText = "Your month in review"
+$Subject = "MyAnalytics"
 
 $SearchQuery = "From:" + $Sender + " Sent:" + $StartDate + ".." + $EndDate
 If ([string]::IsNullOrWhiteSpace($BodyText) -eq $False) { $SearchQuery = $SearchQuery + ' Body: "*' + $BodyText + '*"' }
