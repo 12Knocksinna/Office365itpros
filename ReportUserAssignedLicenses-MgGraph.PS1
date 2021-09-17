@@ -1,6 +1,6 @@
 # ReportUserAssignedLicenses-MgGraph.PS1
 # Create a report of licenses assigned to Azure AD user accounts using the Microsoft Graph PowerShell SDK cmdlets
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUserAssignedLicenses-MgGraph.PS1
 
 $CreationDate = Get-Date -format g
 $Version = "1.0"
