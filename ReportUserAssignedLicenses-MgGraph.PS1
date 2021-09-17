@@ -25,10 +25,17 @@ Write-Host "+-------------------------------------------------------------------
 Write-Host ("Profile set as {0}. The following permission scope is defined: {1}" -f $ProfileName, $Scopes)
 Write-Host ""
 
-# Find licenses used in the tenant
-[Array]$Skus = Get-MgSubscribedSku
+# This step depends on the availability of some CSV files generated to hold information about the product licenses used in the tenant and 
+# the service plans in those licenses. See https://github.com/12Knocksinna/Office365itpros/blob/master/CreateCSVFilesForSKUsAndServicePlans.PS1 
+# for code to generate the CSVs. After the files are created, you need to edit them to add the display names for the SKUs and plans.
 # Build Hash of Skus for lookup so that we report user-friendly display names - you need to create these CSV files from SKU and service plan
 # data in your tenant.
+
+If ((Test-Path c:\temp\SkuDataComplete.csv) -eq $False)  {
+    Write-Host "Can't find the product data file (c:\temp\SkuDataComplete.csv). Exiting..." ; break }
+If ((Test-Path c:\temp\ServicePlanDataComplete.csv) -eq $False) {
+   Write-Host "Can't find the serivice plan data file (c:\temp\ServicePlanDataComplete.csv). Exiting..." ; break }
+   
 $ImportSkus = Import-CSV c:\temp\SkuDataComplete.csv
 $ImportServicePlans = Import-CSV c:\temp\ServicePlanDataComplete.csv
 $SkuHashTable = @{}
