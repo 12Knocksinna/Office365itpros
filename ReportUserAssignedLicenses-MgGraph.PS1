@@ -9,7 +9,7 @@ $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
 
 # Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
-Connect-MgGraph -TenantId xxxxxxx-14fc-43a2-9a7a-d2e27f4f3478
+Connect-MgGraph -TenantId xxxxxxx-14fc-43a2-9a7a-d2e27f4f3478 -Scope "Directory.AccessAsUser.All, Directory.ReadWrite.All"
 Select-MgProfile beta
 $Details = Get-MgContext
 $Scopes = $Details | Select -ExpandProperty Scopes
@@ -46,6 +46,7 @@ ForEach ($Line2 in $ImportServicePlans) { $ServicePlanHashTable.Add([string]$Lin
 $Report = [System.Collections.Generic.List[Object]]::new()
 
 # Find tenant accounts
+Write-Host "Finding Azure AD accounts..."
 [Array]$Users = Get-MgUser -Filter "UserType eq 'Member'" -All | Sort DisplayName
 
 ForEach ($User in $Users) {
