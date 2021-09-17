@@ -4,7 +4,9 @@
 # report for the tenant.
 
 # Uses cmdlets from the Microsoft Graph SDK for PowerShell
-
+# Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
+Connect-MgGraph -TenantId xxxxxxx-14fc-43a2-9a7a-d2e27f4f3478
+Select-MgProfile beta
 # Get prpducts used in tenant
 [Array]$Skus = Get-MgSubscribedSku
 
