@@ -1,6 +1,8 @@
 # ReportAutoExpandingArchives.PS1
 # A script to find mailboxes with auto-expanding archives and report how near each mailbox is to the 1.5 TB limit imposed by Microsoft, the growth rate per day, 
 # and how many days it will take a mailbox to hit the limit
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportAutoExpandingArchives.PS1
+# V1.0 29-Sept-2021
 
 If (((Get-OrganizationConfig).AutoExpandingArchiveEnabled) -ne $True) { 
      Write-Host "Expanding archives are not enabled in this tenant" ; break}
