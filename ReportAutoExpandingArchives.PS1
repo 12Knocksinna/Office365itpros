@@ -29,36 +29,40 @@ ForEach ($M in $ExMbx) {
    [string]$ArchiveSize = $Stats.TotalItemSize.Value
    [string]$DeletedArchiveItems = $Stats.TotalDeletedItemSize.Value 
    [long]$BytesInArchive = $Stats.TotalItemSize.Value.ToBytes()
-   # Check if archive size is within 10% of the 1.5 TB limit
-   If ($BytesInArchive -ge $TBBytesWarning) 
+   [long]$BytesInRecoverableItems = $Stats.TotalDeletedItemSize.Value.ToBytes()
+   [long]$TotalBytesInArchive = $BytesInArchive + $BytesInRecoverableItems
+   # Check if archive size is within 10% of the 1.5 TB limit - the size that counts is the combination of Recoverable Items and normal folders
+   If ($TotalBytesInArchive -ge $TBBytesWarning) 
        { Write-Host ("Archive size {0} for {1} is within 10% of 1.5 TB limit" -f $ArchiveSize, $M.DisplayName ) 
          $Status = "Archive within 10% of 1.5 TB limit" }
-   [long]$BytesPerDay = $BytesInArchive/$DaysSinceCreation
-   [long]$NumberDaysLeft = (($TBBytes - $BytesInArchive)/$BytesPerDay)
+   [long]$BytesPerDay = $TotalBytesInArchive/$DaysSinceCreation
+   [long]$NumberDaysLeft = (($TBBytes - $TotalBytesInArchive)/$BytesPerDay)
    $BytesPerDayMB = $BytesPerDay/1MB
    $GrowthRateDay = [math]::Round($BytesPerDayMB,4)
-
+   $TotalArchiveSizeGB = [math]::Round(($TotalBytesInArchive/1GB),2) 
+   
    $ReportLine = [PSCustomObject][Ordered]@{  
-       Mailbox                  = $M.DisplayName
-       UPN                      = $M.UserPrincipalName
-       Created                  = $M.WhenCreated
-       Days                     = $DaysSinceCreation
-       Type                     = $M.RecipientTypeDetails
-       "Archive Quota"          = $M.ArchiveQuota.Split("(")[0] 
-       "Archive Status"         = $M.ArchiveStatus
-       "Archive Size"           = $ArchiveSize.Split("(")[0] 
-       "Archive Items"          = $Stats.ItemCount
+       Mailbox                   = $M.DisplayName
+       UPN                       = $M.UserPrincipalName
+       Created                   = $M.WhenCreated
+       Days                      = $DaysSinceCreation
+       Type                      = $M.RecipientTypeDetails
+       "Archive Quota"           = $M.ArchiveQuota.Split("(")[0] 
+       "Archive Status"          = $M.ArchiveStatus
+       "Archive Size"            = $ArchiveSize.Split("(")[0] 
+       "Archive Items"           = $Stats.ItemCount
        "Deleted Archive Items Size" = $DeletedArchiveItems.Split("(")[0] 
-       "Deleted Items"          = $Stats.DeletedItemCount
-       "Daily Growth Rate (MB)" = $GrowthRateDay
-       "Days Left to Limit"     = $NumberDaysLeft
-       Status                   = $Status   
+       "Deleted Items"           = $Stats.DeletedItemCount
+       "Total Archive Size (GB)" = $TotalArchiveSizeGB
+       "Daily Growth Rate (MB)"  = $GrowthRateDay
+       "Days Left to Limit"      = $NumberDaysLeft
+       Status                    = $Status   
     }
     $Report.Add($ReportLine) 
 } #End ForEach
 
 Write-Host ("{0} mailboxes processed" -f $Mbx.count)
-$Report | Out-GridView 
+$Report | Select Mailbox, Type, "Archive Size", "Deleted Archive Items Size", "Total Archive Size (GB)", "Daily Growth Rate (MB)",  "Days Left to Limit"  | Out-GridView 
 $Report | Export-CSV -NoTypeInformation c:\temp\ArchiveMailboxes.csv
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
