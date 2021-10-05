@@ -89,9 +89,8 @@ $SummaryData = [System.Collections.Generic.List[Object]]::new()
 $UserNoGroups = 0; $UserWithGroups = 0
 $CreationDate = Get-Date -format g
 
-# Define the values applicable for the application used to connect to the Graph
-$AppId = "828e1143-88e3-492b-bf82-24c4a47ada63"
-#$AppId = "0ade5c24-d775-4017-a824-0a993c60787c"
+# Define the values applicable for the application used to connect to the Graph - these variables differ from tenant to tenant and from app to app
+$AppId = "xxe1143-88e3-492b-bf82-24c4a47ada63"
 $TenantId = "xxxxxd"
 #$AppSecret = '7RplGSLWoSs~y4uHYy2041-jbm.4~_r.~q'
 $AppSecret = "xxxxxx-a9_~dtG_k81UJEK-3Xv.J2X9F"
