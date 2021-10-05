@@ -92,9 +92,9 @@ $CreationDate = Get-Date -format g
 # Define the values applicable for the application used to connect to the Graph
 $AppId = "828e1143-88e3-492b-bf82-24c4a47ada63"
 #$AppId = "0ade5c24-d775-4017-a824-0a993c60787c"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$TenantId = "xxxxxd"
 #$AppSecret = '7RplGSLWoSs~y4uHYy2041-jbm.4~_r.~q'
-$AppSecret = "vAMz95oZ_a9_~dtG_k81UJEK-3Xv.J2X9F"
+$AppSecret = "xxxxxx-a9_~dtG_k81UJEK-3Xv.J2X9F"
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
