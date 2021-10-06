@@ -33,19 +33,15 @@ If ($Null -eq $Owners) { # Got nothing back, maybe because of an error
 Return $SiteOwners }
 
 # Check that we are connected to Exchange Online and SharePoint Online
-Try {
-    $TestEXO = (Get-OrganizationConfig).ExchangeVersion  }
-Catch
-     { Write-Host "Error accessing Exchange Online - please connect to the service before retrying"; break }
-Try {
-    $TestSPO = (Get-SPOTenant).StorageQuota }
-Catch
-    { Write-Host "Error accessing SharePoint Online - please connect to the service before retrying"; break }
+$ModulesLoaded = Get-Module | Select Name
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+If (!($ModulesLoaded -match "Microsoft.Online.Sharepoint.PowerShell")) {Write-Host "Please connect to the SharePoint Online Management module and then restart the script"; break}
 
 # Get all SPO sites
 CLS
 Write-Host "Fetching site information..."
-$Sites = Get-SPOSite -Limit All | Select Title, URL, StorageQuota, StorageUsageCurrent, Template | Sort StorageUsageCurrent -Desc
+[array]$Sites = Get-SPOSite -Limit All | Select Title, URL, StorageQuota, StorageUsageCurrent, Template | Sort StorageUsageCurrent -Desc
+If ($Sites.Count -eq 0) { Write-Host "No SharePoint Online sites found.... exiting..." ; break }
 $TotalSPOStorageUsed = [Math]::Round(($Sites.StorageUsageCurrent | Measure-Object -Sum).Sum /1024,2)
 
 CLS
@@ -95,7 +91,6 @@ $PercentTenant = ([Math]::Round($Site.StorageUsageCurrent/1024,4)/$TotalSPOStora
 # Now generate the report
 $Report | Export-CSV -NoTypeInformation c:\temp\SPOSiteConsumption.CSV
 Write-Host "Current SharePoint Online storage consumption is" $TotalSPOStorageUsed "GB. Report is in C:\temp\SPOSiteConsumption.CSV"
-
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
