@@ -3,7 +3,7 @@
 # Demonstration of how to fetch user account sign in data using the Microsoft Graph SDK for PowerShell
 #
 # Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
-Connect-MgGraph -TenantId b662313f-14fc-43a2-9a7a-d2e27f4f3478 -Scope Auditlog.Read.All
+Connect-MgGraph -TenantId xxxxx-axxad-acadd-ddaadda -Scope Auditlog.Read.All
 Select-MgProfile beta # Beta needed to get more informtion from the Graph
 $Details = Get-MgContext
 $Scopes = $Details | Select -ExpandProperty Scopes
