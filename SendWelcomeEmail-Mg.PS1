@@ -68,7 +68,6 @@ $MsgAttachment = @{
 # Create and send welcome email message to each of the new mailboxes
 ForEach ($User in $Users) {
       # Add the recipient using the mailbox's primary SMTP address
-      $EmailRecipient = $User.PrimarySmtpAddress
       $EmailAddress  = @{address = $User.PrimarySmtpAddress} 
       $EmailRecipient = @{EmailAddress = $EmailAddress}  
       Write-Host "Sending welcome email to" $User.DisplayName
