@@ -1,4 +1,5 @@
 # UpdateSPOSitesWithLabels.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateSPOSitesWithLabels.PS1
 # A script to check SharePoint Online team sites created for Microsoft 365 Groups that don't seem to have received sensitivity labels.
 # The script reads the sensitivity label information for groups from Exchange Online and uses the information to update the 
 # SharePoint Online sites
