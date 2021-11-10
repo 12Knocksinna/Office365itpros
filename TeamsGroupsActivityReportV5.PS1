@@ -355,21 +355,12 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
        }}
    If ($DaysSinceLastSPOActivity -gt 90) { # No activity in more than 90 days
        $ObsoleteSPOGroups++; $ObsoleteReportLine = $ObsoleteReportLine + " No SPO activity detected in the last 90 days." }  
-
-# Generate the number of warnings to decide how obsolete the group might be...   
+  
+# Generate warnings for SPO 
    If ($G.SharePointDocLib -eq $Null) {
        $SPOStatus = "Document library never created"
        $NumberWarnings++ }
-  
-    $Status = "Pass"
-    If ($NumberWarnings -eq 1)
-       {
-       $Status = "Warning"
-    }
-    If ($NumberWarnings -gt 1)
-       {
-       $Status = "Fail"
-    } 
+
 # Write-Host "Processing" $G.DisplayName
 # If the group is team-enabled, find the date of the last Teams conversation compliance record
 If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {
@@ -395,7 +386,12 @@ If ($CountOldTeamsData -eq $True) { # We have counted the old date, so let's put
    $NumberOfChats = $NumberOfChats + $OldNumberOfChats
    If (!$LastItemAddedToTeams) { $LastItemAddedToTeams = $OldLastItemAddedToTeams }}
 } # End if
-    
+  
+ #  Increase warnings if Teams activity is low
+   If ($NumberOfChats -lt 20) { 
+      $NumberWarnings++
+      $TeamsStatus = "Low number of Teams conversations" }
+
 If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" } 
 
 # Discover if team is archived
@@ -408,29 +404,36 @@ If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-
    }}
 # End if Processing Teams data
 
+# Calculate status
+$Status = $MailboxStatus,$SpoStatus,$TeamsStatus -join ", "
+$OverallStatus = "Pass"
+If ($NumberWarnings -gt 1) { $OverallStatus = "Issues"}
+If ($NumberWarnings -gt 2) { $OverallStatus = "Fail" }
+    
 # Generate a line for this group and store it in the report
     $ReportLine = [PSCustomObject][Ordered]@{
-          GroupName           = $DisplayName
-          ManagedBy           = $G.ManagedBy
-          Visibility          = $G.Visibility
-          Members             = $G.GroupMembers
-          ExternalGuests      = $G.GuestMembers
-          Description         = $G.Description
-          MailboxStatus       = $MailboxStatus
-          TeamEnabled         = $TeamsEnabled
-          LastChat            = $LastItemAddedtoTeams
-          NumberChats         = $NumberOfChats
-          LastConversation    = $LastConversation
-          NumberConversations = $NumberConversations
-          LastSPOActivity     = $SPOActivity
-          SPOStorageGB        = $SPOStorageUsed
-          SPOStatus           = $SPOStatus
-          WhenCreated         = $G.WhenCreated
-          DaysOld             = $GroupAge
-          NumberWarnings      = $NumberWarnings
-          Label               = $G.Label
-          Status              = $Status}
+          GroupName               = $DisplayName
+          ManagedBy               = $G.ManagedBy
+          Visibility              = $G.Visibility
+          Members                 = $G.GroupMembers
+          "External Guests"       = $G.GuestMembers
+          Description             = $G.Description
+          "Sensitivity Label"     = $G.Label
+          "Team Enabled"          = $TeamsEnabled
+          "Last Teams message"    = $LastItemAddedtoTeams
+          "Number Teams messages" = $NumberOfChats
+          "Last Email Inbox"      = $LastConversation
+          "Number Email Inbox"    = $NumberConversations
+          "Last SPO Activity"     = $SPOLastActivityDate
+          "SPO Storage Used (GB)" = $SPOStorageUsed
+          "Number SPO Files"      = $SPOFileCount
+          "Date Created"          = $G.WhenCreated
+          "Days Old"              = $GroupAge       
+           NumberWarnings         = $NumberWarnings
+           Status                 = $Status
+           "Overall Result"       = $OverallStatus }
    $Report.Add($ReportLine)  
+   
 $S3 = Get-Date
 $TotalSeconds = [math]::round(($S3-$S2).TotalSeconds,2)
 $SecondsPerGroup = [math]::round(($TotalSeconds/$GroupNumber),2)
