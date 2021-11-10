@@ -1,4 +1,4 @@
-# TeamsGroupsActivityReportV5.PS1
+# TeamsGroupsActivityReport.PS1
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReportV5.PS1
 # A script to check the activity of Microsoft 365 Groups and Teams and report the groups and teams that might be deleted because they're not used.
 # We check the group mailbox to see what the last time a conversation item was added to the Inbox folder. 
@@ -19,11 +19,17 @@
 # V4.7 13-Oct-2020 Teams compliance records are now in a different location in group mailboxes
 # V5.0 21-Dec-2020 Use Graph API to get Groups and Teams data
 # V5.1 21-Jan-2021 Add check for archived teams
+# V5.2 02-Feb-2021 Add option to import Teams usage data from CSV exported from Teams admin center
+# V5.3 10-Nov-2021 Removed processing for old Teams compliance records 
+#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
 # Needs the following Graph permissions:
-# Group.Read.All, Reports.Read.All, User.Read.All, GroupMember.Read.All 
-CLS
+# Group.Read.All, Reports.Read.All, User.Read.All, GroupMember.Read.All
+#
+
 #+-------------------------- Functions etc. -------------------------
+
 function Get-GraphData {
 # Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
 # GET data from Microsoft Graph.
@@ -37,8 +43,7 @@ function Get-GraphData {
 
     # Check if authentication was successful.
     if ($AccessToken) {
-        # Format headers.
-       $Headers = @{
+    $Headers = @{
          'Content-Type'  = "application\json"
          'Authorization' = "Bearer $AccessToken" 
          'ConsistencyLevel' = "eventual"  }
@@ -86,23 +91,59 @@ function Get-GraphData {
         Write-Error "No Access Token"
     }
 }
-# End functions
 
-# Start Code
+function CheckForTeamsData {
+ param (
+        [parameter(Mandatory = $true)]
+        $TeamsUsageDataFile
+    )
+# Function to check if Teams usage data has been downloaded to a CSV file for us to use instead of going to Exchange to check compliance records.
+# The input CSV file should be downloaded from Reports section of the Teams admin center and stored somewhere like  "c:\temp\TeamsUsageData.csv"
+# warning: the usage data from the Teams admin center only represents a 30- or 90-day snapshot of user activity.
+
+If (!(Test-Path $TeamsUsageDataFile)) {
+     Write-Host "No input Teams Data file found"
+     $TeamsDataHash = $Null
+     Return }
+
+# Import from CSV
+  $TeamsData = Import-CSV $TeamsUsageDataFile
+# Create hash table as function output
+  $TeamsDataHash = @{}
+# Loop through CSV file and build hash table
+  ForEach ($Team in $TeamsData) {
+   $DaysSinceActive = (New-TimeSpan $Team."LastActivity (UTC Time)").Days
+   $DataLine  = [PSCustomObject] @{  
+      Id              = $Team.Id
+      DisplayName     = $Team.DisplayName
+      Privacy         = $Team.Privacy
+      Posts           = $Team.PostMessages
+      Replies         = $Team.ReplyMessages
+      Messages        = $Team.ChannelMessages
+      LastActivity    = $Team."LastActivity (UTC Time)"
+      DaysSinceActive = $DaysSinceActive }    
+   $TeamsDataHash.Add([string]$Team.Id, $DataLine)
+  }
+# Return the hash table
+  $TeamsDataHash
+} #End function
+# ------
+
+CLS
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
-# OK, we seem to be fully connected to Exchange Online      
+# OK, we seem to be fully connected to Exchange Online.     
 $OrgName = (Get-OrganizationConfig).Name
 
 # Setup some stuff we use
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
-$SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%Partages" 
+$SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 [datetime]$DateOldTeams = "30-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
-$Version = "V5.1"
-$TimeToRefreshToken = "50"
+$Version = "V5.3"
+$TimeToRefreshToken = "50" # Token lifetime
 
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
 $htmlhead="<html>
@@ -126,13 +167,13 @@ $htmlhead="<html>
 		
 # Get a list of Groups in the tenant
 CLS
-Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
+Write-Host "Extracting list of Microsoft 365 Groups for checking..."
 [Int]$GroupsCount = 0; [int]$TeamsCount = 0; $UsedGroups = $False
 
-# Define the values applicable for the application used to connect to the Graph - these will be different for your tenant
-$AppId = "0ade5c24-d775-4017-a824-0a993c60787d"
-$TenantId = "b762313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = '7RplGSLWoSs~y5uHYy2041-jbm.4~_r.~q'
+# Define the values applicable for the application used to connect to the Graph
+$AppId = "828e1143-88e3-492b-bf82-24c4a47ada63"
+$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$AppSecret = 'ei_7Q~mY8SLKxKJHkY.Z-WTWT0ncfaqu8ETtS'
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -147,15 +188,14 @@ $body = @{
 $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
 # Unpack Access Token
 $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
-
-#Get Creation Date of the initial Token (59min and 59sec life long) and add 50 minutes to renew the token later in the main loop
-$TokenCreationDate = (Get-Date)
-$TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
-
 $Headers = @{
             'Content-Type'  = "application\json"
             'Authorization' = "Bearer $Token" 
             'ConsistencyLevel' = "eventual" }
+
+#Get Creation Date of the initial Token (59min and 59sec life long) and add 50 minutes to renew the token later in the main loop
+$TokenCreationDate = (Get-Date)
+$TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
 
 $S1 = Get-Date #Start of processing
 
@@ -186,17 +226,20 @@ $S1 = Get-Date #Start of processing
 }
 
 # Create list of Microsoft 365 Groups in the tenant. We also get a list of Teams. In both cases, we build a hashtable
-# to store the object identifier and display name for the group. If more than 100 groups exist, fetch and continue processing using the NextLink
-Write-Host "Fetching data about Microsoft 365 Groups..."
+# to store the object identifier and display name for the group. 
+Write-Host "Checking Microsoft 365 Groups and Teams for:" $OrgName
+
 $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=groupTypes/any(a:a eq 'unified')"
-$Groups = Get-GraphData -AccessToken $Token -Uri $uri
+[array]$Groups = Get-GraphData -AccessToken $Token -Uri $uri
 $GroupsList = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Group in $Groups) {
+ForEach ($Group in $Groups) {  
    # Get Group Owners
-   $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/owners"
-   $GroupData = Get-GraphData -AccessToken $Token -Uri $Uri
-   If ($GroupData.count -eq 0) {$OwnerNames = "No owners found" }
-    Else {$OwnerNames = $GroupData.DisplayName -join ", " }
+   $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/owners?"
+   $GroupData = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET"
+   If ($GroupData."@odata.count" -eq 0) {
+       $OwnerNames = "No owners found" }
+   Else  { # Extract owner names
+        $OwnerNames = $GroupData.Value.DisplayName -join ", " }
    # Get extended group properties 
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
    $GroupData = Get-GraphData -AccessToken $Token -Uri $uri
@@ -225,12 +268,12 @@ ForEach ($Group in $Groups) {
    Else { 
        CLS; Write-Host "Continuing to fetch information about Microsoft 365 Groups..." 
    } # Get rid of mucky SharePoint error  308 
-   
-     # Get Member and Guest member counts
+
+   # Get Member and Guest member counts
    $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Guest'"
    $GuestMemberCount = Get-GraphData -AccessToken $Token -Uri $uri
    $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Member'"
-   $GroupMemberCount = Get-GraphData -AccessToken $Token -Uri $uri   
+   $GroupMemberCount = Get-GraphData -AccessToken $Token -Uri $uri  
    # Update list with group information
    $ReportLine = [PSCustomObject][Ordered]@{
        DisplayName      = $Group.DisplayName
@@ -242,6 +285,7 @@ ForEach ($Group in $Groups) {
        SharePointDocLib = $SPODocLib
        LastSPOActivity  = $SPOLastDateActivity
        WhenCreated      = Get-Date ($Group.createdDateTime) -format g 
+       WhenRenewed      = Get-Date ($Group.renewedDateTime) -format g
        Visibility       = $Visibility
        Description      = $Description
        Label            = $GroupLabel }
@@ -251,10 +295,14 @@ $GroupsList = $GroupsList | Sort DisplayName
 
 # Get Teams
 $uri = "https://graph.microsoft.com/beta/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')"
-$Teams = Get-GraphData -AccessToken $Token -Uri $uri
+[array]$Teams = Get-GraphData -AccessToken $Token -Uri $uri
 $TeamsHash = @{}
 $Teams.ForEach( {
    $TeamsHash.Add($_.Id, $_.DisplayName) } )
+
+# Check if Teams usage data is available in a CSV file. If it is, we will use that data
+$TeamsDataCSVFile = "c:\temp\TeamsUsageData.CSV"
+$TeamsUsageHash = CheckForTeamsData($TeamsDataCSVFile)
 
 # All groups and teams found...
 $TeamsCount = $Teams.Count
@@ -271,7 +319,16 @@ $ProgDelta = 100/($GroupsCount); $CheckCount = 0; $GroupNumber = 0
 $Report = [System.Collections.Generic.List[Object]]::new(); $ReportFile = "c:\temp\GroupsActivityReport.html"
 # Main loop
 ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Graph call, the first thing is to get the group properties
-    #### Check if token is older than 50 minutes and request a refresh token ##############
+   $GroupNumber++
+   $DisplayName = $G.DisplayName
+   $SPOStatus = "SPO: OK"; $MailboxStatus = "Mbx: OK"; $TeamsStatus = "Teams: OK"
+   $GroupStatus = $DisplayName + " ["+ $GroupNumber +"/" + $GroupsCount + "]"
+   Write-Progress -Activity "Checking group" -Status $GroupStatus -PercentComplete $CheckCount
+   $CheckCount += $ProgDelta;  $ObsoleteReportLine = $DisplayName
+   $SPOActivity = "Document library in use"
+   $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $ObsoleteReportLine = $Null
+
+   #### Check if token is older than 50 minutes and request a refresh token ##############
         $TimeRightNow = (Get-date)
         if($TimeRightNow  -ge $TokenExpiredDate){
             $body = @{
@@ -308,21 +365,18 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
         }
     #### END of Check if token is older than 50 minutes and request a refresh token #######
 
-   $GroupNumber++
-    $DisplayName = $G.DisplayName
-   $GroupStatus = $DisplayName + " ["+ $GroupNumber +"/" + $GroupsCount + "]"
-   Write-Progress -Activity "Checking group" -Status $GroupStatus -PercentComplete $CheckCount
-   $CheckCount += $ProgDelta;  $ObsoleteReportLine = $DisplayName;    $SPOStatus = "Normal"
-   $SPOActivity = "Document library in use"
-   $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $MailboxStatus = $Null; $ObsoleteReportLine = $Null
 # Group Age
   $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
-# Fetch information about activity in the Inbox folder of the group mailbox  
+# Team-enabled or not?
+$GroupIsTeamEnabled = $False
+If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
+
+ If ($GroupIsTeamEnabled -eq $False) { # Not a Teams-enabled group, so look at the Inbox etc.
+ # Fetch information about activity in the Inbox folder of the group mailbox  
    $Data = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestITems -FolderScope Inbox)
    If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {$LastConversation = "No items found"}           
    Else {$LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format g }
    $NumberConversations = $Data.ItemsInFolder
-   $MailboxStatus = "Normal"
 
    If ($Data.NewestItemReceivedDate -le $WarningEmailDate) {
       Write-Host "Last conversation item created in" $G.DisplayName "was" $Data.NewestItemReceivedDate "-> Obsolete?"
@@ -337,6 +391,11 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
            $MailboxStatus = "Low number of conversations"
            $NumberWarnings++}
       }
+  } # End If
+  Else { # It's a team-enabled group, so we don't need to check the mailbox and so populate the values appropriately
+     $LastConversation = "Teams-enabled group"
+     $NumberConversations = "N/A" 
+  } #End Else
 
 # Check for activity in the group's SharePoint site
    $SPOFileCount = 0; $SPOStorageUsed = "N/A"; $SPOLastActivityDate = $Null; $DaysSinceLastSPOActivity = "N/A"
@@ -354,8 +413,8 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
         $ObsoleteReportLine = $ObsoleteReportLine + " SharePoint document library never created." 
        }}
    If ($DaysSinceLastSPOActivity -gt 90) { # No activity in more than 90 days
-       $ObsoleteSPOGroups++; $ObsoleteReportLine = $ObsoleteReportLine + " No SPO activity detected in the last 90 days." }  
-  
+       $ObsoleteSPOGroups++; $ObsoleteReportLine = $ObsoleteReportLine + " No SPO activity detected in the last 90 days." }   
+
 # Generate warnings for SPO 
    If ($G.SharePointDocLib -eq $Null) {
        $SPOStatus = "Document library never created"
@@ -363,46 +422,38 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
 
 # Write-Host "Processing" $G.DisplayName
 # If the group is team-enabled, find the date of the last Teams conversation compliance record
-If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {
-    $TeamsEnabled = $True
-    $CountOldTeamsData = $False
-
-# Start by looking in the new location (TeamsMessagesData in Non-IPMRoot)
-    $TeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot | ? {$_.FolderType -eq "TeamsMessagesData" })
-    If ($TeamsChatData.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($TeamsChatData.NewestItemReceivedDate) -Format g}
-    $NumberOfChats = $TeamsChatData.ItemsInFolder
-    
-# If the script is running before 30-Jun-2021, we need to check the old location of the Teams compliance records
-If ($Today -lt $DateOldTeams) {
-     $CountOldTeamsData = $True
-     $OldTeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestItems -FolderScope ConversationHistory)
-     ForEach ($T in $OldTeamsChatData) { # We might have one or two subfolders in Conversation History; find the one for Teams
-     If ($T.FolderType -eq "TeamChat") {
-        If ($T.ItemsInFolder -gt 0) {$OldLastItemAddedtoTeams = Get-Date ($T.NewestItemReceivedDate) -Format g }
-     $OldNumberofChats = $T.ItemsInFolder
-}}}
-
-If ($CountOldTeamsData -eq $True) { # We have counted the old date, so let's put the two sets together
-   $NumberOfChats = $NumberOfChats + $OldNumberOfChats
-   If (!$LastItemAddedToTeams) { $LastItemAddedToTeams = $OldLastItemAddedToTeams }}
+If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
+    $TeamsEnabled = $True; $CountOldTeamsData = $False; $NumberOfChats = 0; $LastItemAddedToTeams = $Null
+    $ThisTeamData = $TeamsUsageHash[$G.ObjectId]  # Check do we have Teams usage data in a hash table
+    If ($Null -eq $ThisTeamData) { # Nope, so we have to get the data from Exchange Online by looking in the TeamsMessagesData file in the non-IPM root
+       Write-Host "Checking Exo for Teams activity data..."
+       $TeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot | ? {$_.FolderType -eq "TeamsMessagesData" })
+       If ($TeamsChatData.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($TeamsChatData.NewestItemReceivedDate) -Format g}
+       $NumberOfChats = $TeamsChatData.ItemsInFolder }
+   Else { # Read the data from the Teams usage data
+    Write-Host "Reading from Teams Hash Table for" $ThisTeamData.DisplayName
+    $NumberOfChats = [int]$ThisTeamData.Posts + [int]$ThisTeamData.Replies
+    $LastItemAddedToTeams = (Get-Date $ThisTeamData.LastActivity -format g)
+   } #End Else
 } # End if
-  
- #  Increase warnings if Teams activity is low
+    
+#  Increase warnings if Teams activity is low
    If ($NumberOfChats -lt 20) { 
       $NumberWarnings++
       $TeamsStatus = "Low number of Teams conversations" }
 
-If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" } 
-
-# Discover if team is archived
+   If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" }    
+   # Discover if team is archived
    If ($TeamsEnabled -eq $True) {
      $Uri = "https://graph.microsoft.com/v1.0/teams/" + $G.ObjectId
      $TeamDetails = Get-GraphData -AccessToken $Token -Uri $Uri 
      Switch ($TeamDetails.IsArchived) {
       $False { $DisplayName = $G.DisplayName }
-      $True  { $DisplayName = $G.DisplayName + " (Archived team)" }
-   }}
-# End if Processing Teams data
+      $True  { $DisplayName = $G.DisplayName + " (Archived team)" 
+               $ArchivedTeams++}
+   }
+ }
+# End of Processing Teams data
 
 # Calculate status
 $Status = $MailboxStatus,$SpoStatus,$TeamsStatus -join ", "
@@ -433,7 +484,7 @@ If ($NumberWarnings -gt 2) { $OverallStatus = "Fail" }
            Status                 = $Status
            "Overall Result"       = $OverallStatus }
    $Report.Add($ReportLine)  
-   
+
 $S3 = Get-Date
 $TotalSeconds = [math]::round(($S3-$S2).TotalSeconds,2)
 $SecondsPerGroup = [math]::round(($TotalSeconds/$GroupNumber),2)
@@ -479,8 +530,10 @@ Write-Host " "
 Write-Host "Total Elapsed time: " $OverAllElapsed "seconds"
 Write-Host "Summary report in" $ReportFile "and CSV in" $CSVFile
 
+
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
