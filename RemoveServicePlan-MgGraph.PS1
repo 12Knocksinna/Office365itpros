@@ -92,7 +92,7 @@ ForEach ($M in $Mbx) {
             $LicenseToRemove.SkuId = $SelectedSkuId
             $LicenseToRemove.DisabledPlans = $ExistingDisabledPlans
             $Status = Set-MgUserLicense -UserId $User.id -AddLicenses $LicenseToRemove -RemoveLicenses @()  
-            $LicenseUpdateMsg = $ServicePlanName + " service plan removed from account " + $M.UserPrincipalName + " on " + (Get-Date) + " from " + $FullLicenseName
+            $LicenseUpdateMsg = $ServicePlanName + " service plan removed from account " + $M.UserPrincipalName + " on " + (Get-Date) + " from " + $SelectedSku
             Set-Mailbox -Identity $M.Alias -ExtensionCustomAttribute2 $LicenseUpdateMsg
             Write-Host ("Service plan {0} removed from SKU {1} for {2}" -f $ServicePlanName, $SelectedSku, $M.DisplayName)
             $LicensesRemoved++
