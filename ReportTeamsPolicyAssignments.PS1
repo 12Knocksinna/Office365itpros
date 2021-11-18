@@ -1,5 +1,6 @@
 # ReportTeamsPolicyAssignments.PS1
 # Generate a report about major Teams policies assigned to user accounts
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportTeamsPolicyAssignments.PS1
 $ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "MicrosoftTeams")) {Write-Host "Please connect to the Microsoft Teams module and then restart the script"; break}
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online management module and then restart the script"; break}
