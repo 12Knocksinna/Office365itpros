@@ -6,7 +6,7 @@
 # Once all modules are checked for updates, we remove older versions that might be present on the workstation
 #
 # Define the set of modules installed and updated from the PowerShell Gallery that we want to maintain
-$O365Modules = @("MicrosoftTeams", "MSOnline", "AzureADPreview", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA")
+$O365Modules = @("MicrosoftTeams", "MSOnline", "AzureADPreview", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell")
 
 # Check and update all modules to make sure that we're at the latest version
 ForEach ($Module in $O365Modules) {
