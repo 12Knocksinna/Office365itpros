@@ -10,10 +10,11 @@ $StartDate = (Get-Date).AddDays(-30); $EndDate = (Get-Date) # Set your own date 
 $OutputCSVFile = "C:\temp\AuditEventsTeamsMeetings.csv"
 
 # Find the audit records
+Write-Host "Looking for Teams meeting audit records..."
 [array]$Records = (Search-UnifiedAuditLog -Operations MeetingDetail, MeetingParticipantDetail -StartDate $StartDate -EndDate $EndDate -Formatted -ResultSize 5000)
-
 If (!($Records)) {Write-Host "No audit records found - exiting!"; break}
-
+Write-Host "Processing" $Records.Count "Teams meeting audit records..."
+# Process the records
 $MeetingRecords = [System.Collections.Generic.List[Object]]::new() 	
 ForEach ($Rec in $Records) {
    $AuditData = $Rec.AuditData | ConvertFrom-Json
@@ -25,16 +26,17 @@ ForEach ($Rec in $Records) {
       $TimeSpent = $EndTime - $StartTime 
       $Organizer = (Get-AzureADUser -ObjectId $AuditData.Organizer.UserObjectId).DisplayName
       $DataLine = [PSCustomObject] @{
-         Date                = $Rec.CreationDate
+         Date                = Get-Date($Rec.CreationDate).ToLocalTime()
          User                = $Rec.UserIds
          MeetingId           = $AuditData.Id
          MeetingType         = $AuditData.ItemName
-         Start               = $AuditData.StartTime
-         End                 = $AuditData.EndTime
+         Start               = Get-Date($AuditData.StartTime) -format g
+         End                 = Get-Date($AuditData.EndTime) -format g
          MeetingTime         = $TimeSpent.ToString()
          Organizer           = $Organizer
          Modalities          = $AuditData.Modalities
          MeetingURL          = $AuditData.MeetingURL
+         Type                = "Meeting"
          Operation           = $Rec.Operations }
      }
      "MeetingParticipantDetail" { # A meeting participant record   
@@ -52,13 +54,14 @@ ForEach ($Rec in $Records) {
          User                = $User
          MeetingId           = $AuditData.MeetingDetailId
          MeetingType         = $AuditData.ItemName
-         Start               = $AuditData.JoinTime
-         End                 = $AuditData.LeaveTime
+         Start               = Get-Date($AuditData.JoinTime) -format g
+         End                 = Get-Date($AuditData.LeaveTime) -format g
          "User Time"         = $TimeSpent.ToString()
          Role                = $AuditData.Attendees.Role
          DetailId            = $AuditData.MeetingDetailId
          Artifacts           = $AuditData.ArtifactsShared.ArtifactSharedName -join ", "
          UserInfo            = $AuditData.ExtraProperties.Value
+         Type                = "Participant"
          Operation           = $Rec.Operations }
      }
     } # End Switch
@@ -66,8 +69,8 @@ ForEach ($Rec in $Records) {
 
 } #End For
 
-$MeetingRecords | Sort MeetingId, Operation | Out-GridView
-$MeetingRecords | Sort MeetingId, Operation | Export-CSV -NoTypeInformation $OutputCSVFile
+$MeetingRecords |  Sort {$_.Date -as [datetime]}, MeetingId, Operation | Select Start, End, User, MeetingType, Organizer, Type, MeetingId | Out-GridView
+$MeetingRecords |  Sort {$_.Date -as [datetime]}, MeetingId, Operation | Export-CSV -NoTypeInformation $OutputCSVFile
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
