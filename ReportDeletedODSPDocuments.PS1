@@ -1,6 +1,6 @@
 # ReportDeletedODSPDocuments.PS1
 # A script to report deletion activity for SharePoint Online and OneDrive for Business documents based on information in the Office 365 audit log
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportDeletedODSPDocuments.PS1
 
 $Operations = "FileDeleted, FileDeletedFirstStageRecycleBin, FileDeletedSecondStageRecycleBin" 
 $StartDate = (Get-Date).AddDays(-90); $EndDate = (Get-Date) 
