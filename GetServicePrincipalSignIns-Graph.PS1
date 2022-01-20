@@ -1,5 +1,5 @@
 # GetServicePrincipalSignIns-Graph.PS1
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetServicePrincipalSignIns-Graph.PS1
 # Example of how to extract and analyze service principal sign-in data from Azure AD using the Graph API
 # Requires the Directory.Read.All and AuditLog.Read.All application permissions
 
