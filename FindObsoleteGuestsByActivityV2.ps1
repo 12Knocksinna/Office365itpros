@@ -81,8 +81,9 @@ ForEach ($G in $Guests) {
    $Text = "Guest account reviewed on " + (Get-Date -format g) + " when account was deemed " + $ActiveText
    Set-MailUser -Identity $G.Mail -CustomAttribute1 $Text
 } 
+# Generate the output files
 $Report | Sort Name | Export-CSV -NoTypeInformation c:\temp\GuestActivity.csv   
-$Report | ? {$_.Inactive -eq $True} | Select-Object UPN | Export-CSV -NotypeInformation c:\temp\InActiveGuests.CSV
+$Report | ? {$_.Inactive -eq $True} | Select-Object ObjectId, UPN | Export-CSV -NotypeInformation c:\temp\InActiveGuests.CSV
 CLS    
 $Active = $AuditRec + $EmailActive  
 # Figure out the domains guests come from
