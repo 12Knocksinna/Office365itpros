@@ -8,13 +8,15 @@ If (!($ModulesLoaded -match "AzureAD")) {Write-Host "Please connect to the Azure
 # OK, we seem to be fully connected to Exchange Online and Azure AD
 
 # Start by finding all Guest Accounts
-$Guests = (Get-AzureADUser -Filter "UserType eq 'Guest'" -All $True| Select Displayname, UserPrincipalName, Mail, ObjectId)
-Write-Host $Guests.Count "guest accounts found. Checking their activity..."
+Write-Host "Finding Guest Accounts"
+[array]$Guests = (Get-AzureADUser -Filter "UserType eq 'Guest'" -All $True | Select Displayname, UserPrincipalName, Mail, ObjectId | Sort DisplayName)
+If (!($Guests)) { Write-Host "No guest accounts can be found - exiting" ; break }
 $StartDate = Get-Date(Get-Date).AddDays(-90) #For audit log
 $StartDate2 = Get-Date(Get-Date).AddDays(-10) #For message trace
 $EndDate = Get-Date; $Active = 0; $EmailActive = 0; $Inactive = 0; $AuditRec = 0; $GNo = 0
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
 CLS; $GNo = 0
+Write-Host $Guests.Count "guest accounts found. Checking their activity..."
 ForEach ($G in $Guests) {
     $GNo++
     $ProgressBar = "Processing guest " + $G.DisplayName + " (" + $GNo + " of " + $Guests.Count + ")" 
