@@ -2,6 +2,11 @@
 # accounts that aren't being used.  Modules used are Azure AD (V2) and Exchange Online
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindObsoleteGuestsByActivityV2.ps1
 # 
+$ModulesLoaded = Get-Module | Select Name
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+If (!($ModulesLoaded -match "AzureAD")) {Write-Host "Please connect to the Azure AD module and then restart the script"; break}
+# OK, we seem to be fully connected to Exchange Online and Azure AD
+
 # Start by finding all Guest Accounts
 $Guests = (Get-AzureADUser -Filter "UserType eq 'Guest'" -All $True| Select Displayname, UserPrincipalName, Mail, ObjectId)
 Write-Host $Guests.Count "guest accounts found. Checking their activity..."
@@ -53,17 +58,17 @@ ForEach ($G in $Guests) {
      If (($AccountAge -gt 365) -and ($GroupNames -eq $Null))  {$ReviewFlag = $True} 
      # Write out report line     
      $ReportLine = [PSCustomObject]@{ 
-          Guest             = $G.Mail
-          Name              = $G.DisplayName
-          Domain            = $Domain
-          Inactive          = $ReviewFlag
-          Created           = $CreationDate 
-          AgeInDays         = $AccountAge
-          EmailCount        = $EmailRecs.Count
+          Guest                = $G.Mail
+          Name                 = $G.DisplayName
+          Domain               = $Domain
+          Inactive             = $ReviewFlag
+          Created              = $CreationDate 
+          AgeInDays            = $AccountAge
+          EmailCount           = $EmailRecs.Count
           "Last sign-in"       =  $UserLastLogonDate
           "Last Audit record"  = $LastAuditRecord
           "Last Audit action"  = $LastAuditAction
-          "Members of"      = $GroupNames } 
+          "Members of"         = $GroupNames } 
        $Report.Add($ReportLine) 
 } 
 $Report | Sort Name | Export-CSV -NoTypeInformation c:\temp\GuestActivity.csv   
