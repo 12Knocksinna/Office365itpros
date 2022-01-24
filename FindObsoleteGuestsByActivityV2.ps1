@@ -83,7 +83,7 @@ ForEach ($G in $Guests) {
 } 
 # Generate the output files
 $Report | Sort Name | Export-CSV -NoTypeInformation c:\temp\GuestActivity.csv   
-$Report | ? {$_.Inactive -eq $True} | Select-Object ObjectId, UPN | Export-CSV -NotypeInformation c:\temp\InActiveGuests.CSV
+$Report | ? {$_.Inactive -eq $True} | Select-Object ObjectId, Name, UPN | Export-CSV -NotypeInformation c:\temp\InActiveGuests.CSV
 CLS    
 $Active = $AuditRec + $EmailActive  
 # Figure out the domains guests come from
