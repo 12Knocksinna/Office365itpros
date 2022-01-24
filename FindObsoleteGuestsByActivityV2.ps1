@@ -1,7 +1,7 @@
-# Version 2 of the script to perform an activity-based analysis of AAD Guest User Accounts and report/highlight
+# Version 2.1 of the script to perform an activity-based analysis of AAD Guest User Accounts and report/highlight
 # accounts that aren't being used.  Modules used are Azure AD (V2) and Exchange Online
-# https://github.com/12Knocksinna/Office365itpros/blob/master/FindObsoleteGuestsByActivityV2.ps1
-# 
+# Updated 24 January 2022
+
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 If (!($ModulesLoaded -match "AzureAD")) {Write-Host "Please connect to the Azure AD module and then restart the script"; break}
@@ -23,7 +23,7 @@ ForEach ($G in $Guests) {
     Write-Progress -Activity "Checking Azure Active Directory Guest Accounts for activity" -Status $ProgressBar -PercentComplete ($GNo/$Guests.Count*100)
     $LastAuditRecord = $Null; $GroupNames = $Null; $LastAuditAction = $Null; $i = 0; $ReviewFlag = $False
     # Search for audit records for this user
-    $Recs = (Search-UnifiedAuditLog -UserIds $G.Mail, $G.UserPrincipalName -Operations UserLoggedIn, SecureLinkUsed, TeamsSessionStarted -StartDate $StartDate -EndDate $EndDate -ResultSize 1)
+    [array]$Recs = (Search-UnifiedAuditLog -UserIds $G.Mail, $G.UserPrincipalName -Operations UserLoggedIn, SecureLinkUsed, TeamsSessionStarted -StartDate $StartDate -EndDate $EndDate -ResultSize 1)
     If ($Recs) { # We found some audit records
        $LastAuditRecord = $Recs[0].CreationDate; $LastAuditAction = $Recs[0].Operations; $AuditRec++}
     Else {
@@ -31,11 +31,10 @@ ForEach ($G in $Guests) {
     # Check email tracking logs because guests might receive email through membership of Outlook Groups. Email address must be valid for the check to work
     If ($G.Mail -ne $Null) {$EmailRecs = (Get-MessageTrace -StartDate $StartDate2 -EndDate $EndDate -Recipient $G.Mail)}           
     If ($EmailRecs.Count -gt 0) {$EmailActive++}
-    # Figure out the domain the guest is from so that we can report this information
-    $Domain = ($G.UserPrincipalName.Split("#EXT#")[0]).Split("_")[1]
-    # Find what Microsoft 365 Groups the guest belongs to
+ 
+   # Find what Microsoft 365 Groups the guest belongs to
     $GroupNames = $Null
-    $Dn = (Get-Recipient -Identity $G.UserPrincipalName).DistinguishedName
+    $Dn = (Get-ExoRecipient -Identity $G.UserPrincipalName).DistinguishedName
     If ($Dn -like "*'*")  {
        $DNNew = "'" + "$($dn.Replace("'","''''"))" + "'"
        $Cmd = "Get-Recipient -Filter 'Members -eq '$DNnew'' -RecipientTypeDetails GroupMailbox | Select DisplayName, ExternalDirectoryObjectId"
@@ -45,10 +44,12 @@ ForEach ($G in $Guests) {
      If ($GuestGroups -ne $Null) {
        $GroupNames = $GuestGroups.DisplayName -join ", " }
 
+     # Figure out the domain the guest is from so that we can report this information
+     $Domain = $G.Mail.Split("@")[1]
      # Figure out age of guest account in days using the creation date in the extension properties of the guest account
      $CreationDate = (Get-AzureADUserExtension -ObjectId $G.ObjectId).get_item("createdDateTime") 
      $AccountAge = ($CreationDate | New-TimeSpan).Days
-      # Find if there's been any recent sign on activity
+     # Find if there's been any recent sign on activity
      $UserLastLogonDate = $Null
      $UserObjectId = $G.ObjectId
      $UserLastLogonDate = (Get-AzureADAuditSignInLogs -Top 1  -Filter "userid eq '$UserObjectId' and status/errorCode eq 0").CreatedDateTime 
@@ -65,16 +66,24 @@ ForEach ($G in $Guests) {
           Domain               = $Domain
           Inactive             = $ReviewFlag
           Created              = $CreationDate 
-          AgeInDays            = $AccountAge
+          AgeInDays            = $AccountAge       
           EmailCount           = $EmailRecs.Count
-          "Last sign-in"       =  $UserLastLogonDate
+          "Last sign-in"       = $UserLastLogonDate
           "Last Audit record"  = $LastAuditRecord
           "Last Audit action"  = $LastAuditAction
-          "Members of"         = $GroupNames } 
+          "Member of"          = $GroupNames 
+          UPN                  = $G.UserPrincipalName
+          ObjectId             = $G.ObjectId } 
        $Report.Add($ReportLine) 
+   # Update Azure AD with details.
+   $ActiveText = "Active"
+   If ($ReviewFlag -eq $True) { $ActiveText = "inactive" }
+   $Text = "Guest account reviewed on " + (Get-Date -format g) + " when account was deemed " + $ActiveText
+   Set-MailUser -Identity $G.Mail -CustomAttribute1 $Text
 } 
 $Report | Sort Name | Export-CSV -NoTypeInformation c:\temp\GuestActivity.csv   
-Cls     
+$Report | ? {$_.Inactive -eq $True} | Select-Object UPN | Export-CSV -NotypeInformation c:\temp\InActiveGuests.CSV
+CLS    
 $Active = $AuditRec + $EmailActive  
 # Figure out the domains guests come from
 $Domains = $Report.Domain | Sort
@@ -87,19 +96,23 @@ $PercentInactive = (($Guests.Count - $Active)/$Guests.Count).toString("P")
 Write-Host ""
 Write-Host "Statistics"
 Write-Host "----------"
-Write-Host "Guest Accounts          " $Guests.Count
-Write-Host "Active Guests           " $Active
-Write-Host "Audit Record found      " $AuditRec
-Write-Host "Active on Email         " $EmailActive
-Write-Host "InActive Guests         " ($Guests.Count - $Active)
-Write-Host "Percent inactive guests " $PercentInactive
-Write-Host ("Domain with most guests  {0} ({1})" -f $DomainsCount[0].Name, $DomainsCount[0].Value)
-Write-Host "Guests from domains     " ($DomainNames -join ", ")
+Write-Host "Guest Accounts           " $Guests.Count
+Write-Host "Active Guests            " $Active
+Write-Host "Audit Record found       " $AuditRec
+Write-Host "Active on Email          " $EmailActive
+Write-Host "InActive Guests          " ($Guests.Count - $Active)
+Write-Host "Percent inactive guests  " $PercentInactive
+Write-Host "Number of guest domains  " $DomainsCount.Count
+Write-Host ("Domain with most guests   {0} ({1})" -f $DomainsCount[0].Name, $DomainsCount[0].Value)
+Write-Host " "
+Write-Host "Guests found from domains " ($DomainNames -join ", ")
 Write-Host " "
 Write-Host "The output file containing detailed results is in c:\temp\GuestActivity.csv" 
+Write-Host "A CSV file containing the User Principal Names of inactive guest accounts is in c:\InactiveGuests.csv"
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
-# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
