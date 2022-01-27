@@ -28,7 +28,7 @@ ForEach ($Group in $Groups) {
    Write-Progress -Activity "Checking Microsoft 365 Groups for guest members from blocked domains" -Status $ProgressBar -PercentComplete ($GroupNumber/$Groups.Count*100)
    $Members = Get-UnifiedGroupLinks -Identity $Group.ExternalDirectoryObjectId -LinkType Member | ? {$_.RecipientTypeDetails -eq "GuestMailUser" } | Select ExternalEmailAddress, DisplayName, ExternalDirectoryObjectId
    ForEach ($Guest in $Members) {
-      $Domain = $Guest.ExternalEmailAddress.Split(":")[1].Split("@")[1]
+      $Domain = $Guest.ExternalEmailAddress.Split("@")[1]
       $GuestEmail = $Guest.ExternalEmailAddress.Split(":")[1]
       If ($BlockedDomains -contains $Domain) {
          Write-Host ("Found guest user {0} ({1}) in group {2}" -f $Guest.DisplayName, $GuestEmail, $Group.DisplayName)
