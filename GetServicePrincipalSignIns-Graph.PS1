@@ -102,9 +102,10 @@ If (!($SpSignInData)) { Write-Host "No service principal sign in data found - ex
 Write-Host "Processing" $SpSignInData.Count "sign-in records for service principals"
 # Process the information which came back
 ForEach ($Sp in $SpSignInData) { # Process the records
-    $StatusCode = "Success"
-    If ($Sp.Status.ErrorCode -ne 0) { 
-       $StatusCode = $Sp.Status.ErrorCode }
+    $StatusCode = "Success"; $StatusReason = $Null
+   If ($Sp.Status.ErrorCode -ne 0) { 
+       $StatusCode = $Sp.Status.ErrorCode 
+       $StatusReason = $Sp.Status.FailureReason }
       $ReportLine  = [PSCustomObject][Ordered]@{ 
          Date           = Get-Date($Sp.createdDateTime) -format g
          SPName         = $Sp.servicePrincipalName
@@ -116,6 +117,7 @@ ForEach ($Sp in $SpSignInData) { # Process the records
          SpId           = $Sp.ServicePrincipalId
          Resource       = $Sp.ResourceDisplayName
          Status         = $StatusCode
+         Reason         = $StatusReason
          }
       $Report.Add($ReportLine) 
 } #End ForEach
