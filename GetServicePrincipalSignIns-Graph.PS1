@@ -66,9 +66,9 @@ function Get-GraphData {
 }
 
 # Define the values applicable for the application used to connect to the Graph - these variables vary from tenant to tenant and app to app
-$AppId = "82a2331a-11b2-4670-b061-87a8608128a6"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = 'Mco7Q~D-IQTsaQYSRPLoO1ctw4blHswoD_zQ9'
+$AppId = ""
+$TenantId = ""
+$AppSecret = ''
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -102,6 +102,9 @@ If (!($SpSignInData)) { Write-Host "No service principal sign in data found - ex
 Write-Host "Processing" $SpSignInData.Count "sign-in records for service principals"
 # Process the information which came back
 ForEach ($Sp in $SpSignInData) { # Process the records
+    $StatusCode = "Success"
+    If ($Sp.Status.ErrorCode -ne 0) { 
+       $StatusCode = $Sp.Status.ErrorCode }
       $ReportLine  = [PSCustomObject][Ordered]@{ 
          Date           = Get-Date($Sp.createdDateTime) -format g
          SPName         = $Sp.servicePrincipalName
@@ -112,6 +115,7 @@ ForEach ($Sp in $SpSignInData) { # Process the records
          ipAddress      = $Sp.IpAddress
          SpId           = $Sp.ServicePrincipalId
          Resource       = $Sp.ResourceDisplayName
+         Status         = $StatusCode
          }
       $Report.Add($ReportLine) 
 } #End ForEach
