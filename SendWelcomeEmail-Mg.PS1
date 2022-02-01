@@ -56,9 +56,13 @@ $MsgSubject = "A warm welcome to $($TenantName)"
 [array]$Users = (Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$CheckDate'" -RecipientTypeDetails UserMailbox -ResultSize Unlimited -Properties WhenMailboxCreated | Select WhenMailboxCreated, DisplayName, UserPrincipalName, PrimarySmtpAddress)
 If ($Users -eq $Null) { Write-Host ("No mailboxes found that were created before {0}. Exiting!" -f $CheckDate) }
 
-# Define attachment
-$AttachmentFile = "c:\temp\WelcometoOffice365ITPros.docx"
-$EncodedAttachmentFile = [convert]::ToBase64String((Get-Content $AttachmentFile -Encoding byte)) 
+# Define attachment - I use a document on a web site here, but you could use a local file
+$WebAttachmentFile = "https://office365itpros.com/wp-content/uploads/2022/02/WelcomeToOffice365ITPros.docx"
+$AttachmentFile = "c:\temp\WelcomeNewEmployeeToOffice365itpros.docx"
+Invoke-WebRequest -uri $WebAttachmentFile -OutFile $AttachmentFile
+$Attachment = (Get-Item -Path $AttachmentFile).Name
+$EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
+
 $MsgAttachment = @{
     "@odata.type"= "#microsoft.graph.fileAttachment"
     name = ($AttachmentFile -split '\\')[-1]
@@ -87,6 +91,9 @@ ForEach ($User in $Users) {
 } # End ForEach User
 
 Write-Host "All done. Messages sent!"
+# Clean up
+Remove-item $attachmentfile
+Remove-item "c:\TempForScriptxxx"
 
 # Example of how to add BCC Recipients by building an array of addresses from some source info (in this case, another array)
 # $BCCRecipients = @("Brian.Weakliam@Office365itpros.com", "Kim.Akers@Office365itpros.com")
