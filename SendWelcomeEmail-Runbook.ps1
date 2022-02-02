@@ -1,6 +1,7 @@
 # SendWelcomeEmail-Runbook.PS1
 # Example of how to send email using the Microsoft Graph SDK for PowerShell via an Azure Automation account runbook
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/SendWelcomeEmail-Runbook.ps1
+#
 # Create an automation connection to our RunAs account
 $Connection = Get-AutomationConnection -Name AzureRunAsConnection
 # Get the certificate for the automation account
