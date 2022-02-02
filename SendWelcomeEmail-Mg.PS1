@@ -38,15 +38,15 @@ $htmlhead="<html>
 	H2{font-size: 18px; padding-top: 10px;}
 	H3{font-size: 16px; padding-top: 8px;}
     </style>"
-#Header for the message
+
+#Content for the message - obviously this is very customizable to reflect what you want to say to new users
 $HtmlBody = "<body>
      <h1>Welcome to $($TenantName)</h1>
      <p><strong>Generated:</strong> $(Get-Date -Format g)</p>  
-     <h2><u>We're Pleased to Have You Here</u></h2>"
-
-$htmlline1 = "<p><b>Welcome to Office 365</b></p>"
-$htmlline2 = "<p>You can open Office 365 by clicking <a href=http://www.portal.office.com>here</a> </p>"
-$htmlline3 = "<p>Have a great time and be sure to call the help desk if you need assistance.</p>"
+     <h2><u>We're Pleased to Have You Here</u></h2>
+     <p><b>Welcome to your new Office 365 account</b></p>
+     <p>You can open your account to access your email and documents by clicking <a href=http://www.portal.office.com>here</a> </p>
+     <p>Have a great time and be sure to call the help desk if you need assistance. And be sure to read all the great articles about Office 365 published on Practical365.com.</p>"
 
 $MsgSubject = "A warm welcome to $($TenantName)"
 
@@ -77,8 +77,7 @@ ForEach ($User in $Users) {
       Write-Host "Sending welcome email to" $User.DisplayName
       # Customize the message 
       $htmlHeaderUser = "<h2>New User " + $User.DisplayName + "</h2>"    
-      $htmlbody = $htmlheaderUser + $htmlline1 + $htmlline2 + $htmlline3 + "<p>"
-      $HtmlMsg = "</body></html>" + $HtmlHead + $HtmlBody
+      $HtmlMsg = "</body></html>" + $HtmlHead + $htmlheaderuser + $htmlbody + "<p>"
       # Construct the message body
       $MessageBody = @{
            content = "$($HtmlBody)"
@@ -103,5 +102,5 @@ Remove-item "c:\TempForScriptxxx"
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
-# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
