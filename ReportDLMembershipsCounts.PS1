@@ -47,7 +47,7 @@ ForEach ($DL in $DLs) {
   $DLNumber++
   $ProgressBar = "Processing distribution list " + $DL.DisplayName + " (" + $DLNumber + " of " + $DLs.Count + ")" 
   Write-Progress -Activity "Analzying membership of distribution list " -Status $ProgressBar -PercentComplete ($DLNumber/$DLs.Count*100)
-  [array]$Members =  Get-AzureADGroup -ObjectId $DL.ExternalDirectoryObjectId | Get-RecursiveAzureAdGroupMemberUsers
+  [array]$Members =  Get-AzureADGroup -ObjectId $DL.ExternalDirectoryObjectId | Get-RecursiveAzureAdGroupMemberUsers | Sort DisplayName
   If (!($Members)) { # For whatever reason, no members in this group, so we zeroize everything to prepare for the next group
         $CountOfMembers = 0
         [array]$TenantMembers = @() 
@@ -63,7 +63,7 @@ ForEach ($DL in $DLs) {
        [array]$OtherMembers = ( $Members | ? {$_.Type -eq $Null })
        $MemberNames = $Members.DisplayName -join ", " | Out-String
     }
-    [string]$OutputNames = $MemberNames
+    [string]$OutputNames = $MemberNames 
      $ReportLine = [PSCustomObject][Ordered]@{  
        DLName             = $DL.DisplayName
        ManagedBy          = $DL.ManagedBy -join ", "
@@ -73,7 +73,6 @@ ForEach ($DL in $DLs) {
        "Guest members"    = $GuestMembers.Count
        "Other Recipients" = $OtherMembers.Count
        "Member names"     = $OutputNames}
-
     $Report.Add($ReportLine) 
 }
 
