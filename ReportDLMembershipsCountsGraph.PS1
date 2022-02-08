@@ -71,9 +71,9 @@ If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please con
 # OK, we seem to be fully connected to Exchange Online. 
 
 # Define all the stuff necessary to use a registered app to interact with the Graph APIs
-$AppId = "77c31534-ca1f-4d46-959a-6159fcb2f77a"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = "7FP4Nj~kiU.yBXY9~yQB3sMrvpLv5Rx_._"
+$AppId = "87c31534-ca1f-4d46-959a-6159fcb2f77a"
+$TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$AppSecret = "7xP4Nj~kiU.yBXY9~yQB3sMrvpLv5Rx_._"
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -93,10 +93,10 @@ $Headers = @{
             'Authorization' = "Bearer $Token" 
             'ConsistencyLevel' = "eventual" }
 
-# Find all distribution lists
 Write-Host "Finding Exchange Online Distribution Lists..."
 # Find distribution lists, excluding room lists
-$DLs = Get-DistributionGroup -ResultSize Unlimited -Filter {RecipientTypeDetails -ne "Roomlist"} | Select DisplayName, ExternalDirectoryObjectId, ManagedBy
+$Uri = "https://graph.microsoft.com/beta/groups?`$filter=Mailenabled eq true AND NOT groupTypes/any(c:c+eq+'Unified')&`$count=true"
+[array]$DLs = Get-GraphData -AccessToken $Token -Uri $uri
 If (!($DLs)) { Write-Host "No distribution lists found... sorry! "; break }
  Else { Write-Host ("{0} distribution lists found" -f $DLs.count) }
 CLS; $Report = [System.Collections.Generic.List[Object]]::new()
@@ -135,8 +135,8 @@ $DLNumber++
     $MembersNames.Add($MemberData)   
 } #End Foreach
 
-   # Remove any duplicates
-   $MembersNames = $MembersNames | Sort MemberId -Unique
+   # Remove any duplicates and sort the member list alphabetically
+   $MembersNames = $MembersNames | Sort MemberId -Unique | Sort MemberName
    $OutputNames =  $MembersNames.MemberName -join ", " 
    
    #  Figure out DL manager names - can't be done using the Graph at present
