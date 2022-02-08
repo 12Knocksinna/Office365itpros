@@ -6,7 +6,7 @@
 $Connection = Get-AutomationConnection -Name AzureRunAsConnection
 # Get the certificate for the automation account
 $Certificate = Get-AutomationCertificate -Name AzureRunAsCertificate
-# Connect to the the Graph using the automation account
+# Connect to the Graph using the automation account
 Connect-MgGraph -ClientID $Connection.ApplicationId -TenantId $Connection.TenantId -CertificateThumbprint $Connection.CertificateThumbprint
 $Organization = Get-MgOrganization
 $TenantName = $Organization.DisplayName
