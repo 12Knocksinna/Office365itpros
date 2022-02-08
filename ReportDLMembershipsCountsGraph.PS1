@@ -95,7 +95,7 @@ $Headers = @{
 
 Write-Host "Finding Exchange Online Distribution Lists..."
 # Find distribution lists, excluding room lists
-$Uri = "https://graph.microsoft.com/beta/groups?`$filter=Mailenabled eq true AND NOT groupTypes/any(c:c+eq+'Unified')&`$count=true"
+$Uri = "https://graph.microsoft.com/V1.0/groups?`$filter=Mailenabled eq true AND NOT groupTypes/any(c:c+eq+'Unified')&`$count=true"
 [array]$DLs = Get-GraphData -AccessToken $Token -Uri $uri
 If (!($DLs)) { Write-Host "No distribution lists found... sorry! "; break }
  Else { Write-Host ("{0} distribution lists found" -f $DLs.count) }
