@@ -16,7 +16,7 @@ Write-Host ("Found {0} organization contacts - continuing..." -f $OrgContacts.co
 
 # Look for target mailboxes. In this example, we get the mailboxed created in the last month
 $LastMonth = (Get-Date).AddDays(-30)
-$Mailboxes = Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$LastMonth'" -RecipientTypeDetails UserMailbox | Select ExternalDirectoryObjectId, DisplayName, UserPrincipalName
+[array]$Mailboxes = Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$LastMonth'" -RecipientTypeDetails UserMailbox | Select ExternalDirectoryObjectId, DisplayName, UserPrincipalName
 If (!($Mailboxes)) { Write-Host "No mailboxes found to process - exiting" ; break }
 Write-Host ("Found {0} mailboxes to process - continuing..." -f $Mailboxes.count)
 $Now = Get-Date -format D
