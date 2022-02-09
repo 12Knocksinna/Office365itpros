@@ -1,5 +1,5 @@
 # Version 2.1 of the script to perform an activity-based analysis of AAD Guest User Accounts and report/highlight
-# accounts that aren't being used.  Modules used are Azure AD (V2) and Exchange Online
+# accounts that aren't being used.  Modules used are Azure AD Preview (V2.0.2.138 or later) and Exchange Online (V2.05 or later)
 # Updated 24 January 2022
 
 $ModulesLoaded = Get-Module | Select Name
