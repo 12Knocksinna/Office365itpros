@@ -4,7 +4,7 @@
 
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
-If (!($ModulesLoaded -match "AzureAD")) {Write-Host "Please connect to the Azure AD module and then restart the script"; break}
+If (!($ModulesLoaded -match "AzureADPreview")) {Write-Host "Please connect to the Azure AD Preview module and then restart the script"; break}
 # OK, we seem to be fully connected to Exchange Online and Azure AD
 
 # Start by finding all Guest Accounts
