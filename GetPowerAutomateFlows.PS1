@@ -1,4 +1,5 @@
 # GetPowerAutomateFlows.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetPowerAutomateFlows.PS1
 # Reports the set of connectors used by Flows in a tenant. The idea being that you might want to know what connectors are in use when
 # deciding how to configure a Power Automate DLP policy
 # Requires a connection to AzureAD or AzureADPreview
