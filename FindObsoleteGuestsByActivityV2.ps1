@@ -109,7 +109,7 @@ Write-Host " "
 Write-Host "Guests found from domains " ($DomainNames -join ", ")
 Write-Host " "
 Write-Host "The output file containing detailed results is in c:\temp\GuestActivity.csv" 
-Write-Host "A CSV file containing the User Principal Names of inactive guest accounts is in c:\InactiveGuests.csv"
+Write-Host "A CSV file containing the User Principal Names of inactive guest accounts is in c:\temp\InactiveGuests.csv"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
