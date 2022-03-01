@@ -1,5 +1,6 @@
-# ReportMFAStatusUsers.PS1
-# A script to report the MFA status for Azure AD user accounts
+# ReportMFAStatusUsers.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMFAStatusUsers.PS1
+# A script to report the authentication methods used by Azure AD user accounts
  
 # Check that we have loaded the Azure AD module
 $ModulesLoaded = Get-Module | Select Name
