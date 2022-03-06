@@ -17,10 +17,9 @@ If ($TeamsCheck -eq $Null) {
      Write-Host "Your PowerShell session is not connected to Microsoft Teams."
      Write-Host "Please connect to Microsoft Teams using an administrative account and retry."; Break }
 
-
 Write-Host "Preparing to archive" $ArchiveGroups.Count "Microsoft 365 Groups"
 # Find list of groups to be archived
-$ArchiveGroups = Get-UnifiedGroup -Filter {CustomAttribute1 -eq "Archive"} -ResultSize 1000 | Select DisplayName, DistinguishedName, Alias, PrimarySmtpAddress, SensitivityLabel, ExternalDirectoryObjectId
+[array]$ArchiveGroups = Get-UnifiedGroup -Filter {CustomAttribute1 -eq "Archive"} -ResultSize 1000 | Select DisplayName, DistinguishedName, Alias, PrimarySmtpAddress, SensitivityLabel, ExternalDirectoryObjectId
 
 # If you don't want to use custom attributes to mark groups to be archived, you can export the groups to a CSV file
 # review them with Excel, remove groups that you don't want to archive, and use the remaining set as the input to the
@@ -60,12 +59,19 @@ If ($Team) { # This group is team-enabled, so we process membership details with
    $CurrentMembers = Get-TeamUser -GroupId $Group.ExternalDirectoryObjectId -Role Member
    Add-TeamUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -Role Owner
    Start-Sleep -Seconds 2 # Let membership settle down
-   $TeamChannels = Get-TeamChannel -GroupId $Group.ExternalDirectoryObjectId -Membershiptype Private 
-   If ($TeamChannels) { # Add compliance admin as a member and owener for each private channel
-       ForEach ($Channel in $TeamChannels) {
+   [array]$TeamPrivateChannels = Get-TeamChannel -GroupId $Group.ExternalDirectoryObjectId -Membershiptype Private 
+   If ($TeamPrivateChannels) { # Add compliance admin as a member and owner for each private channel
+       ForEach ($Channel in $TeamPrivateChannels) {
          Add-TeamChannelUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -DisplayName $Channel.DisplayName
          Add-TeamChannelUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -DisplayName $Channel.DisplayName -Role Owner }
-    } #End TeamChannel If
+    } #End TeamPrivateChannel If
+    # Check for shared channels
+    [array]$TeamSharedChannels = Get-TeamChannel -GroupId $Group.ExternalDirectoryObjectId -Membershiptype Shared 
+   If ($TeamSharedChannels) { # Add compliance admin as a member and owner for each private channel
+       ForEach ($Channel in $TeamSharedChannels) {
+         Add-TeamChannelUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -DisplayName $Channel.DisplayName
+         Add-TeamChannelUser -GroupId $Group.ExternalDirectoryObjectId -User $AdminAccount -DisplayName $Channel.DisplayName -Role Owner }
+    } #End TeamSharedChannel If
    ForEach ($Owner in $CurrentOwners) { 
       Remove-TeamUser -GroupId $Group.ExternalDirectoryObjectId -User $Owner.User }
    ForEach ($Member in $CurrentMembers) { 
@@ -124,5 +130,5 @@ $Report | Export-CSV -NoTypeInformation c:\temp\ArchivedGroups.csv
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
-# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
