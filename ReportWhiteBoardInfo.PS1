@@ -1,4 +1,5 @@
 # ReportWhiteBoardInfo.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportWhiteBoardInfo.PS1
 # An example of how to use the Whiteboard Admin module to create a report of all whiteboards and their owners in a tenant. The original code
 # is in https://pnp.github.io/script-samples/whiteboard-report-usage/README.html?tabs=whiteboard
 # Import WhiteboardAdmin module
