@@ -30,7 +30,7 @@ Write-Host "Looking for Azure AD user accounts to check"
 [array]$Users = Get-MgUser -All -Filter "UserType eq 'Member'"
 
 If (!($Users)) { Write-Host "No accounts found for some reason... exiting" ; break}
-   Else { Write-Host ("{0} Azure AD user accounts found" -f $Users.count ) }
+    Else { Write-Host ("{0} Azure AD member accounts found (not all are user accounts which authenticate)" -f $Users.count ) }
 $CheckedUsers = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
@@ -74,7 +74,9 @@ ForEach ($User in $Users) {
             User            = $User.DisplayName
             UPN             = $User.UserPrincipalName 
             Method          = $AuthType
-            Details         = $AuthTypeDetails }
+            Details         = $AuthTypeDetails
+            LastSignIn      = $LastSignIn.CreatedDateTime
+            LastSignInApp   = $LastSignIn.AppDisplayName}
        $Report.Add($ReportLine) 
     } #End Foreach MfaMethod
   } # End if
@@ -82,7 +84,7 @@ ForEach ($User in $Users) {
 
 # Take the report file and check each user to see if they use a strong authentication method 
 $OutputFile = [System.Collections.Generic.List[Object]]::new()
-[array]$AuthUsers = $Report | Sort UPN -Unique | Select UPN, User
+[array]$AuthUsers = $Report | Sort UPN -Unique | Select UPN, User, LastSignIn, LastSignInApp
 ForEach ($AuthUser in $AuthUsers) {
     $MFAStatus = $Null
     $Records = $Report | ? {$_.UPN -eq $AuthUser.UPN}
@@ -98,7 +100,9 @@ ForEach ($AuthUser in $AuthUsers) {
          User            = $AuthUser.User
          UPN             = $AuthUser.UPN
          Methods         = $Methods -Join ", "
-         MFAStatus       = $MFAStatus }
+         MFAStatus       = $MFAStatus
+          LastSignIn      = $AuthUser.LastSignIn
+         LastSignInApp   = $AuthUser.LastSignInApp }
     $OutputFile.Add($ReportLine) 
 } 
    
