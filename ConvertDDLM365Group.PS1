@@ -1,4 +1,5 @@
 # ConvertDDLM365Group.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ConvertDDLM365Group.PS1
 # Convert Dynamic Distribution List to a Microsoft 365 group and then team-enable the group
 # Requires both the Exchange Online PowerShell module and the Microsoft Graph PowerShell SDK (or the Azure AD module - in that case
 # convert the call to Get-MgDirectoryRoleMember to Get-AzureADDirectoryRoleMember and Get-MgUser to Get-AzureADUser
