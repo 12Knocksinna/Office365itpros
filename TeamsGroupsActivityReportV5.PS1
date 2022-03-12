@@ -21,7 +21,7 @@
 # V5.1 21-Jan-2021 Add check for archived teams
 # V5.2 02-Feb-2021 Add option to import Teams usage data from CSV exported from Teams admin center
 # V5.3 10-Nov-2021 Removed processing for old Teams compliance records 
-# V5.4 12-Mar-2022 Changed check for Teams usage hash table to avoid errors
+# V5.4 12-Mar-2022 Changed check for Teams usage hash table to avoid errors and added explicit check for Teams data file downloaded from the TAC
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -142,10 +142,9 @@ $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
-[datetime]$DateOldTeams = "30-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
 $Version = "V5.4"
 $TimeToRefreshToken = "50" # Token lifetime
-
+Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
 $htmlhead="<html>
 	   <style>
@@ -168,7 +167,7 @@ $htmlhead="<html>
 		
 # Get a list of Groups in the tenant
 CLS
-Write-Host "Extracting list of Microsoft 365 Groups for checking..."
+Write-Host "Querying the Microsoft Graph to find the list of Microsoft 365 Groups in the tenant..."
 [Int]$GroupsCount = 0; [int]$TeamsCount = 0; $UsedGroups = $False
 
 # Define the values applicable for the application used to connect to the Graph
@@ -200,6 +199,31 @@ $TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken)
 
 $S1 = Get-Date #Start of processing
 
+# Check if Teams usage data is available in a CSV file. If it is, we will use that data
+$TeamsDataCSVFile = "c:\temp\TeamsUsageData.csv"
+$DateOfFile = (Get-ChildItem $TeamsDataCSVFile).LastWriteTime
+$StaleUsageDataCheck = (Get-Date).AddDays(-30)
+If ($DateOfFile -lt $StaleUsageDataCheck) { 
+  # The data file extracted from the Teams Admin Center is more than 30 days old, so we won't use it
+  Write-Host ("The Teams usage data file {0} is more than 30 days old. We can't use it." -f $TeamsDataCSVFile)
+  Write-Host " "
+  Write-Host "Use the following steps:"
+  Write-Host "1. Open the Analytics & Reports section of the Teams Admin Center."
+  Write-Host "2. Go to Usage Reports."
+  Write-Host "3. Select Teams usage."
+  Write-Host "4. Select 90 days and then Run Report."
+  Write-Host "5. After Teams creates the report, download it from the Downloads tab and rename the file to" $TeamsDataCSVFile
+  Write-Host ""
+  Write-Host "The script will run without a refreshed Teams usage data file, but it will be much slower because we will then need"
+  Write-Host "to check Exchange Online group mailboxes for compliance records to establish usage patterns."
+  Write-Host ""
+  $TeamsUsageHash = @{} 
+}
+Else { 
+  # We can use the file, so let's do it
+  Write-Host ("The Teams usage data file {0} is dated {1} and will be used." -f $TeamsDataCSVFile, Get-Date($StaleUsageDataCheck) -format g)
+  $TeamsUsageHash = CheckForTeamsData($TeamsDataCSVFile) 
+}
    # Get SharePoint site usage data
    $SPOUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D90')"
    $SPOUsage = (Invoke-RestMethod -Uri $SPOUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
@@ -300,10 +324,6 @@ $uri = "https://graph.microsoft.com/beta/groups?`$filter=resourceProvisioningOpt
 $TeamsHash = @{}
 $Teams.ForEach( {
    $TeamsHash.Add($_.Id, $_.DisplayName) } )
-
-# Check if Teams usage data is available in a CSV file. If it is, we will use that data
-$TeamsDataCSVFile = "c:\temp\TeamsUsageData.CSV"
-$TeamsUsageHash = CheckForTeamsData($TeamsDataCSVFile)
 
 # All groups and teams found...
 $TeamsCount = $Teams.Count
