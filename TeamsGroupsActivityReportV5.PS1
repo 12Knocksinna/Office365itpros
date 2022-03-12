@@ -21,6 +21,7 @@
 # V5.1 21-Jan-2021 Add check for archived teams
 # V5.2 02-Feb-2021 Add option to import Teams usage data from CSV exported from Teams admin center
 # V5.3 10-Nov-2021 Removed processing for old Teams compliance records 
+# V5.4 12-Mar-2022 Changed check for Teams usage hash table to avoid errors
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -142,7 +143,7 @@ $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmai
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 [datetime]$DateOldTeams = "30-Jun-2021" # After this date, Microsoft should have moved the old Teams data to the new location
-$Version = "V5.3"
+$Version = "V5.4"
 $TimeToRefreshToken = "50" # Token lifetime
 
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
@@ -424,8 +425,8 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
 # If the group is team-enabled, find the date of the last Teams conversation compliance record
 If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
     $TeamsEnabled = $True; $CountOldTeamsData = $False; $NumberOfChats = 0; $LastItemAddedToTeams = $Null
-    $ThisTeamData = $TeamsUsageHash[$G.ObjectId]  # Check do we have Teams usage data in a hash table
-    If ($Null -eq $ThisTeamData) { # Nope, so we have to get the data from Exchange Online by looking in the TeamsMessagesData file in the non-IPM root
+    If (-not $TeamsUsageHash.ContainsKey($G.ObjectId)) { # Check do we have Teams usage data stored in a hash table 
+    # Nope, so we have to get the data from Exchange Online by looking in the TeamsMessagesData file in the non-IPM root
        Write-Host "Checking Exo for Teams activity data..."
        $TeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot | ? {$_.FolderType -eq "TeamsMessagesData" })
        If ($TeamsChatData.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($TeamsChatData.NewestItemReceivedDate) -Format g}
