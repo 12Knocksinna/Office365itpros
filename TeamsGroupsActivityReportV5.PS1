@@ -433,6 +433,7 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
        $NumberOfChats = $TeamsChatData.ItemsInFolder }
    Else { # Read the data from the Teams usage data
     Write-Host "Reading from Teams Hash Table for" $ThisTeamData.DisplayName
+    $ThisTeamData = $TeamsUsageHash[$G.ObjectId]
     $NumberOfChats = [int]$ThisTeamData.Posts + [int]$ThisTeamData.Replies
     $LastItemAddedToTeams = (Get-Date $ThisTeamData.LastActivity -format g)
    } #End Else
@@ -536,5 +537,5 @@ Write-Host "Summary report in" $ReportFile "and CSV in" $CSVFile
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
-# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
