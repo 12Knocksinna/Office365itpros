@@ -222,7 +222,7 @@ If ($DateOfFile -lt $StaleUsageDataCheck) {
 }
 Else { 
   # We can use the file, so let's do it
-  Write-Host ("The Teams usage data file {0} is dated {1} and will be used." -f $TeamsDataCSVFile, Get-Date($StaleUsageDataCheck) -format g)
+  Write-Host ("The Teams usage data file {0} is dated {1} and will be used." -f $TeamsDataCSVFile, (Get-Date($StaleUsageDataCheck) -format g))
   $TeamsUsageHash = CheckForTeamsData($TeamsDataCSVFile) 
 }
    # Get SharePoint site usage data
