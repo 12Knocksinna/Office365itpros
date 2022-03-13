@@ -166,10 +166,6 @@ $htmlhead="<html>
            <p><h1>Microsoft 365 Groups and Teams Activity Report</h1></p>
            <p><h3>Generated: " + $date + "</h3></p></div>"
 		
-# Get a list of Groups in the tenant
-Write-Host "Querying the Microsoft Graph to find the list of Microsoft 365 Groups in the tenant..."
-[Int]$GroupsCount = 0; [int]$TeamsCount = 0; $UsedGroups = $False
-
 # Define the values applicable for the application used to connect to the Graph
 $AppId = "828e1143-88e3-492b-bf82-24c4a47ada63"
 $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
@@ -198,18 +194,20 @@ $TokenCreationDate = (Get-Date)
 $TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
 
 $S1 = Get-Date #Start of processing
+# Get a list of Groups in the tenant
+[Int]$GroupsCount = 0; [int]$TeamsCount = 0; $UsedGroups = $False
 
 # Check if Teams usage data is available in a CSV file. If it is, we will use that data
 $TeamsDataCSVFile = "c:\temp\TeamsUsageData.csv"
-$StaleUsageDataCheck = "1-Jan-1900"
+[datetime]$DateOfFile = "1-Jan-1900"
+[datetime]$StaleUsageDataCheck = (Get-Date).AddDays(-30)
 $Status = Test-Path $TeamsDataCSVFile  # Does the file exist?
 If ($Status -eq $True) {
-   $DateOfFile = (Get-ChildItem $TeamsDataCSVFile).LastWriteTime
-   $StaleUsageDataCheck = (Get-Date).AddDays(-30)
+   $DateOfFile = (Get-ChildItem $TeamsDataCSVFile).LastWriteTime  
 }
 If ($DateOfFile -lt $StaleUsageDataCheck) { 
   # The data file extracted from the Teams Admin Center is more than 30 days old or doesn't exist, so we won't use it
-  Write-Host ("The Teams usage data file {0} is more than 30 days old or unavailable. We can't use it for processing." -f $TeamsDataCSVFile)
+  Write-Host ("The Teams usage data file {0} is more than 30 days old or unavailable for processing." -f $TeamsDataCSVFile)
   Write-Host " "
   Write-Host "Use the following steps to generate a new Teams usage data file:"
   Write-Host ""
