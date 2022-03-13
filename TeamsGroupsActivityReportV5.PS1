@@ -218,6 +218,7 @@ If ($DateOfFile -lt $StaleUsageDataCheck) {
   Write-Host "to check Exchange Online group mailboxes for compliance records to establish usage patterns."
   Write-Host ""
   $TeamsUsageHash = @{} 
+  $TeamsUsageHash.Add([String]"111-111-111", "Dummy record to avoid errors when looking up null-valued expressions")
 }
 Else { 
   # We can use the file, so let's do it
