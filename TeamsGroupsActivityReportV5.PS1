@@ -201,13 +201,18 @@ $S1 = Get-Date #Start of processing
 
 # Check if Teams usage data is available in a CSV file. If it is, we will use that data
 $TeamsDataCSVFile = "c:\temp\TeamsUsageData.csv"
-$DateOfFile = (Get-ChildItem $TeamsDataCSVFile).LastWriteTime
-$StaleUsageDataCheck = (Get-Date).AddDays(-30)
+$StaleUsageDataCheck = "1-Jan-1900"
+$Status = Test-Path $TeamsDataCSVFile  # Does the file exist?
+If ($Status -eq $True) {
+   $DateOfFile = (Get-ChildItem $TeamsDataCSVFile).LastWriteTime
+   $StaleUsageDataCheck = (Get-Date).AddDays(-30)
+}
 If ($DateOfFile -lt $StaleUsageDataCheck) { 
-  # The data file extracted from the Teams Admin Center is more than 30 days old, so we won't use it
-  Write-Host ("The Teams usage data file {0} is more than 30 days old. We can't use it." -f $TeamsDataCSVFile)
+  # The data file extracted from the Teams Admin Center is more than 30 days old or doesn't exist, so we won't use it
+  Write-Host ("The Teams usage data file {0} is more than 30 days old or unavailable. We can't use it for processing." -f $TeamsDataCSVFile)
   Write-Host " "
-  Write-Host "Use the following steps:"
+  Write-Host "Use the following steps to generate a new Teams usage data file:"
+  Write-Host ""
   Write-Host "1. Open the Analytics & Reports section of the Teams Admin Center."
   Write-Host "2. Go to Usage Reports."
   Write-Host "3. Select Teams usage."
@@ -225,7 +230,8 @@ Else {
   Write-Host ("The Teams usage data file {0} is dated {1} and will be used." -f $TeamsDataCSVFile, (Get-Date($StaleUsageDataCheck) -format g))
   $TeamsUsageHash = CheckForTeamsData($TeamsDataCSVFile) 
 }
-   # Get SharePoint site usage data
+
+# Get SharePoint site usage data
    $SPOUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D90')"
    $SPOUsage = (Invoke-RestMethod -Uri $SPOUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
    $DataTable = @{} # Build hashtable with SharePoint usage information per site
