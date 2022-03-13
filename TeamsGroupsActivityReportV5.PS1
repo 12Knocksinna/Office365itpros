@@ -144,6 +144,7 @@ $SharedDocFolder = "/Shared%20Documents" # These values are to allow internation
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 $Version = "V5.4"
 $TimeToRefreshToken = "50" # Token lifetime
+CLS
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
 $htmlhead="<html>
@@ -166,7 +167,6 @@ $htmlhead="<html>
            <p><h3>Generated: " + $date + "</h3></p></div>"
 		
 # Get a list of Groups in the tenant
-CLS
 Write-Host "Querying the Microsoft Graph to find the list of Microsoft 365 Groups in the tenant..."
 [Int]$GroupsCount = 0; [int]$TeamsCount = 0; $UsedGroups = $False
 
