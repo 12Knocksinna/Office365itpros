@@ -56,6 +56,7 @@ $GroupDisplayName = $SourceDDL.DisplayName + " (Group)"
 # Create the new Microsoft 365 Group
 Write-Host "Creating the new Microsoft 365 group..."
 $Description = "Created from the " + $SourceDDL.DisplayName + " dynamic distribution list on " + (Get-Date -Format g)
+# If you use senstivity labels, add an appropriate label by passing its identifier in the -SensitivityLabel parameter.
 $NewGroup = New-UnifiedGroup -DisplayName $GroupDisplayName –AccessType Private -Alias $AliasDDL -RequireSenderAuthenticationEnabled $True -Owner $SourceDDL.ManagedBy -AutoSubscribeNewMembers -Notes $Description
 # Add the members to the group
 Write-Host "Adding members from the dynamic distribution list to the Microsoft 365 group..."
