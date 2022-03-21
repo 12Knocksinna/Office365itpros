@@ -1,4 +1,5 @@
 # ReportMailboxRightsAssignments.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMailboxRightsAssignments.PS1
 # Quick script to find audit records for rights assigned to mailboxes to allow us to notify the mailbox owner
 # about the assignment by sending email using the Microsoft Graph SDK for PowerShell. Needs version 1.7.0 or later
 # of the Microsoft.Graph.Mail and Microsoft.Graph.Authentication modules (both part of the SDK).
