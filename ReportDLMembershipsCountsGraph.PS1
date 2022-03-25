@@ -95,7 +95,7 @@ $Headers = @{
 
 Write-Host "Finding Exchange Online Distribution Lists..."
 # Find distribution lists - excluding room lists
-[array]DLs = Get-DistributionGroup -RecipientTypeDetails "MailUniversalDistributionGroup", "MailUniversalSecurityGroup" -ResultSize Unlimited
+[array]$DLs = Get-DistributionGroup -RecipientTypeDetails "MailUniversalDistributionGroup", "MailUniversalSecurityGroup" -ResultSize Unlimited
 # This is the Graph method -includes security groups, but it's faster - use it if you like
 # $Uri = "https://graph.microsoft.com/V1.0/groups?`$filter=Mailenabled eq true AND NOT groupTypes/any(c:c+eq+'Unified')&`$count=true"
 # [array]$DLs = Get-GraphData -AccessToken $Token -Uri $uri
