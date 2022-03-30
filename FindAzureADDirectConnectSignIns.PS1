@@ -1,4 +1,5 @@
 # FindAzureADDirectConnectSignIns.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindAzureADDirectConnectSignIns.PS1
 # Script to show how to use the Azure AD sign-in audit log to find entries for user accounts accessing external tenants for Teams 
 # Direct Connect (aka shared channels)
 
