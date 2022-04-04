@@ -3,7 +3,7 @@
 # Script to show how to use the Azure AD sign-in audit log to find entries for user accounts accessing external tenants for Teams 
 # Direct Connect (aka shared channels)
 
-Connect-MgGraph -Scopes "AuditLog.Read.All", "Directory.Read.All"
+Connect-MgGraph -Scopes "AuditLog.Read.All", "Directory.Read.All","Directory.AccessAsUser.All"
 Select-MgProfile -Name "beta"
 
 $Tenant = Get-MgOrganization
