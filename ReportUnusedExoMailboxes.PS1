@@ -1,4 +1,5 @@
 # ReportUnusedExoMailboxes.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUnusedExoMailboxes.PS1
 # Find and report unused Exchange Online mailboxes
 # Needs to connect to Exchange Online and the Microsoft Graph PowerShell SDK
 
