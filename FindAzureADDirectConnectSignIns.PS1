@@ -13,7 +13,7 @@ Write-Host "Finding Azure AD sign-ins for Azure B2B not from" $TenantName "..."
 [array]$AzureADSignIns = Get-MgAuditLogSignIn -Filter "ResourceTenantId ne '$TenantID' and CrossTenantAccessType eq 'b2bDirectConnect'" -All
 
 If (!($AzureADSignIns)) {
-   Write-Host "No Azure AD sign-in records for B2B Direct Connct found from other Microsoft 365 tenants - exiting" ; break }
+   Write-Host "No Azure AD sign-in records for B2B Direct Connect found from other Microsoft 365 tenants - exiting" ; break }
 Else {
    Write-Host ("{0} Azure AD sign-in records from other Microsoft 365 tenants found - analyzing..." -f $AzureADSignIns.count ) }
 
@@ -32,16 +32,22 @@ ForEach ($Record in $AzureADSignIns){
      $ExternalTenantDisplayName = $TenantNames[$ExternalTenantId]
    }
 
+ # Get Error code
+   $ErrorCode = ($Record | Select -ExpandProperty Status).ErrorCode
+   $FailureReason = ($Record | Select -ExpandProperty Status).FailureReason
+   
    $ExternalData = [PSCustomObject][Ordered]@{  
-       Timestamp    = $Record.CreatedDateTime
-       User         = $Record.UserDisplayName
-       UserId       = $Record.UserId
-       UPN          = $Record.UserPrincipalName
-       TenantName   = $ExternalTenantDisplayName
-       TenantId     = $ExternalTenantId
-       Resource     = $Record.ResourceDisplayName
-       AppName      = $Record.AppDisplayName
-       Type         = $Record.CrossTenantAccessType
+       Timestamp     = $Record.CreatedDateTime
+       User          = $Record.UserDisplayName
+       UserId        = $Record.UserId
+       UPN           = $Record.UserPrincipalName
+       TenantName    = $ExternalTenantDisplayName
+       TenantId      = $ExternalTenantId
+       Resource      = $Record.ResourceDisplayName
+       AppName       = $Record.AppDisplayName
+       Type          = $Record.CrossTenantAccessType
+       ErrorCode     = $ErrorCode
+       FailureReason = $FailureReason
        }     
    $Report.Add($ExternalData)
 }
