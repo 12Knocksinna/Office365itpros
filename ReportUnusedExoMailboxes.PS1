@@ -13,7 +13,7 @@ Select-MgProfile Beta
 # Find mailboxes and check if they are unused
 $Now = Get-Date
 Write-Host "Looking for User Mailboxes..."
-[array]$Mbx = (Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | Select DisplayName, DistinguishedName, ExternalDirectoryObjectId) 
+[array]$Mbx = (Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | Select DisplayName, DistinguishedName, UserPrincipalName, ExternalDirectoryObjectId) 
   Write-Host ("Reporting {0} mailboxes..." -f $Mbx.Count)
   $Report = [System.Collections.Generic.List[Object]]::new() 
   ForEach ($M in $Mbx) { 
@@ -38,9 +38,12 @@ Write-Host "Looking for User Mailboxes..."
        $LastUserSignInDate = Get-Date($LastUserSignIn) -format g }
    Else {
        $LastUserSignInDate = "No sign in records found in last 30 days" }
-
+   # Get account enabled status
+   $AccountEnabled = (Get-MgUser -UserId $M.ExternalDirectoryObjectId).AccountEnabled
    $ReportLine = [PSCustomObject][Ordered]@{ 
         Mailbox         = $M.DisplayName 
+        UPN             = $M.UserPrincipalName
+        Enabled         = $AccountEnabled
         Items           = $Stats.ItemCount 
         Size            = $MbxSize 
         LastLogonExo    = $LastLogonTime
