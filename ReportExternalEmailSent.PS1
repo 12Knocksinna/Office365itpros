@@ -1,6 +1,7 @@
 # ReportExternalEmailSent.PS1
 # Script to demonstrate how to create a report about the external email activity of individuals identified through 
 # membership of a distribution group
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportExternalEmailSent.PS1
 # Uses cmdlets from the Exchange Online module and the Microsoft Graph PowerShell SDK.
 
 # Check that we have the necessary modules loaded
