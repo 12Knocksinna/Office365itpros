@@ -42,7 +42,7 @@ ForEach ($User in $Users) {
 # Create HTML content
 $Report = $Report | Sort User
 $Title = "External Email Sent Report"
-$Today = Get-Date -format g
+$Today = Get-Date -format f
 $HtmlStart = 
 '<html><head><font face="Segoe UI"><Title>External Email Activity Report</Title></font></p><p><font face="Segoe UI"><h2>Tenant: ' + ($TenantName) + '</h2></p><p><font face="Segoe UI"><h3>Generated: ' + $Today + '</h3></font></p>
  <table align="center" border="1" cellpadding="1" cellspacing="1" style="background-color:#e6e6fa; border-style:hidden">
