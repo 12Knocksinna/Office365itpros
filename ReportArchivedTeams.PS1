@@ -1,4 +1,5 @@
 # ReportArchivedTeams.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportArchivedTeams.PS1
 # Script to show how to report Teams archiving actions extracted from the Office 365 audit log
 # Needs a connection to the Exchange Online management and Teams modules
 
