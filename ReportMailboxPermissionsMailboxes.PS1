@@ -5,7 +5,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMailboxPermissionsMailboxes.PS1
 CLS
 Write-Host "Fetching mailboxes"
-$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited -PropertySet Delivery -Properties RecipientTypeDetails, DisplayName | Select DisplayName, UserPrincipalName, RecipientTypeDetails, GrantSendOnBehalfTo
+[array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited -PropertySet Delivery -Properties RecipientTypeDetails, DisplayName | Select DisplayName, UserPrincipalName, RecipientTypeDetails, GrantSendOnBehalfTo
 If ($Mbx.Count -eq 0) { Write-Error "No mailboxes found. Script exiting..." -ErrorAction Stop } 
 CLS
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
