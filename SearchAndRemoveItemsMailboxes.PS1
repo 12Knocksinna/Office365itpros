@@ -8,13 +8,14 @@ CLS
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script" ; break}
 
-# Set up the search query
+# Set up the search query - change these parameters to whatever you want to use to search for items to be removed
 $StartDate = "1-Jan-2019"
 $EndDate = "1-Dec-2019"
 $Query = "Received:$($StartDate)..$($EndDate) kind:meetings" + ' AND (-subject:"Thread Id")'
 
 # Find the mailboxes to process - this example uses a check against the custom attribute 12. You could also read in user details from a CSV file
-$Users = Get-ExoMailbox -Filter {CustomAttribute12 -eq "Search"} -Properties CustomAttribute12 -RecipientTypeDetails UserMailbox -ResultSize Unlimited
+# or a different filter to find users. The point is that you end up with an array of mailboxes for Search-Mailbox to process
+[array]$Users = Get-ExoMailbox -Filter {CustomAttribute12 -eq "Search"} -Properties CustomAttribute12 -RecipientTypeDetails UserMailbox -ResultSize Unlimited
 If (!$Users) {Write-Host "No matching users found - exiting" ; break}
 
 $UserReport = [System.Collections.Generic.List[Object]]::new() # Create output file 
@@ -72,3 +73,10 @@ Switch ($PromptDecision) {
       Write-Host "Cancelled. Messages not removed from mailboxes"
       }
 } #End Switch
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
+# the Internet without first validating the code in a non-production environment.
