@@ -6,7 +6,11 @@
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 If (!($ModulesLoaded -match "MicrosoftTeams")) {Write-Host "Please connect to the Microsoft Teams module and then restart the script"; break}
-
+# Some lines to create the c:\temp\ directory. Comment them out if you don't want this to happen
+$Path = "C:\Temp"
+If(!(test-path $path)) {
+    New-Item -ItemType Directory -Force -Path $path | Out-Null }
+# Define output CSV file
 $OutputCsvFile = "c:\temp\TeamsArchiveAuditRecords.csv"
 
 CLS; Write-Host "Searching Audit Records to find Teams archiving operations"
