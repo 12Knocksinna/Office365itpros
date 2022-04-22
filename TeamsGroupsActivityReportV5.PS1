@@ -146,6 +146,10 @@ $Version = "V5.4"
 $TimeToRefreshToken = "50" # Token lifetime
 CLS
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
+# Comment these lines out if you don't want the script to create a temp directory to store its output files
+$path = "C:\Temp"
+If(!(test-path $path)) {
+   New-Item -ItemType Directory -Force -Path $path | Out-Null }
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
 $htmlhead="<html>
 	   <style>
