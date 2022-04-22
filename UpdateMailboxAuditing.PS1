@@ -8,7 +8,7 @@ $ProgressDelta = 100/($Mbx.count); $PercentComplete = 0; $MbxNumber = 0; $Shared
 CLS
 Write-Host "Finding Office 365 E3 mailboxes"
 # Process mailboxes - Check Azure Active Directory to find accounts with Office 365 E3 licenses
-$Mbx = Get-AzureADUser -All $True | ? {$_.AssignedLicenses -Match $Office365E3}
+[array]$Mbx = Get-AzureADUser -All $True | ? {$_.AssignedLicenses -Match $Office365E3}
 # Loop through accounts, find if they have not been enabled by checking CustomAttribute6, and enable if needed
 ForEach ($M in $Mbx) {
     $MbxNumber++
@@ -29,7 +29,7 @@ ForEach ($M in $Mbx) {
          $Report.Add($ReportLine) }
 }
 # Now process shared mailboxes. These don't have a license, so we fetch them from Exchange Online and check
-$SharedMbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails SharedMailbox -Properties CustomAttribute6 -Filter {CustomAttribute6 -eq $Null}
+[array]$SharedMbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails SharedMailbox -Properties CustomAttribute6 -Filter {CustomAttribute6 -eq $Null}
 $ProgressDelta = 100/($SharedMbx.count); $PercentComplete = 0; $MbxNumber = 0
 ForEach ($M in $SharedMbx) {
     $SharedMailboxNumber++
@@ -55,7 +55,7 @@ Write-Host "Mailbox auditing enabled for shared mailboxes       :" $SharedMbxUpd
 $Report | Out-GridView
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
