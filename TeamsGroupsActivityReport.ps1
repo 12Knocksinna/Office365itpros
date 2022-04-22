@@ -26,7 +26,12 @@ Write-Host "Checking that prerequisite PowerShell modules are loaded..."
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 If (!($ModulesLoaded -match "Microsoft.Online.SharePoint.PowerShell")) {Write-Host "Please connect to the SharePoint Online module and then restart the script"; break}
-   
+
+# Comment these lines out if you don't want the script to create a temp directory to store its output files
+$path = "C:\Temp"
+If(!(test-path $path)) {
+   New-Item -ItemType Directory -Force -Path $path | Out-Null }
+
 $OrgName = (Get-OrganizationConfig).Name  
        
 # OK, we seem to be fully connected to both Exchange Online and SharePoint Online...
@@ -250,7 +255,7 @@ Write-Host " "
 Write-Host "Summary report in" $ReportFile "and CSV in" $CSVFile
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
