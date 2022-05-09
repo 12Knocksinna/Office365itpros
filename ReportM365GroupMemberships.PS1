@@ -1,6 +1,7 @@
 # ReportM365GroupMemberships.PS1
 # A script to report the membership of all Microsoft 365 Groups in a tenant
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportM365GroupMemberships.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportM365GroupMemberships-Graph.PS1 is a Graph-based (faster) version of this script
 
 CLS
 # Check that we are connected to Exchange Online
@@ -44,7 +45,12 @@ ForEach ($User in $Users) {
    $g = 0
    ForEach ($Group in $Groups)  { 
      $g++
-     $Owners = $Group.Managedby -join ", "
+     [array]$ManagedBy = $Group.ManagedBy #Get the group's owners
+     [array]$Owners = $Null
+     ForEach ($Owner in $ManagedBy) { # Unpack the owners and retrieve a display name that's usable.
+       $OwnerDisplayName = (Get-Recipient -Identity $Owner.trim()).DisplayName
+       $Owners += $OwnerDisplayName }
+     [string]$OwnersOutput = $Owners -join ", "
      If ($TeamsHash[$Group.ExternalDirectoryObjectId]) { $GroupName = $Group.DisplayName + " (** Team **)" } Else { $GroupName = $Group.DisplayName }
      $MemberLine = [PSCustomObject][Ordered]@{  # Write out details of the group
        "User"              = $User.DisplayName
@@ -53,7 +59,7 @@ ForEach ($User in $Users) {
        "Group Name"        = $GroupName
        "Group Description" = $Group.Notes
        "Group Email"       = $Group.PrimarySmtpAddress
-       "Group Owners"      = $Owners         }
+       "Group Owners"      = $OwnersOutput }
       $MemberList.Add($MemberLine) 
     } #End For
     $SummaryLine = [PSCustomObject][Ordered]@{  # Write out summary record for the user
