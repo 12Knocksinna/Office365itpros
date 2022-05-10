@@ -38,8 +38,8 @@ ForEach ($User in $Users) {
   Write-Progress -Activity "Checking groups for user" -Status $UserStatus -PercentComplete $CheckCount
   $CheckCount += $ProgDelta
   $UserType = "Tenant user"
-  $DN = (Get-Recipient -Identity $User.UserPrincipalName).DistinguishedName
-  $Groups = (Get-Recipient -ResultSize Unlimited -RecipientTypeDetails GroupMailbox -Filter "Members -eq '$DN'" | Select DisplayName, Notes, ExternalDirectoryObjectId, ManagedBy, PrimarySmtpAddress)
+  [string]$DN = (Get-Recipient -Identity $User.UserPrincipalName).DistinguishedName
+  [array]$Groups = (Get-Recipient -ResultSize Unlimited -RecipientTypeDetails GroupMailbox -Filter "Members -eq '$DN'" | Select DisplayName, Notes, ExternalDirectoryObjectId, ManagedBy, PrimarySmtpAddress)
   If ($Groups) { # We found some groups for this recipient - process them
    $Groups = $Groups | Sort DisplayName
    $AllGroups = $Groups.DisplayName -Join ", "
