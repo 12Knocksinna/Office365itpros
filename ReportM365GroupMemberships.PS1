@@ -21,6 +21,7 @@ $CreationDate = Get-Date -format g
 CLS
 Write-Host "Fetching user information from Azure Active Directory..."
 $Users = Get-AzureADUser -All:$true
+If (!($Users)) { Write-Host "Can't get user information from Azure AD - exiting" ; break }
 # Now get rid of all the accounts created for room and resource mailboxes, service accounts etc.
 $Users = $Users |?{($_.UserType -eq "Member" -and $_.AssignedLicenses -ne $Null) -or ($_.UserType -eq "Guest")}
 # Get a list of Teams and put them into a hash table so that we can mark the groups we process as being team-enabled
@@ -45,9 +46,8 @@ ForEach ($User in $Users) {
    $g = 0
    ForEach ($Group in $Groups)  { 
      $g++
-     [array]$ManagedBy = $Group.ManagedBy #Get the group's owners
      [array]$Owners = $Null
-     ForEach ($Owner in $ManagedBy) { # Unpack the owners and retrieve a display name that's usable.
+     ForEach ($Owner in $Group.ManagedBy) { # Unpack the owners and retrieve a display name that's usable.
        $OwnerDisplayName = (Get-Recipient -Identity $Owner.trim()).DisplayName
        $Owners += $OwnerDisplayName }
      [string]$OwnersOutput = $Owners -join ", "
