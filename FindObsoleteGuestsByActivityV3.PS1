@@ -1,3 +1,5 @@
+# FindObsoleteGuestsByActivityV3.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindObsoleteGuestsByActivityV3.PS1
 # Version 3.0 of the script to perform an activity-based analysis of AAD Guest User Accounts and report/highlight
 # accounts that aren't being used.  Modules used are the Microsoft Graph PowerShell SDK and Exchange Online management
 # Updated 17 May 2022
