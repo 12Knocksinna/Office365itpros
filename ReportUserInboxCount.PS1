@@ -1,4 +1,5 @@
 # ReportUserInboxCount.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUserInboxCount.PS1
 # A script to show how to fetch mailbox folder statistics using a combination of PowerShell and the Microsoft Graph ListFolders API
 # You need an Azure AD registered app with consent for the Mail.Read application permission.
 
