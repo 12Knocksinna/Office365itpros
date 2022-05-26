@@ -41,6 +41,7 @@ ForEach ($User in $Users) { # See if we can find the last sign in record for an 
          AccountCreated = $User.CreatedDateTime
          SignInDate     = $LastSignIn.CreatedDateTime
          DaysSince      = ($LastSignIn.CreatedDateTime | New-TimeSpan).Days
+         Location       = $LastSignIn.Location.City
          App            = $LastSignIn.AppDisplayName
          Client         = $LastSignIn.ClientAppUsed
          IPAddress      = $LastSignIn.IPAddress
