@@ -1,4 +1,5 @@
 # SetAutoReplyTeamsGroups.PS1
+# https://github.com/12Knocksinna/Office365itpros/edit/master/SetAutoReplyTeamsGroups.PS1
 # An example of how to to set an auto-reply on team-enabled Microsoft 365 groups
 # Uses the Microsoft Graph PowerShell SDK (uses the Directory.Read.All and ChannelSettings.Read.All permissions) and the Exchange Online Management module.
 
