@@ -2,25 +2,19 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMFAStatusUsers.PS1
 # A script to report the authentication methods used by Azure AD user accounts
  
-# Check that we have loaded the Azure AD module
-$ModulesLoaded = Get-Module | Select Name
-If (!($ModulesLoaded -match "AzureAD")) {Write-Host "Please connect to the Azure Ad module and then restart the script"; break}
-$TenantInfo = (Get-AzureADTenantDetail)
-$TenantId = $TenantInfo.ObjectId
-$TenantName = $TenantInfo.DisplayName
-
-# Now connect to the Microsoft Graph SDK for PowerShell
+# Connect to the Microsoft Graph SDK for PowerShell
 Connect-MgGraph -TenantId $TenantId -Scope "UserAuthenticationMethod.Read.All, Directory.Read.All, User.Read.All, Auditlog.Read.All"
 Select-MgProfile Beta
 $Details = Get-MgContext
 $Scopes = $Details | Select -ExpandProperty Scopes
 $Scopes = $Scopes -Join ", "
 $ProfileName = (Get-MgProfile).Name
+$Organization = Get-MgOrganization
 CLS
 Write-Host "Microsoft Graph Connection Information"
 Write-Host "--------------------------------------"
 Write-Host " "
-Write-Host ("Connected to Tenant {0} ({1}) as account {2}" -f $Details.TenantId, $TenantName, $Details.Account)
+Write-Host ("Connected to Tenant {0} ({1}) as account {2}" -f $Details.TenantId, $Organization.DisplayName, $Details.Account)
 Write-Host "+-------------------------------------------------------------------------------------------------------------------+"
 Write-Host ("Profile set as {0}. The following permission scope is defined: {1}" -f $ProfileName, $Scopes)
 Write-Host ""
