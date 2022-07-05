@@ -2,7 +2,7 @@
 # 
 # Uses https://docs.microsoft.com/en-us/graph/api/userregistrationdetails-get
 # Example of how to use the User Registration Details API to report admin accounts that are not MFA-enabled.
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMFAStatusAdmins.PS1
 
 Connect-MgGraph -Scopes UserAuthenticationMethod.Read.All, AuditLog.Read.All
 Select-MgProfile -Beta
