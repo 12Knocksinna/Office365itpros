@@ -23,10 +23,11 @@ ForEach ($M in $Mbx) {
             "Mailbox type"    = $M.RecipientTypeDetails
             ForwardingAddress = $M.ForwardingSmtpAddress.Split(":")[1]
             InboxRule         = "N/A" 
-            "Rule Removed"    = "N/A" }
+            "Rule Removed"    = "N/A" 
+            Enabled           = "N/A"}
        $Report.Add($ReportLine)
     } 
-    $InboxRules = (Get-InboxRule -Mailbox $M.Alias | ? {$_.ForwardTo -or $_.ForwardAsAttachmentTo })
+    $InboxRules = (Get-InboxRule -Mailbox $M.Alias | ? {$_.ForwardTo -or $_.ForwardAsAttachmentTo -or $_.RedirectTo})
     If ($InboxRules -ne $Null) {
        Write-Host "Processing inbox rules"
        ForEach ($Rule in $InboxRules) {
@@ -34,6 +35,7 @@ ForEach ($M in $Mbx) {
           $ForwardTo = @()
           $ForwardTo = ($Rule.ForwardTo | ? { ($_ -Match "SMTP") -or ($_ -Match "EX:") } )
           $ForwardTo += ($Rule.ForwardAsAttachmentTo | ? {($_ -Match "SMTP") -or ($_ -Match "EX:")})
+          $ForwardTo += ($Rule.RedirectTo | ? {($_ -Match "SMTP") -or ($_ -Match "EX:")})
           If ($ForwardTo.Count -gt 0) {
              ForEach ($Recipient in $ForwardTo) {
                 If ($Recipient -Match "EX:") {
@@ -60,7 +62,8 @@ ForEach ($M in $Mbx) {
                 "Mailbox type"    = $M.RecipientTypeDetails
                 ForwardingAddress = $EmailAddress
                 InboxRule         = $Rule.Name 
-                "Rule Removed"    = $RuleRemoved }
+                "Rule Removed"    = $RuleRemoved 
+                Enabled           = $Rule.Enabled}
              $Report.Add($ReportLine) }
        }
      }
