@@ -23,6 +23,7 @@
 # V5.3 10-Nov-2021 Removed processing for old Teams compliance records 
 # V5.4 12-Mar-2022 Changed check for Teams usage hash table to avoid errors and added explicit check for Teams data file downloaded from the TAC
 # V5.5 15-Jun-2022 Recoded way that check to renew access token worked and incorporated automatic fetch of latest Teams usage data
+# V5.6 19-Jul-2022 Add email address of team owner to output
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -178,7 +179,7 @@ $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
-$Version = "V5.5"
+$Version = "V5.6"
 $TimeToRefreshToken = "50" # Token lifetime
 CLS
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
@@ -265,9 +266,11 @@ ForEach ($Group in $Groups) {
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/owners?"
    $GroupData = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET"
    If ($GroupData."@odata.count" -eq 0) {
-       $OwnerNames = "No owners found" }
-   Else  { # Extract owner names
-        $OwnerNames = $GroupData.Value.DisplayName -join ", " }
+       $OwnerNames = "No owners found"
+       $GroupOwnerMail = $Null }
+   Else  { # Extract owner names and select the first owner email address as a contact
+      $OwnerNames = $GroupData.Value.DisplayName -join ", " 
+      $GroupOwnerEmail = $GroupData.Value[0].Mail }
    # Get extended group properties 
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
    $GroupData = Get-GraphData -AccessToken $Token -Uri $uri
@@ -307,6 +310,7 @@ ForEach ($Group in $Groups) {
        DisplayName      = $Group.DisplayName
        ObjectId         = $Group.Id
        ManagedBy        = $OwnerNames
+       GroupContact     = $GroupOwnerEmail
        GroupMembers     = $GroupMemberCount
        GuestMembers     = $GuestMemberCount
        SharePointURL    = $SPOUrl
@@ -464,6 +468,7 @@ If ($NumberWarnings -gt 2) { $OverallStatus = "Fail" }
     $ReportLine = [PSCustomObject][Ordered]@{
           GroupName               = $DisplayName
           ManagedBy               = $G.ManagedBy
+	  ContactEmail            = $G.GroupContact
           Visibility              = $G.Visibility
           Members                 = $G.GroupMembers
           "External Guests"       = $G.GuestMembers
