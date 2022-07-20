@@ -482,6 +482,7 @@ If ($NumberWarnings -gt 2) { $OverallStatus = "Fail" }
           "Last SPO Activity"     = $SPOLastActivityDate
           "SPO Storage Used (GB)" = $SPOStorageUsed
           "Number SPO Files"      = $SPOFileCount
+	  "SPO Site URL"          = $G.SharePointURL
           "Date Created"          = $G.WhenCreated
           "Days Old"              = $GroupAge       
            NumberWarnings         = $NumberWarnings
