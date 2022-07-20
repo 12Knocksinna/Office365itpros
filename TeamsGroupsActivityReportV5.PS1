@@ -166,7 +166,6 @@ ForEach ($Team in $TeamsData) {
 }
 # ------
 
-
 CLS
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
@@ -260,6 +259,7 @@ $TeamsUsageHash = GetTeamsStats
 Write-Host "Checking Microsoft 365 Groups and Teams for:" $OrgName
 $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=groupTypes/any(a:a eq 'unified')"
 [array]$Groups = Get-GraphData -AccessToken $Token -Uri $uri
+If (!($Groups)) {Write-Host "Can't find any Microsoft 365 Groups - Check your access token"; break}
 $GroupsList = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Group in $Groups) {  
    # Get Group Owners
