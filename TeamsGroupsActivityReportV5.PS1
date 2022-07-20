@@ -23,7 +23,7 @@
 # V5.3 10-Nov-2021 Removed processing for old Teams compliance records 
 # V5.4 12-Mar-2022 Changed check for Teams usage hash table to avoid errors and added explicit check for Teams data file downloaded from the TAC
 # V5.5 15-Jun-2022 Recoded way that check to renew access token worked and incorporated automatic fetch of latest Teams usage data
-# V5.6 19-Jul-2022 Add email address of team owner to output
+# V5.6 19-Jul-2022 Add email address of team owner to output and updated activity range for usage reports to 180 days
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -123,7 +123,7 @@ Function GetTeamsStats {
 # Function to retrieve per-team usage stats so that there's no need for the admin to download the report. The output is a hash table that
 # we check for Teams data
 
-$Uri = "https://graph.microsoft.com/beta/reports/getTeamsTeamActivityDetail(period='D90')?`$format=application/json"
+$Uri = "https://graph.microsoft.com/beta/reports/getTeamsTeamActivityDetail(period='D180')?`$format=application/json"
 [array]$TeamsData = Get-GraphData -Uri $Uri  -AccessToken $Token
 $PerTeamStats = [System.Collections.Generic.List[Object]]::new() 
 $TeamsDataHash = @{}
@@ -228,7 +228,7 @@ $TeamsUsageHash = GetTeamsStats
 
 # Get SharePoint site usage data
    Write-Host "Retrieving SharePoint Online site usage data..."
-   $SPOUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D90')"
+   $SPOUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D180')"
    $SPOUsage = (Invoke-RestMethod -Uri $SPOUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
    $DataTable = @{} # Build hashtable with SharePoint usage information per site
    ForEach ($Site in $SPOUsage) {
