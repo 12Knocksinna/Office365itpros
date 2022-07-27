@@ -33,8 +33,8 @@ Start-ComplianceSearch -Identity $ComplianceSearch | Out-Null
 $Seconds = 0
 While ((Get-ComplianceSearch -Identity $ComplianceSearch).Status -ne "Completed") {
   $Seconds++
-  Write-Host "Still searching... (" $Seconds ")"
-   Sleep -Seconds 5 }
+  Write-Host ("Still searching... ({0})" -f $Seconds)
+    Sleep -Seconds 5 }
 $ItemsFound = (Get-ComplianceSearch -Identity $ComplianceSearch).Items
 
 If ($ItemsFound -gt 0) {
@@ -50,11 +50,11 @@ If ($ItemsFound -gt 0) {
    $Iterations = 0; $ItemsProcessed = 0
    While ($ItemsProcessed -lt $ItemsFound) {
        $Iterations++
-       Write-Host "Deleting items... (" $Iterations ")"
+       Write-Host ("Deleting items...({0})" -f $Iterations)
        New-ComplianceSearchAction -SearchName $ComplianceSearch -Purge -PurgeType HardDelete -Confirm:$False | Out-Null
        $SearchActionName = $ComplianceSearch + "_Purge"
        While ((Get-ComplianceSearchAction -Identity $SearchActionName).Status -ne "Completed") { # Let the search action complete
-           Sleep -Seconds 2 }
+           Sleep -Seconds 5 }
        $ItemsProcessed = $ItemsProcessed + 10 # Can remove a maximum of 10 items per mailbox
        # Remove the search action so we can recreate it
        Remove-ComplianceSearchAction -Identity $SearchActionName -Confirm:$False -ErrorAction SilentlyContinue }}
