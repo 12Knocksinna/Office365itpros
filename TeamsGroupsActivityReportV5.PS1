@@ -4,7 +4,7 @@
 # We check the group mailbox to see what the last time a conversation item was added to the Inbox folder. 
 # Another check sees whether a low number of items exist in the mailbox, which would show that it's not being used.
 # We also check the group document library in SharePoint Online to see whether it exists or has been used in the last 180 days.
-# And we check Teams compliance items to figure out if any chatting is happening.
+# And we check Teams usage data to figure out if any chatting is happening.
 
 # Created 29-July-2016  Tony Redmond 
 # V2.0 5-Jan-2018
@@ -28,7 +28,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
 # Needs the following Graph permissions:
-# Group.Read.All, Reports.Read.All, User.Read.All, GroupMember.Read.All
+# Group.Read.All, Reports.Read.All, User.Read.All, GroupMember.Read.All, Sites.Read.All
 #
 #+-------------------------- Functions etc. -------------------------
 
