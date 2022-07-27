@@ -3,6 +3,7 @@
 # Microsoft Graph
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportFilesSPOSite.PS1
 # V1.0 04-July-2022
+# V1.1 27-July-2022 (Fix nextlink processing)
 # .\ReportFilesSPOSite.PS1 -SearchSite "Billing"
 
 Param ([Parameter(Mandatory)]$SearchSite)
@@ -44,8 +45,7 @@ param (
 	  GetFilesFromFolder -BaseUri $BaseUri -FolderName $NewFolderName -FolderFiles $FolderFiles
 	} # End ElseIf
   } # End ForEach
-   
-
+  
   # There might be more than 200 items to be fetched, so check the nextlink and continue
   # reading data until there's no more next links to follow
 
