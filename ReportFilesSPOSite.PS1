@@ -3,7 +3,7 @@
 # Microsoft Graph
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportFilesSPOSite.PS1
 # V1.0 04-July-2022
-# V1.1 27-July-2022 (Fix nextlink processing)
+# V1.1 27-July-2022 (Fix nextlink processing and allow user to pick document library to process)
 # .\ReportFilesSPOSite.PS1 -SearchSite "Billing"
 
 Param ([Parameter(Mandatory)]$SearchSite)
@@ -236,7 +236,6 @@ If (!($Drive)) {
     Write-Host ("Can't find the {0} drive - script exiting" -f $Uri) ; break 
 }
 
-
 # Find the default document library
 $DocumentLibrary = $Drive
 
@@ -260,7 +259,6 @@ While ($NextLink) {
   $NextLink = $MoreData."@odata.nextLink"
   $Uri = $MoreData."@odata.nextLink" 
 } # End While
-
 
 Write-Host ("Total files found {0}" -f $SiteFiles.Count)
 $SiteFiles | Out-GridView
