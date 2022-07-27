@@ -19,6 +19,7 @@
 # V4.8 16-Dec-2020 Some updates after review of code to create 5.0 (Graph based version)
 # 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
+# The Graph-based version of this script (much faster) is available in https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReportV5.PS1
 #
 CLS
 # Check that we are connected to Exchange Online, SharePoint Online, and Teams

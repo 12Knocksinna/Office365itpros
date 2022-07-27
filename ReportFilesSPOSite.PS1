@@ -3,6 +3,7 @@
 # Microsoft Graph
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportFilesSPOSite.PS1
 # V1.0 04-July-2022
+# V1.1 27-July-2022 (Fix nextlink processing and allow user to pick document library to process)
 # .\ReportFilesSPOSite.PS1 -SearchSite "Billing"
 
 Param ([Parameter(Mandatory)]$SearchSite)
@@ -12,7 +13,7 @@ function UnpackFilesRecursively {
 param (
         [parameter(Mandatory = $true)]
         $Items, # Items to unpack
-		
+	
 		[parameter(Mandatory = $true)]
         $SiteUri, # Base site URI
 		
@@ -172,7 +173,6 @@ Write-Host "Reading:"
 [array]$Items = Invoke-MgGraphRequest -Uri $Uri -Method Get
 
 UnpackFilesRecursively -Items $Items -SiteUri $SiteUri -FolderPath $DocumentLibrary.Name -SiteFiles $SiteFiles
-
 
 Write-Host ("Total files found {0}" -f $SiteFiles.Count)
 $SiteFiles | Out-GridView
