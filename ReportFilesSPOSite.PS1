@@ -8,129 +8,38 @@
 
 Param ([Parameter(Mandatory)]$SearchSite)
 
-function GetFilesFromFolder {
-# Unpack set of files from a folder
+function UnpackFilesRecursively {
+# Unpack set of items (files and folders)
 param (
         [parameter(Mandatory = $true)]
-        $BaseUri,
-
-        [parameter(Mandatory = $true)]
-        $FolderName,
+        $Items, # Items to unpack
+	
+		[parameter(Mandatory = $true)]
+        $SiteUri, # Base site URI
 		
 		[parameter(Mandatory = $true)]
-        $FolderFiles
+        $FolderPath, # Folder path
+		
+        [parameter(Mandatory = $true)]
+        $SiteFiles,
+		
+		[parameter(Mandatory = $false)]
+		[bool]$IsNextLink
     )
-
-  #Write-Host "Processing sub-folder" $FolderName
-  $Uri = $BaseUri + "/" + $FolderName + ":/children"
-  $FolderData = Invoke-MgGraphRequest -Uri $Uri -Method Get
-  
-  ForEach ($D in $FolderData.Value) {
-    If ($D.folder.childcount -eq $Null) { # Process files found in folder
-       # Format file size nicely
-      $FileSize = FormatFileSize $D.Size
-      $ReportLine  = [PSCustomObject] @{   
-         FileName = $D.Name
-         Folder   = $FolderName 
-         Author   = $D.createdby.user.displayname
-         Created  = $D.createdDateTime
-         Modified = $D.lastModifiedDateTime
-         Size     = $FileSize
-         Uri      = $D.WebUrl }
-      [System.Collections.Generic.List[Object]]$FolderFiles.Add($ReportLine) 
-    } # End If
-
-    ElseIf ($D.folder.childcount -gt 0) { # Process sub-folders found in folder
-	  $NewFolderName = $FolderName + "/" + $D.Name
-	  GetFilesFromFolder -BaseUri $BaseUri -FolderName $NewFolderName -FolderFiles $FolderFiles
-	} # End ElseIf
-  } # End ForEach
-  
-  # There might be more than 200 items to be fetched, so check the nextlink and continue
-  # reading data until there's no more next links to follow
-
-  $NextLink = $FolderData."@odata.nextLink"
-  $Uri = $FolderData."@odata.nextLink"
-  While ($NextLink) { 
-    $MoreData = Invoke-MgGraphRequest -Uri $Uri -Method Get
-    ForEach ($D in $MoreData.Value) {
-	  If ($D.folder.childcount -eq $Null) { # Process files found in folder
-        $FileSize = FormatFileSize $D.Size
-        $ReportLine  = [PSCustomObject] @{   
-          FileName = $D.Name
-          Folder   = $Drive.Name 
-          Author   = $D.createdby.user.displayname
-          Created  = $D.createdDateTime
-          Modified = $D.lastModifiedDateTime
-          Size     = $FileSize
-          Uri      = $D.WebUrl }
-        $FolderFiles.Add($ReportLine) 
-      } # End If
-	  
-	  ElseIf ($D.folder.childcount -gt 0) { # Process sub-folders found in folder
-		 $NewFolderName = $FolderName + "/" + $D.Name
-		 GetFilesFromFolder -BaseUri $BaseUri -FolderName $NewFolderName -FolderFiles $FolderFiles
-	  } # End ElseIf
-	} # End ForEach 
-    
-	$NextLink = $MoreData."@odata.nextLink"
-    $Uri = $MoreData."@odata.nextLink" 
-  } # End While
-
-  # Write-Host "Folder has " $FolderFiles.Count " items"
-  # $FolderFiles
-}
-
-function GetFilesFromFolderWithLog {
-# Unpack set of files from a folder
-param (
-        [parameter(Mandatory = $true)]
-        $BaseUri,
-
-        [parameter(Mandatory = $true)]
-        $FolderName,
-		
-		[parameter(Mandatory = $true)]
-        $FolderFiles
-    )
-  $before = $FolderFiles.Count
-  GetFilesFromFolder -BaseUri $BaseUri -FolderName $Folder.Name -FolderFiles $FolderFiles
-  $count = $FolderFiles.Count - $before
-  
-  Write-Host ("  $FolderName ({0})" -f $count)
-}
-
-function ProcessResponse {
-# Unpack set of items (files and folders) from a Uri
-param (
-        [parameter(Mandatory = $true)]
-        $Items,
-		
-		[parameter(Mandatory = $true)]
-        $BaseUri,
-		
-		[parameter(Mandatory = $true)]
-        $DocumentLibrary,
-
-        [parameter(Mandatory = $true)]
-        $SiteFiles
-    )
-
-  [array]$Items = Invoke-MgGraphRequest -Uri $Uri -Method Get
 
   # Find sub-folders that we need to check for files
   $Folders = $Items.Value | ? {$_.Folder.ChildCount -gt 0 }
   # And any files in the folder
   $Files = $Items.Value | ? {$_.Folder.ChildCount -eq $Null}
   
-  $before = $SiteFiles.Count
+  $before = $SiteFiles.count
   
   # Report the files
   ForEach ($D in $Files) {
     $FileSize = FormatFileSize $D.Size
     $ReportLine  = [PSCustomObject] @{   
         FileName = $D.Name
-        Folder   = $DocumentLibrary.Name
+        Folder   = $FolderPath
         Author   = $D.createdby.user.displayname
         Created  = $D.createdDateTime
         Modified = $D.lastModifiedDateTime
@@ -139,15 +48,27 @@ param (
      $SiteFiles.Add($ReportLine) 
   } # End If
 
-  If ($SiteFiles.Count -gt $before) {
-	$count = $SiteFiles.Count - $before
-	# This will print multiple times due to nextLink
-	Write-Host "Files in root: " $count
+  $NextLink = $Items."@odata.nextLink"
+  $Uri = $Items."@odata.nextLink"
+  While ($NextLink) { 
+    $MoreData = Invoke-MgGraphRequest -Uri $Uri -Method Get
+    UnpackFilesRecursively -Items $MoreData -SiteUri $SiteUri -FolderPath $FolderPath -SiteFiles $SiteFiles -IsNextLink $true
+  
+    $NextLink = $MoreData."@odata.nextLink"
+    $Uri = $MoreData."@odata.nextLink" 
+  } # End While
+  
+  $count = $SiteFiles.count - $before
+  if (-Not $IsNextLink) {
+    Write-Host "  $FolderPath ($count)"
   }
   
   # Report the files in each sub-folder
   ForEach ($Folder in $Folders) {
-    GetFilesFromFolderWithLog -BaseUri $BaseUri -FolderName $Folder.Name -FolderFiles $SiteFiles
+	$NewFolderPath = $FolderPath + "/" + $Folder.Name
+	$Uri = $SiteUri + "/" + $Folder.parentReference.path + "/" + $Folder.Name + ":/children"
+	$SubFolderData = Invoke-MgGraphRequest -Uri $Uri -Method Get
+    UnpackFilesRecursively -Items $SubFolderData -SiteUri $SiteUri -FolderPath $NewFolderPath -SiteFiles $SiteFiles -IsNextLink $IsNextLink
   } # End Foreach Folders
 }
 
@@ -236,29 +157,22 @@ If (!($Drive)) {
     Write-Host ("Can't find the {0} drive - script exiting" -f $Uri) ; break 
 }
 
-# Find the default document library
+
+# Use the selected drive
 $DocumentLibrary = $Drive
 
-# Get Items in document library
-$Uri = "https://graph.microsoft.com/v1.0/sites/$($Site.Id)/drives/$($DocumentLibrary.Id)/root/children"
-$BaseUri = "https://graph.microsoft.com/v1.0/sites/$($Site.Id)/drives/$($DocumentLibrary.Id)/root:"
+$SiteUri = "https://graph.microsoft.com/v1.0/sites/$($Site.Id)"
+$Uri = "$SiteUri/drives/$($DocumentLibrary.Id)/root/children"
 
-# Create outputs
+# Create output list
 $SiteFiles = [System.Collections.Generic.List[Object]]::new()
 
+Write-Host "Reading:"
+
+# Get Items in document library
 [array]$Items = Invoke-MgGraphRequest -Uri $Uri -Method Get
 
-ProcessResponse -Items $Items -BaseUri $BaseUri -SiteFiles $SiteFiles -DocumentLibrary $DocumentLibrary
-
-$NextLink = $Items."@odata.nextLink"
-$Uri = $Items."@odata.nextLink"
-While ($NextLink) { 
-  $MoreData = Invoke-MgGraphRequest -Uri $Uri -Method Get
-  ProcessResponse -Items $MoreData -BaseUri $BaseUri -SiteFiles $SiteFiles -DocumentLibrary $DocumentLibrary
-  
-  $NextLink = $MoreData."@odata.nextLink"
-  $Uri = $MoreData."@odata.nextLink" 
-} # End While
+UnpackFilesRecursively -Items $Items -SiteUri $SiteUri -FolderPath $DocumentLibrary.Name -SiteFiles $SiteFiles
 
 Write-Host ("Total files found {0}" -f $SiteFiles.Count)
 $SiteFiles | Out-GridView
