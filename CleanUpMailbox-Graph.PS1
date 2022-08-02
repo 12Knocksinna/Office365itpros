@@ -10,7 +10,7 @@
 # Mailbox is All to search all mailboxes or a mailbox alias, DN, or SMTP address to search an individual mailbox
 # SenderAddress is the sender address to look for (optional)
 # MessageSubject is the message subject to look for (mandatory)
-# StartDate is the start date for the search (optional)
+# StartDate is the start date for the search (mandatory)
 # EndDate is the end date for the search (optional). By default, this will be today's date if not specified and a start date is present.
 
 # Requires an Azure AD registered app with Mail.ReadWrite permission
@@ -29,7 +29,7 @@ param (
 
         [parameter(Mandatory = $true)]$MessageSubject,
 
-        [parameter()]$StartDate,
+        [parameter(Mandatory = $true)]$StartDate,
 
         [parameter()]$EndDate,
 
