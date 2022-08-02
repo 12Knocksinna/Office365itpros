@@ -1,6 +1,8 @@
 # CleanUpMailbox-Graph.PS1
 # A simple PowerShell script to show how to use Graph queries to clean up mailbox items
 # 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/CleanUpMailbox-Graph.PS1
+#
 # Parameters to tell the script what to do. 
 # Folder is the name of a specific folder to check. Set this to All to search all mailbox folders. 
 # DeleteItems parameter controls if we delete the found messages or just report them. 
