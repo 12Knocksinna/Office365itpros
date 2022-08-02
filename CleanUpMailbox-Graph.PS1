@@ -149,8 +149,8 @@ If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please con
 
 # Set these values to those appropriate in your tenant
 
-$AppId = "d58578ac-7cb4-4b5a-a296-f19218a03f11"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$AppId = "f58578ac-7cb4-4b5a-a296-f19218a03f11"
+$TenantId = "e662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = "baS8Q~9EDXMUrUOJUbZXTTiJp7lTFdkWskETObRU"
 
 # Construct URI and body needed for authentication
