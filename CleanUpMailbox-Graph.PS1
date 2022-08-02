@@ -212,6 +212,7 @@ Else {
 If (!($Mbx)) { Write-Host "No mailboxes found - exiting"; break }
 Write-Host ("{0} mailboxes found." -f $Mbx.count)
 
+[int]$Counter=0
 $DeletionsList = [System.Collections.Generic.List[Object]]::new()
 ForEach ($M in $Mbx) {
   $DataTable = @{}
@@ -258,7 +259,7 @@ ForEach ($M in $Mbx) {
 [int]$i = 0; $Action = "Delete"
 If ($DeleteItems -eq "N") { $Action = "Report only" }
 
-Write-Host ("Searching for matching messages in mailbox {0}..." -f $M.DisplayName)
+Write-Host ("Searching for matching messages in mailbox {0}... ({1}/{2})" -f $M.DisplayName, $counter, $Mbx.Count)
 # Get messages that aren't in user folders that aren't Deleted Items
 [Array]$Messages = Get-GraphData -Uri $Uri -AccessToken $Token
 
