@@ -1,6 +1,7 @@
 # ReportTeamsChannels.PS1
 # Report the set of channels existing in Teams for a tenant
 #
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportTeamsChannels.PS1
 # Uses the MicrosoftTeams PowerShell module and the Microsoft Graph PowerShell SDK
 
 $Outputfile = "C:\temp\OutputChannels.csv"
