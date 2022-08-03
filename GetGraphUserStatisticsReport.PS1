@@ -142,7 +142,8 @@ $DataTable = @{}
 Write-Host "Fetching user sign-in data from the Graph..."
 $Uri = "https://graph.microsoft.com/beta/users?`$select=displayName,userPrincipalName, mail,id, CreatedDateTime,signInActivity,UserType&`$top=999"
 [array]$SignInData = Get-GraphData -Uri $Uri -AccessToken $Token
-[array]$UserSignInData = $SignInData| ? {$_.UserType -eq "Member"} | Sort-Object UserPrincipalName -Unique
+# Filter out guest member sign-in records
+[array]$UserSignInData = $SignInData | Where-Object {$_.UserType -eq "Member"} | Sort-Object UserPrincipalName -Unique
 # Update the user sign in hash table
 ForEach ($U in $UserSignInData) {
      If ($U.SignInActivity.LastSignInDateTime) {
