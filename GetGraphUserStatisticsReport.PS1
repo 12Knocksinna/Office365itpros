@@ -1,19 +1,92 @@
 # GetGraphUserStatisticsReport.PS1
 # A sample script showing how to gather user activity information from the Graph and assemble it into one report
 # V1.3 2-Sep-2020
-# https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1
-# See https://petri.com/graph-powershell-office365-usage for a description of what this script does
-# And see https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReportV2.PS1 for a version with
-# better performance.
+# V2.1 3-Aug-2022 (Increased date range for activities to go back 180 days instead of 90)
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1# V2.1 3-Aug-2022 (Increased date range for activities to go back 180 days instead of 90)
+# Tony Redmond
+#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReportV2.PS1
 # Note: Guest user activity is not recorded by the Graph - only tenant accounts are processed
-# Needs the Reports.Read.All permission to get user login data
+
+# V2.0 is the transitition from PowerShell lists to hash tables as the repository for data extracted from the Microsoft Graph
+# with the intention of faster access for large data sets (more than 1,000 accounts in a tenant).
+# There isn't a lot of error checking/handling in this script because it's designed to show the principles of how to grab and 
+# process Office 365 usage data from the Graph rather than being something that meets the needs of everyone. Have fun editing it!
+
+# Needs the Reports.Read.All permission to get user data
+# Needs the AuditLog.Read.All and Directory.Read.All permissions to read user signin data
+# -------------------------------------------------------------------------------------------------------------------------------
+
+function Get-GraphData {
+# Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
+# GET data from Microsoft Graph.
+    param (
+        [parameter(Mandatory = $true)]
+        $AccessToken,
+
+        [parameter(Mandatory = $true)]
+        $Uri
+    )
+
+    # Check if authentication was successful.
+    if ($AccessToken) {
+    $Headers = @{
+         'Content-Type'  = "application\json"
+         'Authorization' = "Bearer $AccessToken" 
+         'ConsistencyLevel' = "eventual"  }
+
+        # Create an empty array to store the result.
+        $QueryResults = @()
+
+        # Invoke REST method and fetch data until there are no pages left.
+        do {
+            $Results = ""
+            $StatusCode = ""
+
+            do {
+                try {
+                    $Results = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json"
+
+                    $StatusCode = $Results.StatusCode
+                } catch {
+                    $StatusCode = $_.Exception.Response.StatusCode.value__
+
+                    if ($StatusCode -eq 429) {
+                        Write-Warning "Got throttled by Microsoft. Sleeping for 45 seconds..."
+                        Start-Sleep -Seconds 45
+                    }
+                    else {
+                        Write-Error $_.Exception
+                    }
+                }
+            } while ($StatusCode -eq 429)
+
+            if ($Results.value) {
+                $QueryResults += $Results.value
+            }
+            else {
+                $QueryResults += $Results
+            }
+
+            $uri = $Results.'@odata.nextlink'
+        } until (!($uri))
+
+        # Return the result.
+        $QueryResults
+    }
+    else {
+        Write-Error "No Access Token"
+    }
+}
 
 CLS
 # Define the values applicable for the application used to connect to the Graph (change these for your tenant)
 $AppId = "d716b32c-0edb-48be-9385-30a9cfd96155"
-$TenantId = "c662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
-$TargetDir = 'c:\temp'
+
+$OutputCSV = "c:\temp\Office365TenantUsage.csv"
+$StartTime1 = Get-Date
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -35,65 +108,52 @@ $headers = @{Authorization = "Bearer $token"}
 Write-Host "Fetching Teams user activity data from the Graph..."
 # The Graph returns information in CSV format. We convert it to allow the data to be more easily processed by PowerShell
 # Get Teams Usage Data - the replace parameter is there to remove three odd leading characters (ï»¿) in the CSV data returned by the 
-$TeamsUserReportsURI = "https://graph.microsoft.com/v1.0/reports/getTeamsUserActivityUserDetail(period='D90')"
-$TeamsUserData = (Invoke-RestMethod -Uri $TeamsUserReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+$TeamsUserReportsURI = "https://graph.microsoft.com/v1.0/reports/getTeamsUserActivityUserDetail(period='D180')"
+[array]$TeamsUserData = (Invoke-RestMethod -Uri $TeamsUserReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
 
 Write-Host "Fetching OneDrive for Business user activity data from the Graph..."
 # Get OneDrive for Business data
-$OneDriveUsageURI = "https://graph.microsoft.com/v1.0/reports/getOneDriveUsageAccountDetail(period='D90')"
-$OneDriveData = (Invoke-RestMethod -Uri $OneDriveUsageURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+$OneDriveUsageURI = "https://graph.microsoft.com/v1.0/reports/getOneDriveUsageAccountDetail(period='D180')"
+[array]$OneDriveData = (Invoke-RestMethod -Uri $OneDriveUsageURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
  
 Write-Host "Fetching Exchange Online user activity data from the Graph..."
 # Get Exchange Activity Data
-$EmailReportsURI = "https://graph.microsoft.com/v1.0/reports/getEmailActivityUserDetail(period='D90')"
-$EmailData = (Invoke-RestMethod -Uri $EmailReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+$EmailReportsURI = "https://graph.microsoft.com/v1.0/reports/getEmailActivityUserDetail(period='D180')"
+[array]$EmailData = (Invoke-RestMethod -Uri $EmailReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
 
 # Get Exchange Storage Data   
-$MailboxUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getMailboxUsageDetail(period='D90')"
-$MailboxUsage = (Invoke-RestMethod -Uri $MailboxUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+$MailboxUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getMailboxUsageDetail(period='D180')"
+[array]$MailboxUsage = (Invoke-RestMethod -Uri $MailboxUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
 Write-Host "Fetching SharePoint Online user activity data from the Graph..."
 # Get SharePoint usage data
-$SPOUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointActivityUserDetail(period='D90')"
-$SPOUsage = (Invoke-RestMethod -Uri $SPOUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+$SPOUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointActivityUserDetail(period='D180')"
+[array]$SPOUsage = (Invoke-RestMethod -Uri $SPOUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
 
 Write-Host "Fetching Yammer user activity data from the Graph..."
 # Get Yammer usage data
-$YammerUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getYammerActivityUserDetail(period='D90')"
-$YammerUsage = (Invoke-RestMethod -Uri $YammerUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+$YammerUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getYammerActivityUserDetail(period='D180')"
+[array]$YammerUsage = (Invoke-RestMethod -Uri $YammerUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
 
 # Create hash table for user sign in data
 $UserSignIns = @{}
+# And hash table for the output data
+$DataTable = @{}
 # Get User sign in data
 Write-Host "Fetching user sign-in data from the Graph..."
-$URI = "https://graph.microsoft.com/beta/users?`$select=displayName,userPrincipalName, mail, id, CreatedDateTime, signInActivity, UserType&`$top=999"
-$SignInData = (Invoke-RestMethod -Uri $URI -Headers $Headers -Method Get -ContentType "application/json") 
+$Uri = "https://graph.microsoft.com/beta/users?`$select=displayName,userPrincipalName, mail,id, CreatedDateTime,signInActivity,UserType&`$top=999"
+[array]$SignInData = Get-GraphData -Uri $Uri -AccessToken $Token
+[array]$UserSignInData = $SignInData| ? {$_.UserType -eq "Member"} | Sort-Object UserPrincipalName -Unique
 # Update the user sign in hash table
-ForEach ($U in $SignInData.Value) {
-   If ($U.UserType -eq "Member") {
+ForEach ($U in $UserSignInData) {
      If ($U.SignInActivity.LastSignInDateTime) {
-          $LastSignInDate = Get-Date($U.SignInActivity.LastSignInDateTime) -format g
-          $UserSignIns.Add([String]$U.UserPrincipalName, $LastSignInDate) }
-}}
+        $LastSignInDate = Get-Date($U.SignInActivity.LastSignInDateTime) -format g
+        $UserSignIns.Add([String]$U.UserPrincipalName, $LastSignInDate) }
+     Else {
+        $UserSignIns.Add([String]$U.UserPrincipalName,$Null) }
+}
 
-# Do we have extra data to fetch?
-$NextLink = $SignInData.'@Odata.NextLink'
-# If we have a next link, go and process the remaining set of users
-While ($NextLink -ne $Null) { 
-   Write-Host "Still processing..."
-   $SignInData = Invoke-WebRequest -Method GET -Uri $NextLink -ContentType "application/json" -Headers $Headers -UseBasicParsing
-   $SignInData = $SignInData | ConvertFrom-JSon
-   ForEach ($U in $SignInData.Value) {  
-   If ($U.UserType -eq "Member") {
-     If ($U.SignInActivity.LastSignInDateTime) {
-          $LastSignInDate = Get-Date($U.SignInActivity.LastSignInDateTime) -format g
-          $UserSignIns.Add([String]$U.UserPrincipalName, $LastSignInDate) }
-   }}
-   $NextLink = $SignInData.'@Odata.NextLink'
-} # End while
-
+$StartTime2 = Get-Date
 Write-Host "Processing activity data fetched from the Graph..."
-# Create a list file to normalize and assemble the information we've collected from the Graph
-$Report = [System.Collections.Generic.List[Object]]::new() 
 # Process Teams Data
 ForEach ($T in $TeamsUserData) {
    If ([string]::IsNullOrEmpty($T."Last Activity Date")) { 
@@ -103,17 +163,17 @@ ForEach ($T in $TeamsUserData) {
       $TeamsLastActivity = Get-Date($T."Last Activity Date") -format "dd-MMM-yyyy" 
       $TeamsDaysSinceActive = (New-TimeSpan($TeamsLastActivity)).Days }
    $ReportLine  = [PSCustomObject] @{          
-     UPN               = $T."User Principal Name"
-     LastActive        = $TeamsLastActivity  
-     DaysSinceActive   = $TeamsDaysSinceActive      
-     ReportDate        = Get-Date($T."Report Refresh Date") -format "dd-MMM-yyyy"  
-     License           = $T."Assigned Products"
-     ChannelChats      = $T."Team Chat Message Count"
-     PrivateChats      = $T."Private Chat Message Count"
-     Calls             = $T."Call Count"
-     Meetings          = $T."Meeting Count"
-     RecordType        = "Teams"}
-   $Report.Add($ReportLine) } 
+     TeamsUPN               = $T."User Principal Name"
+     TeamsLastActive        = $TeamsLastActivity  
+     TeamsDaysSinceActive   = $TeamsDaysSinceActive      
+     TeamsReportDate        = Get-Date($T."Report Refresh Date") -format "dd-MMM-yyyy"  
+     TeamsLicense           = $T."Assigned Products"
+     TeamsChannelChats      = $T."Team Chat Message Count"
+     TeamsPrivateChats      = $T."Private Chat Message Count"
+     TeamsCalls             = $T."Call Count"
+     TeamsMeetings          = $T."Meeting Count"
+     TeamsRecordType        = "Teams"}
+   $DataTable[$T."User Principal Name"] = $ReportLine} 
 
 # Process Exchange Data
 ForEach ($E in $EmailData) {
@@ -125,17 +185,19 @@ ForEach ($E in $EmailData) {
       $ExoLastActivity = Get-Date($E."Last Activity Date") -format "dd-MMM-yyyy"
       $ExoDaysSinceActive = (New-TimeSpan($ExoLastActivity)).Days }
   $ReportLine  = [PSCustomObject] @{          
-     UPN                = $E."User Principal Name"
-     DisplayName        = $E."Display Name"
-     LastActive         = $ExoLastActivity   
-     DaysSinceActive    = $ExoDaysSinceActive    
-     ReportDate         = Get-Date($E."Report Refresh Date") -format "dd-MMM-yyyy"  
-     SendCount          = [int]$E."Send Count"
-     ReadCount          = [int]$E."Read Count"
-     ReceiveCount       = [int]$E."Receive Count"
-     IsDeleted          = $E."Is Deleted"
-     RecordType         = "Exchange Activity"}
-   $Report.Add($ReportLine) } 
+     ExoUPN                = $E."User Principal Name"
+     ExoDisplayName        = $E."Display Name"
+     ExoLastActive         = $ExoLastActivity   
+     ExoDaysSinceActive    = $ExoDaysSinceActive    
+     ExoReportDate         = Get-Date($E."Report Refresh Date") -format "dd-MMM-yyyy"  
+     ExoSendCount          = [int]$E."Send Count"
+     ExoReadCount          = [int]$E."Read Count"
+     ExoReceiveCount       = [int]$E."Receive Count"
+     ExoIsDeleted          = $E."Is Deleted"
+     ExoRecordType         = "Exchange Activity"}
+   [Array]$ExistingData = $DataTable[$E."User Principal Name"] 
+   [Array]$NewData = $ExistingData + $ReportLine
+   $DataTable[$E."User Principal Name"] = $NewData } 
   
 ForEach ($M in $MailboxUsage) {
    If ([string]::IsNullOrEmpty($M."Last Activity Date")) { 
@@ -144,15 +206,17 @@ ForEach ($M in $MailboxUsage) {
       $ExoLastActivity = Get-Date($M."Last Activity Date") -format "dd-MMM-yyyy"
       $ExoDaysSinceActive = (New-TimeSpan($ExoLastActivity)).Days }
    $ReportLine  = [PSCustomObject] @{          
-     UPN                = $M."User Principal Name"
-     DisplayName        = $M."Display Name"
-     LastActive         = $ExoLastActivity 
-     DaysSinceActive    = $ExoDaysSinceActive          
-     ReportDate         = Get-Date($M."Report Refresh Date") -format "dd-MMM-yyyy"  
-     QuotaUsed          = [Math]::Round($M."Storage Used (Byte)"/1GB,2) 
-     Items              = [int]$M."Item Count"
-     RecordType         = "Exchange Storage"}
-   $Report.Add($ReportLine) } 
+     MbxUPN                = $M."User Principal Name"
+     MbxDisplayName        = $M."Display Name"
+     MbxLastActive         = $ExoLastActivity 
+     MbxDaysSinceActive    = $ExoDaysSinceActive          
+     MbxReportDate         = Get-Date($M."Report Refresh Date") -format "dd-MMM-yyyy"  
+     MbxQuotaUsed          = [Math]::Round($M."Storage Used (Byte)"/1GB,2) 
+     MbxItems              = [int]$M."Item Count"
+     MbxRecordType         = "Exchange Storage"}
+   [Array]$ExistingData = $DataTable[$M."User Principal Name"] 
+   [Array]$NewData = $ExistingData + $ReportLine
+   $DataTable[$M."User Principal Name"] = $NewData } 
 
 # SharePoint data
 ForEach ($S in $SPOUsage) {
@@ -163,16 +227,18 @@ ForEach ($S in $SPOUsage) {
       $SPOLastActivity = Get-Date($S."Last Activity Date") -format "dd-MMM-yyyy"
       $SPODaysSinceActive = (New-TimeSpan ($SPOLastActivity)).Days }
    $ReportLine  = [PSCustomObject] @{          
-     UPN              = $S."User Principal Name"
-     LastActive       = $SPOLastActivity    
-     DaysSinceActive  = $SPODaysSinceActive 
-     ViewedEditedSPO  = [int]$S."Viewed or Edited File Count"     
-     SyncedFileCount  = [int]$S."Synced File Count"
-     SharedExtSPO     = [int]$S."Shared Externally File Count"
-     SharedIntSPO     = [int]$S."Shared Internally File Count"
-     VisitedPagesSPO  = [int]$S."Visited Page Count" 
-     RecordType       = "SharePoint Usage"}
-   $Report.Add($ReportLine) } 
+     SPOUPN              = $S."User Principal Name"
+     SPOLastActive       = $SPOLastActivity    
+     SPODaysSinceActive  = $SPODaysSinceActive 
+     SPOViewedEdited     = [int]$S."Viewed or Edited File Count"     
+     SPOSyncedFileCount  = [int]$S."Synced File Count"
+     SPOSharedExt        = [int]$S."Shared Externally File Count"
+     SPOSharedInt        = [int]$S."Shared Internally File Count"
+     SPOVisitedPages     = [int]$S."Visited Page Count" 
+     SPORecordType       = "SharePoint Usage"}
+   [Array]$ExistingData = $DataTable[$S."User Principal Name"] 
+   [Array]$NewData = $ExistingData + $ReportLine
+   $DataTable[$S."User Principal Name"] = $NewData }  
 
 # OneDrive for Business data
 ForEach ($O in $OneDriveData) {
@@ -184,16 +250,18 @@ ForEach ($O in $OneDriveData) {
       $OneDriveLastActivity = Get-Date($O."Last Activity Date") -format "dd-MMM-yyyy" 
       $OneDriveDaysSinceActive = (New-TimeSpan($OneDriveLastActivity)).Days }
    $ReportLine  = [PSCustomObject] @{          
-     UPN               = $O."Owner Principal Name"
-     DisplayName       = $O."Owner Display Name"
-     LastActive        = $OneDriveLastActivity    
-     DaysSinceActive   = $OneDriveDaysSinceActive    
-     OneDriveSite      = $O."Site URL"
-     FileCount         = [int]$O."File Count"
-     StorageUsed       = [Math]::Round($O."Storage Used (Byte)"/1GB,4) 
-     Quota             = [Math]::Round($O."Storage Allocated (Byte)"/1GB,2) 
-     RecordType        = "OneDrive Storage"}
-   $Report.Add($ReportLine) } 
+     ODUPN               = $O."Owner Principal Name"
+     ODDisplayName       = $O."Owner Display Name"
+     ODLastActive        = $OneDriveLastActivity    
+     ODDaysSinceActive   = $OneDriveDaysSinceActive    
+     ODSite              = $O."Site URL"
+     ODFileCount         = [int]$O."File Count"
+     ODStorageUsed       = [Math]::Round($O."Storage Used (Byte)"/1GB,4) 
+     ODQuota             = [Math]::Round($O."Storage Allocated (Byte)"/1GB,2) 
+     ODRecordType        = "OneDrive Storage"}
+   [Array]$ExistingData = $DataTable[$O."Owner Principal Name"] 
+   [Array]$NewData = $ExistingData + $ReportLine
+   $DataTable[$O."Owner Principal Name"] = $NewData }  
 
 # Yammer Data
 ForEach ($Y in $YammerUsage) {  
@@ -204,78 +272,99 @@ ForEach ($Y in $YammerUsage) {
       $YammerLastActivity = Get-Date($Y."Last Activity Date") -format "dd-MMM-yyyy" 
       $YammerDaysSinceActive = (New-TimeSpan ($YammerLastActivity)).Days }
   $ReportLine  = [PSCustomObject] @{          
-     UPN             = $Y."User Principal Name"
-     DisplayName     = $Y."Display Name"
-     LastActive      = $YammerLastActivity      
-     DaysSinceActive = $YammerDaysSinceActive   
-     PostedCount     = [int]$Y."Posted Count"
-     ReadCount       = [int]$Y."Read Count"
-     LikedCount      = [int]$Y."Liked Count"
-     RecordType      = "Yammer Usage"}
-   $Report.Add($ReportLine) } 
- 
-# Get a list of users to process
+     YUPN             = $Y."User Principal Name"
+     YDisplayName     = $Y."Display Name"
+     YLastActive      = $YammerLastActivity      
+     YDaysSinceActive = $YammerDaysSinceActive   
+     YPostedCount     = [int]$Y."Posted Count"
+     YReadCount       = [int]$Y."Read Count"
+     YLikedCount      = [int]$Y."Liked Count"
+     YRecordType      = "Yammer Usage"}
+   [Array]$ExistingData = $DataTable[$Y."User Principal Name"] 
+   [Array]$NewData = $ExistingData + $ReportLine
+   $DataTable[$Y."User Principal Name"] = $NewData }
+
 CLS
-[array]$Users = $Report | Sort UPN -Unique | Select -ExpandProperty UPN
+# Create set of users that we've collected data for - each of these users will be in the $DataTable with some information.
+[System.Collections.ArrayList]$Users = @()
+ForEach ($UserPrincipalName in $DataTable.Keys) { 
+   If ($DataTable[$UserPrincipalName]) { #Info exists in datatable
+   $obj = [PSCustomObject]@{ 
+      UPN  = $UserPrincipalName}
+   $Users.add($obj) | Out-Null }
+}
+$StartTime3 = Get-Date
+# Set up progress bar
 $ProgressDelta = 100/($Users.Count); $PercentComplete = 0; $UserNumber = 0
 $OutData = [System.Collections.Generic.List[Object]]::new() # Create merged output file
 
 # Process each user to extract Exchange, Teams, OneDrive, SharePoint, and Yammer statistics for their activity
-ForEach ($U in $Users) {
+ForEach ($UserPrincipalName in $Users) {
+  $U = $UserPrincipalName.UPN
   $UserNumber++
   $CurrentStatus = $U + " ["+ $UserNumber +"/" + $Users.Count + "]"
   Write-Progress -Activity "Extracting information for user" -Status $CurrentStatus -PercentComplete $PercentComplete
   $PercentComplete += $ProgressDelta
   $ExoData = $Null; $ExoActiveData = $Null; $TeamsData = $Null; $ODData = $Null; $SPOData = $Null; $YammerData = $Null
   
-  $UserData = $Report.Where({$_.UPN -eq $U})  # Extract records from list for the user
+  $UserData = $DataTable[$U]  # Extract data for the user - everything is in a single keyed access to the hash table
 
 # Process Exchange Data
-  $ExoData = $UserData.Where({$_.RecordType -eq "Exchange Storage"})
-  $ExoActiveData = $UserData.Where({$_.RecordType -eq "Exchange Activity"})
-  
-  If ($ExoActiveData -eq $Null -or $ExoActiveData.LastActive -eq "No Activity") {
-     $ExoLastActive       = "No Activity"
-     $ExoDaysSinceActive  = "N/A" }
+  [string]$ExoUPN = (Out-String -InputObject $UserData.ExoUPN).Trim()
+  [string]$ExoLastActive = (Out-String -InputObject $UserData.ExoLastActive).Trim()
+  If ([string]::IsNullOrEmpty($ExoUPN) -or $ExoLastActive -eq "No Activity") {
+     $ExoDaysSinceActive  = "N/A"
+     $EXoLastActive = "No Activity" }
   Else {
-     $ExoLastActive = $ExoActiveData.LastActive
-     $ExoDaysSinceActive = $ExoActiveData.DaysSinceActive }
-
-  $TeamsData = $UserData.Where({$_.RecordType -eq "Teams"})
-  
-  $SPOData = $UserData.Where({$_.RecordType -eq "SharePoint Usage"})
+     [string]$ExoLastActive = (Out-String -InputObject $UserData.ExoLastActive).Trim()
+     [string]$ExoDaysSinceActive = (Out-String -InputObject $UserData.ExoDaysSinceActive).Trim() }
  
 # Parse OneDrive for Business usage data 
-  $ODData = $UserData.Where({$_.RecordType -eq "OneDrive Storage"})
-  If ($ODData -eq $Null -or $ODData.LastActive -eq "No Activity") {
-     $ODLastActive       = "No Activity"
-     $ODDaysSinceActive  = "N/A"
+  [string]$ODUPN = (Out-String -InputObject $UserData.ODUPN).Trim()
+  [string]$ODLastActive = (Out-String -InputObject $UserData.ODLastActive).Trim()  # Possibility of a second OneDrive account for some users.
+  If (($ODLastActive -Like "*No Activity*") -or ([string]::IsNullOrEmpty($ODLastActive))) {$ODLastActive = "No Activity"} # this is a hack until I figure out a better way to handle the situation
+  If ([string]::IsNullOrEmpty($ODUPN)-eq $Null -or $ODLastActive -eq "No Activity") {
+     [string]$ODDaysSinceActive  = "N/A"
+     [string]$ODLastActive = "No Activity"
      $ODFiles            = 0
      $ODStorage          = 0
      $ODQuota            = 1024 }
  Else {
-     $ODLastActive = $ODData.LastActive
-     $ODDaysSinceActive = $ODData.DaysSinceActive
-     $ODFiles = $ODData.FileCount
-     $ODStorage = $ODData.StorageUsed
-     $ODQuota = $ODData.Quota  }
+     [string]$ODDaysSinceActive = (Out-String -InputObject $UserData.ODDaysSinceActive).Trim()
+     [string]$ODLastActive = (Out-String -InputObject $UserData.ODLastActive).Trim()
+     [string]$ODFiles = (Out-String -InputObject $UserData.ODFileCount).Trim()
+     [string]$ODStorage = (Out-String -InputObject $UserData.ODStorageUsed).Trim()
+     [string]$ODQuota = (Out-String -InputObject $UserData.ODQuota).Trim()  }
 
-# Parse Yammer usage data
-  $YammerData = $UserData.Where({$_.RecordType -eq "Yammer Usage"})
-# Yammer isn't used everywhere, so make sure that we record zero data 
-  If ($YammerData -eq $Null -or $YammerData.LastActive -eq "No Activity") {
-     $YammerLastActive       = "No Activity"
-     $YammerDaysSinceActive  = "N/A" 
+# Parse Yammer usage data; Yammer isn't used everywhere, so make sure that we record zero data 
+  [string]$YUPN = (Out-String -InputObject $UserData.YUPN).Trim()
+  [string]$YammerLastActive = (Out-String -InputObject $UserData.YLastActive).Trim()
+  If (([string]::IsNullOrEmpty($YUPN) -or ($YammerLastActive -eq "No Activity"))) { 
+     [string]$YammerLastActive = "No Activity"  
+     [string]$YammerDaysSinceActive  = "N/A" 
      $YammerPosts             = 0
      $YammerReads             = 0
      $YammerLikes             = 0 }
  Else {
-     $YammerLastActive = $YammerData.LastActive
-     $YammerDaysSinceActive = $YammerData.DaysSinceActive
-     $YammerPosts = $YammerData.PostedCount
-     $YammerReads = $YammerData.ReadCount
-     $YammerLikes = $YammerData.LikedCount }
-   
+     $YammerDaysSinceActive = (Out-String -InputObject $UserData.YDaysSinceActive).Trim()
+     $YammerPosts = (Out-String -InputObject $UserData.YPostedCount).Trim()
+     $YammerReads = (Out-String -InputObject $UserData.YReadCount).Trim()
+     $YammerLikes = (Out-String -InputObject $UserData.YLikedCount).Trim() }
+  
+ If ($UserData.TeamsDaysSinceActive -gt 0) {
+     [string]$TeamsDaysSinceActive = (Out-String -InputObject $UserData.TeamsDaysSinceActive).Trim()
+     [string]$TeamsLastActive = (Out-String -InputObject $UserData.TeamsLastActive).Trim() }
+ Else { 
+     [string]$TeamsDaysSinceActive = "N/A"
+     [string]$TeamsLastActive = "No Activity" }
+ 
+ If ($UserData.SPODaysSinceActive -gt 0) {
+     [string]$SPODaysSinceActive = (Out-String -InputObject $UserData.SPODaysSinceActive).Trim()
+     [string]$SPOLastActive = (Out-String -InputObject $UserData.SPOLastActive).Trim() }
+ Else { 
+     [string]$SPODaysSinceActive = "N/A"
+     [string]$SPOLastActive = "No Activity" }
+ 
 # Fetch the sign in data if available
 $LastAccountSignIn = $Null; $DaysSinceSignIn = 0
 $LastAccountSignIn = $UserSignIns.Item($U)
@@ -283,12 +372,14 @@ If ($LastAccountSignIn -eq $Null) { $LastAccountSignIn = "No sign in data found"
   Else { $DaysSinceSignIn = (New-TimeSpan($LastAccountSignIn)).Days }
    
 # Figure out if the account is used
+[int]$ExoDays = 365; [int]$TeamsDays = 365; [int]$SPODays = 365; [int]$ODDays = 365; [int]$YammerDays = 365
+
 # Base is 2 if someuse uses the five workloads because the Graph is usually 2 days behind, but we have some N/A values for days used
-  If ($ExoActiveData.DaysSinceActive -eq "N/A") {$ExoDays = 365} Else {$ExoDays = $ExoActiveData.DaysSinceActive}
-  If ($TeamsData.DaysSinceActive -eq "N/A") {$TeamsDays = 365} Else {$TeamsDays = $TeamsData.DaysSinceActive}
-  If ($SPOData.DaysSinceActive -eq "N/A") {$SPODays = 365} Else {$SPODays = $SPOData.DaysSinceActive}  
-  If ($ODDaysSinceActive -eq "N/A") {$ODDays = 365} Else {$ODDays = $ODDaysSinceActive}  
-  If ($YammerDaysSinceActive -eq "N/A") {$YammerDays = 365} Else {$YammerDays = $YammerDaysSinceActive}
+  If ($ExoDaysSinceActive -ne "N/A") {$ExoDays = $ExoDaysSinceActive -as [int]}
+  If ($TeamsDaysSinceActive -eq "N/A") {$TeamsDays = 365} Else {$TeamsDays = $TeamsDaysSinceActive -as [int]}
+  If ($SPODaysSinceActive -eq "N/A") {$SPODays = 365} Else {$SPODays = $SPODaysSinceActive -as [int]}  
+  If ($ODDaysSinceActive -eq "N/A") {$ODDays = 365} Else {$ODDays = $ODDaysSinceActive -as [int]} 
+  If ($YammerDaysSinceActive -eq "N/A") {$YammerDays = 365} Else {$YammerDays = $YammerDaysSinceActive -as [int]}
    
 # Average days per workload used...
   $AverageDaysSinceUse = [Math]::Round((($ExoDays + $TeamsDays + $SPODays + $ODDays + $YammerDays)/5),2)
@@ -306,60 +397,83 @@ If ($LastAccountSignIn -eq $Null) { $LastAccountSignIn = "No sign in data found"
   If (($ExoDays -le $DaysCheck) -or ($TeamsDays -le $DaysCheck) -or ($SPODays -le $DaysCheck) -or ($ODDays -le $DaysCheck) -or ($YammerDays -le $DaysCheck)) {
      $AccountStatus = "Account in use"}
 
-If ((![string]::IsNullOrEmpty($ExoData.UPN))) {
+If ((![string]::IsNullOrEmpty($ExoUPN))) {
 # Build a line for the report file with the collected data for all workloads and write it to the list
-  $ReportLine  = [PSCustomObject] @{          
-     UPN                     = $ExoData.UPN
-     DisplayName             = $ExoData.DisplayName
+  $OutLine  = [PSCustomObject] @{          
+     UPN                     = $U
+     DisplayName             = (Out-String -InputObject $UserData.ExoDisplayName).Trim()
      Status                  = $AccountStatus
      LastSignIn              = $LastAccountSignIn
      DaysSinceSignIn         = $DaysSinceSignIn 
      EXOLastActive           = $ExoLastActive  
-     EXODaysSinceActive      = $ExoDays    
-     EXOQuotaUsed            = $ExoData.QuotaUsed
-     EXOItems                = $ExoData.Items
-     EXOSendCount            = $ExoActiveData.SendCount
-     EXOReadCount            = $ExoActiveData.ReadCount
-     EXOReceiveCount         = $ExoActiveData.ReceiveCount
-     TeamsLastActive         = $TeamsData.LastActive
+     EXODaysSinceActive      = $ExoDaysSinceActive  
+     EXOQuotaUsed            = (Out-String -InputObject $UserData.MbxQuotaUsed).Trim()
+     EXOItems                = (Out-String -InputObject $UserData.MbxItems).Trim()
+     EXOSendCount            = (Out-String -InputObject $UserData.ExoSendCount).Trim()
+     EXOReadCount            = (Out-String -InputObject $UserData.ExoReadCount).Trim()
+     EXOReceiveCount         = (Out-String -InputObject $UserData.ExoReceiveCount).Trim()
+     TeamsLastActive         = $TeamsLastActive
      TeamsDaysSinceActive    = $TeamsDays 
-     TeamsChannelChat        = $TeamsData.ChannelChats
-     TeamsPrivateChat        = $TeamsData.PrivateChats
-     TeamsMeetings           = $TeamsData.Meetings
-     TeamsCalls              = $TeamsData.Calls
-     SPOLastActive           = $SPOData.LastActive
+     TeamsChannelChat        = (Out-String -InputObject $UserData.TeamsChannelChats).Trim()
+     TeamsPrivateChat        = (Out-String -InputObject $UserData.TeamsPrivateChats).Trim()
+     TeamsMeetings           = (Out-String -InputObject $UserData.TeamsMeetings).Trim()
+     TeamsCalls              = (Out-String -InputObject $UserData.TeamsCalls).Trim()
+     SPOLastActive           = $SPOLastActive
      SPODaysSinceActive      = $SPODays 
-     SPOViewedEditedFiles    = $SPOData.ViewedEditedSPO
-     SPOSyncedFiles          = $SPOData.SyncedFileCount
-     SPOSharedExtFiles       = $SPOData.SharedExtSPO
-     SPOSharedIntFiles       = $SPOData.SharedIntSPO
-     SPOVisitedPages         = $SPOData.VisitedPagesSPO
+     SPOViewedEditedFiles    = (Out-String -InputObject $UserData.SPOViewedEdited).Trim()
+     SPOSyncedFiles          = (Out-String -InputObject $UserData.SPOSyncedFileCount).Trim()
+     SPOSharedExtFiles       = (Out-String -InputObject $UserData.SPOSharedExt).Trim()
+     SPOSharedIntFiles       = (Out-String -InputObject $UserData.SPOSharedInt).Trim()
+     SPOVisitedPages         = (Out-String -InputObject $UserData.SPOVisitedPages).Trim()
      OneDriveLastActive      = $ODLastActive
-     OneDriveDaysSinceActive = $ODDays 
+     OneDriveDaysSinceActive = $ODDaysSinceActive
      OneDriveFiles           = $ODFiles
      OneDriveStorage         = $ODStorage
      OneDriveQuota           = $ODQuota
      YammerLastActive        = $YammerLastActive  
-     YammerDaysSinceActive   = $YammerDays 
+     YammerDaysSinceActive   = $YammerDaysSinceActive
      YammerPosts             = $YammerPosts
      YammerReads             = $YammerReads
      YammerLikes             = $YammerLikes
-     License                 = $TeamsData.License
-     OneDriveSite            = $ODData.OneDriveSite
-     IsDeleted               = $ExoActiveData.IsDeleted
-     EXOReportDate           = $ExoData.ReportDate
-     TeamsReportDate         = $TeamsData.ReportDate
+     License                 = (Out-String -InputObject $UserData.TeamsLicense).Trim()
+     OneDriveSite            = (Out-String -InputObject $UserData.ODSite).Trim()
+     IsDeleted               = (Out-String -InputObject $UserData.ExoIsDeleted).Trim()
+     EXOReportDate           = (Out-String -InputObject $UserData.ExoReportDate).Trim()
+     TeamsReportDate         = (Out-String -InputObject $UserData.TeamsReportDate).Trim()
      UsageFigure             = $AverageDaysSinceUse }
-   $OutData.Add($ReportLine) } 
+   $OutData.Add($OutLine)   } 
  } #End processing user data
 
-Write-Host "Data processed for" $Users.Count "users"
+CLS
+$StartTime4 = Get-Date
+$GraphTime = $StartTime2 - $StartTime1
+$PrepTime = $StartTime3 - $StartTime2
+$ReportTime = $StartTime4 - $StartTime3
+$ScriptTime = $StartTime4 - $StartTime1
+$AccountsPerMinute = [math]::Round(($Outdata.count/($ScriptTime.TotalSeconds/60)),2)
+$GraphElapsed = $GraphTime.Minutes.ToString() + ":" + $GraphTime.Seconds.ToString()
+$PrepElapsed = $PrepTime.Minutes.ToString() + ":" + $PrepTime.Seconds.ToString()
+$ReportElapsed = $ReportTime.Minutes.ToString() + ":" + $ReportTime.Seconds.ToString()
+$ScriptElapsed = $ScriptTime.Minutes.ToString() + ":" + $ScriptTime.Seconds.ToString()
+
+Write-Host " "
+Write-Host "Statistics for Graph Report Script V2.0"
+Write-Host "---------------------------------------"
+Write-Host "Time to fetch data from Microsoft Graph:" $GraphElapsed
+Write-Host "Time to prepare date for processing:    " $PrepElapsed
+Write-Host "Time to create report from data:        " $ReportElapsed
+Write-Host "Total time for script:                  " $ScriptElapsed
+Write-Host "Total accounts processed:               " $Outdata.count
+Write-Host "Accounts processsed per minute:         " $AccountsPerMinute
+Write-Host " "
+Write-Host "Output CSV file available in " $OutputCSV
 
 $OutData | Sort {$_.ExoLastActive -as [DateTime]} -Descending | Out-GridView  
-$OutData | Sort $AccountStatus | Export-CSV $TargetDir\Office365TenantUsage.csv -NoTypeInformation
+$OutData | Sort $AccountStatus | Export-CSV $OutputCSV -NoTypeInformation
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
-# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
-# first validating the code in a non-production environment.
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
+# the Internet without first validating the code in a non-production environment.
