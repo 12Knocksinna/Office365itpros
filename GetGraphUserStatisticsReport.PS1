@@ -113,26 +113,27 @@ $TeamsUserReportsURI = "https://graph.microsoft.com/v1.0/reports/getTeamsUserAct
 
 Write-Host "Fetching OneDrive for Business user activity data from the Graph..."
 # Get OneDrive for Business data
-$OneDriveUsageURI = "https://graph.microsoft.com/v1.0/reports/getOneDriveUsageAccountDetail(period='D180')"
-[array]$OneDriveData = (Invoke-RestMethod -Uri $OneDriveUsageURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+$OneDriveUsageUri = "https://graph.microsoft.com/v1.0/reports/getOneDriveUsageAccountDetail(period='D180')"
+[array]$OneDriveData = (Get-GraphData -Uri $OneDriveUsageUri -AccessToken $Token) -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv
  
 Write-Host "Fetching Exchange Online user activity data from the Graph..."
 # Get Exchange Activity Data
-$EmailReportsURI = "https://graph.microsoft.com/v1.0/reports/getEmailActivityUserDetail(period='D180')"
-[array]$EmailData = (Invoke-RestMethod -Uri $EmailReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+$EmailReportsUri = "https://graph.microsoft.com/v1.0/reports/getEmailActivityUserDetail(period='D180')"
+[array]$EmailData = (Get-GraphData -Uri $EmailReportsUri -AccessToken $Token) -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv
 
 # Get Exchange Storage Data   
-$MailboxUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getMailboxUsageDetail(period='D180')"
-[array]$MailboxUsage = (Invoke-RestMethod -Uri $MailboxUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+$MailboxUsageReportsUri = "https://graph.microsoft.com/v1.0/reports/getMailboxUsageDetail(period='D180')"
+[array]$MailboxUsage = (Get-GraphData -Uri $MailboxUsageReportsUri -AccessToken $Token) -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv
+
 Write-Host "Fetching SharePoint Online user activity data from the Graph..."
 # Get SharePoint usage data
-$SPOUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getSharePointActivityUserDetail(period='D180')"
-[array]$SPOUsage = (Invoke-RestMethod -Uri $SPOUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+$SPOUsageReportsUri = "https://graph.microsoft.com/v1.0/reports/getSharePointActivityUserDetail(period='D180')"
+[array]$SPOUsage = (Get-GraphData -Uri $SPOUsageReportsUri -AccessToken $Token) -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv
 
 Write-Host "Fetching Yammer user activity data from the Graph..."
 # Get Yammer usage data
-$YammerUsageReportsURI = "https://graph.microsoft.com/v1.0/reports/getYammerActivityUserDetail(period='D180')"
-[array]$YammerUsage = (Invoke-RestMethod -Uri $YammerUsageReportsURI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv 
+$YammerUsageReportsUri = "https://graph.microsoft.com/v1.0/reports/getYammerActivityUserDetail(period='D180')"
+[array]$YammerUsage = (Get-GraphData -Uri $YammerUsageReportsUri -AccessToken $Token) -Replace "...Report Refresh Date", "Report Refresh Date" | ConvertFrom-Csv
 
 # Create hash table for user sign in data
 $UserSignIns = @{}
