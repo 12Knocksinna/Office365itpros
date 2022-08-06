@@ -16,7 +16,7 @@ $TenantName = $Tenant.DisplayName
 
 [array]$Teams = Get-MgGroup -Filter "resourceProvisioningOptions/Any(x:x eq 'Team')" -All
 If (!($Teams)) {Write-Host "Can't find any teams - exiting"; break} 
-$Teams = $Teams | Sort DisplayName
+$Teams = $Teams | Sort-Object DisplayName
 
 $ChannelsList = [System.Collections.Generic.List[Object]]::new()
 [int]$i = 0
