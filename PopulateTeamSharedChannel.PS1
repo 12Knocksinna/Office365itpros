@@ -1,6 +1,7 @@
 # PopulateTeamSharedChannel.PS1
 # An example of how to populate the membership of a shared channel with every user account (with licenses) in a tenant,
 # the idea being that the shared channel is available to everyone.
+# https://github.com/12Knocksinna/Office365itpros/edit/master/PopulateTeamSharedChannel.PS1
 
 $Modules = @( "MicrosoftTeams", "Microsoft.Graph" )
 # Requires -Modules $Modules
