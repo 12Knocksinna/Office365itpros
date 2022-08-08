@@ -1,7 +1,6 @@
 # PopulateTeamSharedChannel.PS1
 # An example of how to populate the membership of a shared channel with every user account (with licenses) in a tenant,
 # the idea being that the shared channel is available to everyone.
-# https://github.com/12Knocksinna/Office365itpros/edit/master/PopulateTeamSharedChannel.PS1
 
 $Modules = @( "MicrosoftTeams", "Microsoft.Graph" )
 # Requires -Modules $Modules
@@ -11,6 +10,24 @@ If (!($ModulesLoaded -match "MicrosoftTeams")) {Write-Host "Please connect to th
 
 Connect-MgGraph -Scopes User.Read.All
 Select-MgProfile Beta
+
+# Find user accounts with licenses
+[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All
+If (!($Users)) { Write-Host "No user accounts found - exiting" ; break }
+# Filter out any accounts marked that shouldn't be added to team membership
+$FilteredUsers = $Users | ? {$_.OfficeLocation -ne "XXX"}
+
+# Now check that each user actually has a Teams service plan
+$UsersWithTeams =  [System.Collections.Generic.List[Object]]::new()
+ForEach ($User in $FilteredUsers) {
+  $TeamsLicense =  Get-MgUserLicenseDetail -UserId $User.Id | Select-Object -ExpandProperty ServicePlans | ? {$_.ServicePlanId -eq "57ff2da0-773e-42df-b2af-ffb7a2317929"} | Select-Object -ExpandProperty ProvisioningStatus
+ If ($TeamsLicense -eq "Success") {
+     $UserData = [PSCustomObject][Ordered]@{  # Write out details of the user
+       Id          = $User.Id
+       DisplayName = $User.DisplayName }
+     $UsersWithTeams.Add($UserData)
+ } #End if
+} #End ForEach
 
 # These variables will differ depending on the host team and channel name you decide to use
 $GroupId = (Get-Team -DisplayName "HR Questions and Answers").GroupId
@@ -27,15 +44,10 @@ ForEach ($Member in $ChannelMembers) {
 ForEach ($Member in $ChannelOwners) {
    $CurrentMembers.Add($Member.UserId,$Member.User) }
 
-# Find user accounts with licenses
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All
-If (!($Users)) { Write-Host "No user accounts found - exiting" ; break }
-# Filter out any accounts marked that shouldn't be added to team membership
-$Users = $Users | ? {$_.OfficeLocation -ne "XXX"}
 
 $i = 0
 # Check each user and add them if they are not found
-ForEach ($User in $Users) {
+ForEach ($User in $UsersWithTeams) {
    If (!($CurrentMembers[$User.Id])) {
       Write-Host ("Adding {0} to the {1} channel" -f $User.DisplayName, $ChannelName)
       Add-TeamChannelUser -GroupId $GroupId -DisplayName $ChannelName -User $User.Id; $i++ }
