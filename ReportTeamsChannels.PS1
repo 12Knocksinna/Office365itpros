@@ -3,6 +3,8 @@
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportTeamsChannels.PS1
 # Uses the MicrosoftTeams PowerShell module and the Microsoft Graph PowerShell SDK
+$Modules = @( "MicrosoftTeams", "Microsoft.Graph" )
+# Requires -Modules $Modules
 
 $Outputfile = "C:\temp\OutputChannels.csv"
 $ModulesLoaded = Get-Module | Select Name
