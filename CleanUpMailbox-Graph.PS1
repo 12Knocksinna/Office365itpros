@@ -35,7 +35,16 @@ param (
 
         [parameter(Mandatory = $true)]
         [ValidateSet('Y','N')]
-        $DeleteItems
+        $DeleteItems,
+	
+	[parameter(Mandatory = $true)]
+	$AppId,
+	
+	[parameter(Mandatory = $true)]
+	$TenantId,
+	
+	[parameter(Mandatory = $true)]
+	$AppSecret
     )
 
 #+-------------------------- Functions etc. -------------------------
@@ -148,10 +157,7 @@ $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 
 # Set these values to those appropriate in your tenant
-
-$AppId = "f58578ac-7cb4-4b5a-a296-f19218a03f11"
-$TenantId = "e662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = "baS8Q~9EDXMUrUOJUbZXTTiJp7lTFdkWskETObRU"
+# Removing AppId, TenantID, and AppSecret variables, and pass them as parameters
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
