@@ -1,6 +1,7 @@
 # ReportUserMembershipOfTeams.PS1
 # Example script to show how to use the Get-AssociatedTeam cmdlet to fetch team membership of individual user accounts and
 # report them. The team membership includes direct membership of a shared channel in a local or external team.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUserMembershipOfTeams.PS1
 
 $Modules = @( "MicrosoftTeams", "Microsoft.Graph" )
 # Requires -Modules $Modules
