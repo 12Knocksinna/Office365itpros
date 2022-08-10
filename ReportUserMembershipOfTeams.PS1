@@ -49,15 +49,15 @@ ForEach ($User in $Users) {
   } #End ForEach Team
 } # End ForEach User
 
-[array]$ExternalTeams = $UserTeamInfo | Where-Object {$_.TenantId -ne $TenantId}
-$ExternalPeople = $ExternalTeams.UPN | Sort-Object -Unique
-$ExternalPeople = $ExternalPeople -Join ", "
+[array]$ExternalTeams = $UserTeamInfo | Where-Object {$_.TenantId -ne $TenantId} | Sort-Object TeamId -Unique
+$ExternalPeople = $UserTeamInfo | Where-Object {$_.TenantId -ne $TenantId} | Sort-Object UPN -Unique
+$ExternalPeople = $ExternalPeople.DisplayName -Join ", "
 $ExternalTenants = $ExternalTeams.Tenant | Sort-Object -Unique
 $AvgTeams = [math]::round(($UserTeamInfo.Count/$Users.Count),2)
 
 Write-Host ""
 Write-Host ("Each of the {0} users belongs to an average of {1} teams" -f $Users.Count, $AvgTeams)
-Write-Host ("Membership of {0} external teams found in {1} tenant(s)" -f $ExternalTeams.Count, $ExternalTenants.Count)
+Write-Host ("Membership of {0} teams found in {1} external tenant(s)" -f $ExternalTeams.Count, $ExternalTenants.Count)
 Write-Host ("These accounts have membership of external teams: {0}" -f $ExternalPeople)
 
 $UserTeamInfo | Out-GridView
