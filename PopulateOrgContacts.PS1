@@ -10,7 +10,7 @@ If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connec
 
 # Find the set of organization contacts - marked as such by having OrgContact in CustomAttribute4 of their object properties. This attribute is chosen at random. You can use
 # whatever other way you want to find the set of contacts, including having a CSV file.
-$OrgContacts = Get-Recipient -Filter {CustomAttribute4 -eq "OrgContact"} 
+[array]$OrgContacts = Get-Recipient -Filter {CustomAttribute4 -eq "OrgContact"} 
 If (!($OrgContacts)) {Write-Host "No organization contacts found - exiting" ; break }
 Write-Host ("Found {0} organization contacts - continuing..." -f $OrgContacts.count)
 
@@ -45,7 +45,12 @@ $Headers = @{
 $OrgNotes = "Organization contact created " + $Now
 
 ForEach ($Mbx in $Mailboxes) {
-   $Mailbox = $Mbx.UserPrincipalName
+   # Populate email addresses for existing contacts
+   $Uri = "https://graph.microsoft.com/v1.0/users/" + $Mbx.ExternalDirectoryObjectId + "/contacts"
+   [array]$ContactsInMbx =  Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" 
+   If ($ContactsInMbx.Value.Count -gt 0) { $ContactsInMbx = $ContactsInMbx.Value | Select-Object -ExpandProperty emailaddresses }
+   $CheckTable = [System.Collections.Generic.List[Object]]::new()
+   ForEach ($C in $ContactsInMbx) { $CheckTable.Add($C.Address.toString()) }
    Write-Host "Processing mailbox" $Mbx.DisplayName
    $ApiUri = "https://graph.microsoft.com/v1.0/users/$mailbox/contacts" 
    ForEach ($Contact in $OrgContacts) {
@@ -86,9 +91,7 @@ ForEach ($Mbx in $Mailboxes) {
    } # End Switch
 
 # Check if the contact is already there. If not, we go ahead and add the contact
-    $Uri = "https://graph.microsoft.com/v1.0/users/$Mailbox/contacts?`$filter=emailAddresses/any(a:a/address eq '$Email')"
-    $Results = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json"
-   If ($Results.Value.Emailaddresses.Address -eq $Email) {
+   If ($Email -in $CheckTable) {
       Write-Host ("Contact record for {0} is already present in the mailbox" -f $Email) }
    Else {
       Write-Host "Proceeding..."
@@ -122,7 +125,7 @@ ForEach ($Mbx in $Mailboxes) {
    
     # And add the new contact
     Try {
-        $NewContact = (Invoke-RestMethod -Headers @{Authorization = "Bearer $($Token)" } -ContentType 'application/json' -Body $Contactobject -Uri $ApiUri -Method Post)
+        $NewContact = (Invoke-RestMethod -Headers @{Authorization = "Bearer $($Token)" } -ContentType 'application/json' -Body $ContactObject -Uri $Uri -Method Post)
     }
     catch {
         throw "Error creating contact $($contact.emailaddress) for $mailbox $($_.Exception.Message)"
@@ -134,7 +137,7 @@ ForEach ($Mbx in $Mailboxes) {
 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
