@@ -285,7 +285,7 @@ If (($Action -eq "Report only") -and ($Folder -eq "All")) {
   [array]$Deletions = Get-GraphData -Uri $Uri -AccessToken $Token
   $Messages = $Messages + $Deletions
   # This code is to retrieve the display name of the Deletions folder and insert it into the hash table used for folder lookups
-  $Uri = "https://graph.microsoft.com/v1.0/users/eff4cd58-1bb8-4899-94de-795f656b4a18/mailfolders('RecoverableItemsDeletions')"
+  $Uri = "https://graph.microsoft.com/v1.0/users/" + $M.ExternalDirectoryObjectId + "/mailfolders('RecoverableItemsDeletions')"
   [array]$DeletionFolderData = Get-GraphData -Uri $Uri -AccessToken $Token
   $DeletionFolderId = $DeletionFolderData[0].id
   $DeletionFolderName = $DeletionFolderData[0].DisplayName
