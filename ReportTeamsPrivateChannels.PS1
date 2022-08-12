@@ -1,4 +1,4 @@
-# ReportTeamsPrivateChannels.PS1
+s# ReportTeamsPrivateChannels.PS1
 # Report the set of Teams private channels and their members for a tenant
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportTeamsPrivateChannels.PS1
@@ -23,7 +23,7 @@ $ChannelsList = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Team in $Teams) {
    $i++
    Write-Host ("Processing {0} ({1}/{2})" -f $Team.DisplayName, $i, $Teams.Count)
-   [array]$Channels = Get-TeamAllChannel -GroupId $Team.Id | Where-Object {$_.MembershipType -eq "Private" }
+   [array]$Channels = Get-TeamAllChannel -GroupId $Team.Id -MembershipType "Private"
    ForEach ($Channel in $Channels) {
      Write-Host ("Found private channel {0} in team {1}" -f $Channel.DisplayName, $Team.DisplayName)
      [array]$ChannelMembers = Get-TeamChannelUser -GroupId $Team.Id -DisplayName $Channel.DisplayName
