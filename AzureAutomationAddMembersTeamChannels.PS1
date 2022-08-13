@@ -98,10 +98,17 @@ $Body += "</tbody></table><p>"
 $Body += '</body></html>'
    
    Write-Output "Posting to Channel"
-   # Use PNP to Post to the channel - change this URL to correspond with the target site in your tenant
+   # Change this URL to correspond with the target site in your tenant
    $siteUrl = "https://office365itpros.sharepoint.com/sites/HRQuestionsandAnswers-QuestionsandAnswers"
-   $ChannelMemberCredential = Get-AutomationPSCredential -Name "ChannelMemberCredential"
-   $PnpConnection = Connect-PnPOnline $SiteURL -Credentials $ChannelMemberCredential -ReturnConnection
+   # Change the username to whatever channel member you choose to use
+   $UserName = "Sean.Landy@Office365itpros.com"
+   # Connect to Azure Key Vault to retrieve the account password
+   Connect-AzAccount -Identity | Out-Null
+   $UserPassword = Get-AzKeyVaultSecret -VaultName "MIKeyVault" -name "SeanLandy" -AsPlainText
+   [securestring]$SecurePassword = ConvertTo-SecureString $UserPassword -AsPlainText -Force
+   [pscredential]$ChannelMemberCredentials = New-Object System.Management.Automation.PSCredential ($UserName, $SecurePassword)
+   # Connect to PnP to post the message to Teams
+   $PnpConnection = Connect-PnPOnline $SiteURL -Credentials $ChannelMemberCredentials -ReturnConnection
    Submit-PnPTeamsChannelMessage -Team $GroupId -Channel $ChannelId -Message $Body -ContentType Html -Important -Connection $PnpConnection
  
 }
