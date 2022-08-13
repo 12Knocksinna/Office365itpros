@@ -98,8 +98,8 @@ $Body += "</tbody></table><p>"
 $Body += '</body></html>'
    
    Write-Output "Posting to Channel"
-   # Use PNP to Post to the channel
-   $siteUrl = "https://redmondassociates.sharepoint.com/sites/HRQuestionsandAnswers-QuestionsandAnswers"
+   # Use PNP to Post to the channel - change this URL to correspond with the target site in your tenant
+   $siteUrl = "https://office365itpros.sharepoint.com/sites/HRQuestionsandAnswers-QuestionsandAnswers"
    $ChannelMemberCredential = Get-AutomationPSCredential -Name "ChannelMemberCredential"
    $PnpConnection = Connect-PnPOnline $SiteURL -Credentials $ChannelMemberCredential -ReturnConnection
    Submit-PnPTeamsChannelMessage -Team $GroupId -Channel $ChannelId -Message $Body -ContentType Html -Important -Connection $PnpConnection
