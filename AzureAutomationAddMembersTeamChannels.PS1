@@ -98,19 +98,16 @@ $Body += "</tbody></table><p>"
 $Body += '</body></html>'
    
    Write-Output "Posting to Channel"
-   # Change this URL to correspond with the target site in your tenant
-   $siteUrl = "https://office365itpros.sharepoint.com/sites/HRQuestionsandAnswers-QuestionsandAnswers"
-   # Change the username to whatever channel member you choose to use
-   $UserName = "Sean.Landy@Office365itpros.com"
-   # Connect to Azure Key Vault to retrieve the account password
+  # Get the user password, target site URL, and user name from Azure Key Vault
    Connect-AzAccount -Identity | Out-Null
-   $UserPassword = Get-AzKeyVaultSecret -VaultName "MIKeyVault" -name "SeanLandy" -AsPlainText
+   $UserName = Get-AzKeyVaultSecret -VaultName "MIKeyVault" -name "CredentialUser" -AsPlainText
+   $SiteURL = Get-AzKeyVaultSecret -VaultName "MIKeyVault" -name "SPOSiteURL" -AsPlainText
+   $UserPassword = Get-AzKeyVaultSecret -VaultName "MIKeyVault" -name "CredentialSecret" -AsPlainText
    [securestring]$SecurePassword = ConvertTo-SecureString $UserPassword -AsPlainText -Force
    [pscredential]$ChannelMemberCredentials = New-Object System.Management.Automation.PSCredential ($UserName, $SecurePassword)
-   # Connect to PnP to post the message to Teams
+   # Connect to PnP using the account credentials we just retrieved
    $PnpConnection = Connect-PnPOnline $SiteURL -Credentials $ChannelMemberCredentials -ReturnConnection
    Submit-PnPTeamsChannelMessage -Team $GroupId -Channel $ChannelId -Message $Body -ContentType Html -Important -Connection $PnpConnection
- 
 }
 
 Write-Output ("{0} new members added to channel" -f $i)
