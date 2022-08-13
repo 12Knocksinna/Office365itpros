@@ -1,3 +1,7 @@
+# https://github.com/12Knocksinna/Office365itpros/blob/master/AzureAutomationAddMembersTeamChannels.PS1
+# Example of using a managed identity with Azure Automation to do some processing with the
+# Microsoft Graph PowerShell SDK and Microsoft Teams modules
+# 
 #Obtain AccessToken for Microsoft Graph via the managed identity
 $ResourceURL = "https://graph.microsoft.com/" 
 $Response = [System.Text.Encoding]::Default.GetString((Invoke-WebRequest -UseBasicParsing -Uri "$($env:IDENTITY_ENDPOINT)?resource=$resourceURL" -Method 'GET' -Headers @{'X-IDENTITY-HEADER' = "$env:IDENTITY_HEADER"; 'Metadata' = 'True'}).RawContentStream.ToArray()) | ConvertFrom-Json 
@@ -47,7 +51,7 @@ $i = 0
 $UsersAdded =  [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $UsersWithTeams) {
    If (!($CurrentMembers[$User.Id])) {
-      Write-Host ("Adding {0} to the {1} channel" -f $User.DisplayName, $ChannelName)
+      Write-Output ("Adding {0} to the {1} channel" -f $User.DisplayName, $ChannelName)
       Add-TeamChannelUser -GroupId $GroupId -DisplayName $ChannelName -User $User.Id; $i++ 
       $UserData = [PSCustomObject][Ordered]@{  # Write out details of the user
          Id          = $User.Id
@@ -96,8 +100,8 @@ $Body += '</body></html>'
    Write-Output "Posting to Channel"
    # Use PNP to Post to the channel
    $siteUrl = "https://redmondassociates.sharepoint.com/sites/HRQuestionsandAnswers-QuestionsandAnswers"
-   $SeanLandyCredential = Get-AutomationPSCredential -Name "SeanLandy"
-   $PnpConnection = Connect-PnPOnline $SiteURL -Credentials $SeanLandyCredential -ReturnConnection
+   $ChannelMemberCredential = Get-AutomationPSCredential -Name "ChannelMemberCredential"
+   $PnpConnection = Connect-PnPOnline $SiteURL -Credentials $ChannelMemberCredential -ReturnConnection
    Submit-PnPTeamsChannelMessage -Team $GroupId -Channel $ChannelId -Message $Body -ContentType Html -Important -Connection $PnpConnection
  
 }
