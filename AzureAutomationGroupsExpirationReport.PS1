@@ -72,6 +72,28 @@ $Headers = @{
             'Content-Type'  = "application\json"
             'Authorization' = "Bearer $Token" 
             'ConsistencyLevel' = "eventual" }
+
+$AzConnection = Connect-AzAccount -Tenant $Connection.TenantId -ApplicationId `
+   $Connection.ApplicationId -CertificateThumbPrint $Connection.CertificateThumbprint `
+  -ServicePrincipal
+# Get username and password from Key Vault - You need to set up your own Key Vault and populate 
+# it with secrets to make this work...
+$UserName = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -Name "ExoAccountName" -AsPlainText
+$UserPassword = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "ExoAccountPassword" -AsPlainText
+# Create credentials object from the username and password
+[securestring]$SecurePassword = ConvertTo-SecureString $UserPassword -AsPlainText -Force
+[pscredential]$UserCredentials = New-Object System.Management.Automation.PSCredential ($UserName, $SecurePassword)
+# Get Site URL to use with PnP connection
+$SiteURL = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "SPOSiteURL" -AsPlainText
+# Target channel identifier for incoming webhook connector
+$TargetChannel = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "IncomingWebhookId" -AsPlainText
+# Target team and channel in that team to which we post a message containing the report
+$TargetTeamId = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "TargetTeamId" -AsPlainText
+$TargetTeamChannel = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "TargetChannelID" -AsPlainText
+Write-Output "Credentials" $UserCredentials
+Write-Output "Target Site" $SiteURL
+Write-Output "Target team and channel" $TargetTeamId " " $TargetTeamChannel
+
 # Get set of groups with an expiration date set. Can't check for null as the ExpirationDateTime property doesn't support this
 $uri = "https://graph.microsoft.com/beta/groups?`$filter=ExpirationDateTime ge 2014-01-01T00:00:00Z AND groupTypes/any(a:a eq 'unified')&`$count=true"
 [array]$Groups = Get-GraphData -AccessToken $Token -Uri $uri
@@ -102,9 +124,7 @@ $SDate = Get-Date -format yyyyMMddHHmmss
 [string]$SourceDocument = "Microsoft 365 Groups Expiration Report " + $SDate + ".csv"
 [string]$HTMLDocument = "Microsoft 365 Groups Expiration Report " + $SDate + ".html"
 $Report | Sort "Days before expiration" | Export-CSV -NoTypeInformation $SourceDocument
-$SiteURL = "https://redmondassociates.sharepoint.com/sites/Office365Adoption"
-$SeanLandyCredential = Get-AutomationPSCredential -Name "SeanLandy"
-$PnpConnection = Connect-PnPOnline $SiteURL -Credentials $SeanLandyCredential -ReturnConnection
+$PnpConnection = Connect-PnPOnline $SiteURL -Credentials $UserCredentials -ReturnConnection
 # Add a document title
 $Values = @{"Title" = 'Microsoft 365 Groups Expiration Report (CSV)'}
 # Add the file to the General folder
@@ -182,12 +202,9 @@ $Notification = @"
 "@
 
 $NotificationBody = $Notification.Replace("TENANT","$TenantName").Replace("DATETIME","$DateNow").Replace("URI","$NewFileUri")
-$TargetChannel = "https://office365itpros.webhook.office.com/webhookb2/107fe4dd-809c-4ec9-a3a1-ab88c96e0a5e@b662313f-14fc-43a2-9a7a-d2e27f4f3478/IncomingWebhook/0a3dea30f595436ead8138334516911a/eff4cd58-1bb8-4899-94de-795f656b4a18"
 $Command = (Invoke-RestMethod -uri $TargetChannel -Method Post -body $NotificationBody -ContentType 'application/json')           
 
 # Post to a Teams channel using PnP
-$TargetTeamId = "107fe4dd-809c-4ec9-a3a1-ab88c96e0a5e"
-$TargetTeamChannel = "19:6d688803124c48d6bfa796284e641e9d@thread.tacv2"
 Submit-PnPTeamsChannelMessage -Team $TargetTeamId -Channel $TargetTeamChannel -Message $Body -ContentType Html -Important
 Disconnect-PnpOnline
 
