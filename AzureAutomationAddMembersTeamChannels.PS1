@@ -100,7 +100,9 @@ $Body += '</body></html>'
    Write-Output "Posting to Channel"
   # Get the user password, target site URL, and user name from Azure Key Vault
    Connect-AzAccount -Identity | Out-Null
+   # Something like Joe.Doe@office365itpros.com - they must be a member of the target channel
    $UserName = Get-AzKeyVaultSecret -VaultName "MIKeyVault" -name "CredentialUser" -AsPlainText
+   # Something like https://office365itpros.sharepoint.com/
    $SiteURL = Get-AzKeyVaultSecret -VaultName "MIKeyVault" -name "SPOSiteURL" -AsPlainText
    $UserPassword = Get-AzKeyVaultSecret -VaultName "MIKeyVault" -name "CredentialSecret" -AsPlainText
    [securestring]$SecurePassword = ConvertTo-SecureString $UserPassword -AsPlainText -Force
