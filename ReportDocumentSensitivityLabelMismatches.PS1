@@ -2,6 +2,7 @@
 # A script to show how to find audit records for document mismatch events (the sensitivity label applied to an uploaded 
 # document is higher than the label assigned to the site) and lookup the user who uploaded the file and the display names
 # of the labels
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportDocumentSensitivityLabelMismatches.PS1
 
 $Modules = @( "ExchangeOnlineManagement" )
 # Requires -Modules $Modules
