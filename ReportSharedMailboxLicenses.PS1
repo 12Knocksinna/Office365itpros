@@ -6,7 +6,6 @@
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 
-
 # Define some variables
 $ExoPlan1 = "9aaf7827-d63c-4b61-89c3-182f06f82e5c"
 $ExoArchiveAddOn = "176a09a6-7ec5-4039-ac02-b2791c6ba793"
