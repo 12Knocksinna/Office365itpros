@@ -327,7 +327,7 @@ $GroupsList = $GroupsList | Sort DisplayName
 
 Write-Host "Getting information about team-enabled groups..."
 # Get Teams
-$uri = "https://graph.microsoft.com/beta/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')"
+$uri = "https://graph.microsoft.com/V1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')"
 [array]$Teams = Get-GraphData -AccessToken $Token -Uri $uri
 $TeamsHash = @{}
 $Teams.ForEach( {
