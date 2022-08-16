@@ -1,6 +1,7 @@
 # ReportSharedMailboxLicenses.PS1
 # a script to analyze shared mailboxes and report if they need licenses
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSharedMailboxLicenses.PS1
+
 # Check that we have the necessary Exchange Online module loaded
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
