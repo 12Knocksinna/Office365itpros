@@ -172,7 +172,6 @@ CLS
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 # OK, we seem to be fully connected to Exchange Online.     
-$OrgName = (Get-OrganizationConfig).Name
 
 # Setup some stuff we use
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
@@ -218,6 +217,10 @@ $Headers = @{
 #Get Creation Date of the initial Token (59min and 59sec life long) and add 50 minutes to renew the token later in the main loop
 $TokenCreationDate = (Get-Date)
 $TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
+# Get tenant name and other details
+$Uri = "https://graph.microsoft.com/v1.0/organization"
+$OrgData = Get-GraphData -Uri $Uri -AccessToken $Token
+$OrgName = $OrgData.DisplayName
 
 $S1 = Get-Date #Start of processing
 
