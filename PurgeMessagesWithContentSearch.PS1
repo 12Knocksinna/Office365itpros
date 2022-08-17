@@ -2,7 +2,8 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/PurgeMessagesWithContentSearch.PS1
 #
 # A script to purge messages from Exchange Online using an Office 365 content search and a purge action applied to 
-# the results of that search.
+# the results of that search. Note: This approach only works when there are fewer than 10 items to be removed from mailboxes.
+# If more problematic items exist in a mailbox, consider using the Search-Mailbox cmdlet to remove them.
 # V1.1 July 2022
 # ---------------------------------------
 # Some information to identify the messages we want to purge
