@@ -387,7 +387,12 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
 
  If ($GroupIsTeamEnabled -eq $False) { # Not a Teams-enabled group, so look at the Inbox etc.
  # Fetch information about activity in the Inbox folder of the group mailbox  
-   $Data = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestITems -FolderScope Inbox)
+  Try {  
+   [array]$Data = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestITems -FolderScope Inbox -ErrorAction SilentlyContinue) }
+   Catch {
+      Write-Host ("Can't read information from the group mailbox for {0} - continuing." -f $G.DisplayName)
+   }
+ 
    If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {$LastConversation = "No items found"}           
    Else {$LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format g }
    $NumberConversations = $Data.ItemsInFolder
@@ -441,7 +446,12 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
     If (-not $TeamsUsageHash.ContainsKey($G.ObjectId)) { # Check do we have Teams usage data stored in a hash table 
     # Nope, so we have to get the data from Exchange Online by looking in the TeamsMessagesData file in the non-IPM root
        Write-Host "Checking Exchange Online for Teams activity data..."
-       $TeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot | ? {$_.FolderType -eq "TeamsMessagesData" })
+       Try {
+        [array]$TeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot -ErrorAction SilentlyContinue | ? {$_.FolderType -eq "TeamsMessagesData" })
+           }
+       Catch { # Report the error
+         Write-Host ("Error fetching Team message data for {0} - continuing" -f $G.DisplayName) 
+             }    
        If ($TeamsChatData.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($TeamsChatData.NewestItemReceivedDate) -Format g}
        $NumberOfChats = $TeamsChatData.ItemsInFolder }
    Else { # Read the data from the Teams usage data
