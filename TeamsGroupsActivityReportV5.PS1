@@ -263,12 +263,15 @@ $TeamsUsageHash = GetTeamsStats
 # Create list of Microsoft 365 Groups in the tenant. We also get a list of Teams. In both cases, we build a hashtable
 # to store the object identifier and display name for the group. 
 
-Write-Host "Checking Microsoft 365 Groups and Teams for:" $OrgName
+Write-Host "(Checking Microsoft 365 Groups and Teams for: {0}" -f $OrgName)
+Write-Host "This phase can take some time because we need to fetch every group in the organization and"
+Write-Host "then analyze its settings and activity. Please wait."
 $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=groupTypes/any(a:a eq 'unified')"
 [array]$Groups = Get-GraphData -AccessToken $Token -Uri $uri
 If (!($Groups)) {Write-Host "Can't find any Microsoft 365 Groups - Check your access token"; break}
-$GroupsList = [System.Collections.Generic.List[Object]]::new()
+Write-Host ("Found {0} groups to process. Now analyzing each group." -f $Groups.Count)
 
+$GroupsList = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Group in $Groups) { 
    $GroupOwnerEmail = $Null; $OwnerNames = $Null 
    # Get Group Owners
