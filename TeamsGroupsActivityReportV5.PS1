@@ -273,9 +273,11 @@ $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=groupTypes/any(a:a eq '
 [array]$Groups = Get-GraphData -AccessToken $Token -Uri $uri
 If (!($Groups)) {Write-Host "Can't find any Microsoft 365 Groups - Check your access token"; break}
 Write-Host ("Found {0} groups to process. Now analyzing each group." -f $Groups.Count)
-
+$i = 0
 $GroupsList = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Group in $Groups) { 
+   $i++
+   Write-Host ("Processing group {0} {1}/{2}" -f $Group.DisplayName, $i, $Groups.Count)
    $GroupOwnerEmail = $Null; $OwnerNames = $Null 
    # Get Group Owners
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/owners?"
@@ -367,7 +369,7 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
    $DisplayName = $G.DisplayName
    $SPOStatus = "SPO: OK"; $MailboxStatus = "Mbx: OK"; $TeamsStatus = "Teams: OK"
    $GroupStatus = $DisplayName + " ["+ $GroupNumber +"/" + $GroupsCount + "]"
-   Write-Progress -Activity "Checking group" -Status $GroupStatus -PercentComplete $CheckCount
+   Write-Progress -Activity "Analyzing and reporting group" -Status $GroupStatus -PercentComplete $CheckCount
    $CheckCount += $ProgDelta;  $ObsoleteReportLine = $DisplayName
    $SPOActivity = "Document library in use"
    $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $ObsoleteReportLine = $Null
