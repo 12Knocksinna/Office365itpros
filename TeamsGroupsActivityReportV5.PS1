@@ -24,6 +24,7 @@
 # V5.4 12-Mar-2022 Changed check for Teams usage hash table to avoid errors and added explicit check for Teams data file downloaded from the TAC
 # V5.5 15-Jun-2022 Recoded way that check to renew access token worked and incorporated automatic fetch of latest Teams usage data
 # V5.6 19-Jul-2022 Add email address of team owner to output and updated activity range for usage reports to 180 days
+# V5.7 17-Aug-2022 Amended how archived groups are processed.
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -178,7 +179,7 @@ $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
-$Version = "V5.6"
+$Version = "V5.7"
 $TimeToRefreshToken = "50" # Token lifetime
 CLS
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
@@ -249,7 +250,13 @@ $TeamsUsageHash = GetTeamsStats
        'LastActivityDate' = $LastActivityDate
        'FileCount'        = $Site."File Count" 
        'StorageUsed'      = $StorageUsed }
-     $DataTable.Add([String]$Site."Site URL",$SingleSiteData)
+     # Update hash table with details of the site
+     Try {
+        $DataTable.Add([String]$Site."Site URL",$SingleSiteData) 
+         }
+     Catch { # Error for some reason - it doesn't make much difference
+        Write-Host ("Couldn't add details for site {0} to the DataTable - continuing" -f $Site)
+         }
      }
 }
 
@@ -261,18 +268,20 @@ $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=groupTypes/any(a:a eq '
 [array]$Groups = Get-GraphData -AccessToken $Token -Uri $uri
 If (!($Groups)) {Write-Host "Can't find any Microsoft 365 Groups - Check your access token"; break}
 $GroupsList = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Group in $Groups) {  
+
+ForEach ($Group in $Groups) { 
+   $GroupOwnerEmail = $Null; $OwnerNames = $Null 
    # Get Group Owners
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/owners?"
-   $GroupData = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET"
-   If ($GroupData."@odata.count" -eq 0) {
+   [array]$GroupData = Get-GraphData -Uri $Uri -AccessToken $Token
+   If ($GroupData."@odata.context") {
        $OwnerNames = "No owners found"
        $GroupOwnerMail = $Null }
    Else  { # Extract owner names and select the first owner email address as a contact
-      $OwnerNames = $GroupData.Value.DisplayName -join ", " 
-      $GroupOwnerEmail = $GroupData.Value[0].Mail }
+      $OwnerNames = $GroupData.DisplayName -join ", " 
+      $GroupOwnerEmail = $GroupData[0].Mail }
    # Get extended group properties 
-   $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
+$Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
    $GroupData = Get-GraphData -AccessToken $Token -Uri $uri
    $Visibility  = $GroupData.Visibility
    $Description = $GroupData.Description
@@ -301,7 +310,7 @@ ForEach ($Group in $Groups) {
    } # Get rid of mucky SharePoint error  308 
 
    # Get Member and Guest member counts
-    $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Guest'"
+   $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Guest'"
    $GuestMemberCount = Get-GraphData -AccessToken $Token -Uri $uri
    $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Member'"
    $GroupMemberCount = Get-GraphData -AccessToken $Token -Uri $uri  
