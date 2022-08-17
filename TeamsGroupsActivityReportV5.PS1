@@ -258,7 +258,7 @@ $TeamsUsageHash = GetTeamsStats
         $DataTable.Add([String]$Site."Site URL",$SingleSiteData) 
          }
      Catch { # Error for some reason - it doesn't make much difference
-        Write-Host ("Couldn't add details for site {0} to the DataTable - continuing" -f $Site)
+        Write-Host ("Couldn't add details for site {0} to the DataTable - continuing" -f $SiteDisplayName)
          }
      }
 }
