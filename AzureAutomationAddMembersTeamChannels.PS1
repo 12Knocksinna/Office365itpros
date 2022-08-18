@@ -7,11 +7,11 @@ $ResourceURL = "https://graph.microsoft.com/"
 $Response = [System.Text.Encoding]::Default.GetString((Invoke-WebRequest -UseBasicParsing -Uri "$($env:IDENTITY_ENDPOINT)?resource=$resourceURL" -Method 'GET' -Headers @{'X-IDENTITY-HEADER' = "$env:IDENTITY_HEADER"; 'Metadata' = 'True'}).RawContentStream.ToArray()) | ConvertFrom-Json 
 $AccessToken = $response.access_token 
 
+#Connect to the Microsoft Graph using the aquired AccessToken
+Connect-Graph -AccessToken $AccessToken
 #Define the desired graph endpoint
 Select-MgProfile Beta
 
-#Connect to the Microsoft Graph using the aquired AccessToken
-Connect-Graph -AccessToken $AccessToken
 Connect-MicrosoftTeams -Identity
 
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All
