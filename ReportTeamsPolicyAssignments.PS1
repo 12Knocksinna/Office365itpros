@@ -5,7 +5,7 @@ $ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "MicrosoftTeams")) {Write-Host "Please connect to the Microsoft Teams module and then restart the script"; break}
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online management module and then restart the script"; break}
 [array]$Users = Get-CsOnlineUser -ResultSize 5000
-# Filter the set to get Teams users 
+# Filter the set to get Teams users - this will filter out all but cloud-only Teams users. If you don't want to use the filter, comment it out.
 $Users = $Users | Where-Object {$_.InterpretedUserType -eq "PureOnlineTeamsOnlyUser" -or $_.InterpretedUserType -eq "PureOnlineTeamsOnlyUserFailedPublishingToAAD"} | Sort-Object DisplayName
 If (!($Users)) {Write-Host "No users found - exiting"; break }
 $Report = [System.Collections.Generic.List[Object]]::new()
@@ -43,6 +43,7 @@ ForEach ($User in $Users) {
         "Channels Policy"            = $TeamsChannelsPolicy
         "Feedback Policy"            = $TeamsFeedbackPolicy
         "Live Events"                = $TeamsLiveEventsPolicy
+	"InterpretedUserType"        = $User.InterpretedUserType
     }
  #  Add it to the report
     $Report.Add($ReportLine) 
