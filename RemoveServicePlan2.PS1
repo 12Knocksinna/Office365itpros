@@ -2,11 +2,6 @@
 # Remove an individual service plan from a SKU assigned to Microsoft 365 accounts
 # Version of https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan.PS1 using the Azure AD cmdlets instead of MSOL cmdlets to remove service plans from licenses.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan2.PS1
-# Check loaded modules
-$ModulesLoaded = Get-Module | Select Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
-If (!($ModulesLoaded -like "*AzureAD*")) {Write-Host "Please connect to the Azure Active Directory module and then restart the script"; break}
-# We seem to be fully connected to the necessary modules so we can proceed
 
 Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
 # Help function to prompt a question and get a response
@@ -21,6 +16,13 @@ Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
        Return ($Answer)}
    } #End while
 }
+
+# Check loaded modules
+$ModulesLoaded = Get-Module | Select Name
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+If (!($ModulesLoaded -like "*AzureAD*")) {Write-Host "Please connect to the Azure Active Directory module and then restart the script"; break}
+# We seem to be fully connected to the necessary modules so we can proceed
+
 $CSVOutputFile = "c:\temp\ServicePlanRemovals.csv"
 
 # Find the set of SKUs used in the tenant
