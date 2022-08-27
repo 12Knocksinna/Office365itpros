@@ -1,6 +1,7 @@
 # RemoveKaizalaServicePlans.PS1
 # A script to remove Kaizala service plans from Office 365 E1, E3, and E5 licenses
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveKaizalaServicePlans.PS1
+
 # Define service plan and license identifiers
 $KaizalaPlan3 = "aebd3021-9f8f-4bf8-bbe3-0ed2f4f047a1" #E3
 $KaizalaPlan2 = "54fc630f-5a40-48ee-8965-af0503c1386e" # E1
