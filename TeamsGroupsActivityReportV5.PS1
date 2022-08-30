@@ -99,8 +99,8 @@ function GetAccessToken {
 # function to return an Oauth access token
 
 # Define the values applicable for the application used to connect to the Graph
-$AppId = "828e1143-88e3-492b-bf82-24c4a47ada63"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$AppId = "328e1143-88e3-492b-bf82-24c4a47ada63"
+$TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = 'ei_7Q~mY8SLKxKJHkY.Z-WTWT0ncfaqu8ETtS'
 
 # Construct URI and body needed for authentication
