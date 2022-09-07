@@ -187,9 +187,9 @@ $Body += "</tbody></table><p>"
 $Body += '</body></html>'
 
 Write-Output "Posting to Channel"
-# Get the user password, target site URL, and user name from Azure Key Vault
+# Get the user password, target site URL, and user name from Azure Key Vault - adjust these settings to reflect your environment.
 Connect-AzAccount -Identity | Out-Null
- # Get username and password from Key Vault
+ # Get username and password from Key Vault for the account used to post to Teams
 $UserName = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -Name "ExoAccountName" -AsPlainText
 $UserPassword = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "ExoAccountPassword" -AsPlainText
 # Create credentials object from the username and password
