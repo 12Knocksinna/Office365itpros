@@ -1,5 +1,6 @@
 # GetTeamsReactions.PS1
 # Report teams reactions found in messages
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetTeamsReactions.PS1
 
 $Modules = @( "ExchangeOnlineManagement" )
 # Requires -Modules $Modules
