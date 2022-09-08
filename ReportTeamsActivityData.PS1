@@ -1,5 +1,6 @@
 # ReportTeamsActivityData.PS1
 # Report the Teams usage data using the Microsoft Graph PowerShell SDK
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportTeamsActivityData.PS1
 
 Connect-MgGraph -Scopes ReportSettings.ReadWrite.All
 Select-MgProfile Beta
