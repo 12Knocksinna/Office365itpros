@@ -25,6 +25,7 @@
 # V5.5 15-Jun-2022 Recoded way that check to renew access token worked and incorporated automatic fetch of latest Teams usage data
 # V5.6 19-Jul-2022 Add email address of team owner to output and updated activity range for usage reports to 180 days
 # V5.7 17-Aug-2022 Amended how archived groups are processed.
+# V5.8 15-Sep-2022 Improved check for groups with no owners
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -178,7 +179,7 @@ $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
-$Version = "V5.7"
+$Version = "V5.8"
 $TimeToRefreshToken = "50" # Token lifetime
 CLS
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
@@ -282,14 +283,14 @@ ForEach ($Group in $Groups) {
    # Get Group Owners
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/owners?"
    [array]$GroupData = Get-GraphData -Uri $Uri -AccessToken $Token
-   If ($GroupData."@odata.context") {
-       $OwnerNames = "No owners found"
-       $GroupOwnerMail = $Null }
-   Else  { # Extract owner names and select the first owner email address as a contact
+  If ($GroupData[0].'@odata.type' -eq '#microsoft.graph.user') { # Found a group owner, so extract names
       $OwnerNames = $GroupData.DisplayName -join ", " 
       $GroupOwnerEmail = $GroupData[0].Mail }
+   Else { # ownerless group
+       $OwnerNames = "No owners found"
+       $GroupOwnerMail = $Null }
    # Get extended group properties 
-$Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
+   $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
    $GroupData = Get-GraphData -AccessToken $Token -Uri $uri
    $Visibility  = $GroupData.Visibility
    $Description = $GroupData.Description
