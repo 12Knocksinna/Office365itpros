@@ -8,6 +8,8 @@ $Modules = @( "ExchangeOnlineManagement" )
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online management module and then restart the script"; break}
 
+Connect-MgGraph -Scope Channel.ReadBasic.All
+
 Write-Host "Finding audit records for teams reactions..."
 $StartDate = (Get-Date).AddDays(-90)
 $EndDate = (Get-Date).AddDays(1)
