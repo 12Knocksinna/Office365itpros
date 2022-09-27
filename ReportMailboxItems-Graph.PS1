@@ -1,6 +1,7 @@
 # ReportMailboxItems-Graph.PS1
 # A script to demonstrate how to use Graph API queries to read the folders and folder items from an Exchange Online mailbox.
 # By default, the script looks for items more than a year old (easily changed) in a single mailbox.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMailboxItems-Graph.PS1
 #+-------------------------- Functions etc. -------------------------
 
 function FormatFileSize {
