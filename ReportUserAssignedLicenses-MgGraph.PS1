@@ -130,12 +130,12 @@ $htmlhead="<html>
            <div align=center>
            <p><h1>Microsoft 365 License Report</h1></p>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
-           <p><h3>Generated: " + Get-Date($CreationDate) -format g + "</h3></p></div>"
+           <p><h3>Generated: " + (Get-Date($CreationDate) -format g) + "</h3></p></div>"
 
 $htmlbody1 = $Report | ConvertTo-Html -Fragment
 
 $htmltail = "<p>Report created for: " + $OrgName + "</p>" +
-             "<p>Created: " + Get-Date($CreationDate) -format g + "<p>" +
+             "<p>Created: " + (Get-Date($CreationDate) -format g) + "<p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
              "<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
              "<p>Number of unlicensed user accounts found:  " + $UnlicensedAccounts + "</p>" +
