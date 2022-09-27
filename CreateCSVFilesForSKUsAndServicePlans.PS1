@@ -11,7 +11,7 @@ Select-MgProfile beta
 [Array]$Skus = Get-MgSubscribedSku
 
 # Generate CSV of all product SKUs used in tenant
-$Skus | Select SkuId, SkuPartNumber  | Export-Csv -NoTypeInformation c:\temp\ListOfSkus.Csv
+$Skus | Select SkuId, SkuPartNumber  | Export-Csv -NoTypeInformation c:\temp\SkuDataComplete.csv.Csv
 # Generate list of all service plans used in SKUs in tenant
 $SPData = [System.Collections.Generic.List[Object]]::new()
 ForEach ($S in $Skus) {
@@ -23,7 +23,7 @@ ForEach ($S in $Skus) {
      $SPData.Add($SPLine)
  }
 }
-$SPData | Sort ServicePlanId -Unique | Export-csv c:\Temp\ServicePlanData.csv -NoTypeInformation
+$SPData | Sort ServicePlanId -Unique | Export-csv c:\Temp\ServicePlanDataComplete.csv -NoTypeInformation
 # After they are generated, you need to edit the CSV files to add the human-friendly values to use for products (SKUs) and service plans
 #
 # This is what the SKU information should looks like:
