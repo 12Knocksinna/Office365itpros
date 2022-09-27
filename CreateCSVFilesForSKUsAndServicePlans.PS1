@@ -11,7 +11,7 @@ Select-MgProfile beta
 [Array]$Skus = Get-MgSubscribedSku
 
 # Generate CSV of all product SKUs used in tenant
-$Skus | Select SkuId, SkuPartNumber  | Export-Csv -NoTypeInformation c:\temp\SkuDataComplete.csv.Csv
+$Skus | Select SkuId, SkuPartNumber  | Export-Csv -NoTypeInformation c:\temp\SkuDataComplete.Csv
 # Generate list of all service plans used in SKUs in tenant
 $SPData = [System.Collections.Generic.List[Object]]::new()
 ForEach ($S in $Skus) {
