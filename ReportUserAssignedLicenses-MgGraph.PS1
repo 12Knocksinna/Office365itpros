@@ -2,8 +2,11 @@
 # Create a report of licenses assigned to Azure AD user accounts using the Microsoft Graph PowerShell SDK cmdlets
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUserAssignedLicenses-MgGraph.PS1
 # See https://practical365.com/create-licensing-report-microsoft365-tenant/ for an article describing how to run the report
-$CreationDate = Get-Date -format g
-$Version = "1.0"
+
+# V1.1 27-Sep-2022 Add sign in data for users and calculate how long it's been since they signed in and used a license.
+
+[datetime]$CreationDate = Get-Date
+$Version = "1.1"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
 $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
@@ -43,15 +46,20 @@ ForEach ($Line in $ImportSkus) { $SkuHashTable.Add([string]$Line.SkuId, [string]
 $ServicePlanHashTable = @{}
 ForEach ($Line2 in $ImportServicePlans) { $ServicePlanHashTable.Add([string]$Line2.ServicePlanId, [string]$Line2.ServicePlanDisplayName) }
 
+# Find tenant accounts - but filtered so that we only fetch those with licenses
+Write-Host "Finding licensed Azure AD accounts..."
+[Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All -Property signInActivity | `
+   Sort-Object DisplayName
+
+If (!($Users)) { Write-Host "No licensed Azure AD accounts found - exiting"; break }
+  Else { Write-Host ("{0} Licensed Azure AD accounts found - now processing their license data..." -f $Users.Count) }
+
 $Report = [System.Collections.Generic.List[Object]]::new()
-
-# Find tenant accounts
-Write-Host "Finding Azure AD accounts..."
-[Array]$Users = Get-MgUser -Filter "UserType eq 'Member'" -All | Sort DisplayName
-
+$i = 0
 ForEach ($User in $Users) {
+ $UnusedAccountWarning = "OK"; $i++
+ Write-Host ("Processing account {0} {1}/{2}" -f $User.UserPrincipalName, $i, $Users.Count)
  If ([string]::IsNullOrWhiteSpace($User.AssignedLicenses) -eq $False) { # Only process account if it has some licenses
-  Write-Host "Processing" $User.DisplayName
   [array]$LicenseInfo = $Null; [array]$DisabledPlans = $Null
   ForEach ($License in $User.AssignedLicenses) {
      If ($SkuHashTable.ContainsKey($License.SkuId) -eq $True) { # We found a match in the SKU hash table
@@ -68,17 +76,36 @@ ForEach ($User in $Users) {
       } # End ForEach disabled plans
     } # End if check for disabled plans  
    } # End Foreach Licenses
+
+  # Calculate how long it's been since someone signed in
+  If ([string]::IsNullOrWhiteSpace($User.SignInActivity.LastSignInDateTime) -eq $False) {
+    [datetime]$LastSignInDate = $User.SignInActivity.LastSignInDateTime
+    $DaysSinceLastSignIn = ($CreationDate - $LastSignInDate).Days
+    $LastAccess = Get-Date($User.SignInActivity.LastSignInDateTime) -format g
+    If ($DaysSinceLastSignIn -gt 60) { $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn) }
+  }
+  Else {
+    $DaysSinceLastSignIn = "Unknown"
+    $UnusedAccountWarning = ("Unknown last sign-in for account")
+    $LastAccess = "Unknown"
+  }
+
   # Report information
   [string]$DisabledPlans = $DisabledPlans -join ", " 
   [string]$LicenseInfo = $LicenseInfo -join (", ")
   $ReportLine = [PSCustomObject][Ordered]@{  
-       User            = $User.DisplayName
-       UPN             = $User.UserPrincipalName
-       Country         = $User.Country
-       Department      = $User.Department
-       Title           = $User.JobTitle
-       Licenses        = $LicenseInfo
-      "Disabled Plans" = $DisabledPlans }
+       User                   = $User.DisplayName
+       UPN                     = $User.UserPrincipalName
+       Country                 = $User.Country
+       Department              = $User.Department
+       Title                   = $User.JobTitle
+       Licenses                = $LicenseInfo
+      "Disabled Plans"         = $DisabledPlans 
+      "Account created"        = Get-Date($User.CreatedDateTime) -format g
+      "Last Signin"            = $LastAccess
+      "Days since last signin" = $DaysSinceLastSignIn
+       Status                  = $UnusedAccountWarning
+  }
   $Report.Add($ReportLine)
   } #end If account is licensed
   Else { $UnlicensedAccounts++}
@@ -103,12 +130,12 @@ $htmlhead="<html>
            <div align=center>
            <p><h1>Microsoft 365 License Report</h1></p>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
-           <p><h3>Generated: " + (Get-Date -format g) + "</h3></p></div>"
+           <p><h3>Generated: " + Get-Date($CreationDate) -format g + "</h3></p></div>"
 
 $htmlbody1 = $Report | ConvertTo-Html -Fragment
 
 $htmltail = "<p>Report created for: " + $OrgName + "</p>" +
-             "<p>Created: " + $CreationDate + "<p>" +
+             "<p>Created: " + Get-Date($CreationDate) -format g + "<p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
              "<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
              "<p>Number of unlicensed user accounts found:  " + $UnlicensedAccounts + "</p>" +
