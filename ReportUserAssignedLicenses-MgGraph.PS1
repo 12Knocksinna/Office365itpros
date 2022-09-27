@@ -111,6 +111,9 @@ ForEach ($User in $Users) {
   Else { $UnlicensedAccounts++}
 } # End ForEach Users
 
+$UnderusedAccounts = $Report | Where-Object {$_.Status -ne "OK"}
+$PercentUnderusedAccounts = ($UnderUsedAccounts.Count/$Report.Count).toString("P")
+
 # Create the HTML report
 $htmlhead="<html>
 	   <style>
@@ -138,9 +141,10 @@ $htmltail = "<p>Report created for: " + $OrgName + "</p>" +
              "<p>Created: " + (Get-Date($CreationDate) -format g) + "<p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
              "<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
-             "<p>Number of unlicensed user accounts found:  " + $UnlicensedAccounts + "</p>" +
+             "<p>Number of underused user accounts found:   " + $UnderUsedAccounts.Count + "</p>" +
+             "<p>Percent underused user accounts:           " + $PercentUnderusedAccounts + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
-             "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b>"	
+             "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b>"
 
 $htmlreport = $htmlhead + $htmlbody1 + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
