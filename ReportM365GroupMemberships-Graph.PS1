@@ -144,12 +144,12 @@ ForEach ($User in $Users) {
    $g = 0
    ForEach ($Group in $Groups)  { 
      $g++
-     $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/owners?"
-     $GroupData = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET"
-     If ($GroupData."@odata.count" -eq 0) {
+     $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/owners"
+     $GroupData = Get-GraphData -Uri $Uri -AccessToken $Token
+     If ($GroupData.count -eq 0) {
        $Owners = "No owners found" }
      Else  { # Extract owner names
-        $Owners = $GroupData.Value.DisplayName -join ", " }
+        $Owners = $GroupData.DisplayName -join ", " }
      If ($TeamsHash[$Group.Id]) { $GroupName = $Group.DisplayName + " (** Team **)" } Else { $GroupName = $Group.DisplayName }
      $MemberLine = [PSCustomObject][Ordered]@{  # Write out details of the group
        "User"              = $User.DisplayName
