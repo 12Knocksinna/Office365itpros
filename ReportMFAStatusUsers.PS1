@@ -3,7 +3,7 @@
 # A script to report the authentication methods used by Azure AD user accounts
  
 # Connect to the Microsoft Graph SDK for PowerShell
-Connect-MgGraph -TenantId $TenantId -Scope "UserAuthenticationMethod.Read.All, Directory.Read.All, User.Read.All, Auditlog.Read.All"
+Connect-MgGraph -Scope "UserAuthenticationMethod.Read.All, Directory.Read.All, User.Read.All, Auditlog.Read.All"
 Select-MgProfile Beta
 $Details = Get-MgContext
 $Scopes = $Details | Select -ExpandProperty Scopes
