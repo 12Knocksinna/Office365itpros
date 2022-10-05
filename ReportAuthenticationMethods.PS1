@@ -1,4 +1,7 @@
 # ReportAuthenticationMethods.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportAuthenticationMethods.PS1
+# A report of the authentication methods for Azure AD licensed accounts
+
 Connect-MgGraph -Scopes UserAuthenticationMethod.Read.All, Directory.Read.All, User.Read.All
 Select-MgProfile Beta
 
