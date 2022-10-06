@@ -47,6 +47,9 @@ ForEach ($User in $Users) {
       $P1 = $AuthMethod.AdditionalProperties['displayName']
       $P2 = Get-Date($AuthMethod.AdditionalProperties['creationDateTime']) -format g
     }
+     "Default" {
+      $DisplayMethod = $Method
+    }
   }
   
   $ReportLine   = [PSCustomObject] @{ 
