@@ -63,11 +63,14 @@ Invoke-WebRequest -uri $WebAttachmentFile -OutFile $AttachmentFile
 $Attachment = (Get-Item -Path $AttachmentFile).Name
 $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
 
-$MsgAttachment = @{
-    "@odata.type"= "#microsoft.graph.fileAttachment"
-    name = ($AttachmentFile -split '\\')[-1]
-    contentBytes = $EncodedAttachmentFile
-}
+$MsgAttachment = @(
+     @{
+	"@odata.type" = "#microsoft.graph.fileAttachment"
+	Name = ($AttachmentFile -split '\\')[-1]
+	ContentType = "text/plain"
+	ContentBytes = $EncodedAttachmentFile
+	}
+   )
 
 # Create and send welcome email message to each of the new mailboxes
 ForEach ($User in $Users) {
