@@ -7,7 +7,7 @@
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 # Now connect to the Microsoft Graph SDK for PowerShell
-Connect-MgGraph -TenantId b662313f-14fc-43a2-9a7a-d2e27f4f3478 -Scope "Mail.Send, Mail.ReadWrite"
+Connect-MgGraph -Scope "Mail.Send, Mail.ReadWrite"
 $Details = Get-MgContext
 $Scopes = $Details | Select -ExpandProperty Scopes
 $Scopes = $Scopes -Join ", "
