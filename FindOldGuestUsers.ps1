@@ -1,19 +1,22 @@
 # FindOldGuestUsers.PS1
 # Script to find Guest User Accounts in an Office 365 Tenant that are older than 365 days (update the $GuestAccountAge variable to set a different
 # number of days to check for) and the groups they belong to
-# Script needs to connect to Azure Active Directory and Exchange Online PowerShell.
+# Script needs to connect to the Microsoft Graph PowerShell SDK Exchange Online PowerShell.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindOldGuestUsers.ps1
+# V2.0 10-Oct-2022
 
 # Make sure the right modules are loaded...
 If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
-If ("AzureAD" -notin  $Modules.Name) {Write-Host "Please connect to Azure AD before continuing...";break}
+Connect-MgGraph -Scopes AuditLog.Read.All, Directory.Read.All
+Select-MgProfile Beta
 
 # Set age threshold for reporting a guest account
 [int]$AgeThreshold = 365
 # Output report name
 $OutputReport = "c:\Temp\OldGuestAccounts.csv"
 # Get all guest accounts in the tenant
-$GuestUsers = Get-AzureADUser -All $true -Filter "UserType eq 'Guest'" | Sort DisplayName
+Write-Host "Finding Guest Accounts..."
+[Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All -Property signInActivity 
 $Today = (Get-Date); $i = 0; $StaleGuests = 0; $Report = [System.Collections.Generic.List[Object]]::new()
 # Loop through the guest accounts looking for old accounts 
 CLS
@@ -25,7 +28,7 @@ ForEach ($Guest in $GuestUsers) {
       $ProgressBar = "Processing Guest " + $Guest.DisplayName + " " + $AAdAccountAge + " days old " +  " (" + $i + " of " + $GuestUsers.Count + ")"
       Write-Progress -Activity "Checking Guest Account Information" -Status $ProgressBar -PercentComplete ($i/$GuestUsers.Count*100)
       $StaleGuests++
-      # Find what Office 365 Groups the guest belongs to... if any
+      # Find what Microsoft 365 Groups the guest belongs to... if any
       $DN = (Get-Recipient -Identity $Guest.UserPrincipalName).DistinguishedName 
 #    The distinguished name for some accounts might contain an apostrophe, so we need to process them in a certain way
      If ($Dn -like "*'*")  {
@@ -41,7 +44,7 @@ ForEach ($Guest in $GuestUsers) {
 #    Find the last sign-in date for the guest account, which might indicate how active the account is
      $UserLastLogonDate = $Null
      $UserObjectId = $Guest.ObjectId
-     $UserLastLogonDate = (Get-AzureADAuditSignInLogs -Top 1  -Filter "userid eq '$UserObjectId' and status/errorCode eq 0").CreatedDateTime 
+     $UserLastLogonDate = $Guest.SignInActivity.LastSignInDateTime
      If ($UserLastLogonDate -ne $Null) {
         $UserLastLogonDate = Get-Date ($UserLastLogonDate) -format g }
      Else {
