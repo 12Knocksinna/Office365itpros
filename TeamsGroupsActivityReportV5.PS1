@@ -288,7 +288,7 @@ ForEach ($Group in $Groups) {
       $GroupOwnerEmail = $GroupData[0].Mail }
    Else { # ownerless group
        $OwnerNames = "No owners found"
-       $GroupOwnerMail = $Null }
+       $GroupOwnerEMail = $Null }
    # Get extended group properties 
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
    $GroupData = Get-GraphData -AccessToken $Token -Uri $uri
