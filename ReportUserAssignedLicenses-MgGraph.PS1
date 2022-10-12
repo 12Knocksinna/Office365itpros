@@ -12,7 +12,7 @@ $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
 
 # Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
-Connect-MgGraph -TenantId xxxxxxx-14fc-43a2-9a7a-d2e27f4f3478 -Scope "Directory.AccessAsUser.All, Directory.ReadWrite.All"
+Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.ReadWrite.All, AuditLog.Read.All"
 Select-MgProfile beta
 $Details = Get-MgContext
 $Scopes = $Details | Select -ExpandProperty Scopes
