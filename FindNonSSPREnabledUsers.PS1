@@ -37,6 +37,7 @@ ForEach ($S in $SSPRUsers) {
 $PNonSSPR = ($NonSSPRUsers.count/$Users.Count).toString("P")
 Write-Host ("{0} out of {1} licensed accounts ({2}) are not enabled for Self-Service Password Reset" -f $NonSSPRUsers.count, $Users.count, $PNonSSPR )
 Write-Host ($NonSSPRUsers.DisplayName -join ", ")
+$NonSSPRUsers | Out-GridView
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
