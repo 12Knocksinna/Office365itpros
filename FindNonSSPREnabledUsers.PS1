@@ -20,7 +20,7 @@ ForEach ($U in $Users) {
     $UserTable.Add([String]$U.Id, $ReportLine) 
 
 Write-Host "Finding user accounts not capable of Self-Service Password Reset (SSPR)"
-[array]$SSPRUsers = Get-MgReportAuthenticationMethodUserRegistrationDetail | Where-Object {$_.userType -eq 'member' -and $_.IsSSPRCapable -eq $False}                                                                           
+[array]$SSPRUsers = Get-MgReportAuthenticationMethodUserRegistrationDetail | Where-Object {$_.userType -eq 'member' -and $_.IsSSPRCapable -eq $False} | Select-Object Id, userDisplayName, userPrincipalName, DefaultMfaMethod, IsAdmin, IsMfaCapable, IsMfaRegistered, IsPasswordlessCapable, IsSSPRCapable                                                                                  
 Write-Host "Cross-checking against licensed users..."
 $NonSSPRUsers = [System.Collections.Generic.List[Object]]::new() # Create merged output file
 ForEach ($S in $SSPRUsers) {
