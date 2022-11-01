@@ -2,7 +2,7 @@
 # An example of how to find Azure AD user accounts that aren't SSPR capable.
 
 # Connect to the Graph SDK
-Connect-MgGraph -Scope Directory.Read.All, UserAuthenticationMethod.Read.All
+Connect-MgGraph -Scope Directory.Read.All, UserAuthenticationMethod.Read.All, AuditLog.Read.All 
 Select-MgProfile Beta
 
 Write-Host "Finding licensed Azure AD accounts"
@@ -18,6 +18,7 @@ ForEach ($U in $Users) {
      Country             = $U.Country
      }
     $UserTable.Add([String]$U.Id, $ReportLine) 
+}
 
 Write-Host "Finding user accounts not capable of Self-Service Password Reset (SSPR)"
 [array]$SSPRUsers = Get-MgReportAuthenticationMethodUserRegistrationDetail | Where-Object {$_.userType -eq 'member' -and $_.IsSSPRCapable -eq $False} | Select-Object Id, userDisplayName, userPrincipalName, DefaultMfaMethod, IsAdmin, IsMfaCapable, IsMfaRegistered, IsPasswordlessCapable, IsSSPRCapable                                                                                  
