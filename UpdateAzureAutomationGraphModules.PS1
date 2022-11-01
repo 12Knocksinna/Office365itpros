@@ -1,12 +1,13 @@
 # UpdateAzureAutomationGraphModules.PS1
 # https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateAzureAutomationGraphModules.PS1
 # A script to update the set of Graph modules for an Azure Automation account
+# Requires the Az.Automation PowerShell module
 
 Write-Host "Connecting to Azure Automation"
 $Status = Connect-AzAccount
 If (!($Status)) { Write-Host "Account not authenticated - exiting" ; break }
 
-$DesiredVersion = "1.12.3"
+$DesiredVersion = "1.14'
 [Array]$AzAccounts = Get-AzAutomationAccount
 If (!($AzAccounts)) { write-Host "No Automation accounts found - existing" ; break }
 
