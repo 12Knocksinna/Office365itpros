@@ -39,7 +39,7 @@ $htmlhead="<!DOCTYPE html>
            <p><h3>Generated: " + $date + "</h3></p></div>"
 		
 Write-Host "Fetching List of Teams"
-[array]$Teams = Get-MgGroup -Filter "resourceProvisioningOptions/Any(x:x eq 'Team')" -All | Sort DisplayName
+[array]$Teams = Get-MgTeam -All | Sort DisplayName
 If (!($Teams)) { Write-Host "No teams found - exiting" ; break} 
    Else {Write-Host ("Processing {0} teams" -f $Teams.count) }
 
