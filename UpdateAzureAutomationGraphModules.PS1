@@ -7,7 +7,11 @@ Write-Host "Connecting to Azure Automation"
 $Status = Connect-AzAccount
 If (!($Status)) { Write-Host "Account not authenticated - exiting" ; break }
 
-$DesiredVersion = "1.14'
+# Find Latest version from PowerShell Gallery
+$DesiredVersion = (Find-Module -Name Microsoft.Graph | Select-Object -ExpandProperty Version)
+$DesiredVersion = $DesiredVersion.Major.toString() + "." + $DesiredVersion.Minor.toString() + "." + $DesiredVersion.Build.toString()
+Write-Host ("Checking for version {0} of the Microsoft.Graph PowerShell module" -f $DesiredVersion)
+
 [Array]$AzAccounts = Get-AzAutomationAccount
 If (!($AzAccounts)) { write-Host "No Automation accounts found - existing" ; break }
 
