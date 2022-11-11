@@ -14,7 +14,6 @@ Function Populate-MessageRecipient {
     }    
 }
 
-# Processing
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
