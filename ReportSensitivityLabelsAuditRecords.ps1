@@ -35,7 +35,7 @@ Else {
       $Document = $Null; $Site = $Null; $OldLabelId = "None"; $SiteLabelId = $Null; $SiteLabel = $Null; $OldLabel = "None"; $Device = $Null; $Application = $Null
       $AuditData = ConvertFrom-Json $Rec.Auditdata
       $User        = $AuditData.UserId
-      $Target      = $AuditData.ObjectId
+      $Target      = $ObjectId = [System.Web.HttpUtility]::UrlDecode($AuditData.ObjectId)
       Switch ($AuditData.Operation)            {
             "SensitivityLabelApplied" { # Apply sensitivity label to a site, group, or team
                  If ($Rec.RecordType -eq "SharePoint") { # It's an application of a label to a site rather than a file
