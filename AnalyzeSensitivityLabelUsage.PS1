@@ -65,6 +65,8 @@ ForEach ($Rec in $Records) {
      $Type = "Default label applied by document library" 
  } ElseIf ($UserId -eq "SHAREPOINT\system") { 
    $Type = "Label applied by auto-label policy" }
+ If ($ObjectId -like "*/personal/*") { #Fix-up for OneDrive accounts
+    $Site = "https://" + $ObjectId.Split("/")[2] + "/personal/" + $ObjectId.Split("/")[4] + "/" }
 
   $DataLine = [PSCustomObject] @{
        Timestamp    = Get-Date($Rec.CreationDate) -format g
