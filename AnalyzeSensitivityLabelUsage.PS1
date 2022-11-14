@@ -1,6 +1,6 @@
 # AnalyzeSensitivityLabelUsage.PS1
 # A script to analyze the usage of sensitivity labels based on Office 365 audit log data
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/AnalyzeSensitivityLabelUsage.PS1
 
 Connect-ExchangeOnline
 Connect-IPPSSession
