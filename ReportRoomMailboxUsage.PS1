@@ -70,10 +70,10 @@ function Get-GraphData {
 function GetAccessToken {
 # function to return an Oauth access token
 
-# Define the values applicable for the application used to connect to the Graph
-$AppId = "66a7d55c-a847-443d-b7b9-f24b67ec4709"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = '_O28Q~.QZNE5QJ4pOCaxqTSx13dbkDI2_2Ns5blI'
+# Define the values applicable for the application used to connect to the Graph (you need to update these values for your tenant)
+$AppId = "a6a7d55c-a847-443d-b7b9-f24b67ec4709"
+$TenantId = "xxx-xxx-xxx-xxx"
+$AppSecret = '_O28Q~.QZNE5dd4pOCaxqTSx13dbkDIadadfNs5blI'
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
