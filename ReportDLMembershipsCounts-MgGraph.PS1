@@ -70,7 +70,8 @@ ForEach ($DL in $DLs) {
        "Guest Members"    = $GuestMembers.Count
        "Group Members"    = $GroupMembers.Count
        "Mail Contacts"    = $ContactMembers.Count
-       "Member names"     = $MemberNames}
+       "Member names"     = $MemberNames
+       Identity           = $DL.ExternalDirectoryObjectId }
     $Report.Add($ReportLine) 
 }
 
