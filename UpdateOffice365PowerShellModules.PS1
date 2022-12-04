@@ -1,37 +1,66 @@
 # UpdateOffice365PowerShellModules.PS1
 # Mentioned in Chapter 4 of Office 365 for IT Pros
+# V2.0 4-Dec-2022
 # https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateOffice365PowerShellModules.PS1
 # Very simple script to check for updates to a defined set of PowerShell modules used to manage Office 365 services
 # If an update for a module is found, it is downloaded and applied.
 # Once all modules are checked for updates, we remove older versions that might be present on the workstation
-#
+#  
+
 # Define the set of modules installed and updated from the PowerShell Gallery that we want to maintain
-$O365Modules = @("MicrosoftTeams", "MSOnline", "AzureADPreview", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell")
+$O365Modules = @("MicrosoftTeams", "Microsoft.Graph", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA")
+
+# We're installing from the PowerShell Gallery so make sure that it's trusted
+Set-PSRepository -Name PsGallery -InstallationPolicy Trusted
 
 # Check and update all modules to make sure that we're at the latest version
 ForEach ($Module in $O365Modules) {
    Write-Host "Checking and updating module" $Module
-   Update-Module $Module -Force -Scope AllUsers }
+   $CurrentVersion = (Find-Module -Name $Module | Select-Object -ExpandProperty Version)
+   $CurrentVersion = $CurrentVersion.Major.toString() + "." + $CurrentVersion.Minor.toString() + "." + $CurrentVersion.Build.toString()
+   Write-Host ("Current version of the {0} module in the PowerShell Gallery is {1}" -f $Module, $CurrentVersion)
+
+   $PCVersion = Get-InstalledModule -Name $Module -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Version
+   If ($PCVersion) {
+      $PCVersion = $PCVersion.Major.toString() + "." + $PCVersion.Minor.toString() + "." + $PCVersion.Build.toString()
+      If ($PCVersion -eq $CurrentVersion) { 
+         Write-Host ("Version {0} is installed on this PC - no need to update" -f $PCVersion) 
+      } Else {
+         Write-Host ("Updating {0} module to version {1}" -f $Module, $CurrentVersion)
+         Remove-Module $Module
+         Update-Module $Module -Force -Scope AllUsers -Confirm:$False
+      } # End if 
+    } Else { # Module is not installed, so install it
+         Write-Host ("Installing module {0}..." -f $Module)
+         Install-Module $Module -Scope AllUsers -Confirm:$False
+     } #End if
+} # End ForEach Module
 
 # Check and remove older versions of the modules from the PC
+Write-Host "Beginning clean-up phase..."
 ForEach ($Module in $O365Modules) {
    Write-Host "Checking for older versions of" $Module
-   $AllVersions = Get-InstalledModule -Name $Module -AllVersions
-   $AllVersions = $AllVersions | Sort PublishedDate -Descending 
-   $MostRecentVersion = $AllVersions[0].Version
-   Write-Host "Most recent version of" $Module "is" $MostRecentVersion "published on" (Get-Date($AllVersions[0].PublishedDate) -format g)
-   If ($AllVersions.Count -gt 1 ) { # More than a single version installed
+   [array]$AllVersions = Get-InstalledModule -Name $Module -AllVersions -ErrorAction SilentlyContinue
+   If ($AllVersions) {
+     $AllVersions = $AllVersions | Sort-Object PublishedDate -Descending 
+     $MostRecentVersion = $AllVersions[0].Version
+     $MostRecentVersion = $MostRecentVersion.Major.toString() + "." + $MostRecentVersion.Minor.toString() + "." + $MostRecentVersion.Build.toString()
+     $PublishedDate = (Get-Date($AllVersions[0].PublishedDate) -format g)
+     Write-Host ("Most recent version of {0} is {1} published on {2}" -f $Module, $MostRecentVersion, $PublishedDate)
+     If ($AllVersions.Count -gt 1 ) { # More than a single version installed
       ForEach ($Version in $AllVersions) { #Check each version and remove old versions
         If ($Version.Version -ne $MostRecentVersion)  { # Old version - remove
-           Write-Host "Uninstalling version" $Version.Version "of Module" $Module -foregroundcolor Red 
+           Write-Host ("Uninstalling version {0} of module {1}" -f $Version.Version, $Module) -foregroundcolor Red 
            Uninstall-Module -Name $Module -RequiredVersion $Version.Version -Force
          } #End if
-      } #End ForEach
+      } #End If
+    } #End ForEach Module
   } #End If
 } #End ForEach
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
