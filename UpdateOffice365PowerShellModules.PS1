@@ -28,7 +28,7 @@ ForEach ($Module in $O365Modules) {
       } Else {
          Write-Host ("Updating {0} module to version {1}" -f $Module, $CurrentVersion)
          Remove-Module $Module -ErrorAction SilentlyContinue
-         Update-Module $Module -Force -Scope AllUsers -Confirm:$False
+         Update-Module $Module -Force -Confirm:$False
       } # End if 
     } Else { # Module is not installed, so install it
          Write-Host ("Installing module {0}..." -f $Module)
