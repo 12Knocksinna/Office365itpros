@@ -17,9 +17,14 @@ Set-PSRepository -Name PsGallery -InstallationPolicy Trusted
 ForEach ($Module in $O365Modules) {
    Write-Host "Checking and updating module" $Module
    $CurrentVersion = (Find-Module -Name $Module | Select-Object -ExpandProperty Version)
-   $CurrentVersion = $CurrentVersion.Major.toString() + "." + $CurrentVersion.Minor.toString() + "." + $CurrentVersion.Build.toString()
-   Write-Host ("Current version of the {0} module in the PowerShell Gallery is {1}" -f $Module, $CurrentVersion)
-
+   # Check current version on workstation and report what we find. If no module is installed, tell the user
+   If ($CurrentVersion) {
+     $CurrentVersion = $CurrentVersion.Major.toString() + "." + $CurrentVersion.Minor.toString() + "." + $CurrentVersion.Build.toString()
+     Write-Host ("Current version of the {0} module in the PowerShell Gallery is {1}" -f $Module, $CurrentVersion)
+   } Else {
+     $CurrentVersion = "0.0.0"
+     Write-Host ("No module found for {0}" -f $Module) }
+   
    $PCVersion = Get-InstalledModule -Name $Module -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Version
    If ($PCVersion) {
       $PCVersion = $PCVersion.Major.toString() + "." + $PCVersion.Minor.toString() + "." + $PCVersion.Build.toString()
