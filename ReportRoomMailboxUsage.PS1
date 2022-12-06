@@ -127,7 +127,7 @@ $CalendarInfo = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Room in $RoomMailboxes) {
     $Uri = "https://graph.microsoft.com/V1.0/users/" + $Room.emailAddress + "/calendar/calendarView?startDateTime=" + $Start + "&endDateTime=" + $End
     [array]$CalendarData = Get-GraphData -Uri $Uri -AccessToken $Token
-    # Drop cancelled events
+    # Drop cancelled events - if you want to exclude private events from the set, use Where-Object {$_.isCancelled -eq $False -and $_.sensitivity -ne "private"}
     $CalendarData = $CalendarData | Where-Object {$_.isCancelled -eq $False}
     
    If ($CalendarData) { # Found some events  
