@@ -12,8 +12,8 @@ Connect-Graph -AccessToken $AccessToken
 Select-MgProfile Beta
 # Get tenant name
 $TenantName = (Get-MgOrganization).DisplayName
-# Connect to Exchange Online with the managed identity
-Connect-ExchangeOnline -ManagedIdentity -Organization redmondassociates.onmicrosoft.com 
+# Connect to Exchange Online with the managed identity - update your organization name here
+Connect-ExchangeOnline -ManagedIdentity -Organization xxxxx.onmicrosoft.com 
 $StartDate = (Get-Date).AddDays(-30)
 $EndDate = (Get-Date).AddDays(1)
 # Define the set of operations we're interested in picking up in the audit log
