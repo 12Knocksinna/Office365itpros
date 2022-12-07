@@ -23,7 +23,8 @@ $Tenant = Get-MgOrganization
 $TenantName = $Tenant.VerifiedDomains | Where-Object {$_.IsInitial -eq $True} | Select -ExpandProperty Name
 $TenantRoot = "https://" + $TenantName.Split(".")[0] + "-admin.sharepoint.com"
 
-Connect-ExchangeOnline -ManagedIdentity -organization redmondassociates.onmicrosoft.com 
+# Make sure that you update the organization name here
+Connect-ExchangeOnline -ManagedIdentity -organization xxxxx.onmicrosoft.com 
 Connect-IPPSSession -Credential $UserCredentials
 
 # Define retention policy to update
