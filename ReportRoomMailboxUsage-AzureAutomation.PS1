@@ -67,7 +67,8 @@ $ResourceURL = "https://graph.microsoft.com/"
 $Response = [System.Text.Encoding]::Default.GetString((Invoke-WebRequest -UseBasicParsing -Uri "$($env:IDENTITY_ENDPOINT)?Resource=$ResourceURL" -Method 'GET' -Headers @{'X-IDENTITY-HEADER' = "$env:IDENTITY_HEADER"; 'Metadata' = 'True'}).RawContentStream.ToArray()) | ConvertFrom-Json 
 $AccessToken = $Response.access_token 
 
-Connect-ExchangeOnline -ManagedIdentity -Organization redmondassociates.onmicrosoft.com
+# Make sure that you change this line to point to your tenant
+Connect-ExchangeOnline -ManagedIdentity -Organization office365itpros.onmicrosoft.com
 
 $StartDate = (Get-Date).AddDays(-60)
 $EndDate = (Get-Date).AddDays(1)
