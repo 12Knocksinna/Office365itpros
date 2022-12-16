@@ -30,7 +30,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
 # Needs the following Graph application permissions:
-# Group.Read.All, Reports.Read.All, User.Read.All, GroupMember.Read.All, Sites.Read.All
+# Group.Read.All, Reports.Read.All, User.Read.All, GroupMember.Read.All, Sites.Read.All, Organization.Read.All (or Directory.Read.All)
 #
 #+-------------------------- Functions etc. -------------------------
 
