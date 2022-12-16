@@ -1,6 +1,7 @@
 # UpdateAzureAutomationGraphModules.PS1
-# https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateAzureAutomationGraphModules.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Update%20AzureAutomationGraphModules.PS1
 # A script to update the set of Graph modules for an Azure Automation account
+# V3.0 16-Dec-2022 - Updated to include Exchange Online management module
 # Requires the Az.Automation PowerShell module
 
 Write-Host "Connecting to Azure Automation"
@@ -11,9 +12,14 @@ If (!($Status)) { Write-Host "Account not authenticated - exiting" ; break }
 $DesiredVersion = (Find-Module -Name Microsoft.Graph | Select-Object -ExpandProperty Version)
 $DesiredVersion = $DesiredVersion.Major.toString() + "." + $DesiredVersion.Minor.toString() + "." + $DesiredVersion.Build.toString()
 Write-Host ("Checking for version {0} of the Microsoft.Graph PowerShell module" -f $DesiredVersion)
+# Process Exchange Online also...
+$DesiredExoVersion = (Find-Module -Name ExchangeOnlineManagement | Select-Object -ExpandProperty Version)
+$DesiredExoVersion = $DesiredExoVersion.Major.toString() + "." + $DesiredExoVersion.Minor.toString() + "." + $DesiredExoVersion.Build.toString()
+Write-Host ("Checking for version {0} of the Exchange Online Management module" -f $DesiredExoVersion)
 
 [Array]$AzAccounts = Get-AzAutomationAccount
 If (!($AzAccounts)) { write-Host "No Automation accounts found - existing" ; break }
+Write-Host ("{0} Azure Automation accounts will be processed" -f $AzAccounts.Count)
 
 ForEach ($AzAccount in $AzAccounts) {
   $AzName = $AzAccount.AutomationAccountName
@@ -34,8 +40,7 @@ ForEach ($AzAccount in $AzAccounts) {
      Write-Host ("No modules need to be updated for account {0}" -f $AzName)
      Write-Host ""
      $UpgradeNeeded = $False
-  }
-  Else {
+  } Else {
     Write-Host ""
     Write-Host ("Modules that need to be updated to {0}" -f $DesiredVersion)
     Write-Host ""
@@ -66,7 +71,7 @@ If ($ModulesToUpdate.Count -gt 0 -and $UpgradeNeeded -eq $True) {
     [string]$ModuleName = $Module.Name
     $Uri = "https://www.powershellgallery.com/api/v2/package/$ModuleName/$DesiredVersion"
     Write-Host ("Updating module {0} from {1}" -f $ModuleName, $Uri)
-    New-AzAutomationModule -AutomationAccountName $AzName -ResourceGroup $AzResourceGroup -Name $ModuleName -ContentLinkUri $Uri
+    $Satus = (New-AzAutomationModule -AutomationAccountName $AzName -ResourceGroup $AzResourceGroup -Name $ModuleName -ContentLinkUri $Uri)
   } #End ForEach
   Write-Host "Waiting for module import processing to complete..."
   # Wait for to let everything finish
@@ -76,18 +81,45 @@ If ($ModulesToUpdate.Count -gt 0 -and $UpgradeNeeded -eq $True) {
    # Check that all the modules we're interested in are fully provisioned with updated code
    [array]$GraphPSModules = Get-AzAutomationModule -AutomationAccountName $AzName -ResourceGroup $AzResourceGroup | `
        Where-Object {$_.Name -match "Microsoft.Graph" -and $_.ProvisioningState -eq "Succeeded"}
-   [array]$ModulesToUpdate = $GraphPSModules | ? {$_.Version -ne $DesiredVersion}
+   [array]$ModulesToUpdate = $GraphPSModules | Where-Object {$_.Version -ne $DesiredVersion}
    If ($ModulesToUpdate.Count -eq 0) {$x = 1}
    Else {Write-Host "Still working..." }
   } While ($x = 0)
 
   Write-Host ""
-  Write-Host ("All Done - Your Microsoft Graph modules are now upgraded to version {0} for AZ account {1}" -f $DesiredVersion, $AzName)
+  Write-Host ("Microsoft Graph modules are now upgraded to version {0} for AZ account {1}" -f $DesiredVersion, $AzName)
   Write-Host ""
   $GraphPSModules | Format-Table Name, Version, LastModifiedTime
  } # End If Modules
-} #End ForEach Az Account
 
+ # Check for updates to the Exchange Online Management module
+ Write-Host ("Checking Exchange Online Management module in Account {0}" -f $AzName)
+ [array]$ExoPSModule = Get-AzAutomationModule -AutomationAccountName $AzName -ResourceGroup $AzResourceGroup | Where-Object {$_.Name -match "ExchangeOnlineManagement" }
+  If ($ExoPSModule) {
+    Write-Host ""
+    Write-Host "Current Status"
+    Write-Host "--------------"
+    $ExoPSModule | Format-Table Name, Version, LastModifiedTime }
+  
+  $UpgradeNeeded = $True
+  [array]$ModulesToUpdate = $ExoPSModule | Where-Object {$_.Version -ne $DesiredExoVersion}
+  If (!($ModulesToUpdate)) {
+     Write-Host ("The Exchange Online Management module does not need to be updated for account {0}" -f $AzName)
+     Write-Host ""
+     $UpgradeNeeded = $False
+  } Else {
+    [string]$ModuleName = "ExchangeOnlineManagement"
+    Write-Host ""
+    Write-Host ("Updating the Exchange Online management module to version {0}" -f $DesiredExoVersion)
+    Write-Host "Removing old module..."
+    Write-Host ("Uninstalling module {0} from Az Account {1}" -f $ModuleName, $AzName)
+    Remove-AzAutomationModule -AutomationAccountName $AzName -ResourceGroup $AzResourceGroup -Name $ModuleName -Confirm:$False -Force 
+    $Uri = "https://www.powershellgallery.com/api/v2/package/$ModuleName/$DesiredExoVersion"
+    Write-Host ("Updating module {0} from {1}" -f $ModuleName, $Uri)
+    $Status = (New-AzAutomationModule -AutomationAccountName $AzName -ResourceGroup $AzResourceGroup -Name $ModuleName -ContentLinkUri $Uri)
+   }
+
+} #End ForEach Az Account
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
