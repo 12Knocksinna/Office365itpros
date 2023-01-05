@@ -26,6 +26,7 @@
 # V5.6 19-Jul-2022 Add email address of team owner to output and updated activity range for usage reports to 180 days
 # V5.7 17-Aug-2022 Amended how archived groups are processed.
 # V5.8 15-Sep-2022 Improved check for groups with no owners
+# V5.9 05-Jan-2023 Increased access token lifetime from 50 to 57 minutes and created new CheckAccessToken function.
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -121,6 +122,19 @@ $Token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 Return $Token
 }
 
+Function CheckAccessToken {
+# Function to check if the access token needs to be refreshed. If it does, request a new token
+# This happens when the script processes more than a few thousands groups
+
+$TimeNow = (Get-Date)
+if($TimeNow -ge $TokenExpiredDate) {
+  $Global:Token = GetAccessToken
+  $Global:TokenExpiredDate = (Get-Date).AddMinutes(57) 
+  Write-Host "Requested new access token - expiration at" $TokenExpiredDate }
+
+Return $Token
+}
+
 Function GetTeamsStats {
 # Function to retrieve per-team usage stats so that there's no need for the admin to download the report. The output is a hash table that
 # we check for Teams data
@@ -179,8 +193,8 @@ $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
-$Version = "V5.8"
-$TimeToRefreshToken = "50" # Token lifetime
+$Version = "V5.9"
+$TimeToRefreshToken = "57" # Token lifetime
 CLS
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
 # Comment these lines out if you don't want the script to create a temp directory to store its output files
@@ -215,9 +229,9 @@ $Headers = @{
             'Authorization' = "Bearer $Token" 
             'ConsistencyLevel' = "eventual" }
 
-#Get Creation Date of the initial Token (59min and 59sec life long) and add 50 minutes to renew the token later in the main loop
-$TokenCreationDate = (Get-Date)
-$TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
+#Get Creation Date of the initial Token (59min and 59sec life long) and add 57 minutes to renew the token later in the main loop
+$Global:TokenCreationDate = (Get-Date)
+$Global:TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
 # Get tenant name and other details
 $Uri = "https://graph.microsoft.com/v1.0/organization"
 $OrgData = Get-GraphData -Uri $Uri -AccessToken $Token
@@ -340,6 +354,9 @@ ForEach ($Group in $Groups) {
        Description      = $Description
        Label            = $GroupLabel }
   $GroupsList.Add($ReportLine) 
+  
+  # Check for expired access token and renew if necessary
+  $Token = CheckAccessToken
 } 
 $GroupsList = $GroupsList | Sort DisplayName
 
@@ -375,16 +392,9 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
    $SPOActivity = "Document library in use"
    $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $ObsoleteReportLine = $Null
 
-   #### Check if token needs to be refreshed. If it does, request a new token ##############
-        $TimeNow = (Get-Date)
-        if($TimeNow -ge $TokenExpiredDate){
-           $Token = GetAccessToken
-           $TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
-           Write-Host "Requested new access token - expiration at" $TokenExpiredDate 
-        }
-            
-    #### END of Check if token is older than 50 minutes and request a refresh token #######
-
+   # Check for expired access token and renew if necessary
+   $Token = CheckAccessToken
+  
 # Group Age
   $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
 # Team-enabled or not?
@@ -399,9 +409,14 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
       Write-Host ("Can't read information from the group mailbox for {0} - continuing." -f $G.DisplayName)
    }
  
-   If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {$LastConversation = "No items found"}           
-   Else {$LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format g }
-   $NumberConversations = $Data.ItemsInFolder
+  If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {
+       $LastConversation = "No items found"
+       $NumberConversations = 0
+   } Else {
+     $LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format g 
+     $NumberConversations = $Data.ItemsInFolder }
+   If ($G.resourceBehaviorOptions -eq "CalendarMemberReadOnly") {
+     $LastConversation = "Yammer group" }
 
    If ($Data.NewestItemReceivedDate -le $WarningEmailDate) {
       # Write-Host "Last conversation item created in" $G.DisplayName "was" $Data.NewestItemReceivedDate "-> Obsolete?"
