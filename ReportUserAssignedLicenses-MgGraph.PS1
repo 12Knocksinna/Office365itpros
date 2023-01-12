@@ -91,6 +91,10 @@ ForEach ($User in $Users) {
     $LastAccess = "Unknown"
   }
 
+  $AccountCreatedDate = $Null
+  If ($User.CreatedDateTime) {
+     $AccountCreatedDate = Get-Date($User.CreatedDateTime) -format g }
+     
   # Report information
   [string]$DisabledPlans = $DisabledPlans -join ", " 
   [string]$LicenseInfo = $LicenseInfo -join (", ")
@@ -102,7 +106,7 @@ ForEach ($User in $Users) {
        Title                   = $User.JobTitle
        Licenses                = $LicenseInfo
       "Disabled Plans"         = $DisabledPlans 
-      "Account created"        = Get-Date($User.CreatedDateTime) -format g
+      "Account created"        = $AccountCreatedDate
       "Last Signin"            = $LastAccess
       "Days since last signin" = $DaysSinceLastSignIn
        Status                  = $UnusedAccountWarning
