@@ -2,7 +2,9 @@
 # Script to find Guest User Accounts in an Office 365 Tenant that are older than 365 days and the groups they belong to
 # V2.0 10-Oct-2022
 # V3.0 13-Jan-2023 - Removed the Exchange Online management module and do everything with the Graph
-# Make sure the right modules are loaded...
+
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindOldGuestAccounts.PS1
+
 Connect-MgGraph  -Scopes AuditLog.Read.All, Directory.Read.All
 Select-MgProfile Beta
 
