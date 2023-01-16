@@ -20,6 +20,7 @@ $SummaryData = [System.Collections.Generic.List[Object]]::new()
 $UserNoGroups = 0; $UserWithGroups = 0
 $CreationDate = Get-Date -format g
 CLS
+$S1 = Get-Date
 Write-Host "Fetching user information from Azure Active Directory..."
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All
 If (!($Users)) { Write-Host "Can't get user information from Azure AD - exiting" ; break }
