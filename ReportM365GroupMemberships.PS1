@@ -49,11 +49,10 @@ ForEach ($User in $Users) {
    $Groups = $Groups | Sort DisplayName
    $AllGroups = $Groups.DisplayName -Join ", "
    ForEach ($Group in $Groups)  { 
-     [array]$Owners = $null; [array]$OwnersDisplayName = $Null
+     [array]$Owners = $null # Get group owners
      [array]$Owners = Get-MgGroupOwner -GroupId $Group.Id | Select-Object -ExpandProperty AdditionalProperties
-     ForEach ($Owner in $Owners) {
-        $OwnersDisplayName += $Owner.displayName }
-     [string]$OwnersOutput = $OwnersDisplayName -join ", "
+     $OwnersOutput = $Owners.displayName -join ", "
+     
      If ($TeamsHash[$Group.Id]) { $GroupName = $Group.DisplayName + " (** Team **)" } Else { $GroupName = $Group.DisplayName }
      $MemberLine = [PSCustomObject][Ordered]@{  # Write out details of the group
        "User"              = $User.DisplayName
