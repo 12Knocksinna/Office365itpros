@@ -23,6 +23,8 @@ CLS
 Write-Host "Fetching user information from Azure Active Directory..."
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All
 If (!($Users)) { Write-Host "Can't get user information from Azure AD - exiting" ; break }
+$Users = $Users | Sort-Object DisplayName
+
 # Get a list of Teams and put them into a hash table so that we can mark the groups we process as being team-enabled
 [array]$Teams = Get-MgTeam -All
 $TeamsHash = @{}
