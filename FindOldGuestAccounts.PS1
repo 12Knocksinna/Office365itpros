@@ -31,8 +31,9 @@ ForEach ($Guest in $GuestUsers) {
 $NumberOfGroups = 0
 $Uri = ("https://graph.microsoft.com/beta/users/{0}/memberOf/microsoft.graph.group?`$filter=groupTypes/any(a:a eq 'unified')&`$top=200&$`orderby=displayName&`$count=true" -f $Guest.Id)
 [array]$Data = Invoke-MgGraphRequest -Uri $Uri
+[array]$GuestGroups = $Data.Value
 
-If ($GuestGroups) { `
+If ($GuestGroups) { 
    $GroupNames = $Data.Value.displayName -join ", " 
    $NumberOfGroups = $GuestGroups.count
 } 
