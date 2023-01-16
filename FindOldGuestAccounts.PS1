@@ -33,7 +33,7 @@ $Uri = ("https://graph.microsoft.com/beta/users/{0}/memberOf/microsoft.graph.gro
 [array]$Data = Invoke-MgGraphRequest -Uri $Uri
 
 If ($GuestGroups) { `
-   $GroupNames = $GuestGroups.displayName -join ", " 
+   $GroupNames = $Data.Value.displayName -join ", " 
    $NumberOfGroups = $GuestGroups.count
 } 
 
