@@ -108,8 +108,8 @@ $htmlhead="<html>
 	   </style>
 	   <body>
            <div align=center>
-           <p><h1>Microsoft 365 Groups and Teams Membership Listing</h1></p>
-           <p><h2><b>All groups in the " + $Orgname + " organization</b></h2></p>
+           <p><h1>Microsoft 365 Groups and Teams Membership Report</h1></p>
+           <p><h2><b>Microsoft 365 Groups in the " + $Orgname + " organization</b></h2></p>
            <p><h3>Generated: " + (Get-Date -format g) + "</h3></p></div>"
 
 $htmlbody1 = $MemberList | ConvertTo-Html -Fragment
