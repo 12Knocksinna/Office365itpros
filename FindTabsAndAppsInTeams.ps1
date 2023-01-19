@@ -1,9 +1,72 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindTabsAndAppsInTeams.ps1
 # Remember to insert the correct values for the tenant id, app id, and app secret before running the script.
+
+function Get-GraphData {
+# GET data from Microsoft Graph.
+# Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
+    param (
+        [parameter(Mandatory = $true)]
+        $AccessToken,
+
+        [parameter(Mandatory = $true)]
+        $Uri
+    )
+
+    # Check if authentication was successful.
+    if ($AccessToken) {
+        # Format headers.
+        $Headers = @{
+            'Content-Type'  = "application\json"
+            'Authorization' = "Bearer $AccessToken" 
+            'ConsistencyLevel' = "eventual"   }
+
+        # Create an empty array to store the result.
+        $QueryResults = @()
+
+        # Invoke REST method and fetch data until there are no pages left.
+        do {
+            $Results = ""
+            $StatusCode = ""
+
+            do {
+                try {
+                    $Results = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json" 
+
+                    $StatusCode = $Results.StatusCode
+                } catch {
+                    $StatusCode = $_.Exception.Response.StatusCode.value__
+
+                    if ($StatusCode -eq 429) {
+                        Write-Warning "Got throttled by Microsoft. Sleeping for 45 seconds..."
+                        Start-Sleep -Seconds 45
+                    }
+                    else {
+                        Write-Error $_.Exception
+                    }
+                }
+            } while ($StatusCode -eq 429)
+
+            if ($Results.value) {
+                $QueryResults += $Results.value
+            }
+            else {
+                $QueryResults += $Results
+            }
+
+            $uri = $Results.'@odata.nextlink'
+        } until (!($uri))
+
+        # Return the result.
+        $QueryResults
+    }
+    else {
+        Write-Error "No Access Token"
+    }
+
 Cls
 # Define the values applicable for the application used to connect to the Graph
 $AppId = "d716b32c-0edb-48be-9385-30a9cfd96153"    # Change this
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3476" # And this
+$TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3476" # And this
 $AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='    # and this
 
 # Construct URI and body needed for authentication
@@ -84,75 +147,13 @@ ForEach ($Team in $Teams) {
        Write-Host "The" $Team.DisplayName "team is archived - no check done" }
 }
 
-
 $Report | Sort Team, Record, App | Export-CSV C:\Temp\TeamsChannelsAppInfo.Csv -NoTypeInformation
 Write-Host $EmailAddresses "Info about Teams channels, apps and tabs exported to C:\Temp\TeamsChannelsAppInfo.Csv"
 
-function Get-GraphData {
-# GET data from Microsoft Graph.
-# Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
-    param (
-        [parameter(Mandatory = $true)]
-        $AccessToken,
-
-        [parameter(Mandatory = $true)]
-        $Uri
-    )
-
-    # Check if authentication was successful.
-    if ($AccessToken) {
-        # Format headers.
-        $Headers = @{
-            'Content-Type'  = "application\json"
-            'Authorization' = "Bearer $AccessToken" 
-            'ConsistencyLevel' = "eventual"   }
-
-        # Create an empty array to store the result.
-        $QueryResults = @()
-
-        # Invoke REST method and fetch data until there are no pages left.
-        do {
-            $Results = ""
-            $StatusCode = ""
-
-            do {
-                try {
-                    $Results = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json" 
-
-                    $StatusCode = $Results.StatusCode
-                } catch {
-                    $StatusCode = $_.Exception.Response.StatusCode.value__
-
-                    if ($StatusCode -eq 429) {
-                        Write-Warning "Got throttled by Microsoft. Sleeping for 45 seconds..."
-                        Start-Sleep -Seconds 45
-                    }
-                    else {
-                        Write-Error $_.Exception
-                    }
-                }
-            } while ($StatusCode -eq 429)
-
-            if ($Results.value) {
-                $QueryResults += $Results.value
-            }
-            else {
-                $QueryResults += $Results
-            }
-
-            $uri = $Results.'@odata.nextlink'
-        } until (!($uri))
-
-        # Return the result.
-        $QueryResults
-    }
-    else {
-        Write-Error "No Access Token"
-    }
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
