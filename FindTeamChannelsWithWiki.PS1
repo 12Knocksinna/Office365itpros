@@ -3,6 +3,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindTeamChannelsWithWiki.PS1
 
 Connect-MgGraph -Scopes Directory.Read.All, Team.ReadBasic.All, TeamSettings.Read.All, ChannelSettings.Read.All
+Select-MgProfile beta  # Important because Get-MgTeam only returns all teams when connected to the beta endpoint
 
 Write-Host "Finding Teams"
 [array]$Teams = Get-MgTeam -All
