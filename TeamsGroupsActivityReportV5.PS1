@@ -129,8 +129,8 @@ Function CheckAccessToken {
 $TimeNow = (Get-Date)
 if($TimeNow -ge $TokenExpiredDate) {
   $Global:Token = GetAccessToken
-  $Global:TokenExpiredDate = (Get-Date).AddMinutes(57) 
-  Write-Host "Requested new access token - expiration at" $TokenExpiredDate }
+  $Global:TokenExpiredDate = (Get-Date).AddMinutes($TimeToRefreshToken) 
+  #Write-Host "Requested new access token - expiration at" $TokenExpiredDate }
 
 Return $Token
 }
