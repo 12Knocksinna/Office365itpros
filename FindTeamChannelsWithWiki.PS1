@@ -1,6 +1,7 @@
 # FindTeamChannelsWithWiki.PS1
 # Quick and dirty script to find wiki tabs in Teams channels
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindTeamChannelsWithWiki.PS1
+
 Connect-MgGraph -Scopes Directory.Read.All, Team.ReadBasic.All, TeamSettings.Read.All, ChannelSettings.Read.All
 
 Write-Host "Finding Teams"
