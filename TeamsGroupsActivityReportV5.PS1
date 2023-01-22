@@ -222,7 +222,7 @@ $htmlhead="<html>
            <p><h1>Microsoft 365 Groups and Teams Activity Report</h1></p>
            <p><h3>Generated: " + $date + "</h3></p></div>"
 		
-$Token = GetAccessToken
+$Global:Token = GetAccessToken
 If (!($Token)) {Write-Host "Can't get a valid Azure AD access token - exiting" ; break }
 # Set the creation date of the initial access token (59min and 59sec life long) and add 57 minutes to renew the token later in the main loop
 $Global:TokenCreationDate = (Get-Date)
@@ -357,7 +357,7 @@ ForEach ($Group in $Groups) {
   $GroupsList.Add($ReportLine) 
   
   # Check for expired access token and renew if necessary
-  $Token = CheckAccessToken
+  $Global:Token = CheckAccessToken
 } 
 $GroupsList = $GroupsList | Sort DisplayName
 
@@ -394,7 +394,7 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
    $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $ObsoleteReportLine = $Null
 
    # Check for expired access token and renew if necessary
-   $Token = CheckAccessToken
+   $Global:Token = CheckAccessToken
   
 # Group Age
   $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
