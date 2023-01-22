@@ -124,13 +124,14 @@ Return $Token
 
 Function CheckAccessToken {
 # Function to check if the access token needs to be refreshed. If it does, request a new token
-# This happens when the script processes more than a few thousands groups
+# This often needs to happen when the script processes more than a few thousands groups
 
 $TimeNow = (Get-Date)
 if($TimeNow -ge $TokenExpiredDate) {
   $Global:Token = GetAccessToken
   $Global:TokenExpiredDate = (Get-Date).AddMinutes($TimeToRefreshToken) 
-  #Write-Host "Requested new access token - expiration at" $TokenExpiredDate }
+  #Write-Host "Requested new access token - expiration at" $TokenExpiredDate 
+ }
 
 Return $Token
 }
@@ -223,15 +224,15 @@ $htmlhead="<html>
 		
 $Token = GetAccessToken
 If (!($Token)) {Write-Host "Can't get a valid Azure AD access token - exiting" ; break }
+# Set the creation date of the initial access token (59min and 59sec life long) and add 57 minutes to renew the token later in the main loop
+$Global:TokenCreationDate = (Get-Date)
+$Global:TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
 
 $Headers = @{
             'Content-Type'  = "application\json"
             'Authorization' = "Bearer $Token" 
             'ConsistencyLevel' = "eventual" }
-
-#Get Creation Date of the initial Token (59min and 59sec life long) and add 57 minutes to renew the token later in the main loop
-$Global:TokenCreationDate = (Get-Date)
-$Global:TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
+	    
 # Get tenant name and other details
 $Uri = "https://graph.microsoft.com/v1.0/organization"
 $OrgData = Get-GraphData -Uri $Uri -AccessToken $Token
