@@ -27,6 +27,7 @@
 # V5.7 17-Aug-2022 Amended how archived groups are processed.
 # V5.8 15-Sep-2022 Improved check for groups with no owners
 # V5.9 05-Jan-2023 Increased access token lifetime from 50 to 57 minutes and created new CheckAccessToken function.
+# V5.10 23-Jan-2023 Include code to handle bad data returned by Exchange Online for mailbox inbox statistics
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -119,6 +120,7 @@ $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "applicati
 # Unpack Access Token
 $Token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 
+Write-Host ("Retrieved new access token at {0}" -f (Get-Date)) -foregroundcolor red
 Return $Token
 }
 
@@ -194,7 +196,7 @@ $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-
 $TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
-$Version = "V5.9"
+$Version = "V5.10"
 $TimeToRefreshToken = "57" # Token lifetime
 CLS
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
@@ -404,19 +406,33 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
 
  If ($GroupIsTeamEnabled -eq $False) { # Not a Teams-enabled group, so look at the Inbox etc.
  # Fetch information about activity in the Inbox folder of the group mailbox  
-  Try {  
+ Try {  
    [array]$Data = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestITems -FolderScope Inbox -ErrorAction SilentlyContinue) }
    Catch {
       Write-Host ("Can't read information from the group mailbox for {0} - continuing." -f $G.DisplayName)
+      $Data = $Null
    }
- 
-  If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {
+   If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {
        $LastConversation = "No items found"
        $NumberConversations = 0
    } Else {
-     $LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format g 
-     $NumberConversations = $Data.ItemsInFolder }
-   If ($G.resourceBehaviorOptions -eq "CalendarMemberReadOnly") {
+     Try {
+       $LastConversation = (Get-Date ($Data.NewestItemReceivedDate) -Format g )
+       $NumberConversations = $Data.ItemsInFolder }
+     Catch [System.Management.Automation.ParameterBindingException] {
+       # Caused by the Exo cmdlets returning bad dates, so we need to do this...
+       [string]$LastDate = $Data.NewestItemReceivedDate[0]
+       [datetime]$LastDateConversation = $LastDate
+       $LastConversation = Get-Date($LastDateConversation) -format g
+       [string]$NumberofConversations = $Data.ItemsInfolder[0].toString()
+       $Error.Clear()
+        }
+     Catch {
+      Write-Host "Error converting date values"
+     }
+   }
+
+    If ($G.resourceBehaviorOptions -eq "CalendarMemberReadOnly") {
      $LastConversation = "Yammer group" }
 
    If ($Data.NewestItemReceivedDate -le $WarningEmailDate) {
