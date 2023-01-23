@@ -52,6 +52,7 @@ ForEach ($User in $Users) {
      [array]$Owners = $null # Get group owners
      [array]$Owners = Get-MgGroupOwner -GroupId $Group.Id | Select-Object -ExpandProperty AdditionalProperties
      $OwnersOutput = $Owners.displayName -join ", "
+     $GroupOwnersEmail = $Owners.mail -join ", "
      
      If ($TeamsHash[$Group.Id]) { $GroupName = $Group.DisplayName + " (** Team **)" } Else { $GroupName = $Group.DisplayName }
      $MemberLine = [PSCustomObject][Ordered]@{  # Write out details of the group
@@ -61,7 +62,8 @@ ForEach ($User in $Users) {
        "Group Name"        = $GroupName
        "Group Description" = $Group.description
        "Group Email"       = $Group.mail
-       "Group Owners"      = $OwnersOutput       }
+       "Group Owners"      = $OwnersOutput     
+       "Owners Email"      = $GroupOwnersEmail }
       $MemberList.Add($MemberLine) 
     } #End For
     $SummaryLine = [PSCustomObject][Ordered]@{  # Write out summary record for the user
