@@ -4,6 +4,7 @@
 # V2.0 - Include check for content from wiki configuration
 
 Connect-MgGraph -Scopes Directory.Read.All, Team.ReadBasic.All, TeamSettings.Read.All, ChannelSettings.Read.All, TeamsTab.Read.All
+Select-MgProfile Beta
 
 Write-Host "Finding Teams"
 [array]$Teams = Get-MgTeam -All
