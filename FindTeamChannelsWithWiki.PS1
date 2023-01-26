@@ -1,9 +1,9 @@
 # FindTeamChannelsWithWiki.PS1
 # Quick and dirty script to find wiki tabs in Teams channels
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindTeamChannelsWithWiki.PS1
+# V2.0 - Include check for content from wiki configuration
 
-Connect-MgGraph -Scopes Directory.Read.All, Team.ReadBasic.All, TeamSettings.Read.All, ChannelSettings.Read.All
-Select-MgProfile beta  # Important because Get-MgTeam only returns all teams when connected to the beta endpoint
+Connect-MgGraph -Scopes Directory.Read.All, Team.ReadBasic.All, TeamSettings.Read.All, ChannelSettings.Read.All, TeamsTab.Read.All
 
 Write-Host "Finding Teams"
 [array]$Teams = Get-MgTeam -All
@@ -23,9 +23,15 @@ ForEach ($Team in $Teams) {
         [array]$Tabs = Get-MgTeamChannelTab -ChannelId $Channel.Id -TeamId $Team.Id -ExpandProperty TeamsApp -ErrorAction SilentlyContinue
         If ($Tabs) {
          $TabNumber = 0
-         # Debug line - uncomment it to see the channeld details as they are processed
+         # Debug line - uncomment it to see the channelid details as they are processed
          # Write-Host ("Processing tab {0} in channel {1} of team {2}" -f $Tab.DisplayName, $Channel.DisplayName, $Team.DisplayName) 
          ForEach ($Tab in $Tabs) {
+          $WikiContent = "N/A"
+          If ($Tab.TeamsApp.Id -eq "com.microsoft.teamspace.tab.wiki") { # Check if the wiki configuration says that it has some content
+             $WikiContent = $False
+             $Uri = ("https://graph.microsoft.com/v1.0/teams/{0}/channels/{1}/tabs/{2}" -f $Team.Id, $Channel.Id, $Tab.Id)
+             [array]$TabData = Invoke-MgGraphRequest -Uri $Uri
+             $WikiContent = $TabData.Configuration['hasContent'] }          
             $ReportLine = [PSCustomObject][Ordered]@{
               Team           = $Team.DisplayName
               TeamId         = $Team.Id
@@ -33,7 +39,7 @@ ForEach ($Team in $Teams) {
               "Channel tyoe" = $Channel.MembershipType
               "Tab name"     = $Tab.DisplayName
               AppId          = $Tab.TeamsApp.Id
-              AppName        = $Tab.TeamsApp.DisplayName }
+              WikiContent    = $WikiContent}
          $Report.Add($ReportLine) } #End ForEach Tabs
          Sleep -Milliseconds 50 # Brief pause before next channel
        } #End if Tabs
@@ -42,9 +48,9 @@ ForEach ($Team in $Teams) {
     Else { Write-Host "The" $Team.DisplayName "team is archived - no check done" }
 } #End ForEach Team
 
-$WikiReport = $Report | Where-Object {$_.AppName -eq "Wiki"}
+$WikiReport = $Report | Where-Object {$_.AppId -eq "com.microsoft.teamspace.tab.wiki" -and $_.WikiContent -eq $True}
 $WikiReport | Out-GridView
-Write-Host ("All done. {0} Teams processed. The Wiki tab was found in {1} channels" -f $Teams.count, $WikiReport.count)
+Write-Host ("All done. {0} Teams processed. The Wiki tab with content was found in {1} channels" -f $Teams.count, $WikiReport.count)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
