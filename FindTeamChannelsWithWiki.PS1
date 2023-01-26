@@ -22,24 +22,33 @@ ForEach ($Team in $Teams) {
       ForEach ($Channel in $TeamChannels) {
         [array]$Tabs = Get-MgTeamChannelTab -ChannelId $Channel.Id -TeamId $Team.Id -ExpandProperty TeamsApp -ErrorAction SilentlyContinue
         If ($Tabs) {
-         $TabNumber = 0
          # Debug line - uncomment it to see the channelid details as they are processed
          # Write-Host ("Processing tab {0} in channel {1} of team {2}" -f $Tab.DisplayName, $Channel.DisplayName, $Team.DisplayName) 
          ForEach ($Tab in $Tabs) {
-          $WikiContent = "N/A"
-          If ($Tab.TeamsApp.Id -eq "com.microsoft.teamspace.tab.wiki") { # Check if the wiki configuration says that it has some content
-             $WikiContent = $False
+           $WikiContent = $False; $TeamOwners = $Null
+           If ($Tab.TeamsApp.Id -eq "com.microsoft.teamspace.tab.wiki") { # Check if the wiki configuration says that it has some content
              $Uri = ("https://graph.microsoft.com/v1.0/teams/{0}/channels/{1}/tabs/{2}" -f $Team.Id, $Channel.Id, $Tab.Id)
              [array]$TabData = Invoke-MgGraphRequest -Uri $Uri
-             $WikiContent = $TabData.Configuration['hasContent'] }          
+             $WikiContent = $TabData.Configuration['hasContent']
+            }  #End if Wiki tab
+            Switch ($WikiContent) {
+              $True     { 
+                 # Get Team owners 
+                 [array]$OwnerData = Get-MgGroupOwner -GroupId $Team.Id
+                 $TeamOwners = $OwnerData.AdditionalProperties.displayName -Join ", "
+                 $WikiCheck = "Wiki content exists"}
+              $False    { $WikiCheck = "No content" }
+              Default    { $WikiCheck = "No content" }
+            }   
             $ReportLine = [PSCustomObject][Ordered]@{
               Team           = $Team.DisplayName
-              TeamId         = $Team.Id
               Channel        = $Channel.DisplayName
-              "Channel tyoe" = $Channel.MembershipType
-              "Tab name"     = $Tab.DisplayName
+             "Tab name"     = $Tab.DisplayName
+              Owners         = $TeamOwners
+              Check          = $WikiCheck
+              TeamId         = $Team.Id    
               AppId          = $Tab.TeamsApp.Id
-              WikiContent    = $WikiContent}
+            }
          $Report.Add($ReportLine) } #End ForEach Tabs
          Sleep -Milliseconds 50 # Brief pause before next channel
        } #End if Tabs
@@ -48,9 +57,11 @@ ForEach ($Team in $Teams) {
     Else { Write-Host "The" $Team.DisplayName "team is archived - no check done" }
 } #End ForEach Team
 
-$WikiReport = $Report | Where-Object {$_.AppId -eq "com.microsoft.teamspace.tab.wiki" -and $_.WikiContent -eq $True}
+$WikiReport = $Report | Where-Object {$_.AppId -eq "com.microsoft.teamspace.tab.wiki" -and $_.Check -eq "Wiki content exists"}
 $WikiReport | Out-GridView
 Write-Host ("All done. {0} Teams processed. The Wiki tab with content was found in {1} channels" -f $Teams.count, $WikiReport.count)
+
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
