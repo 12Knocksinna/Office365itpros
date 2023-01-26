@@ -37,10 +37,18 @@ ForEach ($Rec in $Records) {
      $MessageThread = $AuditData.ChatThreadId
      $MessageId = $AuditData.MessageId
   } # End If
+  
+  # Check for reactions removed
+ If (!($AuditData.MessageReactionType)) {
+    $AuditText = $Auditdata.Extraproperties | Where-Object {$_.Key -eq "Source"} | Select-Object -ExpandProperty Value
+    $Reaction = ("{0} ({1})" -f $AuditText, $AuditData.OldValue) 
+ } Else {
+    $Reaction =  $AuditData.MessageReactionType }
+
  $ReportLine = [PSCustomObject][Ordered]@{  
      Date             = $Rec.CreationDate
      User             = $Rec.UserIds
-     Reaction         = $AuditData.MessageReactionType
+     Reaction         = $Reaction
      Type             = $Type
      Team             = $Team
      Channel          = $Channel
@@ -51,6 +59,7 @@ ForEach ($Rec in $Records) {
 
 } # End ForEach Records
 
+$Report | Group-Object Reaction | Sort-Object Count -Descending | Format-Table Name, Count
 $Report | Out-GridView
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
