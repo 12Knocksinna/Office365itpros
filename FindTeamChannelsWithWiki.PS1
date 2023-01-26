@@ -27,9 +27,8 @@ ForEach ($Team in $Teams) {
          ForEach ($Tab in $Tabs) {
            $WikiContent = $False; $TeamOwners = $Null
            If ($Tab.TeamsApp.Id -eq "com.microsoft.teamspace.tab.wiki") { # Check if the wiki configuration says that it has some content
-             $Uri = ("https://graph.microsoft.com/v1.0/teams/{0}/channels/{1}/tabs/{2}" -f $Team.Id, $Channel.Id, $Tab.Id)
-             [array]$TabData = Invoke-MgGraphRequest -Uri $Uri
-             $WikiContent = $TabData.Configuration['hasContent']
+             [array]$TabData = Get-MgTeamChannelTab -ChannelId $Channel.Id -TeamId $Team.Id -TeamsTabId $Tab.Id  -ExpandProperty TeamsApp
+             $WikiContent = $TabData.Configuration.AdditionalProperties['hasContent']
             }  #End if Wiki tab
             Switch ($WikiContent) {
               $True     { 
@@ -59,9 +58,8 @@ ForEach ($Team in $Teams) {
 
 $WikiReport = $Report | Where-Object {$_.AppId -eq "com.microsoft.teamspace.tab.wiki" -and $_.Check -eq "Wiki content exists"}
 $WikiReport | Out-GridView
-Write-Host ("All done. {0} Teams processed. The Wiki tab with content was found in {1} channels" -f $Teams.count, $WikiReport.count)
-
-
+$WikiReport | Export-CSV -NoTypeInformation WikisToReview.CSV
+Write-Host ("All done. {0} Teams processed. The Wiki tab with content was found in {1} channels. CSV file generated in WikisToReview.csv" -f $Teams.count, $WikiReport.count)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
