@@ -346,7 +346,7 @@ Write-Host "Information about the messages is available in c:\temp\DeletionsList
 Write-Host ""
 
 $DeletionsList | Select-Object Mailbox, UPN, Subject, Folder, From, ReceivedDate, Action | Out-GridView 
-$Deletions | Export-CSV -NoTypeInformation c:\temp\DeletionsList.csv
+$DeletionsList | Export-CSV -NoTypeInformation c:\temp\DeletionsList.csv
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
