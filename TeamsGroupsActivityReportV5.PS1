@@ -424,7 +424,7 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
        [string]$LastDate = $Data.NewestItemReceivedDate[0]
        [datetime]$LastDateConversation = $LastDate
        $LastConversation = Get-Date($LastDateConversation) -format g
-       [string]$NumberofConversations = $Data.ItemsInfolder[0].toString()
+       [string]$NumberConversations = $Data.ItemsInfolder[0].toString()
        $Error.Clear()
         }
      Catch {
@@ -435,16 +435,16 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
     If ($G.resourceBehaviorOptions -eq "CalendarMemberReadOnly") {
      $LastConversation = "Yammer group" }
 
-   If ($Data.NewestItemReceivedDate -le $WarningEmailDate) {
-      # Write-Host "Last conversation item created in" $G.DisplayName "was" $Data.NewestItemReceivedDate "-> Obsolete?"
+   If ($LastConversation -le $WarningEmailDate) {
+      # Write-Host "Last conversation item created in" $G.DisplayName "was" $LastConversation "-> Obsolete?"
       $ObsoleteReportLine = "Last Outlook conversation dated: " + $LastConversation + "."
       $MailboxStatus = "Group Inbox Not Recently Used"
       $ObsoleteEmailGroups++
       $NumberWarnings++ }
    Else
       {# Some conversations exist - but if there are fewer than 20, we should flag this...
-      If ($Data.ItemsInFolder -lt 20) {
-           $ObsoleteReportLine = $ObsoleteReportLine + "Only " + $Data.ItemsInFolder + " Outlook conversation item(s) found."
+      If ($NumberConversations -lt 20) {
+           $ObsoleteReportLine = $ObsoleteReportLine + "Only " + $NumberConversations + " Outlook conversation item(s) found."
            $MailboxStatus = "Low number of conversations"
            $NumberWarnings++}
       }
