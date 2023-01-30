@@ -14,6 +14,23 @@ Function Populate-MessageRecipient {
     }    
 }
 
+Function Populate-Attachments {
+    [cmdletbinding()]
+    Param(
+        [array]$ListOfAttachments )
+    ForEach ($Attachment in $Attachments) {
+     Write-Host "Processing" $Attachment
+     $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($Attachment))
+        @{
+            "@odata.type"= "#microsoft.graph.fileAttachment"
+            name = ($Attachment -split '\\')[-1]
+            contentBytes = $EncodedAttachmentFile
+            contentType = "text/plain"
+          }
+        }    
+    }   
+
+# Processing
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
@@ -67,27 +84,21 @@ $MsgSubject = "A warm welcome to $($TenantName)"
 [array]$Users = (Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$CheckDate'" -RecipientTypeDetails UserMailbox -ResultSize Unlimited -Properties WhenMailboxCreated | Select WhenMailboxCreated, DisplayName, UserPrincipalName, PrimarySmtpAddress)
 If (!($Users)) { Write-Host ("No mailboxes found that were created before {0}. Exiting!" -f $CheckDate) }
 
-# Define attachment
+# Define attachments  we're only using one here, which we fetch from a web site
+# if you want to add more files, add the file names to the $AttachmentsList array
 $WebAttachmentFile = "https://office365itpros.com/wp-content/uploads/2022/02/WelcomeToOffice365ITPros.docx"
 $AttachmentFile = "c:\temp\WelcomeNewEmployeeToOffice365itpros.docx"
 Invoke-WebRequest -uri $WebAttachmentFile -OutFile $AttachmentFile
-$Attachment = (Get-Item -Path $AttachmentFile).Name
-$EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
 
-$MsgAttachment = @(
-			@{
-		  	"@odata.type" = "#microsoft.graph.fileAttachment"
-			Name = ($AttachmentFile -split '\\')[-1]
-			ContentType = "text/plain"
-			ContentBytes = $EncodedAttachmentFile
-			} 
-)
+[array]$AttachmentsList = "c:\temp\WelcomeNewEmployeeToOffice365itpros.docx"
+[array]$MsgAttachments = Populate-Attachments -ListOfAttachments $AttachmentsList
 
+# Populate CC Recipienmt List - any SMTP address will do
 $CcRecipientList = @( 
         'Tenant.Admins@office365itpros.com'
         'Kim.Akers@Office365itpros.com' )
-
 [array]$MsgCcRecipients = Populate-MessageRecipient -ListOfAddresses $CcRecipientList
+
 
 ForEach ($User in $Users) {
   $ToRecipientList   = @( $User.PrimarySmtpAddress )
@@ -104,7 +115,7 @@ ForEach ($User in $Users) {
   $Message =  @{subject           = $MsgSubject}
   $Message += @{toRecipients      = $MsgToRecipients}  
   $Message += @{ccRecipients      = $MsgCcRecipients}  
-  $Message += @{attachments       = $MsgAttachment}
+  $Message += @{attachments       = $MsgAttachments}
   $Message += @{body              = $MsgBody}
   $Params   = @{'message'         = $Message}
   $Params  += @{'saveToSentItems' = $True}
@@ -119,4 +130,4 @@ Write-Host "All done. Messages sent!"
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
-# the Internet without first validating the code in a non-production environment.
+# the Internet without first validating the code in a non-production environment. 
