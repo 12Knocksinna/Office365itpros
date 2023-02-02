@@ -1,13 +1,11 @@
 # CheckAuditEventsRunbook.PS1
 # A script to execute in an Azure Automation runbook to search the Office 365 audit log to find high-priority audit events and
 # report them via email to admins.
-#Obtain AccessToken for Microsoft Graph via the managed identity
-$ResourceURL = "https://graph.microsoft.com/" 
-$Response = [System.Text.Encoding]::Default.GetString((Invoke-WebRequest -UseBasicParsing -Uri "$($env:IDENTITY_ENDPOINT)?resource=$resourceURL" -Method 'GET' -Headers @{'X-IDENTITY-HEADER' = "$env:IDENTITY_HEADER"; 'Metadata' = 'True'}).RawContentStream.ToArray()) | ConvertFrom-Json 
-$AccessToken = $response.access_token 
+# Get access token from the Azure Automation account and use it to connect to the Graph
+Connect-AzAccount -Identity
+$AccessToken = Get-AzAccessToken -ResourceUrl "https://graph.microsoft.com"
+Connect-MgGraph -AccessToken $AccessToken.Token
 
-#Connect to the Microsoft Graph using the aquired AccessToken
-Connect-Graph -AccessToken $AccessToken
 #Define the desired graph endpoint
 Select-MgProfile Beta
 # Get tenant name
