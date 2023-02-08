@@ -3,7 +3,6 @@
 # A script showing how to set local language values for sensitivity labels using the Microsoft Translator service
 # to translate the English lamguage values from the labels.
 
-
 Function Translate-String {
   [cmdletbinding()]
     Param(
@@ -22,7 +21,7 @@ $Translation = $Status[0].translations[0].text
 Return $Translation
 }
 
-$TranslatorKey = "20e21011ba2747a0996c4134492bfc97"
+$TranslatorKey = "20be21011ba2747a0996c4134492bfc97" # You need a valid key for Microsoft Translator
 
 $global:BaseUri = "https://api.cognitive.microsofttranslator.com/translate?api-version=3.0"
 $global:Headers = @{
