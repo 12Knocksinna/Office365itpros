@@ -1,4 +1,5 @@
 # AssignLocalLanguageStringsSensitivityLabels.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/AssignLocalLanguageStringsSensitivityLabels.PS1
 # A script showing how to set local language values for sensitivity labels using the Microsoft Translator service
 # to translate the English lamguage values from the labels.
 
