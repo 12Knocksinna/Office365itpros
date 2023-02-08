@@ -1,6 +1,7 @@
 # ReportRoomMailboxUsage.PS1
 # A script to report how busy room mailboxes are
-# V1.0 29-Nov-2022
+# V1.1 8-Feb-2023 - Updated to include daily usage pattern statistics
+
 # Requires the Graph Calendar.Read.All and Place.Read.All application permissions
 
 # Some functions to get going
@@ -70,10 +71,10 @@ function Get-GraphData {
 function GetAccessToken {
 # function to return an Oauth access token
 
-# Define the values applicable for the application used to connect to the Graph (you need to update these values for your tenant)
-$AppId = "a6a7d55c-a847-443d-b7b9-f24b67ec4709"
-$TenantId = "xxx-xxx-xxx-xxx"
-$AppSecret = '_O28Q~.QZNE5dd4pOCaxqTSx13dbkDIadadfNs5blI'
+# Define the values applicable for the application used to connect to the Graph
+$AppId = "66a7d55c-a847-443d-b7b9-f24b67ec4709"
+$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$AppSecret = '_O28Q~.QZNE5QJ4pOCaxqTSx13dbkDI2_2Ns5blI'
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -91,6 +92,32 @@ $Global:Token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 
 Return $Token
 }
+
+Function Generate-DayString {
+  [cmdletbinding()]
+    Param(
+        [string]$InputDay,
+        [int]$DayEvents,  
+        [int]$TotalEvents)
+
+   $Balls = ($DayEvents/$TotalEvents) * 100
+   $PercentEvents = ($DayEvents/$TotalEvents).toString("P")
+   [int]$P = ($Balls/2)
+   If ($Balls -eq 0) { $G = $Null 
+    } Else {     
+    [int]$i = 0; [string]$G = $Null
+    Do {
+      
+      $G = $G + "o"; $i++
+ 
+    } While ($i -lt $P)
+   }
+     
+   $OutputString = ("{0} events: {1} ({2}) `t{3}>" -f $InputDay, $DayEvents, $PercentEvents, $G)
+
+Return $OutputString
+}
+
 
 # End functions - start doing some real work
 #
@@ -121,6 +148,8 @@ $Uri = "https://graph.microsoft.com/beta/places/microsoft.graph.workspace"
 
 # Combine workspaces with room mailboxes if any are found
 If ($WorkSpaces) { $RoomMailboxes = $RoomMailboxes + $WorkSpaces }
+
+$RoomMailboxes = $RoomMailboxes | Where-Object {$_.EmailAddress -ne $Null}
 
 Write-Host ("Scanning room mailboxes for calendar events from {0} to {1}" -f $StartDate, $EndDate)
 $CalendarInfo = [System.Collections.Generic.List[Object]]::new() 
@@ -163,6 +192,7 @@ ForEach ($Room in $RoomMailboxes) {
           OnlineProvider    = $Event.onlineMeetingProvider
           Start             = Get-Date($MeetingStart) -format g
           End               = Get-Date($MeetingEnd) -format g
+          Day               = (Get-Date($MeetingStart)).DayOfWeek
           Duration          = $Duration
           Location          = $event.location.displayname
           RequiredAttendees = $RequiredAttendees.emailaddress.name -join ", "
@@ -186,6 +216,7 @@ $TotalEvents = $CalendarInfo.Count
 $PercentOnline = ($OnlineMeetings.Count/$TotalEvents).toString("P")
 
 # Calculate per-room summary data
+# Calculate per-room summary data
 $RoomSummary = [System.Collections.Generic.List[Object]]::new() 
 ForEach ($Room in $Rooms) {
    [array]$RoomData = $CalendarInfo | Where-Object {$_.Room -eq $Room} 
@@ -196,6 +227,24 @@ ForEach ($Room in $Rooms) {
    $AverageDuration = $TotalMinutes/$RoomData.Count
    $AverageAttendees = $TotalRoomAttendees/$RoomData.Count
    $AverageEventsPerDay = $RoomData.Count/$ReportingPeriodDays
+   $OverAllUsage = ($RoomData.Count/$CalendarInfo.Count).toString("P")
+   # Extract meetings for each day of the week
+   [array]$Monday = $RoomData | Where-Object {$_.Day -eq "Monday"}
+   [array]$Tuesday = $RoomData | Where-Object {$_.Day -eq "Tuesday"}
+   [array]$Wednesday = $RoomData | Where-Object {$_.Day -eq "Wednesday"}
+   [array]$Thursday = $RoomData | Where-Object {$_.Day -eq "Thursday"}
+   [array]$Friday = $RoomData | Where-Object {$_.Day -eq "Friday"}
+   [array]$Saturday = $RoomData | Where-Object {$_.Day -eq "Saturday"}
+   [array]$Sunday = $RoomData | Where-Object {$_.Day -eq "Sunday"}
+   # Generate a basic graph for the room usage per day
+   $MondayOutput = Generate-DayString -InputDay "Monday" -DayEvents $Monday.Count -TotalEvents $RoomData.Count
+   $TuesdayOutput = Generate-DayString -InputDay "Tuesday" -DayEvents $Tuesday.Count -TotalEvents $RoomData.Count
+   $WednesdayOutput = Generate-DayString -InputDay "Wednesday" -DayEvents $Wednesday.Count -TotalEvents $RoomData.Count
+   $ThursdayOutput = Generate-DayString -InputDay "Thursday" -DayEvents $Thursday.Count -TotalEvents $RoomData.Count
+   $FridayOutput = Generate-DayString -InputDay "Friday" -DayEvents $Friday.Count -TotalEvents $RoomData.Count
+   $SaturdayOutput = Generate-DayString -InputDay "Saturday" -DayEvents $Saturday.Count -TotalEvents $RoomData.Count
+   $SundayOutput = Generate-DayString -InputDay "Sunday" -DayEvents $Sunday.Count -TotalEvents $RoomData.Count
+         
    $RoomDataLine = [PSCustomObject] @{   
        Room                 = $Room
        Events               = $RoomData.Count
@@ -206,9 +255,33 @@ ForEach ($Room in $Rooms) {
        "All-day Events"     = $RoomAllDayEvents.Count
        "Total attendees"    = $TotalRoomAttendees
        "Average attendees"  = $AverageAttendees.Tostring("#.#")
+       "% Overall use"      = $OverAllUsage
+       Monday               = $MondayOutput
+       Tuesday              = $TuesdayOutput
+       Wednesday            = $WednesdayOutput
+       Thursday             = $ThursdayOutput
+       Friday               = $FridayOutput
+       Saturday             = $SaturdayOutput
+       Sunday               = $SundayOutput
    }
    $RoomSummary.Add($RoomDataLine)
 }
+
+# Generate the overall usage pattern across all rooms
+[array]$Monday = $CalendarInfo | Where-Object {$_.Day -eq "Monday"}
+[array]$Tuesday = $CalendarInfo | Where-Object {$_.Day -eq "Tuesday"}
+[array]$Wednesday = $CalendarInfo | Where-Object {$_.Day -eq "Wednesday"}
+[array]$Thursday = $CalendarInfo | Where-Object {$_.Day -eq "Thursday"}
+[array]$Friday = $CalendarInfo | Where-Object {$_.Day -eq "Friday"}
+[array]$Saturday = $CalendarInfo | Where-Object {$_.Day -eq "Saturday"}
+[array]$Sunday = $CalendarInfo | Where-Object {$_.Day -eq "Sunday"}
+$MondayOutput = Generate-DayString -InputDay "Monday" -DayEvents $Monday.Count -TotalEvents $TotalEvents
+$TuesdayOutput = Generate-DayString -InputDay "Tuesday" -DayEvents $Tuesday.Count -TotalEvents $TotalEvents
+$WednesdayOutput = Generate-DayString -InputDay "Wednesday" -DayEvents $Wednesday.Count -TotalEvents $TotalEvents
+$ThursdayOutput = Generate-DayString -InputDay "Thursday" -DayEvents $Thursday.Count -TotalEvents $TotalEvents
+$FridayOutput = Generate-DayString -InputDay "Friday" -DayEvents $Friday.Count -TotalEvents $TotalEvents
+$SaturdayOutput = Generate-DayString -InputDay "Saturday" -DayEvents $Saturday.Count -TotalEvents $TotalEvents
+$SundayOutput = Generate-DayString -InputDay "Sunday" -DayEvents $Sunday.Count -TotalEvents $TotalEvents
 
 Write-Host ""
 Write-Host ("Meeting Room Statistics from {0} to {1}" -f $StartDate, $EndDate)
@@ -223,13 +296,37 @@ $TopRooms | Format-Table Name, Count -AutoSize
 Write-Host "Most active meeting organizers"
 Write-Host "------------------------------"
 $TopOrganizers | Format-Table Name, Count -AutoSize
+
+Write-Host ""
+Write-Host "Daily usage pattern across all room mailboxes"
+$MondayOutput
+$TuesdayOutput
+$WednesdayOutput
+$ThursdayOutput
+$FridayOutput
+$SaturdayOutput
+$SundayOutput
+
+Write-Host ""
 Write-Host "Individual Room Statistics"
 Write-Host "--------------------------"
 $RoomSummary | Format-Table Room, Events, "Avg events/day", "Total minutes", "Avg Event Duration", "Total Attendees", "Average Attendees" -AutoSize
+
+ForEach ($Room in $Rooms) {
+   Write-Host ("Daily usage pattern for {0}" -f $Room)
+   $RoomSummary | Where-Object {$_.Room -eq $Room} | Select-Object -ExpandProperty Monday
+   $RoomSummary | Where-Object {$_.Room -eq $Room} | Select-Object -ExpandProperty Tuesday
+   $RoomSummary | Where-Object {$_.Room -eq $Room} | Select-Object -ExpandProperty Wednesday
+   $RoomSummary | Where-Object {$_.Room -eq $Room} | Select-Object -ExpandProperty Thursday
+   $RoomSummary | Where-Object {$_.Room -eq $Room} | Select-Object -ExpandProperty Friday
+   $RoomSummary | Where-Object {$_.Room -eq $Room} | Select-Object -ExpandProperty Saturday
+   $RoomSummary | Where-Object {$_.Room -eq $Room} | Select-Object -ExpandProperty Sunday
+   Write-Host ""
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
-# the nternet without first validating the code in a non-production environment. 
+# the Internet without first validating the code in a non-production environment. 
