@@ -5,16 +5,16 @@
 # See https://practical365.com/create-licensing-report-microsoft365-tenant/ for the article relating to this code
 # Uses cmdlets from the Microsoft Graph SDK for PowerShell
 # Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
-Connect-MgGraph -TenantId xxxxxxx-14fc-43a2-9a7a-d2e27f4f3478
+Connect-MgGraph -Scope Directory.Read.All
 Select-MgProfile beta
 
-#Import the Product names and service plan identifiers for licensing CSV file downloaded from "https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-service-plan-reference"
-$identifiers = Import-Csv -Path "C:\temp\Product names and service plan identifiers for licensing.csv"
+#Import the Product names and service plan identifiers for licensing CSV file downloaded from https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-service-plan-reference
+# Remember to move the CSV file downloaded from Microsoft to c:\temp\
+[array]$Identifiers = Import-Csv -Path "C:\temp\Product names and service plan identifiers for licensing.csv"
 #select all SKUs with friendly display name
-$SKU_friendly = $identifiers | Select-Object GUID, String_Id, Product_Display_Name -Unique
+[array]$SKU_friendly = $identifiers | Select-Object GUID, String_Id, Product_Display_Name -Unique
 #select the service plans with friendly display name 
-$SP_friendly = $identifiers | Select-Object Service_Plan_Id, Service_Plan_Name, Service_Plans_Included_Friendly_Names -Unique
-
+[array]$SP_friendly = $identifiers | Select-Object Service_Plan_Id, Service_Plan_Name, Service_Plans_Included_Friendly_Names -Unique
 
 # Get prpducts used in tenant
 [Array]$Skus = Get-MgSubscribedSku
