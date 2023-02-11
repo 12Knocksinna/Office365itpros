@@ -10,12 +10,12 @@ If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connec
 
 # Find the set of organization contacts - marked as such by having OrgContact in CustomAttribute4 of their object properties. This attribute is chosen at random. You can use
 # whatever other way you want to find the set of contacts, including having a CSV file.
-[array]$OrgContacts = Get-Recipient -Filter {CustomAttribute4 -eq "OrgContact"} 
+[array]$OrgContacts = Get-ExoRecipient -Filter {CustomAttribute4 -eq "OrgContact"} -Properties CustomAttribute4, ExternalEmailAddress -RecipientTypeDetails MailContact 
 If (!($OrgContacts)) {Write-Host "No organization contacts found - exiting" ; break }
 Write-Host ("Found {0} organization contacts - continuing..." -f $OrgContacts.count)
 
 # Look for target mailboxes. In this example, we get the mailboxed created in the last month
-$LastMonth = (Get-Date).AddDays(-30)
+[datetime]$LastMonth = (Get-Date).AddDays(-30)
 [array]$Mailboxes = Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$LastMonth'" -RecipientTypeDetails UserMailbox | Select ExternalDirectoryObjectId, DisplayName, UserPrincipalName
 If (!($Mailboxes)) { Write-Host "No mailboxes found to process - exiting" ; break }
 Write-Host ("Found {0} mailboxes to process - continuing..." -f $Mailboxes.count)
@@ -48,9 +48,10 @@ ForEach ($Mbx in $Mailboxes) {
    # Populate email addresses for existing contacts
    $Uri = "https://graph.microsoft.com/v1.0/users/" + $Mbx.ExternalDirectoryObjectId + "/contacts"
    [array]$ContactsInMbx =  Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" 
-   If ($ContactsInMbx.Value.Count -gt 0) { $ContactsInMbx = $ContactsInMbx.Value | Select-Object -ExpandProperty emailaddresses }
-   $CheckTable = [System.Collections.Generic.List[Object]]::new()
-   ForEach ($C in $ContactsInMbx) { $CheckTable.Add($C.Address.toString()) }
+   # Build hash table of contacts that exist in the mailbox
+   If ($ContactsInMbx.Value.Count -gt 0) { $ExistingContacts = $ContactsInMbx.Value | Select-Object -ExpandProperty emailaddresses | Sort-Object -Unique }
+   $CheckTable = @{}
+   ForEach ($C in $ExistingContacts) { $CheckTable.Add($C.Address.toString(), $C.Name.toString()) }
    Write-Host "Processing mailbox" $Mbx.DisplayName
    $ApiUri = "https://graph.microsoft.com/v1.0/users/$mailbox/contacts" 
    ForEach ($Contact in $OrgContacts) {
@@ -91,7 +92,7 @@ ForEach ($Mbx in $Mailboxes) {
    } # End Switch
 
 # Check if the contact is already there. If not, we go ahead and add the contact
-   If ($Email -in $CheckTable) {
+    If ($CheckTable[$Email]) {
       Write-Host ("Contact record for {0} is already present in the mailbox" -f $Email) }
    Else {
       Write-Host "Proceeding..."
