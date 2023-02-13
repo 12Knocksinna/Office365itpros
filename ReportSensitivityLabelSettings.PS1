@@ -1,0 +1,111 @@
+# ReportSensitivityLabelSettings.PS1
+# A script to report the settings of sensitivity labels
+#
+
+$HtmlHead="<html>
+	   <style>
+	   BODY{font-family: Arial; font-size: 8pt;}
+	   H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
+	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
+	   TD{border: 1px solid #969595; padding: 5px; }
+	   td.pass{background: #B7EB83;}
+	   td.warn{background: #FFF275;}
+	   td.fail{background: #FF2626; color: #ffffff;}
+	   td.info{background: #85D4FF;}
+	   </style>
+	   <body>
+           <div align=center>
+           <p><h1>Microsoft 365 Sensitivity Labels Settings Report</h1></p>
+           <p><h3>Generated: " + (Get-Date -format g) + "</h3></p></div>"
+
+$Version = "1.0"
+$HtmlReportFile = "c:\temp\SenstivityLabelSettings.html"
+$CSVReportFile = "c:\temp\LabelInfo.CSV"
+
+$Modules = Get-Module | Select-Object -ExpandProperty Name
+If ("ExchangeOnlineManagement" -notin $Modules) { Write-Host "Please connect to Exchange Online management before running the script" ; break }
+# Connect to compliance endpoint
+Connect-IPPSSession
+
+# Get details of sensitivity labels
+[array]$Labels = Get-Label
+If (!($Labels)) { Write-Host "Can't get details of sensitivity labels - exiting" ; break }
+Write-Host ("Processing details for {0} sensitivity labels" -f $Labels.count)
+
+$LabelInfo = [System.Collections.Generic.List[Object]]::new() 
+$NewLine = "`r`n"
+[int]$i = 0
+ForEach ($Label in $Labels) {
+ $i++
+ Write-Host ("Processing label: {0} ({1}/{2})" -f $Label.DisplayName, $i, $Labels.count)
+ $LabelActions = (Get-Label -Identity $Label.ImmutableId).LabelActions | Convertfrom-JSON
+ ForEach ($Section in $LabelActions) {
+    $SectionSettings = $Section.Settings
+      ForEach ($Setting in $SectionSettings) { 
+        $Value = $Null; $DisplayName = $Null
+        Switch ($Setting.Key) {
+         "rightsdefinitions" {
+          [array]$Rights = $Setting.Value | ConvertFrom-Json
+          [int]$r = 0
+          ForEach ($Right in $Rights) {
+           $r++
+           $RightsFormat = ("{0} rights: {1}" -f $Right.Identity, $Right.Rights)
+           if ($r -lt $Rights.count) { $RightsFormat = $RightsFormat + $Newline }
+           $Value += $RightsFormat } 
+         }
+         "protectionlevel" {
+          $Protection = $Setting.Value | ConvertFrom-Json
+          $Value = ("Id {0} {1} ({2})" -f $Protection.Id, $Protection.DisplayName, $Protection.Description)
+         }
+          Default {
+           $Value = $Setting.Value }
+         }
+         If ($Label.ParentLabelDisplayName) { $DisplayName = ("{0}/{1}" -f $Label.ParentLabelDisplayName, $Label.DisplayName) 
+          } Else { $DisplayName = $Label.DisplayName }          
+         $DataLine  = [PSCustomObject] @{
+            Label    = $DisplayName
+            Applies  = $Label.ContentType
+            Priority = $Label.Priority
+            Section  = $Section.Type
+            Subtype  = $Section.SubType
+            Key      = $Setting.Key
+            Value    = $Value }
+         $LabelInfo.Add($DataLine)
+      } #End ForEach setting
+   } #End ForEach section
+} #End ForEach label
+
+$LabelInfo | Out-GridView
+$LabelInfo | Export-CSV -NoTypeInformation $CSVReportFile
+# Alternative $Labelinfo | Export-Excel LabelInfo.xlsx
+
+# Generate array of unique label names from the report
+[array]$LabelNames = $LabelInfo.Label | Sort-Object -Unique
+[string]$HtmlReport = $Null
+
+ForEach ($L in $LabelNames) {
+   $DataToReport = $LabelInfo | Where-Object {$_.Label -eq $L} 
+   $HtmlHeading = ("<p><h1>Settings for Sensitivity label <b>{0}</b></h1></p><p><h2>Label Scope: <i>{1}</i>  Label Priority: <i>{2}</i></p></h2>" -f $L, $DataToReport[0].Applies, $DataToReport[0].Priority)
+   $DataToReport = $DataToReport | Select-Object Section, Subtype, Key, Value
+   $HtmlData = $DataToReport | ConvertTo-Html -Fragment
+   $HtmlReport = $HtmlReport + $HtmlHeading + $HtmlData 
+}
+
+# Create the HTML report
+$Htmltail = "<p>Report created for: " + ((Get-OrganizationConfig).DisplayName) + </p><p>" +
+             "<p>Number of sensitivity labels: " + $Labels.count + "</p>" +
+             "<p>-----------------------------------------------------------------------------------------------------------------------------"+
+             "<p>Microsoft 365 Sensitivity Labels Settings Report <b>" + $Version + "</b>"	
+$HtmlReport = $HtmlHead + $HtmlReport + $HtmlTail
+$HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
+Write-Host ("HTML report available in {0} and CSV file in {1}" -f $HtmlReportFile, $CSVReportFile)
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
+# the Internet without first validating the code in a non-production environment. 
