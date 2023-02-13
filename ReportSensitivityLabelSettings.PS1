@@ -19,7 +19,7 @@ $HtmlHead="<html>
 	   <body>
            <div align=center>
            <p><h1>Microsoft 365 Sensitivity Labels Settings Report</h1></p>
-           <p><h3>Generated: " + (Get-Date -format g) + "</h3></p></div>"
+            <p><h3>Generated: " + (Get-Date -format 'dd-MMM-yyyy hh:mm tt') + "</h3></p></div>"
 
 $Version = "1.0"
 $HtmlReportFile = "c:\temp\SenstivityLabelSettings.html"
@@ -95,7 +95,7 @@ ForEach ($L in $LabelNames) {
 }
 
 # Create the HTML report
-$Htmltail = "<p>Report created for: " + ((Get-OrganizationConfig).DisplayName) + </p><p>" +
+$Htmltail = "<p>Report created for: " + ((Get-OrganizationConfig).DisplayName) + "</p><p>" +
              "<p>Number of sensitivity labels: " + $Labels.count + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------"+
              "<p>Microsoft 365 Sensitivity Labels Settings Report <b>" + $Version + "</b>"	
