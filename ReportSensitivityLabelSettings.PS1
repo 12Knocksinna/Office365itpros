@@ -1,6 +1,6 @@
 # ReportSensitivityLabelSettings.PS1
 # A script to report the settings of sensitivity labels
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSensitivityLabelSettings.PS1
 
 $HtmlHead="<html>
 	   <style>
