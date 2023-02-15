@@ -1,6 +1,7 @@
 # ReportSensitivityLabelSettings.PS1
 # A script to report the settings of sensitivity labels
 # V1.0 15-Feb-2023
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSensitivityLabelSettings.PS1
 
 Function CheckRightsIdentity {
  [cmdletbinding()]
@@ -56,6 +57,7 @@ Function CheckRightsIdentity {
 Return $RightsCheck
 }
 
+# End functions and start of processing
 
 $HtmlHead="<html>
 	   <style>
