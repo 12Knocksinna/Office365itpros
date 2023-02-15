@@ -1,6 +1,61 @@
 # ReportSensitivityLabelSettings.PS1
 # A script to report the settings of sensitivity labels
-# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSensitivityLabelSettings.PS1
+# V1.0 15-Feb-2023
+
+Function CheckRightsIdentity {
+ [cmdletbinding()]
+    Param([string]$RightsIdentity)
+
+  $RightsCheck = $False
+  If ($RightsIdentity -eq "AuthenticatedUsers") {
+     $RightsCheck = $True
+     Return $RightsCheck }
+
+ If ($RightsIdentity -like "*@*")  {
+   $Domain = $RightsIdentity.Split("@")[1].toLower()
+   If ($Domain -in $Domains) { # It's an email address belonging to our tenant
+      $CheckUser = Get-ExoRecipient -Identity $RightsIdentity -ErrorAction SilentlyContinue
+      If (!($CheckUser)) { $RightsCheck = $False; Return $RightsCheck 
+      } Else { $RightsCheck = $True; Return $RightsCheck }
+   } 
+ }
+
+ # Check a domain name https://learn.microsoft.com/en-gb/archive/blogs/tip_of_the_day/cloud-tip-of-the-day-use-powershell-to-check-domain-availability-for-office-365-and-azure
+ # Don't bother for Outlook.com or microsoft.com - always Unmanaged for some reason
+ Switch ($RightsIdentity) {
+  "outlook.com"  {
+     $RightsCheck = $True 
+     $Global:CheckMessage = "consumer domain"
+     break }
+  "microsoft.com" {
+     $RightsCheck = $True; break }
+  "gmail.com" { 
+     $RightsCheck = $True 
+     $Global:CheckMessage = "consumer domain" 
+     break }
+  "google.com"  {
+     $RightsCheck = $True 
+     $Global:CheckMessage = "consumer domain" 
+     break }
+  "yandex.com"  {
+     $RightsCheck = $True 
+     $Global:CheckMessage = "consumer domain" 
+     break }
+  default {
+     $Uri =  ('https://login.microsoftonline.com/getuserrealm.srf?login=user@{0}&xml=1' -f $RightsIdentity)
+     $CheckDomain = Invoke-WebRequest -Uri $Uri
+     If ($CheckDomain.StatusCode -eq 200) {
+       $NamespaceType = ([xml]($CheckDomain.Content)).RealmInfo.NameSpaceType
+       If ($NameSpaceType -eq "Managed") { # Azure AD domain
+         $RightsCheck = $True; Return $RightsCheck 
+       } Else {
+         $RightsCheck = $False; Return $RightsCheck }
+      }}
+   } #End Switch
+       
+Return $RightsCheck
+}
+
 
 $HtmlHead="<html>
 	   <style>
@@ -19,7 +74,7 @@ $HtmlHead="<html>
 	   <body>
            <div align=center>
            <p><h1>Microsoft 365 Sensitivity Labels Settings Report</h1></p>
-            <p><h3>Generated: " + (Get-Date -format 'dd-MMM-yyyy hh:mm tt') + "</h3></p></div>"
+           <p><h3>Generated: " + (Get-Date -format 'dd-MMM-yyyy hh:mm tt') + "</h3></p></div>"
 
 $Version = "1.0"
 $HtmlReportFile = "c:\temp\SenstivityLabelSettings.html"
@@ -29,6 +84,8 @@ $Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -notin $Modules) { Write-Host "Please connect to Exchange Online management before running the script" ; break }
 # Connect to compliance endpoint
 Connect-IPPSSession
+
+[array]$Global:Domains = (Get-AcceptedDomain).DomainName
 
 # Get details of sensitivity labels
 [array]$Labels = Get-Label
@@ -52,7 +109,11 @@ ForEach ($Label in $Labels) {
           [int]$r = 0
           ForEach ($Right in $Rights) {
            $r++
+           $RightsCheck = $False; $CheckMessage = $Null
+           $RightsCheck = CheckRightsIdentity($Right.Identity)
            $RightsFormat = ("{0} rights: {1}" -f $Right.Identity, $Right.Rights)
+           If ($RightsCheck -eq $False) { $RightsFormat = $RightsFormat + " (Warning: Rights assigned to unverified holder)" }
+           If ($CheckMessage) { $RightsFormat = ("{0} (Warning: {1})" -f $RightsFormat, $CheckMessage) }
            if ($r -lt $Rights.count) { $RightsFormat = $RightsFormat + $Newline }
            $Value += $RightsFormat } 
          }
@@ -97,11 +158,11 @@ ForEach ($L in $LabelNames) {
 # Create the HTML report
 $Htmltail = "<p>Report created for: " + ((Get-OrganizationConfig).DisplayName) + "</p><p>" +
              "<p>Number of sensitivity labels: " + $Labels.count + "</p>" +
-             "<p>-----------------------------------------------------------------------------------------------------------------------------"+
+             "<p>-----------------------------------------------------------------------------------------------------------------------------" +
              "<p>Microsoft 365 Sensitivity Labels Settings Report <b>" + $Version + "</b>"	
 $HtmlReport = $HtmlHead + $HtmlReport + $HtmlTail
 $HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
-Write-Host ("HTML report available in {0} and CSV file in {1}" -f $HtmlReportFile, $CSVReportFile)
+Write-Host ("Sensitivity Labels settings report available in {0} (HTML) and {1} (CSV)" -f $HtmlReportFile, $CSVReportFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
