@@ -58,7 +58,7 @@ ForEach ($User in $Users) {
        UPN        = $User.UserPrincipalName
        Department = $User.Department
        Country    = $User.Country
-       License    = $LicenseSkuId } 
+       License    = $License } 
     $LicenseUsers.Add($ReportLine) }
 }
 
