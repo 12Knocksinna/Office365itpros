@@ -1,7 +1,8 @@
 # RemoveVivaEngageCoreServicePlan.PS1
 # A script to disable the Viva Engage Core service plan from Office 365 E1, E3, and E5 licenses if
 # the Yammer Enterprise service plan is already disabled
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveVivaEngageCoreServicePlan.PS1
+
 # Define service plan and license identifiers
 $YammerServicePlan = "7547a3fe-08ee-4ccb-b430-5077c5041653"
 $VivaEngageCoreServicePlan = "a82fbf69-b4d7-49f4-83a6-915b2cf354f4"
