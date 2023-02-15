@@ -1,5 +1,5 @@
 # RemoveKaizalaServicePlans.PS1
-# A script to remove Kaizala service plans from Office 365 E1, E3, and E5 licenses
+# A script to disable Kaizala service plans from Office 365 E1, E3, and E5 licenses
 # https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveKaizalaServicePlans.PS1
 
 # Define service plan and license identifiers
@@ -58,7 +58,7 @@ ForEach ($User in $Users) {
        UPN        = $User.UserPrincipalName
        Department = $User.Department
        Country    = $User.Country
-       License    = $License } 
+       License    = $LicenseSkuId } 
     $LicenseUsers.Add($ReportLine) }
 }
 
