@@ -112,6 +112,7 @@ ForEach ($App in $Apps) {
 } #End ForEach App
 
 Write-Output ("{0} apps scanned and {1} permissions found" -f $Apps.Count, $Report.Count)
+Write-Host ""
 Write-Output "Permissions found"
 Write-Output "-----------------"
 Write-Output ""
@@ -119,9 +120,9 @@ Write-Output ""
 $Report | Group Permission | Sort-Object Name | Format-Table Name, Count
 
 $ProblemApps = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Rec in $Report) {
-  If ($Rec.Permission -in $HighPriorityPermissions) {
-     $ProblemApps.Add($Rec) }
+ForEach ($Record in $Report) {
+  If ($Record.Permission -in $HighPriorityPermissions) {
+     $ProblemApps.Add($Record) }
 }
 
 [array]$AppSet = $ProblemApps | Sort-Object ServicePrincipalId -Unique
