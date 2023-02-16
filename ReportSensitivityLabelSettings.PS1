@@ -164,7 +164,13 @@ $Htmltail = "<p>Report created for: " + ((Get-OrganizationConfig).DisplayName) +
              "<p>Microsoft 365 Sensitivity Labels Settings Report <b>" + $Version + "</b>"	
 $HtmlReport = $HtmlHead + $HtmlReport + $HtmlTail
 $HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
-Write-Host ("Sensitivity Labels settings report available in {0} (HTML) and {1} (CSV)" -f $HtmlReportFile, $CSVReportFile)
+Write-Host ("The sensitivity Labels settings report files are available in {0} (HTML) and {1} (CSV)" -f $HtmlReportFile, $CSVReportFile)
+# Check if any warnings are found
+[array]$Warnings = $LabelInfo | Where-Object {$_.Value -like "*warning: rights*"} | Select-Object Label, Applies, Priority, Value
+If ($Warnings) {
+Write-Host " "
+Write-Host "You should check these warnings flagged for rights assignments:"
+$Warnings | Format-List }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
