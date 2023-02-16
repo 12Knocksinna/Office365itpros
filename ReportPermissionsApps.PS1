@@ -17,9 +17,9 @@ $Tenant = (Get-MgOrganization)
 $TenantId = $Tenant.Id
 $TenantName = $Tenant.DisplayName
 # Define the set of high-priority permissions we're interested in
-[array]$HighPriorityPermissions = "User.Read", "User.ReadWrite", "User.ReadWrite.All", "Mail.ReadWrite", `
-    "Files.ReadWrite", "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", `
-    "Directory.ReadWrite.All"
+[array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", `
+  "Files.ReadWrite.All", "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", `
+  "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All"
 # Define check period for new service principals
 [datetime]$CheckforRecent = (Get-Date).AddDays(-60)
 # Populate a set of hash tables with permissions used for different Office 365 management functions
