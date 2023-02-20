@@ -38,16 +38,9 @@ ForEach ($User in $Users) {
    
  If ($License) { # Update the assigned license on the account
 
- # Add any previously disabled license if they exist and compose the license options
- [array]$DisabledSPs = $ServicePlanId
-   If ($DisabledLicenses) {
-    If ($DisabledLicenses.Count -eq 1) {
-       $DisabledSPs += $DisabledLicenses.ServicePlanId }
-    Else {
-       ForEach ($SP in $DisabledLicenses) {
-       $DisabledSPs += $SP.ServicePlanId } 
-        }
-   } # End if
+ # Add any previously disabled license if they exist to the Kaizala service plan and compose the license options
+ [array]$DisabledSPs = $DisabledLicenses.ServicePlanId
+ $DisabledSPs += $ServicePlanId
 
  $LicenseOptions = @{SkuId = $LicenseSkuId ; DisabledPlans = $DisabledSPs} 
 
