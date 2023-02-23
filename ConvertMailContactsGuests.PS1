@@ -1,5 +1,6 @@
 # ConvertMailContactsGuests.PS1
 # Convert Exchange Online mail contacts to Azure AD guest accounts
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ConvertMailContactsGuests.PS1
 
 Connect-ExchangeOnline
 Connect-MgGraph -Scopes Directory.ReadWrite.All
