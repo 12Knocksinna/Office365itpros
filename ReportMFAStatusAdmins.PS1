@@ -6,7 +6,7 @@
 
 Connect-MgGraph -Scopes UserAuthenticationMethod.Read.All, AuditLog.Read.All
 Select-MgProfile Beta
-Write-Host "Retrieving information about users holding Microsoft 365 administratrive roles"
+Write-Host "Retrieving information about users holding Microsoft 365 administrative roles"
 $AdminRoleHolders = [System.Collections.Generic.List[Object]]::new() 
 [array]$AdminRoles = Get-MgDirectoryRole | Select-Object DisplayName, Id | Sort-Object DisplayName
 ForEach ($Role in $AdminRoles) {
