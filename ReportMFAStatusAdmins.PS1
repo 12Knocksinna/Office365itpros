@@ -21,12 +21,12 @@ ForEach ($Role in $AdminRoles) {
      $AdminRoleHolders.Add($ReportLine) }
 }
 $AdminRoleHolders = $AdminRoleHolders | Sort User
-$Unique = $AdminRoleHolders | Sort User -Unique
+$Unique = $AdminRoleHolders | Sort-Object User -Unique
 
 # Create a slightly different report where each user has their assigned roles in one record
 $UniqueAdminRoleHolders = [System.Collections.Generic.List[Object]]::new() 
    ForEach($User in $Unique) {
-     $Records = $AdminRoleHolders | ? {$_.id -eq $User.Id}
+     $Records = $AdminRoleHolders | Where-Object {$_.id -eq $User.Id}
      $AdminRoles = $Records.Role -join ", "
      $ReportLine  = [PSCustomObject] @{  
         Id      = $User.Id 
@@ -62,7 +62,7 @@ ForEach ($User in $Users) {
   $UserRegistrationDetails.Add($ReportLine)
 } #End ForEach
 
-[Array]$ProblemAdminAccounts = $UserRegistrationDetails | ? {$_.AdminAccount -eq $True -and $_.MfaRegistered -eq $False }
+[Array]$ProblemAdminAccounts = $UserRegistrationDetails | Where-Object {$_.AdminAccount -eq $True -and $_.MfaRegistered -eq $False }
 If ($ProblemAdminAccounts) {
    Cls
    Write-Host "The following accounts have administrative roles and are not enabled for MFA."
