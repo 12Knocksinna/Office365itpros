@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
 Get-IPGeolocation.ps1 - Get IP address geolocation data
+https://github.com/12Knocksinna/Office365itpros/blob/master/Get-IPGeolocation.ps1
 
 .DESCRIPTION 
 This PowerShell script performs a REST API query against the IP-API endpoint to retrieve geolocation information for an IP address. See 
