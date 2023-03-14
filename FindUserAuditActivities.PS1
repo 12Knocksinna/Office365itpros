@@ -1,6 +1,7 @@
 # FindUserAuditActivities.PS1
 # A script to demonstrate the principal of using the Microsoft 365 audit log to find information about user activities
 # for the past week to help determine if the account has been comppromised by an attacker
+# https://github.com/12Knocksinna/Office365itpros/blob/master/FindUserAuditActivities.PS1
 
 function Get-IPGeoLocation {
  Param   ([string]$IPAddress)
