@@ -7,7 +7,7 @@ Connect-MgGraph -Scopes Directory.Read.All, Team.ReadBasic.All, TeamSettings.Rea
 Select-MgProfile Beta
 
 Write-Host "Finding Teams"
-[array]$Teams = Get-MgTeam -All
+[array]$Teams = Get-MgGroup -Filter "resourceProvisioningOptions/Any(x:x eq 'Team')" -All
 If (!($Teams)) {Write-Host "For some reason, I can't find any Teams... exiting..."; break }
 $Teams = $Teams | Sort-Object DisplayName
 CLS
