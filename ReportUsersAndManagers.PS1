@@ -21,7 +21,7 @@ $HtmlHead="<html>
 	   </style>
 	   <body>
            <div align=center>
-           <p><h1>Microsoft 365 Users and Managers Report</h1></p>
+           <p><h1>Microsoft 365 Managers and Direct Reports</h1></p>
            <p><h3>Generated: " + (Get-Date -format 'dd-MMM-yyyy hh:mm tt') + "</h3></p></div>"
 
 $Version = "1.0"
@@ -102,7 +102,7 @@ $Htmltail = "<p>Report created for: " + ($Organization.DisplayName) + "</p><p>" 
              "<p>Number of managers:                " + $Managers.count + "</p>" +
              "<p>Number of users without a manager: " + $NoManagers.count + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------" +
-             "<p>Microsoft 365 Managers and Direct Reports Report <b>" + $Version + "</b>"	
+             "<p>Microsoft 365 Managers and Direct Reports <b>" + $Version + "</b>"	
 $HtmlReport = $HtmlHead + $HtmlReport + $HtmlTail
 $HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
 
