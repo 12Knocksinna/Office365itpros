@@ -3,6 +3,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUsersAndManagers.PS1
 
 Connect-MgGraph -Scopes Directory.Read.All
+Select-MgProfile Beta
 
 $HtmlHead="<html>
 	   <style>
