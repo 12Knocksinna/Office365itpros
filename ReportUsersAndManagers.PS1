@@ -2,6 +2,7 @@
 # A script to show how to create a report about the links between managers and employees stored in Azure AD
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUsersAndManagers.PS1
 
+Connect-ExchangeOnline
 Connect-MgGraph -Scopes Directory.Read.All
 Select-MgProfile Beta
 
@@ -33,7 +34,17 @@ $Organization = Get-MgOrganization
 Write-Host "Finding user accounts..."
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All 
 If (!($Users)) { Write-Host "No licensed Azure AD accounts found - exiting" ; break}
-write-Host ("Found {0} user accounts - checking management information..." -f $Users.count)
+Write-Host ("Found {0} user accounts - checking management information..." -f $Users.count)
+
+# The accounts used for Room and shared mailboxes can hold licenses (for example, for Teams Rooms Devices or to get a larger quota for a shared mailbox)
+# so we remove these accounts here
+$OriginalUserAccounts = $Users.Count
+Write-Host "Finding Azure AD accounts used for shared and room mailboxes..."
+[array]$NonUserAccounts = Get-ExoMailbox -RecipientTypeDetails SharedMailbox, RoomMailbox -ResultSize Unlimited | Select-Object UserPrincipalName, ExternalDirectoryObjectId
+Write-Host "Removing non-user accounts from set to be processed..."
+$Users = $Users | Where-Object {$_.Id -notin $NonUserAccounts.ExternalDirectoryObjectId}
+$RemovedAccounts = $OriginalUserAccounts - $Users.Count
+Write-Host ("Proceeding to process {0} user accounts after removing {1} room and shared mailbox accounts" -f $Users.Count, $RemovedAccounts)
 
 $NoManagers = [System.Collections.Generic.List[Object]]::new() 
 $ManagerReports = [System.Collections.Generic.List[Object]]::new() 
