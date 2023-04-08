@@ -10,6 +10,8 @@
 # Define the set of modules installed and updated from the PowerShell Gallery that we want to maintain - edit this set of modules to include the modules 
 # you want to process.
 $O365Modules = @("MicrosoftTeams", "Microsoft.Graph", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA", "Az.Accounts", "Az.Automation", "Az.Keyvault")
+[int]$UpdatedModules = 0
+[int]$RemovedModules = 0
 
 # We're installing from the PowerShell Gallery so make sure that it's trusted
 Set-PSRepository -Name PsGallery -InstallationPolicy Trusted
@@ -35,6 +37,7 @@ ForEach ($Module in $O365Modules) {
          Write-Host ("Updating {0} module to version {1}" -f $Module, $CurrentVersion)
          Remove-Module $Module -ErrorAction SilentlyContinue
          Update-Module $Module -Force -Confirm:$False
+         $UpdatedModules++
       } # End if 
     } Else { # Module is not installed, so install it
          Write-Host ("Installing module {0}..." -f $Module)
@@ -62,11 +65,14 @@ ForEach ($Module in $ModulesToProcess) {
         If ($Version.Version -ne $MostRecentVersion)  { # Old version - remove
            Write-Host ("Uninstalling version {0} of module {1}" -f $Version.Version, $Module) -foregroundcolor Red 
            Uninstall-Module -Name $Module -RequiredVersion $Version.Version -Force
+           $RemovedModules++
          } #End if
       } #End If
     } #End ForEach Module
   } #End If
 } #End ForEach
+
+Write-Host ("Updated modules: {0}  Removed old versions of modules: {1}" -f $UpdatedModules, $RemovedModules)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
