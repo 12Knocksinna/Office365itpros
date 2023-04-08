@@ -1,14 +1,15 @@
 # UpdateOffice365PowerShellModules.PS1
 # Mentioned in Chapter 4 of Office 365 for IT Pros
 # V2.0 4-Dec-2022
+# V2.1 9-Apr-2023
 # https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateOffice365PowerShellModules.PS1
 # Very simple script to check for updates to a defined set of PowerShell modules used to manage Office 365 services
 # If an update for a module is found, it is downloaded and applied.
-# Once all modules are checked for updates, we remove older versions that might be present on the workstation
+# Once all modules are checked for updates, we remove older versions that might be present on the workstation. V2.1 improves the processing of Microsoft Graph SDK sub-modules
 #  
-
-# Define the set of modules installed and updated from the PowerShell Gallery that we want to maintain
-$O365Modules = @("MicrosoftTeams", "Microsoft.Graph", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA")
+# Define the set of modules installed and updated from the PowerShell Gallery that we want to maintain - edit this set of modules to include the modules 
+# you want to process.
+$O365Modules = @("MicrosoftTeams", "Microsoft.Graph", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA", "Az.Accounts", "Az.Automation", "Az.Keyvault")
 
 # We're installing from the PowerShell Gallery so make sure that it's trusted
 Set-PSRepository -Name PsGallery -InstallationPolicy Trusted
@@ -43,7 +44,11 @@ ForEach ($Module in $O365Modules) {
 
 # Check and remove older versions of the modules from the PC
 Write-Host "Beginning clean-up phase..."
-ForEach ($Module in $O365Modules) {
+[array]$InstalledModules = Get-InstalledModule
+[array]$GraphModules = $InstalledModules | Where-Object {$_.Name -Like "*Microsoft.Graph*"} | Select-Object -ExpandProperty Name
+$ModulesToProcess = $O365Modules + $GraphModules | Sort-Object -Unique
+
+ForEach ($Module in $ModulesToProcess) {
    Write-Host "Checking for older versions of" $Module
    [array]$AllVersions = Get-InstalledModule -Name $Module -AllVersions -ErrorAction SilentlyContinue
    If ($AllVersions) {
