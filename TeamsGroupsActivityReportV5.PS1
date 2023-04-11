@@ -107,8 +107,8 @@ $TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = 'ei_7Q~mY8SLKxKJHkY.x-WTWT0ncfaqu8ETtS'
 
 # Construct URI and body needed for authentication
-$uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
-$body = @{
+$Uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
+$Body = @{
     client_id     = $AppId
     scope         = "https://graph.microsoft.com/.default"
     client_secret = $AppSecret
@@ -121,6 +121,11 @@ $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "applicati
 $Token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 
 Write-Host ("Retrieved new access token at {0}" -f (Get-Date)) -foregroundcolor red
+
+$Global:Headers = @{
+            'Content-Type'  = "application\json"
+            'Authorization' = "Bearer $Token" 
+            'ConsistencyLevel' = "eventual" }
 Return $Token
 }
 
@@ -229,12 +234,7 @@ If (!($Token)) {Write-Host "Can't get a valid Azure AD access token - exiting" ;
 # Set the creation date of the initial access token (59min and 59sec life long) and add 57 minutes to renew the token later in the main loop
 $Global:TokenCreationDate = (Get-Date)
 $Global:TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
-
-$Headers = @{
-            'Content-Type'  = "application\json"
-            'Authorization' = "Bearer $Token" 
-            'ConsistencyLevel' = "eventual" }
-	    
+    
 # Get tenant name and other details
 $Uri = "https://graph.microsoft.com/v1.0/organization"
 $OrgData = Get-GraphData -Uri $Uri -AccessToken $Token
