@@ -22,7 +22,6 @@ $Users = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited
 CLS
 $ProgDelta = 100/($Users.Count); $CheckCount = 0; $UserNumber = 0
 ForEach ($User in $Users) {
-   $PhotoExists = $Null
    $UserNumber++
    $UserStatus = $User.DisplayName + " ["+ $UserNumber +"/" + $Users.Count + "]"
    Write-Progress -Activity "Checking photo for" -Status $UserStatus -PercentComplete $CheckCount
