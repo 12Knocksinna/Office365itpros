@@ -1,6 +1,7 @@
 # UpdateGuestPhotos.PS1
 # A script to demonstrate how to update photos for Azure AD Guest Accounts. The photos are stored in 
 # c:\UserPhotos\ (definable location) and are named after the guest account (as in Tony Redmond.jpg).
+# https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateGuestPhotos.PS1
 
 Connect-MgGraph -Scopes User.ReadWrite.All
 Select-MgProfile Beta
