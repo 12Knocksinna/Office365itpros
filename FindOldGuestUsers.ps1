@@ -22,7 +22,7 @@ $Today = (Get-Date); $i = 0; $StaleGuests = 0; $Report = [System.Collections.Gen
 CLS
 ForEach ($Guest in $GuestUsers) {
 # Check the age of the guest account, and if it's over the threshold for days, report it
-   $AADAccountAge = ($Guest.RefreshTokensValidFromDateTime | New-TimeSpan).Days
+   $AADAccountAge = ($Guest.CreatedDateTime | New-TimeSpan).Days
    $i++
    If ($AADAccountAge -gt $AgeThreshold) {
       $ProgressBar = "Processing Guest " + $Guest.DisplayName + " " + $AAdAccountAge + " days old " +  " (" + $i + " of " + $GuestUsers.Count + ")"
