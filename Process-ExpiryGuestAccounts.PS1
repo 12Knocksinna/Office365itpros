@@ -4,6 +4,7 @@
 # 2. Find guest accounts due to expire in the next 30 days
 # 3. Email administrators with details of accounts to check
 # Uses the Microsoft Graph PowerShell SDK 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Process-ExpiryGuestAccounts.PS1
 
 # Connect to Microsoft Graph in Azure Automation
 Connect-AzAccount -Identity
