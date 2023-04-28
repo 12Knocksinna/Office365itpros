@@ -2,14 +2,17 @@
 # Mentioned in Chapter 4 of Office 365 for IT Pros
 # V2.0 4-Dec-2022
 # V2.1 9-Apr-2023
+# V2.2 28-Apr-2023
 # https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateOffice365PowerShellModules.PS1
 # Very simple script to check for updates to a defined set of PowerShell modules used to manage Office 365 services
 # If an update for a module is found, it is downloaded and applied.
 # Once all modules are checked for updates, we remove older versions that might be present on the workstation. V2.1 improves the processing of Microsoft Graph SDK sub-modules
 #  
+
 # Define the set of modules installed and updated from the PowerShell Gallery that we want to maintain - edit this set of modules to include the modules 
 # you want to process.
-$O365Modules = @("MicrosoftTeams", "Microsoft.Graph", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA", "Az.Accounts", "Az.Automation", "Az.Keyvault")
+$O365Modules = @("MicrosoftTeams", "Microsoft.Graph", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA", "Az.Accounts", "Az.Automation", "AIPService", "Az.Keyvault", "Pnp.PowerShell", "MSCommerce", "Microsoft365DSC", "MSAL.PS", "PSWriteHTML", "WhiteboardAdmin", "ImportExcel")
+$O365Modules = $O365Modules | Sort-Object
 [int]$UpdatedModules = 0
 [int]$RemovedModules = 0
 
@@ -19,30 +22,37 @@ Set-PSRepository -Name PsGallery -InstallationPolicy Trusted
 # Check and update all modules to make sure that we're at the latest version
 ForEach ($Module in $O365Modules) {
    Write-Host "Checking and updating module" $Module
-   $CurrentVersion = (Find-Module -Name $Module | Select-Object -ExpandProperty Version)
-   # Check current version on workstation and report what we find. If no module is installed, tell the user
-   If ($CurrentVersion) {
+   $CurrentModule = Find-Module -Name $Module
+   If ($CurrentModule) {
+     $CurrentVersion = $CurrentModule.Version
      $CurrentVersion = $CurrentVersion.Major.toString() + "." + $CurrentVersion.Minor.toString() + "." + $CurrentVersion.Build.toString()
+     [datetime]$CurrentModuleDate = $CurrentModule.PublishedDate
      Write-Host ("Current version of the {0} module in the PowerShell Gallery is {1}" -f $Module, $CurrentVersion)
-   } Else {
-     $CurrentVersion = "0.0.0"
-     Write-Host ("No module found for {0}" -f $Module) }
-   
-   $PCVersion = Get-InstalledModule -Name $Module -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Version
-   If ($PCVersion) {
+   }
+
+   $PCModule = Get-InstalledModule -Name $Module -ErrorAction SilentlyContinue
+
+   If (!($PCModule)) { 
+   # No version of the module found. It's in our list, so we install it.
+     Write-Host ("No module found on this PC for {0}" -f $Module)
+     Write-Host ("Installing module {0}..." -f $Module)  -foregroundcolor Yellow
+     Install-Module $Module -Scope AllUsers -Confirm:$False
+   }
+
+   If ($PCModule) {
+      $PCVersion = $PCModule.Version
       $PCVersion = $PCVersion.Major.toString() + "." + $PCVersion.Minor.toString() + "." + $PCVersion.Build.toString()
-      If ($PCVersion -eq $CurrentVersion) { 
-         Write-Host ("Version {0} is installed on this PC - no need to update" -f $PCVersion) 
+      [datetime]$PCModuleDate = $PCModule.PublishedDate
+
+      If ($PCModuleDate -eq $CurrentModuleDate) { 
+         Write-Host ("Latest version of {0} is installed on this PC - no need to update" -f $Module) 
       } Else {
-         Write-Host ("Updating {0} module to version {1}" -f $Module, $CurrentVersion)
+         Write-Host ("Updating {0} module to version {1}" -f $Module, $CurrentVersion) -foreground color Yellow
          Remove-Module $Module -ErrorAction SilentlyContinue
          Update-Module $Module -Force -Confirm:$False
          $UpdatedModules++
       } # End if 
-    } Else { # Module is not installed, so install it
-         Write-Host ("Installing module {0}..." -f $Module)
-         Install-Module $Module -Scope AllUsers -Confirm:$False
-     } #End if
+    }
 } # End ForEach Module
 
 # Check and remove older versions of the modules from the PC
@@ -58,17 +68,21 @@ ForEach ($Module in $ModulesToProcess) {
      $AllVersions = $AllVersions | Sort-Object PublishedDate -Descending 
      $MostRecentVersion = $AllVersions[0].Version
      $MostRecentVersion = $MostRecentVersion.Major.toString() + "." + $MostRecentVersion.Minor.toString() + "." + $MostRecentVersion.Build.toString()
-     $PublishedDate = (Get-Date($AllVersions[0].PublishedDate) -format g)
+     [datetime]$MostRecentVersionDate = $AllVersions[0].PublishedDate
+     $PublishedDate = (Get-Date($MostRecentVersionDate) -format g)
      Write-Host ("Most recent version of {0} is {1} published on {2}" -f $Module, $MostRecentVersion, $PublishedDate)
      If ($AllVersions.Count -gt 1 ) { # More than a single version installed
       ForEach ($Version in $AllVersions) { #Check each version and remove old versions
-        If ($Version.Version -ne $MostRecentVersion)  { # Old version - remove
+        [datetime]$VersionDate = $Version.PublishedDate
+        If ($VersionDate -lt $MostRecentVersionDate)  { # Old version - remove
            Write-Host ("Uninstalling version {0} of module {1}" -f $Version.Version, $Module) -foregroundcolor Red 
            Uninstall-Module -Name $Module -RequiredVersion $Version.Version -Force
            $RemovedModules++
-         } #End if
-      } #End If
-    } #End ForEach Module
+         } #End if version check
+      } # End ForEach versions 
+    } Else {
+        Write-Host ("No earlier versions of {0} module to remove" -f $Module)
+    } # End check for more than one version
   } #End If
 } #End ForEach
 
