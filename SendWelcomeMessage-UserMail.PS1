@@ -18,7 +18,8 @@ Function Populate-Attachments {
     [cmdletbinding()]
     Param(
         [array]$ListOfAttachments )
-    ForEach ($Attachment in $Attachments) {
+	
+    ForEach ($Attachment in $ListOfAttachments) {
      Write-Host "Processing" $Attachment
      $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($Attachment))
         @{
