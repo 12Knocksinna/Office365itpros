@@ -99,7 +99,6 @@ $CcRecipientList = @(
         'Kim.Akers@Office365itpros.com' )
 [array]$MsgCcRecipients = Populate-MessageRecipient -ListOfAddresses $CcRecipientList
 
-
 ForEach ($User in $Users) {
   $ToRecipientList   = @( $User.PrimarySmtpAddress )
   [array]$MsgToRecipients = Populate-MessageRecipient -ListOfAddresses $ToRecipientList
@@ -109,7 +108,7 @@ ForEach ($User in $Users) {
   $HtmlMsg = "</body></html>" + $HtmlHead + $htmlheaderuser + $htmlbody + "<p>"
   # Construct the message body
   $MsgBody = @{
-     Content = "$($HtmlBody)"
+     Content = "$($HtmlMsg)"
      ContentType = 'html'   }
 
   $Message =  @{subject           = $MsgSubject}
