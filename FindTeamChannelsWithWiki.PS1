@@ -35,7 +35,7 @@ ForEach ($Team in $Teams) {
               $True     { 
                  # Get Team owners 
                  [array]$OwnerData = Get-MgGroupOwner -GroupId $Team.Id
-                 $TeamOwners = $OwnerData.AdditionalProperties.displayName -Join ", "
+                 $TeamOwners = $OwnerData.AdditionalProperties.displayName -Join "|"
                  $WikiCheck = "Wiki content exists"}
               $False    { $WikiCheck = "No content" }
               Default    { $WikiCheck = "No content" }
@@ -59,7 +59,7 @@ ForEach ($Team in $Teams) {
 
 $WikiReport = $Report | Where-Object {$_.AppId -eq "com.microsoft.teamspace.tab.wiki" -and $_.Check -eq "Wiki content exists"}
 $WikiReport | Out-GridView
-$WikiReport | Export-CSV -NoTypeInformation WikisToReview.CSV
+$WikiReport | Export-CSV -NoTypeInformation WikisToReview.CSV -Encoding UTF8 -Delimiter ";"
 Write-Host ("All done. {0} Teams processed. The Wiki tab with content was found in {1} channels. CSV file generated in WikisToReview.csv" -f $Teams.count, $WikiReport.count)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
