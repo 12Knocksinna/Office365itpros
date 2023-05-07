@@ -1,6 +1,7 @@
 # Report-ContainerManagementLabels.PS1
 # A script to create a report about container management labels and highlight groups that don't have a label. Also
 # highlights groups without owners
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ContainerManagementLabels.PS1
 
 Connect-MgGraph -Scopes Directory.Read.All
 
