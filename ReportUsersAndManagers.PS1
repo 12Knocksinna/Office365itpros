@@ -93,7 +93,7 @@ ForEach ($User in $Users) {
 
 # Add the information about managers and direct reports to the report 
 [array]$Managers = $ManagerReports | Sort-Object ManagerId -Unique | Select-Object ManagerId, Manager | Sort-Object Manager
-$HtmlReport = $Null
+$HtmlReport = $HtmlHead
 ForEach ($Manager in $Managers) {
    $DataToReport = $ManagerReports | Where-Object {$_.ManagerId -eq $Manager.ManagerId} 
    $HtmlHeading = ("<p><h1>Direct Reports for <b>{0}</b></h1>" -f $Manager.Manager)
