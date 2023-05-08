@@ -95,7 +95,7 @@ $Report | Format-Table Id, Name, Action, Expiration, LastSignIn
 
 # Define variables for the mailbox used to send the message, the recipient, and the message subject
 $MsgFrom = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -Name "ExoAccountName" -AsPlainText
-$ToAddress = "Tony.Redmond@redmondassociates.org"
+$ToAddress = "James.Smith@office365itpros.com"
 $MsgSubject = "Guest Account Expiration Information for $($TenantName)"
 
 # Define HTML header with styles
