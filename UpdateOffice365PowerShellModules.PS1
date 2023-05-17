@@ -47,7 +47,7 @@ ForEach ($Module in $O365Modules) {
       If ($PCModuleDate -eq $CurrentModuleDate) { 
          Write-Host ("Latest version of {0} is installed on this PC - no need to update" -f $Module) 
       } Else {
-         Write-Host ("Updating {0} module to version {1}" -f $Module, $CurrentVersion) -foreground color Yellow
+         Write-Host ("Updating {0} module to version {1}" -f $Module, $CurrentVersion) -foregroundcolor Yellow
          Remove-Module $Module -ErrorAction SilentlyContinue
          Update-Module $Module -Force -Confirm:$False
          $UpdatedModules++
