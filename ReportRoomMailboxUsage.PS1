@@ -221,7 +221,7 @@ $RoomSummary = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Room in $Rooms) {
    [array]$RoomData = $CalendarInfo | Where-Object {$_.Room -eq $Room} 
    [array]$RoomOnlineEvents = $RoomData | Where-Object {$_.Online -eq $True}
-   [array]$RoomAllDayEvents = $RoomData | Where-Object {$_.IsAllDay -eq $True}
+   [array]$RoomAllDayEvents = $RoomData | Where-Object {$_.AllDay -eq $True}
    $TotalMinutes = ($RoomData.Duration | measure-object -sum).Sum
    $TotalRoomAttendees = ($RoomData.TotalAtEvent | Measure-Object -Sum).Sum
    $AverageDuration = $TotalMinutes/$RoomData.Count
