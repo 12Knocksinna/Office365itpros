@@ -61,7 +61,12 @@ $i = 0
 ForEach ($App in $Apps) {
    $i++; $AppRecentFlag = $False
    # Write-Output ("Processing app {0} {1}/{2}" -f $App.DisplayName, $i, $Apps.Count)
-   [datetime]$AppCreationDate = $App.AdditionalProperties.createdDateTime
+   If ($App.AdditionalProperties.createdDateTime) {
+        [datetime]$AppCreationDate = $App.AdditionalProperties.createdDateTime
+    } Else {
+     # For some reason, no app created date is available, so set it to a date in 1970
+        [datetime]$AppCreationDate = ‘1970-01-01’
+   }
    If ($AppCreationDate -gt $CheckforRecent) {$AppRecentFlag = $True}
    [array]$AppRoles = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $App.Id
    If ($AppRoles) {
@@ -91,8 +96,10 @@ ForEach ($App in $Apps) {
             $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
             $Name = $ExternalTenantData.DisplayName }
        $VerifiedPublisher = $Null
-       If ($App.AdditionalProperties["verifiedpublisher"]) { $VerifiedPublisher = $App.AdditionalProperties["verifiedpublisher"] }
+       If ($App.AdditionalProperties["verifiedpublisher"]) { 
+          $VerifiedPublisher = $App.AdditionalProperties["verifiedpublisher"] }
        } 
+   
        $ReportLine  = [PSCustomObject] @{
            DisplayName        = $App.DisplayName
            ServicePrincipalId = $App.Id
@@ -130,7 +137,7 @@ ForEach ($Record in $Report) {
      $ProblemApps.Add($Record) }
 }
 # Uncomment the next two lines if you want to generate the report about problem apps
-# $ProblemApps | Export-CSV -NoTypeInformation $OutputFile
+# $ProblemApps | Export-CSV -NoTypeInformation $OutputFile2
 # Write-Output ("List of apps for review is available in {0}" -f $OutputFile2)
 
 [array]$AppSet = $ProblemApps | Sort-Object ServicePrincipalId -Unique
