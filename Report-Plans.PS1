@@ -69,7 +69,7 @@ ForEach ($Task in $UncompletedTasks) {
        "50"  { $Status = "In progress"}
        "100" { $Status = "Complete" }
       }
-      Switch ($Task.Priorty) {
+      Switch ($Task.Priority) {
         "1"  { $Priority = "Urgent" }
         "3"  { $Priority = "Important" }
         "5"  { $Priority = "Medium" }
@@ -95,7 +95,7 @@ ForEach ($Task in $UncompletedTasks) {
          percentComplete     = $Task.percentComplete
          DaysOld             = $DaysTaskOld
          "Task Status"       = $Status
-         Priority            = $Task.Priority
+         Priority            = $Priority
          Assignee            = $Assignee
          AssignedDate        = ($AssignedDate) 
          DaysSinceAssignment = $DaysSinceAssignment
