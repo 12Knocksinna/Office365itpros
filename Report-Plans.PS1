@@ -309,7 +309,8 @@ ForEach ($Group in $Groups) {
              Group               = $Group.displayName
              GroupId             = $Group.Id 
              TaskStats           = $TaskAssignments
-             BucketStats         = $BucketStats }
+             BucketStats         = $BucketStats 
+	     GroupMembers        = $GroupMembers        }
       $Report.Add($ReportLine) 
     } # End Foreach Plan
   }  # End if 
@@ -349,10 +350,10 @@ $HtmlHeading ="<html>
 $HtmlReport = $HtmlHeading
 
 ForEach ($G in $GroupsWithPlans) {
-   $Uri = ("https://graph.microsoft.com/v1.0/groups/{0}/members" -f $G.GroupId)
-   [array]$Global:GroupMembers = Get-GraphData -Uri $Uri -AccessToken $Token | Select-Object Id, displayName
-#  Report the basic statistics for the plan and bucket statistics if available
+   # Report the basic statistics for the plan and bucket statistics if available
    $HtmlHeadingSection = ("<p><h2>Plans for Group <b><u>{0}</h2></b></u></p>" -f $G.Group)
+   # Get the group members of the plan so that we can report individual assignments. Because a group can host multiple plans, we select the first record
+   [array]$Global:GroupMembers = $Report | Where-Object {$_.GroupId -eq $G.GroupId} | Select-Object -First 1 |Select-Object -ExpandProperty GroupMembers
 
    # Extract Plans
    $GroupPlans = $Report | Where-Object {$_.GroupId -eq $G.GroupId} | Select-Object Plan, Created, Tasks, "Oldest Task", "Newest Task", "Days Since Task", "Urgent Tasks", "Important Tasks", "Medium Tasks", "Low Tasks", "Completed Tasks", "In progress Tasks", "Not started Tasks", Buckets, PlanId
