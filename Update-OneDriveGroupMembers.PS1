@@ -1,6 +1,8 @@
 # Update-OneDriveGroupMembers.PS1
 # Sample script to illustrate the principal of using groups to drive the allocation of storage quotas to OneDrive accounts
 #
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Update-OneDriveGroupMembers.PS1
+#
 # Check that we're connected to SharePoint Online
 $Modules = Get-Module
 If ("Microsoft.Online.Sharepoint.PowerShell" -notin $Modules.Name) { 
