@@ -1,6 +1,6 @@
 # Report-MobileDevices.PS1
 # An example script to show how to extract mobile device statistics from devices registred with Exchange Online mailboxes
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-MobileDevices.PS1
 
 $HtmlHead ="<html>
 	   <style>
@@ -26,12 +26,17 @@ $HtmlReportFile = "c:\temp\MobileDevices.html"
 $CSVReportFile = "c:\temp\MobileDevices.csv"
 $Organization = Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName
 
+Connect-ExchangeOnline
+
 [array]$Mbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox | Sort-Object DisplayName
 If (!($Mbx)) { Write-Host "Unable to find any user mailboxes..." ; break }
 
 $Report = [System.Collections.Generic.List[Object]]::new() 
 
+[int]$i = 0
 ForEach ($M in $Mbx) {
+ $i++
+ Write-Host ("Scanning mailbox {0} for registered mobile devices... {1}/{2}" -f $M.DisplayName, $i, $Mbx.count)
  [array]$Devices = Get-MobileDevice -Mailbox $M.DistinguishedName
  ForEach ($Device in $Devices) {
    $DaysSinceLastSync = $Null; $DaySinceFirstSync = $Null; $SyncStatus = "OK"
