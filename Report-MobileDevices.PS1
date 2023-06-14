@@ -67,14 +67,15 @@ ForEach ($M in $Mbx) {
      Status             = $DeviceStatus
      Policy             = $DeviceStats.DevicePolicyApplied
      State              = $DeviceStats.DeviceAccessState
-     LastPolicy         = $DeviceStats.LastPolicyUpdateTime }
+     LastPolicy         = $DeviceStats.LastPolicyUpdateTime
+     DeviceDN           = $Device.DistinguishedName }
    $Report.Add($ReportLine)
  } #End Devices
 } #End Mailboxes
 [array]$SyncMailboxes = $Report | Sort-Object UPN -Unique | Select-Object UPN
 [array]$SyncDevices = $Report | Sort-Object DeviceId -Unique | Select-Object DeviceId
 [array]$SyncDevices30 = $Report | Where-Object {$_.DaysSinceLastSync -gt 30} 
-$HtmlReport = $Report | Sort-Object UPN | ConvertTo-Html -Fragment
+$$HtmlReport = $Report | Select-Object DeviceId, DeviceOS, Model, UA, User, UPN, FirstSync, DaysSinceFirstSync, LastSync, DaysSinceLastSync | Sort-Object UPN | ConvertTo-Html -Fragment
 
 # Create the HTML report
 $Htmltail = "<p>Report created for: " + ($Organization) + "</p><p>" +
@@ -93,7 +94,7 @@ Write-Host ""
 Write-Host ("{0} Mailboxes with synchronized devices" -f $SyncMailboxes.count)
 Write-Host ("{0} Individual devices found" -f $SyncDevices.count)
 
-$ManagerReports | Export-CSV -NoTypeInformation $CSVReportFile
+$Report | Export-CSV -NoTypeInformation $CSVReportFile
 Write-Host ("Output files are available in {0} and {1}" -f $HtmlReportFile, $CSVReportFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
