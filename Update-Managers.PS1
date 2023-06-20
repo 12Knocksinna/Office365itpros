@@ -26,7 +26,7 @@ If ($ErrorCount -gt 0) { Write-Host "Please fix the manager input file before pr
 
 # Find user accounts with assigned licenses
 Write-Host "Finding licensed Azure AD accounts..."
-[array]$Users = Get-MgUser -All -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable UsersFound -Property Manager | Sort-Object DisplayName
+[array]$Users = Get-MgUser -All -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable UsersFound | Sort-Object DisplayName
 If (!($Users)) { Write-Host "Couldn't find any user accounts with assigned licenses!" ; break }
 
 Write-Host "Checking managers assigned to user accounts..."
@@ -58,6 +58,11 @@ ForEach ($User in $UsersWithDepartment) {
      $DefaultFlag = "Yes"
      $DepartmentManager = $DefaultManager }
 
+ $UserManager = (Get-MgUserManager -UserId $User.Id -ErrorAction SilentlyContinue).additionalProperties.userPrincipalName
+ If ($DepartmentManager -eq $UserManager) {
+    # Same manager, so don't update
+    $DepartmentManager = $Null }
+
   # Update the account
  If ($DepartmentManager) {
    Write-Host ("Updating user account {0} with manager {1}" -f $User.displayName, $DepartmentManager)
@@ -72,7 +77,6 @@ ForEach ($User in $UsersWithDepartment) {
     "Assigned Default Manager" = $DefaultFlag }
    $Report.Add($ReportLine)
   }
-
 } # End ForEach User
 
 
