@@ -5,6 +5,7 @@
 Connect-MgGraph -Scopes User.ReadWrite.All, Directory.Read.All
 Write-Host "Setting up manager data..."
 $InputManagerData = "c:\temp\ManagerData.csv"
+$OutputCSVFile = "c:\temp\ManagerAssignments.csv"
 [int]$ErrorCount = 0
 $ManagerHash = @{}
 
@@ -79,6 +80,10 @@ ForEach ($User in $UsersWithDepartment) {
   }
 } # End ForEach User
 
+# Generate output file
+$Report | Out-GridView
+$Report | Export-CSV -NoTypeInformation $OutputCSVFile
+Write-Host ("Processing complete. Output file available in {0}." -f $OutputCSVFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
