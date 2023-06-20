@@ -80,6 +80,14 @@ ForEach ($User in $UsersWithDepartment) {
   }
 } # End ForEach User
 
+# Output the details of accounts that we didn't process because they don't have a department property
+If ($UsersNoDepartment) {
+  Write-Host ""
+  Write-Host "These users were not processed because their accounts do not have a populated department"
+  $UsersNoDepartment
+  Write-Host ""
+}
+
 # Generate output file
 $Report | Out-GridView
 $Report | Export-CSV -NoTypeInformation $OutputCSVFile
