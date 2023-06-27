@@ -2,9 +2,8 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/AuditRecordAuditLabel.PS1
 # A script to look for audit records for the application of retention labels and report those which
 # are applied by an auto-label policy. 
-# https://github.com/12Knocksinna/Office365itpros/blob/master/AuditRecordAuditLabel.PS1
 
-$ModulesLoaded = Get-Module | Select Name
+$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 
 # Retention label to check for - change this to your preferred label name
@@ -50,7 +49,7 @@ ForEach ($Rec in $Records) {
    } # End if
 } # End ForEach
 
-CLS
+Clear-Host
 # All done
 $TaggedRecordings | Export-CSV -NoTypeInformation $OutputCSVFile
 Write-Host ("{0} audit records found for auto-applying the {1} retention label between {2} and {3}" -f $TaggedRecordings.Count, $RetentionLabel, $StartDate, $EndDate)
