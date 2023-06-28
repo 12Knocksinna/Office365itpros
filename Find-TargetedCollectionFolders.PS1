@@ -1,6 +1,7 @@
 # Find-TargetedCollectionFolders.PS1
 # Generate folder identifiers for use in a content search for specific folders in Recoverable Items in both the primary
 # and archive mailbox
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Find-TargetedCollectionFolders.PS1
 
 $Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -notin $Modules) { Write-Host "Please connect to the Exchange Online management module and restart." ; break }
