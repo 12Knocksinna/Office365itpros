@@ -326,9 +326,9 @@ ForEach ($Group in $Groups) {
        } # End if
        Else  { # Just report what we read from the Graph
          $SPOUrl = $SPOData.WebUrl
-          $SPODocLib = $SPOUrl + $SharedDocFolder2 
-          $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
-          $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g 
+         $SPODocLib = $SPOUrl + $SharedDocFolder2 
+         $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
+         $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g 
        } # End Else
    } # End if against $SPOData
    Else { 
@@ -496,7 +496,7 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
     # Write-Host "Reading from Teams Hash Table for" $ThisTeamData.DisplayName
     $ThisTeamData = $TeamsUsageHash[$G.ObjectId]
     $NumberOfChats = [int]$ThisTeamData.Posts + [int]$ThisTeamData.Replies
-    $LastItemAddedToTeams = $ThisTeamData.LastActivity
+    $LastItemAddedToTeams = Get-Date ($ThisTeamData.LastActivity) -Format g
    } #End Else
 } # End if
     
