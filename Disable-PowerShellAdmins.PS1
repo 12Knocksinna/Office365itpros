@@ -3,6 +3,7 @@
 # The original article explaining how to disable access to Exchange PowerShell for all accounts except those holding the
 # Exchange administrator and Global administrator roles is https://practical365.com/exchange-online-powershell-remove/
 # This version shows how to use Azure AD Privileged Identity Management assignments instead of simple role memberships.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Disable-PowerShellAdmins.PS1
 
 Connect-MgGraph -Scopes Directory.Read.All
 Connect-ExchangeOnline
