@@ -28,6 +28,11 @@ ForEach ($Group in $Groups) {
         $PhotoFile = $Null 
         Write-Host ("Group {0} requires an approved photo but no entry is available in the photo list" -f $Group.DisplayName)
     }
+     # Check if a photo file is where we expect it to be 
+     If ((Test-Path $PhotoFile) -eq $False) { 
+        Write-Host ("Group {0} requires an approved photo but the expected file is not available in {1}" -f $Group.DisplayName, $PhotoFile)
+         $PhotoFile = $Null 
+     }
      Write-Host ("Checking photo for group {0}" -f $Group.DisplayName)
      $ExistingPhotoData = Get-UserPhoto -Identity $Group.ExternalDirectoryObjectId -GroupMailbox -ErrorAction SilentlyContinue
      If ($ExistingPhotoData.Thumbprint -eq $PhotoThumbprint) {
