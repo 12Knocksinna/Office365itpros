@@ -1,6 +1,7 @@
 # Update-GroupPhotos.PS1
 # Example script to show how to check the photos for Microsoft 365 Groups against a list of approved photos
 # and update them if necessary
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Update-GroupPhotos.PS1
 Connect-ExchangeOnline
 # Define groups we want to find
 
