@@ -10,9 +10,8 @@ $ConfidentialAccessId = "c99e52c6-f5ff-4050-9313-ca6a3a35710f"
 $PhotoDirectory = "c:\temp\"
 
 [array]$Groups = Get-UnifiedGroup -ResultSize Unlimited 
-Write-Host "Groups found:" $Groups.count
 $Groups = $Groups | Where-Object {$_.SensitivityLabel -eq $LimitedAccessId -or $_.SensitivityLabel -eq $ConfidentialAccessId} | Sort-Object DisplayName
-Write-Host "Groups found:" $Groups.count
+Write-Host ("Scanning {0} groups to check photos..." -f $Groups.count)
 
 # Read in data about approved photos
 [array]$GroupPhotos = Import-csv c:\temp\GroupPhotos.csv
