@@ -2,11 +2,11 @@
 # Script to find Guest User Accounts in an Office 365 Tenant that are older than 365 days and the groups they belong to
 # V2.0 10-Oct-2022
 # V3.0 13-Jan-2023 - Removed the Exchange Online management module and do everything with the Graph
+# V3.1 9-Jul-2023 Updated for SDK V2.0
 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindOldGuestAccounts.PS1
 
 Connect-MgGraph  -Scopes AuditLog.Read.All, Directory.Read.All
-Select-MgProfile Beta
 
 # Set age threshold for reporting a guest account
 [int]$AgeThreshold = 365
@@ -14,7 +14,7 @@ Select-MgProfile Beta
 $OutputReport = "c:\Temp\OldGuestAccounts.csv"
 # Get all guest accounts in the tenant
 Write-Host "Finding Guest Accounts..."
-[Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All -Property signInActivity 
+[Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All Property id, displayName, userPrincipalName, userType, SignInaActivity, createdDateTime
 $Today = (Get-Date); $i = 0; $StaleGuests = 0; $Report = [System.Collections.Generic.List[Object]]::new()
 # Loop through the guest accounts looking for old accounts 
 CLS
