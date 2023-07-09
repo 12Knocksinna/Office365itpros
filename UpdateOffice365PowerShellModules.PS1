@@ -3,6 +3,7 @@
 # V2.0 4-Dec-2022
 # V2.1 9-Apr-2023
 # V2.2 28-Apr-2023
+# V2.3 9-Jul-2023 (include support for Microsoft Graph PowerShell SDK V2.0)
 # https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateOffice365PowerShellModules.PS1
 # Very simple script to check for updates to a defined set of PowerShell modules used to manage Office 365 services
 # If an update for a module is found, it is downloaded and applied.
@@ -11,8 +12,9 @@
 
 # Define the set of modules installed and updated from the PowerShell Gallery that we want to maintain - edit this set of modules to include the modules 
 # you want to process.
-$O365Modules = @("MicrosoftTeams", "Microsoft.Graph", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA", "Az.Accounts", "Az.Automation", "AIPService", "Az.Keyvault", "Pnp.PowerShell", "MSCommerce", "Microsoft365DSC", "MSAL.PS", "PSWriteHTML", "WhiteboardAdmin", "ImportExcel")
+$O365Modules = @("MicrosoftTeams", "Microsoft.Graph", "Microsoft.Graph.Beta", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA", "Az.Accounts", "Az.Automation", "AIPService", "Az.Keyvault", "Pnp.PowerShell", "MSCommerce", "Microsoft365DSC", "MSAL.PS", "PSWriteHTML", "WhiteboardAdmin", "ImportExcel")
 $O365Modules = $O365Modules | Sort-Object
+Write-Host ("Starting up and preparing to process these modules: {0}" -f ($O365Modules -join ", ")) -foregroundcolor Yellow
 [int]$UpdatedModules = 0
 [int]$RemovedModules = 0
 
