@@ -6,7 +6,6 @@
 # Uses cmdlets from the Microsoft Graph SDK for PowerShell
 # Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
 Connect-MgGraph -Scope Directory.Read.All
-Select-MgProfile beta
 
 #Import the Product names and service plan identifiers for licensing CSV file downloaded from https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-service-plan-reference
 # Remember to move the CSV file downloaded from Microsoft to c:\temp\
