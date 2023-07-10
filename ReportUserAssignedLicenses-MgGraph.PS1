@@ -14,20 +14,6 @@ $UnlicensedAccounts = 0
 
 # Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
 Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog.Read.All"
-Select-MgProfile beta
-$Details = Get-MgContext
-$Scopes = $Details | Select -ExpandProperty Scopes
-$Scopes = $Scopes -Join ", "
-$ProfileName = (Get-MgProfile).Name
-$OrgName = (Get-MgOrganization).DisplayName
-CLS
-Write-Host "Microsoft Graph Connection Information"
-Write-Host "--------------------------------------"
-Write-Host " "
-Write-Host ("Connected to Tenant {0} ({1}) as account {2}" -f $Details.TenantId, $OrgName, $Details.Account)
-Write-Host "+-------------------------------------------------------------------------------------------------------------------+"
-Write-Host ("Profile set as {0}. The following permission scope is defined: {1}" -f $ProfileName, $Scopes)
-Write-Host ""
 
 # This step depends on the availability of some CSV files generated to hold information about the product licenses used in the tenant and 
 # the service plans in those licenses. See https://github.com/12Knocksinna/Office365itpros/blob/master/CreateCSVFilesForSKUsAndServicePlans.PS1 
@@ -48,12 +34,13 @@ $ServicePlanHashTable = @{}
 ForEach ($Line2 in $ImportServicePlans) { $ServicePlanHashTable.Add([string]$Line2.ServicePlanId, [string]$Line2.ServicePlanDisplayName) }
 
 # Find tenant accounts - but filtered so that we only fetch those with licenses
-Write-Host "Finding licensed Azure AD accounts..."
-[Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All -Property signInActivity | `
+Write-Host "Finding licensed user accounts..."
+[Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All `
+    -Property id, displayName, userPrincipalName, country, department, assignedlicenses, createdDateTime, jobTitle, signInActivity | `
    Sort-Object DisplayName
 
-If (!($Users)) { Write-Host "No licensed Azure AD accounts found - exiting"; break }
-  Else { Write-Host ("{0} Licensed Azure AD accounts found - now processing their license data..." -f $Users.Count) }
+If (!($Users)) { Write-Host "No licensed user accounts found - exiting"; break }
+  Else { Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) }
 
 $Report = [System.Collections.Generic.List[Object]]::new()
 $i = 0
@@ -64,8 +51,8 @@ ForEach ($User in $Users) {
   [array]$LicenseInfo = $Null; [array]$DisabledPlans = $Null
   ForEach ($License in $User.AssignedLicenses) {
      If ($SkuHashTable.ContainsKey($License.SkuId) -eq $True) { # We found a match in the SKU hash table
-        $LicenseInfo += $SkuHashTable.Item($License.SkuId) }
-     Else { # Nothing doing, so output the SkuID
+        $LicenseInfo += $SkuHashTable.Item($License.SkuId) 
+   } Else { # Nothing doing, so output the SkuID
         $LicenseInfo += $License }
   # Report any disabled service plans in licenses
    If ([string]::IsNullOrWhiteSpace($License.DisabledPlans) -eq $False ) { # Check if disabled service plans in a license
@@ -99,7 +86,7 @@ ForEach ($User in $Users) {
   [string]$DisabledPlans = $DisabledPlans -join ", " 
   [string]$LicenseInfo = $LicenseInfo -join (", ")
   $ReportLine = [PSCustomObject][Ordered]@{  
-       User                   = $User.DisplayName
+       User                    = $User.DisplayName
        UPN                     = $User.UserPrincipalName
        Country                 = $User.Country
        Department              = $User.Department
