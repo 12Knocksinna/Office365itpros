@@ -40,7 +40,7 @@ ForEach ($Member in $ExoRoleMembers) {
         User            = $User.UserPrincipalName
         UserId          = $User.Id
         Name            = $User.DisplayName
-        Role            = $RoleName
+        Role            = "Exchange administrator"
         AssignmentStart = $Member.StartDateTime
         AssignmentEnd   = $Member.EndDateTime
         AssignmentState = $Member.AssignmentState
@@ -73,7 +73,7 @@ ForEach ($Member in $GARoleMembers) {
         User            = $User.UserPrincipalName
         UserId          = $User.Id
         Name            = $User.DisplayName
-        Role            = $RoleName
+        Role            = "Global administrator"
         AssignmentStart = $Member.StartDateTime
         AssignmentEnd   = $Member.EndDateTime
         AssignmentState = $Member.AssignmentState
