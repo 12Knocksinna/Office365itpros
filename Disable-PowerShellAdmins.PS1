@@ -34,10 +34,10 @@ Write-Output "Processing assignment information retrieved from Privileged Identi
 # Process Exchange administrators to extract accounts with individual assignments and those who receive assignments
 # through a group
 ForEach ($Member in $ExoRoleMembers) {
-  $User = Get-MgUser -UserId $Member.SubjectId -ErrorAction SilentlyContinue
+  $User = Get-MgUser -UserId $Member.SubjectId -ErrorAction SilentlyContinue -Property Id, displayName, userPrincipalName
   If ($User) {
       $ReportLine = [PSCustomObject]@{
-        User           = $User.UserPrincipalName
+        User            = $User.UserPrincipalName
         UserId          = $User.Id
         Name            = $User.DisplayName
         Role            = $RoleName
@@ -67,10 +67,10 @@ ForEach ($Member in $ExoRoleMembers) {
 
 # Process global administrators
 ForEach ($Member in $GARoleMembers) {
-  $User = Get-MgUser -UserId $Member.SubjectId -ErrorAction SilentlyContinue
+  $User = Get-MgUser -UserId $Member.SubjectId -ErrorAction SilentlyContinue -Property Id, displayName, userPrincipalName
   If ($User) {
       $ReportLine = [PSCustomObject]@{
-        User           = $User.UserPrincipalName
+        User            = $User.UserPrincipalName
         UserId          = $User.Id
         Name            = $User.DisplayName
         Role            = $RoleName
