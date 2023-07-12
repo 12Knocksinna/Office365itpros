@@ -27,7 +27,9 @@ ForEach ($Module in $O365Modules) {
    $CurrentModule = Find-Module -Name $Module
    If ($CurrentModule) {
      $CurrentVersion = $CurrentModule.Version
-     $CurrentVersion = $CurrentVersion.Major.toString() + "." + $CurrentVersion.Minor.toString() + "." + $CurrentVersion.Build.toString()
+      If ($CurrentVersion -isnot [string]) {
+        $CurrentVersion = $CurrentVersion.Major.toString() + "." + $CurrentVersion.Minor.toString() + "." + $CurrentVersion.Build.toString()
+      }
      [datetime]$CurrentModuleDate = $CurrentModule.PublishedDate
      Write-Host ("Current version of the {0} module in the PowerShell Gallery is {1}" -f $Module, $CurrentVersion)
    }
@@ -43,7 +45,9 @@ ForEach ($Module in $O365Modules) {
 
    If ($PCModule) {
       $PCVersion = $PCModule.Version
-      $PCVersion = $PCVersion.Major.toString() + "." + $PCVersion.Minor.toString() + "." + $PCVersion.Build.toString()
+      If ($PCVersion -isnot [string]) {
+         $PCVersion = $PCVersion.Major.toString() + "." + $PCVersion.Minor.toString() + "." + $PCVersion.Build.toString()
+      }
       [datetime]$PCModuleDate = $PCModule.PublishedDate
 
       If ($PCModuleDate -eq $CurrentModuleDate) { 
