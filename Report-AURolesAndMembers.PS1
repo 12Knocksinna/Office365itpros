@@ -1,8 +1,9 @@
 # Report-AURolesAndMembers.PS1
 # Show how to use the Microsoft Graph PowerShell SDK (V2 or later) to report administrative units, users with role assignments to manage the AUs
 # and the membership of the AUs
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-AURolesAndMembers.PS1
 
-Connect-MgGraph
+Connect-MgGraph -Scopes Directory.Read.All
 
 $OutputFile = "c:\temp\AdminUnitAssignments.csv"  
 $Version = "V1.0"
