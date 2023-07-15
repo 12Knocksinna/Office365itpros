@@ -1,9 +1,8 @@
 # Report-AURolesAndMembers.PS1
 # Show how to use the Microsoft Graph PowerShell SDK (V2 or later) to report administrative units, users with role assignments to manage the AUs
 # and the membership of the AUs
-# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-AURolesAndMembers.PS1
 
-Connect-MgGraph -Scopes Directory.Read.All
+Connect-MgGraph
 
 $OutputFile = "c:\temp\AdminUnitAssignments.csv"  
 $Version = "V1.0"
@@ -12,7 +11,6 @@ $HtmlReportFile = "c:\temp\AdminUnitAssignments.html"
 Write-Host "Looking for administrative units and role assignments..."
 [array]$AdminUnits = Get-MgBetaDirectoryAdministrativeUnit | Sort-Object DisplayName
 [array]$Assignments = Get-MgBetaRoleManagementDirectoryRoleAssignment
-[array]$ScopedAssignments = $Assignments | Where-Object {$_.ResourceScope -ne "/"} | Sort-Object ResourceScope
 Write-Host ("Now examining details of {0} administrative units and {1} role assignments..." -f $AdminUnits.count, $Assignments.count)
 
 [int]$i=0
@@ -28,7 +26,7 @@ ForEach ($AU in $AdminUnits) {
  } Else {
    $Scope = "Directory" }
 
- $AUAssignments = $ScopedAssignments | Where-Object {$_.directoryscopeid -eq $AuId}
+ $AUAssignments = $Assignments | Where-Object {$_.directoryscopeid -eq $AuId}
  $RoleData = $Null;  [array]$Roles = $Null
  ForEach ($AUAssignment in $AUAssignments) {
       # Check if assignment is for a user account
