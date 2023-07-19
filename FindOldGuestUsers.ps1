@@ -4,11 +4,11 @@
 # Script needs to connect to the Microsoft Graph PowerShell SDK Exchange Online PowerShell.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindOldGuestUsers.ps1
 # V2.0 10-Oct-2022
+# V2.1 19-Jul-2022 Updated for Graph SDK V2
 
 # Make sure the right modules are loaded...
 If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
 Connect-MgGraph -Scopes AuditLog.Read.All, Directory.Read.All
-Select-MgProfile Beta
 
 # Set age threshold for reporting a guest account
 [int]$AgeThreshold = 365
@@ -16,7 +16,7 @@ Select-MgProfile Beta
 $OutputReport = "c:\Temp\OldGuestAccounts.csv"
 # Get all guest accounts in the tenant
 Write-Host "Finding Guest Accounts..."
-[Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All -Property signInActivity 
+[Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All -Property Id, displayName, userPrincipalName, createddDateTime, signInActivity, RefreshTokensValidFromDateTime
 $Today = (Get-Date); $i = 0; $StaleGuests = 0; $Report = [System.Collections.Generic.List[Object]]::new()
 # Loop through the guest accounts looking for old accounts 
 CLS
