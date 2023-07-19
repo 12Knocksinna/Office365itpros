@@ -16,9 +16,9 @@ $OutputReport = "c:\Temp\OldGuestAccounts.csv"
 Write-Host "Finding Guest Accounts..."
 [Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All -Property Id, displayName, userPrincipalName, createdDateTime, signInActivity `
     | Sort-Object displayName
-$Today = (Get-Date); $i = 0; $StaleGuests = 0; $Report = [System.Collections.Generic.List[Object]]::new()
+$i = 0; $Report = [System.Collections.Generic.List[Object]]::new()
 # Loop through the guest accounts looking for old accounts 
-CLS
+Clear-Host
 ForEach ($Guest in $GuestUsers) {
 # Check the age of the guest account, and if it's over the threshold for days, report it
    $AccountAge = ($Guest.CreatedDateTime | New-TimeSpan).Days
@@ -38,7 +38,6 @@ ForEach ($Guest in $GuestUsers) {
   
 #    Find the last sign-in date for the guest account, which might indicate how active the account is
      $UserLastLogonDate = $Null
-     $UserObjectId = $Guest.Id
      $UserLastLogonDate = $Guest.SignInActivity.LastSignInDateTime
      If ($Null -ne $UserLastLogonDate) {
         $UserLastLogonDate = Get-Date ($UserLastLogonDate) -format g
