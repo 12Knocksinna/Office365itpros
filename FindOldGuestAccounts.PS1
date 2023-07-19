@@ -15,9 +15,9 @@ $OutputReport = "c:\Temp\OldGuestAccounts.csv"
 # Get all guest accounts in the tenant
 Write-Host "Finding Guest Accounts..."
 [Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All Property id, displayName, userPrincipalName, userType, SignInaActivity, createdDateTime
-$Today = (Get-Date); $i = 0; $StaleGuests = 0; $Report = [System.Collections.Generic.List[Object]]::new()
+$i = 0; $Report = [System.Collections.Generic.List[Object]]::new()
 # Loop through the guest accounts looking for old accounts 
-CLS
+Clear-Host
 ForEach ($Guest in $GuestUsers) {
 # Check the age of the guest account, and if it's over the threshold for days, report it
    $AADAccountAge = ($Guest.CreatedDateTime | New-TimeSpan).Days
@@ -80,7 +80,7 @@ Switch ($Year) {
  } #End if guest age met threshold
 } #End Foreach guest
 
-$Report | Sort Name | Export-CSV -NoTypeInformation $OutputReport
+$Report | Sort-Object Name | Export-CSV -NoTypeInformation $OutputReport
 $PercentStale = ($Report.Count/$GuestUsers.Count).toString("P")
 Write-Host ("Script complete. {0} guest accounts found aged over {1} days ({2} of {3} accounts). Output CSV file is in {4}" -f $Report.Count, $AgeThreshold, $PercentStale, $GuestUsers.count, $OutputReport)
 
