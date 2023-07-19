@@ -80,7 +80,7 @@ Switch ($Year) {
  } #End if guest age met threshold
 } #End Foreach guest
 
-$Report | Sort-Object Name | Export-CSV -NoTypeInformation $OutputReport
+$Report | Export-CSV -NoTypeInformation $OutputReport
 $PercentStale = ($Report.Count/$GuestUsers.Count).toString("P")
 Write-Host ("Script complete. {0} guest accounts found aged over {1} days ({2} of {3} accounts). Output CSV file is in {4}" -f $Report.Count, $AgeThreshold, $PercentStale, $GuestUsers.count, $OutputReport)
 
