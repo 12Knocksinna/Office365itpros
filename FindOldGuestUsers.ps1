@@ -6,8 +6,6 @@
 # V2.0 10-Oct-2022
 # V2.1 19-Jul-2022 Updated for Graph SDK V2
 
-# Make sure the right modules are loaded...
-If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
 Connect-MgGraph -Scopes AuditLog.Read.All, Directory.Read.All
 
 # Set age threshold for reporting a guest account
@@ -16,52 +14,49 @@ Connect-MgGraph -Scopes AuditLog.Read.All, Directory.Read.All
 $OutputReport = "c:\Temp\OldGuestAccounts.csv"
 # Get all guest accounts in the tenant
 Write-Host "Finding Guest Accounts..."
-[Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All -Property Id, displayName, userPrincipalName, createddDateTime, signInActivity, RefreshTokensValidFromDateTime
+[Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All -Property Id, displayName, userPrincipalName, createdDateTime, signInActivity `
+    | Sort-Object displayName
 $Today = (Get-Date); $i = 0; $StaleGuests = 0; $Report = [System.Collections.Generic.List[Object]]::new()
 # Loop through the guest accounts looking for old accounts 
 CLS
 ForEach ($Guest in $GuestUsers) {
 # Check the age of the guest account, and if it's over the threshold for days, report it
-   $AADAccountAge = ($Guest.CreatedDateTime | New-TimeSpan).Days
+   $AccountAge = ($Guest.CreatedDateTime | New-TimeSpan).Days
    $i++
-   If ($AADAccountAge -gt $AgeThreshold) {
-      $ProgressBar = "Processing Guest " + $Guest.DisplayName + " " + $AAdAccountAge + " days old " +  " (" + $i + " of " + $GuestUsers.Count + ")"
+   If ($AccountAge -gt $AgeThreshold) {
+      $ProgressBar = "Processing Guest " + $Guest.DisplayName + " " + $AccountAge + " days old " +  " (" + $i + " of " + $GuestUsers.Count + ")"
       Write-Progress -Activity "Checking Guest Account Information" -Status $ProgressBar -PercentComplete ($i/$GuestUsers.Count*100)
       $StaleGuests++
+      $GroupNames = $Null
       # Find what Microsoft 365 Groups the guest belongs to... if any
-      $DN = (Get-Recipient -Identity $Guest.UserPrincipalName).DistinguishedName 
-#    The distinguished name for some accounts might contain an apostrophe, so we need to process them in a certain way
-     If ($Dn -like "*'*")  {
-       $DNNew = "'" + "$($dn.Replace("'","''''"))" + "'"
-       $Cmd = "Get-Recipient -Filter 'Members -eq '$DNnew'' -RecipientTypeDetails GroupMailbox | Select DisplayName, ExternalDirectoryObjectId"
-       $GuestGroups = Invoke-Expression $Cmd }
-     Else {
-       $GuestGroups = (Get-Recipient -Filter "Members -eq '$Dn'" -RecipientTypeDetails GroupMailbox | Select DisplayName, ExternalDirectoryObjectId) }
-     $GroupNames = $Null
-     If ($GuestGroups -ne $Null) {
-       $GroupNames = $GuestGroups.DisplayName -join ", " }
-
+     [array]$GuestGroups = (Get-MgUserMemberOf -UserId $Guest.Id).additionalProperties.displayName
+     If ($GuestGroups) {
+        $GroupNames = $GuestGroups -Join ", " 
+     } Else {
+        $GroupNames = "None"
+     }
+  
 #    Find the last sign-in date for the guest account, which might indicate how active the account is
      $UserLastLogonDate = $Null
-     $UserObjectId = $Guest.ObjectId
+     $UserObjectId = $Guest.Id
      $UserLastLogonDate = $Guest.SignInActivity.LastSignInDateTime
-     If ($UserLastLogonDate -ne $Null) {
-        $UserLastLogonDate = Get-Date ($UserLastLogonDate) -format g }
-     Else {
-        $UserLastLogonDate = "No recent sign in records found" }
+     If ($Null -ne $UserLastLogonDate) {
+        $UserLastLogonDate = Get-Date ($UserLastLogonDate) -format g
+     } Else {
+        $UserLastLogonDate = "No recent sign in records found" 
+     }
 
      $ReportLine = [PSCustomObject][Ordered]@{
            UPN               = $Guest.UserPrincipalName
            Name              = $Guest.DisplayName
-           Age               = $AADAccountAge
-           "Account created" = $Guest.RefreshTokensValidFromDateTime  
+           Age               = $AccountAge
+           "Account created" = $Guest.createdDateTime 
            "Last sign in"    = $UserLastLogonDate 
-           Groups            = $GroupNames
-           DN                = $DN}         
+           Groups            = $GroupNames }     
      $Report.Add($ReportLine) }
-}
+} # End Foreach Guest
 
-$Report | Sort Name | Export-CSV -NoTypeInformation $OutputReport
+$Report |  Export-CSV -NoTypeInformation $OutputReport
 $PercentStale = ($StaleGuests/$GuestUsers.Count).toString("P")
 Write-Host ("Script complete. {0} guest accounts found aged over {1} days ({2} of total). Output CSV file is in {3}" -f $StaleGuests, $AgeThreshold, $PercentStale, $OutputReport)
 
