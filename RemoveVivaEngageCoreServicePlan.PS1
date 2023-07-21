@@ -3,6 +3,8 @@
 # the Yammer Enterprise service plan is already disabled
 # https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveVivaEngageCoreServicePlan.PS1
 
+Connect-MgGraph
+
 # Define service plan and license identifiers
 $YammerServicePlan = "7547a3fe-08ee-4ccb-b430-5077c5041653"
 $VivaEngageCoreServicePlan = "a82fbf69-b4d7-49f4-83a6-915b2cf354f4"
@@ -13,8 +15,9 @@ $Office365E1 = "18181a46-0d4e-45cd-891e-60aabd171b4e"
 
 # Find and process licensed Azure AD users
 Write-Host "Searching for licensed Azure AD accounts"
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All | Sort-Object DisplayName
-If (!($Users)) { Write-Host "Oddly, we can't find any licensed Azure AD users... exiting!" ; break }
+[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All `
+   -Property Id, displayName, AssignedLicenses, UserPrincipalName, department, country | Sort-Object DisplayName
+If (!($Users)) { Write-Host "Oddly, we can't find any licensed accounts... exiting!" ; break }
 
 $UserLicensesUpdated = [System.Collections.Generic.List[Object]]::new() ; $i =0
 ForEach ($User in $Users) {
