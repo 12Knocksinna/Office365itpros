@@ -2,7 +2,7 @@
 # Report the set of channels existing in Teams for a tenant
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportTeamsChannels.PS1
-# Uses the MicrosoftTeams PowerShell module and the Microsoft Graph PowerShell SDK
+# Uses the MicrosoftTeams PowerShell module and the Microsoft Graph PowerShell SDK (updated for V2)
 $Modules = @( "MicrosoftTeams", "Microsoft.Graph" )
 # Requires -Modules $Modules
 
@@ -11,7 +11,7 @@ $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "MicrosoftTeams")) {Write-Host "Please connect to the Microsoft Teams module and then restart the script"; break}
 
 Connect-MgGraph -Scopes Group.Read.All, Directory.Read.All
-Select-MgProfile Beta
+
 $Tenant = (Get-MgOrganization)
 $TenantId = $Tenant.Id
 $TenantName = $Tenant.DisplayName
