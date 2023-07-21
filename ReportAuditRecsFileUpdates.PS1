@@ -2,7 +2,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportAuditRecsFileUpdates.PS1
 # Example of using audit records to find out who changed a file
 $FileName = (Read-Host "Enter file name to search")
-$Records = (Search-UnifiedAuditLog -Operations FileModified, FileAccessed, FileUploaded -ObjectIds $FileName -ResultSize 1000 -StartDate (Get-Date).AddDays(-90) -EndDate (Get-Date).AddDays(+1))
+$Records = (Search-UnifiedAuditLog -Operations FileModified, FileAccessed, FileUploaded -ObjectIds $FileName -ResultSize 5000 -StartDate (Get-Date).AddDays(-180) -EndDate (Get-Date).AddDays(+1))
 If ($Records.Count -eq 0) {
    Write-Host "No audit records found for file names beginning with" $FileName }
  Else {
