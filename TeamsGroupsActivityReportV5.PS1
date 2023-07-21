@@ -31,6 +31,7 @@
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
+=======
 # Needs the following Graph application permissions:
 # Group.Read.All, Reports.Read.All, User.Read.All, GroupMember.Read.All, Sites.Read.All, Organization.Read.All (or Directory.Read.All)
 #
@@ -564,8 +565,6 @@ If ($TeamsCount -gt 0) { # We have some teams, so we can calculate a percentage 
     $PercentTeams = ($PercentTeams).tostring("P") }
 Else {
     $PercentTeams = "No teams found" }
-
-
 
 # Create the HTML report
 $htmlbody = $Report | ConvertTo-Html -Fragment
