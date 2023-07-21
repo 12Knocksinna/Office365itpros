@@ -61,7 +61,10 @@ ForEach ($User in $Users) {
                $AuthTypeDetails = 'Access pass lifetime (minutes): ' + $MfaMethod.AdditionalProperties["lifetimeInMinutes"] }
          "#microsoft.graph.passwordlessMicrosoftAuthenticatorAuthenticationMethod" { # Passwordless
                $AuthType     = 'Passwordless'
-               $AuthTypeDetails = $MfaMethod.AdditionalProperties["displayName"] }                      
+               $AuthTypeDetails = $MfaMethod.AdditionalProperties["displayName"] }     
+         "#microsoft.graph.softwareOathAuthenticationMethod" { # Software Authenticator App
+              $AuthType = 'Third-party Authenticator App'
+              $AuthTypeDetails = $MfaMethod.AdditionalProperties["displayName"] }
            } # End switch 
        # Note what we found
         $ReportLine  = [PSCustomObject][Ordered]@{

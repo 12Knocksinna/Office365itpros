@@ -1,15 +1,16 @@
 # ReportM365GroupMemberships.PS1
 # A script to report the membership of all Microsoft 365 Groups in a tenant
+# V2.0 16-Jan-2023 Rewritten to remove depenxency on Azure AD and Exchange Online management module and use Microsoft Graph PowerShell SDK
+# cmdlets instead.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportM365GroupMemberships.PS1
-# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportM365GroupMemberships-Graph.PS1 is a Graph-based (faster) version of this script
+# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportM365GroupMemberships-Graph.PS1 is a version of this script that uses Graph API requests
 
 CLS
-# Check that we are connected to Exchange Online
-$ModulesLoaded = Get-Module | Select Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
-$S1 = Get-Date       
-$OrgName = (Get-OrganizationConfig).Name
-$Version = "1.0"
+Connect-MgGraph -Scope Directory.Read.All, Group.Read.All, GroupMember.Read.All
+Select-MgProfile Beta
+
+$OrgName = (Get-MgOrganization).displayName
+$Version = "2.0"
 $ReportFile = "c:\temp\M365MembersReport.html"
 $CSVFileSummary = "c:\temp\M365MembersSummaryReport.csv"
 $CSVFileMembers = "c:\temp\M365MembersReport.csv"
@@ -19,16 +20,18 @@ $SummaryData = [System.Collections.Generic.List[Object]]::new()
 $UserNoGroups = 0; $UserWithGroups = 0
 $CreationDate = Get-Date -format g
 CLS
+
 Write-Host "Fetching user information from Azure Active Directory..."
-$Users = Get-AzureADUser -All:$true
+[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All
 If (!($Users)) { Write-Host "Can't get user information from Azure AD - exiting" ; break }
-# Now get rid of all the accounts created for room and resource mailboxes, service accounts etc.
-$Users = $Users |?{($_.UserType -eq "Member" -and $_.AssignedLicenses -ne $Null) -or ($_.UserType -eq "Guest")}
+$Users = $Users | Sort-Object DisplayName
+$S1 = Get-Date
+
 # Get a list of Teams and put them into a hash table so that we can mark the groups we process as being team-enabled
-$Teams = Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited | Select ExternalDirectoryObjectId, DisplayName
+[array]$Teams = Get-MgTeam -All
 $TeamsHash = @{}
 $Teams.ForEach( {
-   $TeamsHash.Add($_.ExternalDirectoryObjectID, $_.DisplayName) } )
+   $TeamsHash.Add($_.Id, $_.DisplayName) } )
 CLS
 # Set up progress bar
 $ProgDelta = 100/($Users.Count); $CheckCount = 0; $UserNumber = 0
@@ -38,35 +41,36 @@ ForEach ($User in $Users) {
   Write-Progress -Activity "Checking groups for user" -Status $UserStatus -PercentComplete $CheckCount
   $CheckCount += $ProgDelta
   $UserType = "Tenant user"
-  [string]$DN = (Get-Recipient -Identity $User.UserPrincipalName).DistinguishedName
-  [array]$Groups = (Get-Recipient -ResultSize Unlimited -RecipientTypeDetails GroupMailbox -Filter "Members -eq '$DN'" | Select DisplayName, Notes, ExternalDirectoryObjectId, ManagedBy, PrimarySmtpAddress)
+  $Uri = ("https://graph.microsoft.com/beta/users/{0}/memberOf/microsoft.graph.group?`$filter=groupTypes/any(a:a eq 'unified')&`$top=200&$`orderby=displayName&`$count=true" -f $User.Id)
+  [array]$Data = Invoke-MgGraphRequest -Uri $Uri
+  [array]$Groups = $Data.Value
+  
   If ($Groups) { # We found some groups for this recipient - process them
    $Groups = $Groups | Sort DisplayName
    $AllGroups = $Groups.DisplayName -Join ", "
-   $g = 0
    ForEach ($Group in $Groups)  { 
-     $g++
-     [array]$Owners = $Null
-     ForEach ($Owner in $Group.ManagedBy) { # Unpack the owners and retrieve a display name that's usable.
-       $OwnerDisplayName = (Get-Recipient -Identity $Owner.trim()).DisplayName
-       $Owners += $OwnerDisplayName }
-     [string]$OwnersOutput = $Owners -join ", "
-     If ($TeamsHash[$Group.ExternalDirectoryObjectId]) { $GroupName = $Group.DisplayName + " (** Team **)" } Else { $GroupName = $Group.DisplayName }
+     [array]$Owners = $null # Get group owners
+     [array]$Owners = Get-MgGroupOwner -GroupId $Group.Id | Select-Object -ExpandProperty AdditionalProperties
+     $OwnersOutput = $Owners.displayName -join ", "
+     $GroupOwnersEmail = $Owners.mail -join ", "
+     
+     If ($TeamsHash[$Group.Id]) { $GroupName = $Group.DisplayName + " (** Team **)" } Else { $GroupName = $Group.DisplayName }
      $MemberLine = [PSCustomObject][Ordered]@{  # Write out details of the group
        "User"              = $User.DisplayName
        UPN                 = $User.UserPrincipalName
        "User type"         = $User.UserType
        "Group Name"        = $GroupName
-       "Group Description" = $Group.Notes
-       "Group Email"       = $Group.PrimarySmtpAddress
-       "Group Owners"      = $OwnersOutput }
+       "Group Description" = $Group.description
+       "Group Email"       = $Group.mail
+       "Group Owners"      = $OwnersOutput     
+       "Owners Email"      = $GroupOwnersEmail }
       $MemberList.Add($MemberLine) 
     } #End For
     $SummaryLine = [PSCustomObject][Ordered]@{  # Write out summary record for the user
        "User"              = $User.DisplayName
        UPN                 = $User.UserPrincipalName
        "User type"         = $User.UserType
-       "Groups count"      = $g
+       "Groups count"      = $Groups.count
        "Member Of"         = $AllGroups     }
     $SummaryData.Add($SummaryLine) 
   } # End if
@@ -80,9 +84,10 @@ ForEach ($User in $Users) {
     $SummaryData.Add($SummaryLine) 
   } #End Else
 } #End For 
+
 $SummaryData = $SummaryData | Sort "Groups Count" -Descending
-$GCount = $MemberList | Sort "Group Email" -unique
-$UsersNoGroups = ($SummaryData | ? {$_."Groups Count" -eq 0}).Count
+$GCount = $MemberList | Select-Object "Group Email" | Sort-Object "Group EMail" -Unique
+$UsersNoGroups = ($SummaryData | Where-Object {$_."Groups Count" -eq 0}).Count
 $UsersWithGroups = ($SummaryData.Count - $UsersNoGroups)
 $S2 = Get-Date
 $TotalSeconds = [math]::round(($S2-$S1).TotalSeconds,2)
@@ -105,8 +110,8 @@ $htmlhead="<html>
 	   </style>
 	   <body>
            <div align=center>
-           <p><h1>Microsoft 365 Groups and Teams Membership Listing</h1></p>
-           <p><h2><b>All groups in the " + $Orgname + " organization</b></h2></p>
+           <p><h1>Microsoft 365 Groups and Teams Membership Report</h1></p>
+           <p><h2><b>Microsoft 365 Groups in the " + $Orgname + " organization</b></h2></p>
            <p><h3>Generated: " + (Get-Date -format g) + "</h3></p></div>"
 
 $htmlbody1 = $MemberList | ConvertTo-Html -Fragment
@@ -138,7 +143,7 @@ Write-Host "HTML report available in" $ReportFile
 Write-Host " "
 Write-Host "Contains all the data generated by the script."
 Write-Host " "
-Write-Host "CSV file for members in groups available in" $CSVCileMembers
+Write-Host "CSV file for members in groups available in" $CSVFileMembers
 Write-Host " "
 Write-Host "Lists details of group membership for individual user accounts."
 Write-Host " "

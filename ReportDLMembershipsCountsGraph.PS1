@@ -70,7 +70,7 @@ $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 # OK, we seem to be fully connected to Exchange Online. 
 
-# Define all the stuff necessary to use a registered app to interact with the Graph APIs
+# Define all the stuff necessary to use a registered app to interact with the Graph APIs. You need to update these values to work with your tenant.
 $AppId = "87c31534-ca1f-4d46-959a-6159fcb2f77a"
 $TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = "7xP4Nj~kiU.yBXY9~yQB3sMrvpLv5Rx_._"
@@ -213,7 +213,8 @@ $Report | Out-GridView
 $Report | Export-CSV -NoTypeInformation $DLCSVOutput
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.

@@ -1,5 +1,5 @@
 # RemoveKaizalaServicePlans.PS1
-# A script to remove Kaizala service plans from Office 365 E1, E3, and E5 licenses
+# A script to disable Kaizala service plans from Office 365 E1, E3, and E5 licenses
 # https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveKaizalaServicePlans.PS1
 
 # Define service plan and license identifiers
@@ -38,16 +38,9 @@ ForEach ($User in $Users) {
    
  If ($License) { # Update the assigned license on the account
 
- # Add any previously disabled license if they exist and compose the license options
- [array]$DisabledSPs = $ServicePlanId
-   If ($DisabledLicenses) {
-    If ($DisabledLicenses.Count -eq 1) {
-       $DisabledSPs += $DisabledLicenses.ServicePlanId }
-    Else {
-       ForEach ($SP in $DisabledLicenses) {
-       $DisabledSPs += $SP.ServicePlanId } 
-        }
-   } # End if
+ # Add any previously disabled license if they exist to the Kaizala service plan and compose the license options
+ [array]$DisabledSPs = $DisabledLicenses.ServicePlanId
+ $DisabledSPs += $ServicePlanId
 
  $LicenseOptions = @{SkuId = $LicenseSkuId ; DisabledPlans = $DisabledSPs} 
 

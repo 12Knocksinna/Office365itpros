@@ -18,6 +18,7 @@ Write-Host "Looking for User Mailboxes..."
   $Report = [System.Collections.Generic.List[Object]]::new() 
   ForEach ($M in $Mbx) { 
    Write-Host "Processing" $M.DisplayName 
+   $LastActive = $Null
    $Log = Export-MailboxDiagnosticLogs -Identity $M.DistinguishedName -ExtendedProperties 
    $xml = [xml]($Log.MailboxLog) 
    $LastEMail = $Null; $LastCalendar = $Null; $LastContacts = $Null; $LastFile = $Null
@@ -27,7 +28,11 @@ Write-Host "Looking for User Mailboxes..."
    $LastFile = ($xml.Properties.MailboxTable.Property | ? {$_.Name -eq "LastFileTimeCurrentValue"}).Value
    $LastLogonTime = ($xml.Properties.MailboxTable.Property | ? {$_.Name -eq "LastLogonTime"}).Value 
    $LastActive = ($xml.Properties.MailboxTable.Property | ? {$_.Name -eq "LastUserActionWorkloadAggregateTime"}).Value 
-   $DaysSinceActive = (New-TimeSpan -Start $LastActive -End $Now).Days
+     If ($LastActive) {
+      $DaysSinceActive = (New-TimeSpan -Start $LastActive -End $Now).Days }
+   Else {
+      $DaysSinceActiove = "N/A" }
+  
    # Get Mailbox statistics
    $Stats = (Get-ExoMailboxStatistics -Identity $M.DistinguishedName)
    $MbxSize = ($Stats.TotalItemSize.Value.ToString()).Split("(")[0] 

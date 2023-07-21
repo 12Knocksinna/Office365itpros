@@ -4,29 +4,16 @@
 # See https://practical365.com/create-licensing-report-microsoft365-tenant/ for an article describing how to run the report
 
 # V1.1 27-Sep-2022 Add sign in data for users and calculate how long it's been since they signed in and used a license.
+# V1.2 23-Nov-2023 Added SKU usage summary to HTML report
 
 [datetime]$CreationDate = Get-Date
-$Version = "1.1"
+$Version = "1.2"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
 $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
 
 # Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
-Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.ReadWrite.All, AuditLog.Read.All"
-Select-MgProfile beta
-$Details = Get-MgContext
-$Scopes = $Details | Select -ExpandProperty Scopes
-$Scopes = $Scopes -Join ", "
-$ProfileName = (Get-MgProfile).Name
-$OrgName = (Get-MgOrganization).DisplayName
-CLS
-Write-Host "Microsoft Graph Connection Information"
-Write-Host "--------------------------------------"
-Write-Host " "
-Write-Host ("Connected to Tenant {0} ({1}) as account {2}" -f $Details.TenantId, $OrgName, $Details.Account)
-Write-Host "+-------------------------------------------------------------------------------------------------------------------+"
-Write-Host ("Profile set as {0}. The following permission scope is defined: {1}" -f $ProfileName, $Scopes)
-Write-Host ""
+Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog.Read.All"
 
 # This step depends on the availability of some CSV files generated to hold information about the product licenses used in the tenant and 
 # the service plans in those licenses. See https://github.com/12Knocksinna/Office365itpros/blob/master/CreateCSVFilesForSKUsAndServicePlans.PS1 
@@ -47,12 +34,13 @@ $ServicePlanHashTable = @{}
 ForEach ($Line2 in $ImportServicePlans) { $ServicePlanHashTable.Add([string]$Line2.ServicePlanId, [string]$Line2.ServicePlanDisplayName) }
 
 # Find tenant accounts - but filtered so that we only fetch those with licenses
-Write-Host "Finding licensed Azure AD accounts..."
-[Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All -Property signInActivity | `
+Write-Host "Finding licensed user accounts..."
+[Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All `
+    -Property id, displayName, userPrincipalName, country, department, assignedlicenses, createdDateTime, jobTitle, signInActivity | `
    Sort-Object DisplayName
 
-If (!($Users)) { Write-Host "No licensed Azure AD accounts found - exiting"; break }
-  Else { Write-Host ("{0} Licensed Azure AD accounts found - now processing their license data..." -f $Users.Count) }
+If (!($Users)) { Write-Host "No licensed user accounts found - exiting"; break }
+  Else { Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) }
 
 $Report = [System.Collections.Generic.List[Object]]::new()
 $i = 0
@@ -63,8 +51,8 @@ ForEach ($User in $Users) {
   [array]$LicenseInfo = $Null; [array]$DisabledPlans = $Null
   ForEach ($License in $User.AssignedLicenses) {
      If ($SkuHashTable.ContainsKey($License.SkuId) -eq $True) { # We found a match in the SKU hash table
-        $LicenseInfo += $SkuHashTable.Item($License.SkuId) }
-     Else { # Nothing doing, so output the SkuID
+        $LicenseInfo += $SkuHashTable.Item($License.SkuId) 
+   } Else { # Nothing doing, so output the SkuID
         $LicenseInfo += $License }
   # Report any disabled service plans in licenses
    If ([string]::IsNullOrWhiteSpace($License.DisabledPlans) -eq $False ) { # Check if disabled service plans in a license
@@ -90,18 +78,22 @@ ForEach ($User in $Users) {
     $LastAccess = "Unknown"
   }
 
+  $AccountCreatedDate = $Null
+  If ($User.CreatedDateTime) {
+     $AccountCreatedDate = Get-Date($User.CreatedDateTime) -format g }
+     
   # Report information
   [string]$DisabledPlans = $DisabledPlans -join ", " 
   [string]$LicenseInfo = $LicenseInfo -join (", ")
   $ReportLine = [PSCustomObject][Ordered]@{  
-       User                   = $User.DisplayName
+       User                    = $User.DisplayName
        UPN                     = $User.UserPrincipalName
        Country                 = $User.Country
        Department              = $User.Department
        Title                   = $User.JobTitle
        Licenses                = $LicenseInfo
       "Disabled Plans"         = $DisabledPlans 
-      "Account created"        = Get-Date($User.CreatedDateTime) -format g
+      "Account created"        = $AccountCreatedDate
       "Last Signin"            = $LastAccess
       "Days since last signin" = $DaysSinceLastSignIn
        Status                  = $UnusedAccountWarning
@@ -113,6 +105,20 @@ ForEach ($User in $Users) {
 
 $UnderusedAccounts = $Report | Where-Object {$_.Status -ne "OK"}
 $PercentUnderusedAccounts = ($UnderUsedAccounts.Count/$Report.Count).toString("P")
+
+# This code grabs the SKU summary for the tenant and uses the data to create a SKU summary usage segment for the HTML report
+$SkuReport = [System.Collections.Generic.List[Object]]::new()
+[array]$SkuSummary = Get-MgSubscribedSku | Select-Object SkuId, ConsumedUnits
+$SkuSummary = $SkuSummary | Where-Object {$_.ConsumedUnits -ne 0 }
+ForEach ($S in $SkuSummary) {
+   $SkuDisplayName = $SkuHashtable[$S.SkuId]
+   $SkuReportLine = [PSCustomObject][Ordered]@{  
+     "SKU Id"      = $S.SkuId
+     "SKU Name"    = $SkuDisplayName 
+     "Units Used"  = $S.ConsumedUnits }
+  $SkuReport.Add($SkuReportLine) 
+}
+$SkuReport = $SkuReport | Sort-Object "Units Used" -Descending
 
 # Create the HTML report
 $htmlhead="<html>
@@ -135,23 +141,25 @@ $htmlhead="<html>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
            <p><h3>Generated: " + (Get-Date($CreationDate) -format g) + "</h3></p></div>"
 
-$htmlbody1 = $Report | ConvertTo-Html -Fragment
-
-$htmltail = "<p>Report created for: " + $OrgName + "</p>" +
+$Htmlbody1 = $Report | ConvertTo-Html -Fragment
+$Htmlbody2 = $SkuReport | ConvertTo-Html -Fragment
+$HtmlSeparator = "<p></p>"
+$Htmltail = "<p>Report created for: " + $OrgName + "</p>" +
              "<p>Created: " + (Get-Date($CreationDate) -format g) + "<p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
              "<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
              "<p>Number of underused user accounts found:   " + $UnderUsedAccounts.Count + "</p>" +
              "<p>Percent underused user accounts:           " + $PercentUnderusedAccounts + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
-             "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b>"
+             "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b>"	
 
-$htmlreport = $htmlhead + $htmlbody1 + $htmltail
+$htmlreport = $Htmlhead + $Htmlbody1 + $HtmlSeparator + $HtmlBody2 + $Htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
 Write-Host ""
 Write-Host "All done. Output files are" $CSVOutputFile "and" $ReportFile
+
 Disconnect-MgGraph
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/

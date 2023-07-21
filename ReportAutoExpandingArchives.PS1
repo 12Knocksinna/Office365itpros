@@ -17,7 +17,7 @@ If ($Mbx -eq 0) { Write-Host "No archive-enabled mailboxes found" ; break }
 [long]$TBBytesWarning = $TBBytes * 0.9  
 $Now = Get-Date
 # Reduce to the set of mailboxes with expanding archives
-[array]$ExMbx = $Mbx | ? {$_.AutoExpandingArchiveEnabled -eq $True}
+[array]$ExMbx = $Mbx | Where-Object {$_.AutoExpandingArchiveEnabled -eq $True}
 If ($ExMbx -eq 0) { Write-Host "No mailboxes with expandable archives found" ; break }
 
 # Process each mailbox and identify how many days they can expand before hitting the limit

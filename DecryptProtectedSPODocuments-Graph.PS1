@@ -21,7 +21,7 @@ Else {
 
 # These values need to be changed to reflect the registered app (in Azure AD) and tenant details
 $AppId = "72bd89d6-060a-43c9-8063-c281d8f8b685"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = "Dz6A1tbmc1Z-H4qsJxALy.-JR2_gj-1E~1"
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -44,7 +44,7 @@ $headers = @{Authorization = "Bearer $token"}
 # https://graph.microsoft.com/v1.0/sites?search="Corporate Accounting (Billing)"
 
 $URI = "https://graph.microsoft.com/v1.0/sites?search='$($SearchSite)'"
-$Site = (Invoke-RestMethod -Uri $URI -Headers $Headers -Method Get -ContentType "application/json")
+[array]$Site = (Invoke-RestMethod -Uri $URI -Headers $Headers -Method Get -ContentType "application/json")
 
 If ($Site.Value.Count -eq 0) { # Nothing found
      Write-Host "No matching sites found - exiting"; break }
@@ -68,7 +68,7 @@ If ($SearchFolder) { # We've been asked to look in a specific folder, so find it
    $Uri = "https://graph.microsoft.com/v1.0/sites/$($Siteid)/lists/Documents/Drive/root/children"
    $SiteData = (Invoke-RestMethod -Uri $URI -Headers $Headers -Method Get -ContentType "application/json")
    # Look for the target folder in the set of resources returned
-   $TargetFolder = $SiteData.Value |?{$_.Name -eq $SearchFolder -and $_.Folder -ne $Null}
+   $TargetFolder = $SiteData.Value | Where-Object {$_.Name -eq $SearchFolder -and $_.Folder -ne $Null}
 
    If ($TargetFolder) { # We found the folder   
       $DriveId = $TargetFolder.Id }
@@ -151,7 +151,7 @@ Else {
    $Report | Export-CSV -NoTypeInformation c:\temp\EncryptedDocuments.csv }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.

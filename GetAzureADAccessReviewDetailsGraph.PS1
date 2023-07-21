@@ -68,7 +68,7 @@ function Get-GraphData {
 }
 # Define the values applicable for the application used to connect to the Graph (change these details for your tenant and registered app)
 $AppId = "0ade5c24-d775-4017-a824-0a993c60787d"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3428"
+$TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3428"
 $AppSecret = '7RplGSLWoSs~y4uHYy2041-jbm.4~_s.~q'
 
 $OutputCSV = "c:\temp\AzureADGuestReviews.CSV"
@@ -97,7 +97,7 @@ $Uri = "https://graph.microsoft.com/beta/identityGovernance/accessReviews/defini
 $AccessData = Get-GraphData -AccessToken $Token -Uri $uri 
 # Find the access review for Teams and Groups    
 # This check depends on the display name you assign to the access review in the Azure AD admin center
-$Id = $Accessdata |?{$_.displayname -eq "Review guest access across Microsoft 365 Groups"} | Select -ExpandProperty Id
+$Id = $Accessdata | Where-Object {$_.displayname -eq "Review guest access across Microsoft 365 Groups"} | Select-Object -ExpandProperty Id
 If ($Id -eq $Null) { Write-Host "Can't find access review - please check the display name"; break }
 # Find the instances (groups being reviewed)
 $Uri = "https://graph.microsoft.com/beta/identityGovernance/accessReviews/definitions/" + $Id +"/instances"
@@ -168,10 +168,10 @@ ForEach ($Instance in $AccessData) {
 } #End ForEach AccessData
 
 # Quick way of reporting counts for the various verdicts is to group the report data, but we want some nice figures 
-# $Report |  Group Verdict | format-Table Name, Count
-$CountOfApprovals = ($Report | ? {$_.Verdict -eq "Approve"} | Measure)
-$CountOfDeny = ($Report | ? {$_.Verdict -eq "Deny"} | Measure ) 
-$CountOfNoDecision = ($Report | ? {$_.Verdict -eq "NotReviewed"} | Measure)    
+# $Report |  Group-Object Verdict | format-Table Name, Count
+$CountOfApprovals = ($Report | Where-Object {$_.Verdict -eq "Approve"} | Measure)
+$CountOfDeny = ($Report | Where-Object {$_.Verdict -eq "Deny"} | Measure ) 
+$CountOfNoDecision = ($Report | Where-Object {$_.Verdict -eq "NotReviewed"} | Measure)    
 Write-Host "Number of Groups with reviews for Guest Members: " $CountOfGroups
 
 CLS
@@ -195,7 +195,7 @@ $Report | Sort User | Out-GridView
 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
