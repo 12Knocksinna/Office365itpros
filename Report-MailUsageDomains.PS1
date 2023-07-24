@@ -1,7 +1,7 @@
 # Report-MailUsageDomains.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-MailUsageDomains.PS1
 # An example of how to read the mail usage data for a tenant using the Microsoft Graph PowerShell SDK
-# and report user activity for 7, 30, 90, and 180 day intervals. Plus report the domains that send
-# most emails.
+# and report user activity for 7, 30, 90, and 180 day intervals. Plus report the domains that send most emails.
 
 # Connect to the Graph
 Connect-MgGraph -Scopes ReportSettings.ReadWrite.All, Directory.Read.All, Reports.Read.All
@@ -65,7 +65,7 @@ ForEach ($User in $Users) {
  # Show the data sorted by the volume of outbound mail sent by a user                                
 $Report | Sort-Object {$_.'D180 Mail Out' -as [int]} -Descending | Out-GridView  
     
-# Reset tenant obfuscation settings to True
+# Reset tenant obfuscation settings to True if that's what they were before
 If ($DisplayConcealedNames -eq $True) {
     $Parameters = @{ displayConcealedNames = $True }
     Update-MgBetaAdminReportSetting -BodyParameter $Parameters
