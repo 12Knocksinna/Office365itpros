@@ -15,9 +15,9 @@ If ((Get-MgBetaAdminReportSetting).DisplayConcealedNames -eq $True) {
     $Parameters = @{ displayConcealedNames = $False }
     Update-MgBetaAdminReportSetting -BodyParameter $Parameters
     $DisplayConcealedNames = $True
- }
+}
 
-Write-Output "Fetching mail activiy usage report data..."
+Write-Output "Fetching mail activity usage report data..."
 Get-MgReportEmailActivityUserDetail -Period 'D7' -OutFile 'c:\temp\d7.csv'
 Get-MgReportEmailActivityUserDetail -Period 'D30' -OutFile 'c:\temp\d30.csv'
 Get-MgReportEmailActivityUserDetail -Period 'D90' -OutFile 'c:\temp\d90.csv'
@@ -61,7 +61,7 @@ ForEach ($User in $Users) {
         'D180 Mail Out' = $D180Email.'Send Count'     
         Domain         = $User.Mail.Split('@')[1]}    
     $Report.Add($ReportLine)               
-    }    
+} # End Foreach user    
  # Show the data sorted by the volume of outbound mail sent by a user                                
 $Report | Sort-Object {$_.'D180 Mail Out' -as [int]} -Descending | Out-GridView  
     
@@ -70,7 +70,7 @@ If ($DisplayConcealedNames -eq $True) {
     $Parameters = @{ displayConcealedNames = $True }
     Update-MgBetaAdminReportSetting -BodyParameter $Parameters
     $DisplayConcealedNames = $Null
- }
+}
 
 # Analyze domains             
 [array]$Domains = Get-MgDomain | Select-Object -ExpandProperty Id 
@@ -84,8 +84,8 @@ ForEach ($Domain in $Domains) {
     $OutputData.Add($DomainOutput)                                                          
  }                                                                                                        
 
- # Display the domain data
- $OutputData | Sort-Object 'Send Count' -Descending
+# Display the domain data
+$OutputData | Sort-Object 'Send Count' -Descending
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
