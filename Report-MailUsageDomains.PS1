@@ -1,5 +1,21 @@
+# ReportMailUsageDomains.PS1
+# An example of how to read the mail usage data for a tenant using the Microsoft Graph PowerShell SDK
+# and report user activity for 7, 30, 90, and 180 day intervals. Plus report the domains that send
+# most emails.
+
+# Connect to the Graph
+Connect-MgGraph -Scopes ReportSettings.ReadWrite.All, Directory.Read.All, Reports.Read.All
+
 Write-Output "Finding user accounts to process..."
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All | Sort-Object UserPrincipalName
+
+# Check tenant usage data obfuscation setting. If it's true (names are concealed)
+# reset it for this script
+If ((Get-MgBetaAdminReportSetting).DisplayConcealedNames -eq $True) {
+    $Parameters = @{ displayConcealedNames = $False }
+    Update-MgBetaAdminReportSetting -BodyParameter $Parameters
+    $DisplayConcealedNames = $True
+ }
 
 Write-Output "Fetching mail activiy usage report data..."
 Get-MgReportEmailActivityUserDetail -Period 'D7' -OutFile 'c:\temp\d7.csv'
@@ -46,7 +62,15 @@ ForEach ($User in $Users) {
         Domain         = $User.Mail.Split('@')[1]}    
     $Report.Add($ReportLine)               
     }                                  
-    $Report | Out-GridView         
+$Report | Out-GridView  
+    
+# Reset tenant obfuscation settings to True
+If ($DisplayConcealedNames -eq $True) {
+    $Parameters = @{ displayConcealedNames = $True }
+    Update-MgBetaAdminReportSetting -BodyParameter $Parameters
+    $DisplayConcealedNames = $Null
+ }
+
 # Analyze domains             
 [array]$Domains = Get-MgDomain | Select-Object -ExpandProperty Id 
 $OutputCounts = [System.Collections.Generic.List[Object]]::new()     
@@ -58,3 +82,11 @@ ForEach ($Domain in $Domains) {
        'Send Count' = $DomainSendCount } 
     $OutputCounts.Add($DomainOutput)                                                          
  }                                                         >                                               
+
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
+# the Internet without first validating the code in a non-production environment. 
