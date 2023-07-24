@@ -1,4 +1,4 @@
-# ReportMailUsageDomains.PS1
+# Report-MailUsageDomains.PS1
 # An example of how to read the mail usage data for a tenant using the Microsoft Graph PowerShell SDK
 # and report user activity for 7, 30, 90, and 180 day intervals. Plus report the domains that send
 # most emails.
@@ -61,8 +61,9 @@ ForEach ($User in $Users) {
         'D180 Mail Out' = $D180Email.'Send Count'     
         Domain         = $User.Mail.Split('@')[1]}    
     $Report.Add($ReportLine)               
-    }                                  
-$Report | Out-GridView  
+    }    
+ # Show the data sorted by the volume of outbound mail sent by a user                                
+$Report | Sort-Object {$_.'D180 Mail Out' -as [int]} -Descending | Out-GridView  
     
 # Reset tenant obfuscation settings to True
 If ($DisplayConcealedNames -eq $True) {
@@ -73,16 +74,18 @@ If ($DisplayConcealedNames -eq $True) {
 
 # Analyze domains             
 [array]$Domains = Get-MgDomain | Select-Object -ExpandProperty Id 
-$OutputCounts = [System.Collections.Generic.List[Object]]::new()     
+$OutputData = [System.Collections.Generic.List[Object]]::new()     
 ForEach ($Domain in $Domains) {                         
     $DomainData = $Report | Where-Object {$_.Domain -eq $Domain}  
     $DomainSendCount = ($DomainData.'D180 Mail out' | Measure-Object -Sum).Sum 
     $DomainOutput = [PSCustomObject] @{   
        'Domain'     = $Domain          
        'Send Count' = $DomainSendCount } 
-    $OutputCounts.Add($DomainOutput)                                                          
- }                                                         >                                               
+    $OutputData.Add($DomainOutput)                                                          
+ }                                                                                                        
 
+ # Display the domain data
+ $OutputData | Sort-Object 'Send Count' -Descending
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
