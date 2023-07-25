@@ -18,8 +18,7 @@ Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
    } #End while
 }
 
-Connect-MgGraph
-Select-MgProfile Beta
+Connect-MgGraph -Scopes Directory.ReadWrite.All
 
 $CSVOutputFile = "c:\temp\ServicePlanRemovals.csv"
 
@@ -36,7 +35,7 @@ Write-Host "Which Office 365 product do you want to remove a service plan from?"
        [string]$SelectedSku = $Skus[$i].SkuPartNumber
        [string]$SelectedSkuId = $Skus[$i].SkuId
        Write-Host "OK. Selected product is" $SelectedSku
-       $ServicePlans = $Skus[$i].ServicePlans | Select ServicePlanName, ServicePlanId | Sort ServicePlanName
+       $ServicePlans = $Skus[$i].ServicePlans | Select-Object ServicePlanName, ServicePlanId | Sort-Object ServicePlanName
     } #end if
     Elseif ($Answer -eq 0) { #Abort
        Write-Host "Script stopping..." ; break }
@@ -59,10 +58,10 @@ Write-Host "Which Service plan do you want to remove from" $SelectedSku; [int]$i
        Write-Host "Script stopping..." ; break }
 
 # 
-Write-Host "Searching for licensed Azure AD accounts"
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All | Sort DisplayName
+Write-Host "Searching for licensed user accounts"
+[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All | Sort-Object DisplayName
 
-Write-Host ("Total of {0} licensed Azure AD accounts found" -f $Users.count) -Foregroundcolor red
+Write-Host ("Total of {0} licensed user accounts found" -f $Users.count) -Foregroundcolor red
 
 # Main loop through mailboxes to remove selected service plan from a SKU if the SKU is assigned to the account.
 $Report = [System.Collections.Generic.List[Object]]::new()
@@ -91,8 +90,8 @@ ForEach ($User in $Users) {
            $Status = Set-MgUserLicense -UserId $User.Id -AddLicenses $LicenseOptions -RemoveLicenses @() }
         Catch {
         }
-        $LicenseUpdateMsg = $ServicePlanName + " service plan removed from account " + $User.DisplayName + " on " + (Get-Date) + " from " + $SelectedSku
-        Write-Host ("Service plan {0} removed from SKU {1} for {2}" -f $ServicePlanName, $SelectedSku, $User.DisplayName)
+        $LicenseUpdateMsg = ("Service plan {0} removed from account {1} on {2} from {3}" -f  $ServicePlanName, $User.DisplayName, (Get-Date), $SelectedSKU)
+         Write-Host ("Service plan {0} removed from SKU {1} for {2}" -f $ServicePlanName, $SelectedSku, $User.DisplayName)
         $ReportLine = [PSCustomObject][Ordered]@{    
            DisplayName     = $User.DisplayName    
            UPN             = $User.UserPrincipalName
