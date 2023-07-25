@@ -59,7 +59,8 @@ Write-Host "Which Service plan do you want to remove from" $SelectedSku; [int]$i
 
 # 
 Write-Host "Searching for licensed user accounts"
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All | Sort-Object DisplayName
+[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All `
+  -Property Id, userPrincipalName, displayName, assignedLicenses | Sort-Object DisplayName
 
 Write-Host ("Total of {0} licensed user accounts found" -f $Users.count) -Foregroundcolor red
 
@@ -76,8 +77,8 @@ ForEach ($User in $Users) {
      [array]$DisabledSPs = $ServicePlanId
      If ($DisabledLicenses) {
         If ($DisabledLicenses.Count -eq 1) {
-          $DisabledSPs += $DisabledLicenses.ServicePlanId }
-        Else {
+          $DisabledSPs += $DisabledLicenses.ServicePlanId 
+      } Else {
           ForEach ($SP in $DisabledLicenses) {
             $DisabledSPs += $SP.ServicePlanId } 
         }
@@ -89,6 +90,7 @@ ForEach ($User in $Users) {
         Try {
            $Status = Set-MgUserLicense -UserId $User.Id -AddLicenses $LicenseOptions -RemoveLicenses @() }
         Catch {
+           Write-Output "Something bad happened:" $Status
         }
         $LicenseUpdateMsg = ("Service plan {0} removed from account {1} on {2} from {3}" -f  $ServicePlanName, $User.DisplayName, (Get-Date), $SelectedSKU)
          Write-Host ("Service plan {0} removed from SKU {1} for {2}" -f $ServicePlanName, $SelectedSku, $User.DisplayName)
