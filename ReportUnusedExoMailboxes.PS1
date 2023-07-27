@@ -46,7 +46,7 @@ Write-Host "Looking for User Mailboxes..."
    Else {
        $LastUserSignInDate = "No sign in records found in last 30 days" }
    # Get account enabled status
-   $AccountEnabled = (Get-MgUser -UserId $M.ExternalDirectoryObjectId).AccountEnabled
+   $AccountEnabled = (Get-MgUser -UserId $M.ExternalDirectoryObjectId -Property AccountEnabled).AccountEnabled
    $ReportLine = [PSCustomObject][Ordered]@{ 
         Mailbox         = $M.DisplayName 
         UPN             = $M.UserPrincipalName
