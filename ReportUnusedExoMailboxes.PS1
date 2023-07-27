@@ -2,36 +2,38 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUnusedExoMailboxes.PS1
 # Find and report unused Exchange Online mailboxes
 # Needs to connect to Exchange Online and the Microsoft Graph PowerShell SDK
+# Updated for Graph SDK V2
 
-$ModulesLoaded = Get-Module | Select Name
+$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 
 # Connect to the Microsoft Graph PowerShell SDK so that we can read sign in data
 Connect-MgGraph -Scope "User.Read.All", "AuditLog.Read.All"
-Select-MgProfile Beta
 
 # Find mailboxes and check if they are unused
-$Now = Get-Date
+$Now = Get-Date; [int]$i = 0
 Write-Host "Looking for User Mailboxes..."
-[array]$Mbx = (Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | Select DisplayName, DistinguishedName, UserPrincipalName, ExternalDirectoryObjectId) 
+[array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | `
+   Select-Object DisplayName, DistinguishedName, UserPrincipalName, ExternalDirectoryObjectId | Sort-Object DisplayName
   Write-Host ("Reporting {0} mailboxes..." -f $Mbx.Count)
   $Report = [System.Collections.Generic.List[Object]]::new() 
-  ForEach ($M in $Mbx) { 
-   Write-Host "Processing" $M.DisplayName 
+  ForEach ($M in $Mbx) {
+   $i++  
+   Write-Host ("Processing {0} {1}/{2}" -f $M.DisplayName, $i, $Mbx.count) 
    $LastActive = $Null
    $Log = Export-MailboxDiagnosticLogs -Identity $M.DistinguishedName -ExtendedProperties 
    $xml = [xml]($Log.MailboxLog) 
    $LastEMail = $Null; $LastCalendar = $Null; $LastContacts = $Null; $LastFile = $Null
-   $LastEmail = ($xml.Properties.MailboxTable.Property | ? {$_.Name -eq "LastEmailTimeCurrentValue"}).Value
-   $LastCalendar = ($xml.Properties.MailboxTable.Property | ? {$_.Name -eq "LastCalendarTimeCurrentValue"}).Value
-   $LastContacts = ($xml.Properties.MailboxTable.Property | ? {$_.Name -eq "LastContactsTimeCurrentValue"}).Value
-   $LastFile = ($xml.Properties.MailboxTable.Property | ? {$_.Name -eq "LastFileTimeCurrentValue"}).Value
-   $LastLogonTime = ($xml.Properties.MailboxTable.Property | ? {$_.Name -eq "LastLogonTime"}).Value 
-   $LastActive = ($xml.Properties.MailboxTable.Property | ? {$_.Name -eq "LastUserActionWorkloadAggregateTime"}).Value 
+   $LastEmail = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastEmailTimeCurrentValue"}).Value
+   $LastCalendar = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastCalendarTimeCurrentValue"}).Value
+   $LastContacts = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastContactsTimeCurrentValue"}).Value
+   $LastFile = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastFileTimeCurrentValue"}).Value
+   $LastLogonTime = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastLogonTime"}).Value 
+   $LastActive = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastUserActionWorkloadAggregateTime"}).Value 
      If ($LastActive) {
       $DaysSinceActive = (New-TimeSpan -Start $LastActive -End $Now).Days }
    Else {
-      $DaysSinceActiove = "N/A" }
+      $DaysSinceActive = "N/A" }
   
    # Get Mailbox statistics
    $Stats = (Get-ExoMailboxStatistics -Identity $M.DistinguishedName)
@@ -60,10 +62,10 @@ Write-Host "Looking for User Mailboxes..."
         LastContacts    = $LastContacts
         LastFile        = $LastFile } 
    $Report.Add($ReportLine) } 
-$Report | Sort DaysSinceActive -Descending | Out-GridView
+$Report | Sort-Object DaysSinceActive -Descending | Out-GridView
 
 # Extract the mailboxes that are inactive for more than 60 days but only take 25 because that's how much we can post in Teams
-[array]$UnusedMailboxes = $Report | ? {$_.DaysSinceActive -ge 60 } | Sort-Object DaysSinceActive -Descending | Select-Object -First 25
+[array]$UnusedMailboxes = $Report | Where-Object {$_.DaysSinceActive -ge 60 } | Sort-Object DaysSinceActive -Descending | Select-Object -First 25
 If ($UnusedMailboxes.Count -eq 0) { Write-Host "No unused mailboxes found!" ; break }
 
 # Critical - make sure that you change this line to point to the webhook URI for the Teams channel you want to use
