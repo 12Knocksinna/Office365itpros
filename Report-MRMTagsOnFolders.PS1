@@ -1,5 +1,6 @@
 # Report-MRMTagsOnFolders.PS1
 # A script to scan an Exchange Online mailbox and report the retention setting for each mailbox
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-MRMTagsOnFolders.PS1
 
 Connect-ExchangeOnline
 
@@ -33,6 +34,7 @@ ForEach ($Tag in $Tags) {
     $DefaultTags += $Tag }
 }
 
+# Make a string of the default tags
 $DefaultTagsNames = $DefaultTags -Join ", "
 $Report = [System.Collections.Generic.List[Object]]::new()
 
