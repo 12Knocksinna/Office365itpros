@@ -27,7 +27,7 @@ $MailboxFolders = $MailboxFolders | Where-Object {$_.ContainerClass -ne 'IPF.Not
 
 [array]$Tags = Get-RetentionPolicy $User.RetentionPolicy |Select-Object -ExpandProperty RetentionPolicyTagLinks
 
-$DefaultTags = $Null
+[array]$DefaultTags = $Null
 ForEach ($Tag in $Tags) {
     If ((Get-RetentionPolicyTag -Identity $Tag | Select-Object -ExpandProperty Type) -eq 'All') {
     $DefaultTags += $Tag }
