@@ -40,7 +40,7 @@ ForEach ($Module in $O365Modules) {
    # No version of the module found. It's in our list, so we install it.
      Write-Host ("No module found on this PC for {0}" -f $Module)
      Write-Host ("Installing module {0}..." -f $Module)  -foregroundcolor Yellow
-     Install-Module $Module -Scope AllUsers -Confirm:$False -AllowClobber
+     Install-Module $Module -Scope AllUsers -Confirm:$False -AllowClobber -Force
    }
 
    If ($PCModule) {
