@@ -73,7 +73,9 @@ ForEach ($Module in $ModulesToProcess) {
    If ($AllVersions) {
      $AllVersions = $AllVersions | Sort-Object PublishedDate -Descending 
      $MostRecentVersion = $AllVersions[0].Version
-     $MostRecentVersion = $MostRecentVersion.Major.toString() + "." + $MostRecentVersion.Minor.toString() + "." + $MostRecentVersion.Build.toString()
+     If ($MostRecentVersion -isnot [string]) { # Handle PowerShell 5 - PowerShell 7 returns a string
+        $MostRecentVersion = $MostRecentVersion.Major.toString() + "." + $MostRecentVersion.Minor.toString() + "." + $MostRecentVersion.Build.toString()
+     }
      [datetime]$MostRecentVersionDate = $AllVersions[0].PublishedDate
      $PublishedDate = (Get-Date($MostRecentVersionDate) -format g)
      Write-Host ("Most recent version of {0} is {1} published on {2}" -f $Module, $MostRecentVersion, $PublishedDate)
