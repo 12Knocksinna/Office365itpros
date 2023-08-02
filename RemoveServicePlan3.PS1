@@ -5,7 +5,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan3.PS1
 
 Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
-# Help function to prompt a question and get a response
+# Helper function to prompt a question and get a response
    $OKtoProceed = $False
    While ($OKToProceed -eq $False) {
      [int]$Answer = Read-Host $Prompt
