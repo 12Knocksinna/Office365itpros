@@ -60,13 +60,16 @@ If (($Answer -gt 0) -and ($Answer -le $i)) {
     $i = ($Answer-1)
     [string]$SelectedSku = $SkuList[$i].SkuPartNumber
     [string]$SelectedSkuId = $SkuList[$i].SkuId
-    Write-Host "OK. The selected product SKU is" $SelectedSku
+    Write-Host "OK. The selected product SKU to assign to user accounts is:" $SelectedSku
     }  Elseif ($Answer -eq 0) { 
     #Abort
     Write-Host "Script stopping..." ; break 
   }
 } # End listing of available SKUs
 
+Write-Host ""
+Write-Host "Looking for accounts to process..."
+Write-Host ""
 # Import user accounts to assign licenses to - all that's important here is to establish an array of
 # user accounts to process. Instead of reading information from a CSV file, the data could come from 
 # by running the Get-MgUser cmdlet with a filter to fetch certain accounts
@@ -86,8 +89,8 @@ If ($LicensesAvailable -eq $True) {
     $i = 0
     ForEach ($User in $Users) {
         $ErrorMsg = $Null; $i++
-        Write-Host ("Processing account {0} {1}/{2}" -f $User.UPN, $i, $Users.count)
-        $UserData = Get-MgUser -UserId $User.UPN -Property id, assignedLicenses -ErrorAction SilentlyContinue
+        Write-Host ("Processing account {0} {1}/{2}" -f $User.displayName, $i, $Users.count)
+        $UserData = Get-MgUser -UserId $User.UPN.Trim() -Property id, assignedLicenses -ErrorAction SilentlyContinue
         If (!($UserData)) {
         # Can't find user account, so flag an error
            $ErrorMsg = ("Error: User account {0} does not exist in Entra ID" -f $User.UPN)
