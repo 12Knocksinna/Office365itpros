@@ -1,6 +1,6 @@
 # Assign-LicensesViaCSV.PS1
 # Script to assign licenses for a chosen SKU to a set of users imported from a CSV
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Assign-LicensesViaCSV.PS1
 
 Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
 # Helper function to prompt a question and get a response
