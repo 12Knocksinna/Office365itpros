@@ -133,6 +133,17 @@ If ($LicensesAvailable -eq $True) {
         }
     }
 } # End Processing accounts to assign licenses
+[array]$Successes = $AssignmentReport | Where-Object {$_.Status -like "*Success:*"}
+[array]$Failures = $AssignmentReport | Where-Object {$_.Status -like "*Error:*"}
+$PCentSuccesses = ($Successes.Count/$Users.Count).toString("P")
+$PcentFailures = ($Failures.count/$Users.Count).toString("P")
+Write-Host ""
+Write-Host "All done"
+Write-Host ("Results of assigning the {0} product SKU" -f $SelectedSku)
+Write-Host ""
+Write-Host ("Successful license assignments:  {0} {1}" -f $Successes.Count, $PCentSuccesses )
+Write-Host ("Failures in license assignments: {0} {1}" -f $Failures.Count, $PcentFailures )
+$AssignmentReport | Out-GridView
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
