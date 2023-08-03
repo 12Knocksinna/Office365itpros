@@ -80,33 +80,54 @@ If ($LicensesAvailable -eq $True) {
 }
 
 If ($LicensesAvailable -eq $True) {
+    $AssignmentReport = [System.Collections.Generic.List[Object]]::new()  
     # Check each user to see if the account exists and if the SKU is already assigned
     Write-Host "Checking user accounts and assigning licenses..."
     $i = 0
     ForEach ($User in $Users) {
         $ErrorMsg = $Null; $i++
         Write-Host ("Processing account {0} {1}/{2}" -f $User.UPN, $i, $Users.count)
-        Try {
-           $UserData = Get-MgUser -UserId $User.UPN -Property id, assignedLicenses -ErrorAction SilentlyContinue
-        }
-        Catch {
-           Write-Host ("User account {0} does not exist in Entra ID" -f $User.UPN)
-           $ErrorMsg = "No account found in Entra ID"
-        }
-        If (!($ErrorMsg)) {   
+        $UserData = Get-MgUser -UserId $User.UPN -Property id, assignedLicenses -ErrorAction SilentlyContinue
+        If (!($UserData)) {
+        # Can't find user account, so flag an error
+           $ErrorMsg = ("Error: User account {0} does not exist in Entra ID" -f $User.UPN)
+           Write-Host $ErrorMsg
+           $ReportLine = [PSCustomObject]@{
+              User      = $User.UPN
+              Status    = $ErrorMsg
+              TimeStamp = (Get-Date -format "dd-MMM-yyyy hh:mm:ss") }
+           $AssignmentReport.Add($ReportLine)   
+        } Else { 
         # Account is available, so check license and assign it if the account doesn't already have it
             $LicenseData = $UserData | Select-Object -ExpandProperty AssignedLicenses
             If ($SelectedSkuId -in $LicenseData.SkuId) {
-                Write-Host ("License {0} is already assigned to user account {1}" -f $SelectedSku, $User.UPN)
-                $ErrorMsg = "License already assigned"
+                $ErrorMsg = ("Error: License {0} is already assigned to user account {1}" -f $SelectedSku, $User.UPN)
+                Write-Host $ErrorMsg
+                $ReportLine = [PSCustomObject]@{
+                    User      = $User.UPN
+                    Status    = $ErrorMsg
+                    TimeStamp = (Get-Date -format "dd-MMM-yyyy hh:mm:ss") }
+                $AssignmentReport.Add($ReportLine)   
             } Else {
             # Assign the license
                 $License = Set-MgUserLicense -UserId $User.UPN -Addlicenses @{SkuId = $SelectedSkuId} `
                   -RemoveLicenses @() -ErrorAction SilentlyContinue
                 If ($License) {
-                    Write-Host ("Sku {0} successfully assigned to {1}" -f $SelectedSku, $User.UPN) 
+                    $StatusMsg = ("Success: Sku {0} successfully assigned to {1}" -f $SelectedSku, $User.UPN)
+                    Write-Host $StatusMsg 
+                    $ReportLine = [PSCustomObject]@{
+                        User      = $User.UPN
+                        Status    = $StatusMsg
+                        TimeStamp = (Get-Date -format "dd-MMM-yyyy hh:mm:ss") }
+                    $AssignmentReport.Add($ReportLine)   
                 } Else {
-                    Write-Host ("Error occurred when assigning Sku {0} to {1}" -f $SelectedSku, $User.UPN) -ForegroundColor Yellow  
+                    $ErrorMsg = ("Error: Some problem stopped us assigning Sku {0} to {1}" -f $SelectedSku, $User.UPN)
+                    Write-Host $ErrorMsg -ForegroundColor Yellow  
+                    $ReportLine = [PSCustomObject]@{
+                        User      = $User.UPN
+                        Status    = $ErrorMsg
+                        TimeStamp = (Get-Date -format "dd-MMM-yyyy hh:mm:ss") }
+                     $AssignmentReport.Add($ReportLine)   
                 }
             }   
         }
