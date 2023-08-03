@@ -39,9 +39,9 @@ Write-Host "Which Office 365 product do you want to remove a service plan from?"
        [string]$SelectedSkuId = $Skus[$i].SkuId
        Write-Host "OK. Selected product is" $SelectedSku
        $ServicePlans = $Skus[$i].ServicePlans | Select ServicePlanName, ServicePlanId | Sort ServicePlanName
-    } #end if
-    Elseif ($Answer -eq 0) { #Abort
-       Write-Host "Script stopping..." ; break }
+    } Elseif ($Answer -eq 0) { #Abort
+       Write-Host "Script stopping..." ; break 
+    }
 
 # Select Service plan to remove
 Write-Host " "

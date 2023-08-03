@@ -5,7 +5,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan3.PS1
 
 Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
-# Help function to prompt a question and get a response
+# Helper function to prompt a question and get a response
    $OKtoProceed = $False
    While ($OKToProceed -eq $False) {
      [int]$Answer = Read-Host $Prompt
@@ -36,9 +36,9 @@ Write-Host "Which Office 365 product do you want to remove a service plan from?"
        [string]$SelectedSkuId = $Skus[$i].SkuId
        Write-Host "OK. Selected product is" $SelectedSku
        $ServicePlans = $Skus[$i].ServicePlans | Select-Object ServicePlanName, ServicePlanId | Sort-Object ServicePlanName
-    } #end if
-    Elseif ($Answer -eq 0) { #Abort
-       Write-Host "Script stopping..." ; break }
+    }  Elseif ($Answer -eq 0) { #Abort
+       Write-Host "Script stopping..." ; break 
+    }
 
 # Select Service plan to remove
 Write-Host " "

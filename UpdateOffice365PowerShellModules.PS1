@@ -40,7 +40,7 @@ ForEach ($Module in $O365Modules) {
    # No version of the module found. It's in our list, so we install it.
      Write-Host ("No module found on this PC for {0}" -f $Module)
      Write-Host ("Installing module {0}..." -f $Module)  -foregroundcolor Yellow
-     Install-Module $Module -Scope AllUsers -Confirm:$False -AllowClobber
+     Install-Module $Module -Scope AllUsers -Confirm:$False -AllowClobber -Force
    }
 
    If ($PCModule) {
@@ -73,7 +73,9 @@ ForEach ($Module in $ModulesToProcess) {
    If ($AllVersions) {
      $AllVersions = $AllVersions | Sort-Object PublishedDate -Descending 
      $MostRecentVersion = $AllVersions[0].Version
-     $MostRecentVersion = $MostRecentVersion.Major.toString() + "." + $MostRecentVersion.Minor.toString() + "." + $MostRecentVersion.Build.toString()
+     If ($MostRecentVersion -isnot [string]) { # Handle PowerShell 5 - PowerShell 7 returns a string
+        $MostRecentVersion = $MostRecentVersion.Major.toString() + "." + $MostRecentVersion.Minor.toString() + "." + $MostRecentVersion.Build.toString()
+     }
      [datetime]$MostRecentVersionDate = $AllVersions[0].PublishedDate
      $PublishedDate = (Get-Date($MostRecentVersionDate) -format g)
      Write-Host ("Most recent version of {0} is {1} published on {2}" -f $Module, $MostRecentVersion, $PublishedDate)
