@@ -1,8 +1,16 @@
+# Report-UserUpdateAuditRecords.PS1
+# An example of how to find unified audit records for user account update events and analyze what actions/changes
+# are performed in each audit event
+#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-UserUpdateAuditRecords.PS1
+
+# Connect to Exchange Online and the Microsoft Graph
 Connect-MgGraph -Scopes Directory.Read.All
 Connect-ExchangeOnline
 
+# Find some audit records to play with from the last 180 days
 Write-Host "Searching for audit records for update user events..."
-[array]$Records = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-180) -EndDate (Get-Date).AddDays(1) -Formatted -ResultSize 1000  -Operations "update user"
+[array]$Records = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-180) -EndDate (Get-Date).AddDays(1) -Formatted -ResultSize 5000  -Operations "update user"
 If (!($Records)) { 
    Write-Host "No audit records found for update user events - exiting" ; break
 } Else {
@@ -15,6 +23,7 @@ ForEach ($Rec in $Records) {
  [array]$ModifiedProperties = $AuditData.ModifiedProperties
  [array]$Properties = $ModifiedProperties | Where-Object { $_.Name -eq 'Included Updated Properties' } | Select-Object -ExpandProperty NewValue
  If (!([string]::IsNullOrEmpty($Properties))) {
+  # Create a list of updated properties
   [array]$ListOfProperties = $Properties.Split(",")
   ForEach ($P in $ListOfProperties) {
     $Property = $P.Trim()         
@@ -36,6 +45,7 @@ ForEach ($Rec in $Records) {
          $NewValue = ("{0} {1}" -f ($MFAData[0].toString()),  ($MFAData[3].toString().trim())) 
    }
     If ($Property -eq "AssignedLicense") {
+    # License updates - this is an example of where we could do more to extract data from the audit records
        $NewValue = "License Update " + $NewValue }
     If ($Property -eq "AssignedPlan") {
        $NewValue = "See audit record for assigned plan information" }
@@ -43,10 +53,13 @@ ForEach ($Rec in $Records) {
        $NewValue = "See audit record for license assignment detail" }
     If ([string]::IsNullOrEmpty($OldValue)) {
        $OldValue = "Not filled" }
+    # Some audit events are caused by background processing - so let's find out what background process is involved for these ecents
     If ($Rec.UserIds.SubString(0,16) -eq "ServicePrincipal") {
        $UserId = Get-MgServicePrincipal -ServicePrincipalId $Rec.Userids.Substring(17,($Rec.Userids.Length-17)) | Select-Object -ExpandProperty DisplayName
     } Else {
+    # It's a normal user who performed the action
        $UserId = $Rec.UserIds }
+    # Report what happened
     $ReportLine = [PSCustomObject][Ordered]@{
        Timestamp   = $Rec.CreationDate
        User        = $UserId
