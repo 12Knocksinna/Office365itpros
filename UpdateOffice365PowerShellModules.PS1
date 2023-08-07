@@ -15,8 +15,7 @@
 $O365Modules = @("MicrosoftTeams", "Microsoft.Graph", "Microsoft.Graph.Beta", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA", "Az.Accounts", "Az.Automation", "AIPService", "Az.Keyvault", "Pnp.PowerShell", "MSCommerce", "Microsoft365DSC", "MSAL.PS", "PSWriteHTML", "WhiteboardAdmin", "ImportExcel")
 $O365Modules = $O365Modules | Sort-Object
 Write-Host ("Starting up and preparing to process these modules: {0}" -f ($O365Modules -join ", ")) -foregroundcolor Yellow
-[int]$UpdatedModules = 0
-[int]$RemovedModules = 0
+[int]$UpdatedModules = 0; [int]$RemovedModules = 0; [int]$InstalledModules = 0
 
 # We're installing from the PowerShell Gallery so make sure that it's trusted
 Set-PSRepository -Name PsGallery -InstallationPolicy Trusted
@@ -41,6 +40,7 @@ ForEach ($Module in $O365Modules) {
      Write-Host ("No module found on this PC for {0}" -f $Module)
      Write-Host ("Installing module {0}..." -f $Module)  -foregroundcolor Yellow
      Install-Module $Module -Scope AllUsers -Confirm:$False -AllowClobber -Force
+     $InstalledModules++
    }
 
    If ($PCModule) {
@@ -94,7 +94,7 @@ ForEach ($Module in $ModulesToProcess) {
   } #End If
 } #End ForEach
 
-Write-Host ("Updated modules: {0}  Removed old versions of modules: {1}" -f $UpdatedModules, $RemovedModules)
+Write-Host ("Installed modules: {0} Updated modules: {1}  Removed old versions of modules: {2}" -f $InstalledModules, $UpdatedModules, $RemovedModules)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
