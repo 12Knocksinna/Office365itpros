@@ -4,6 +4,7 @@
 # V2.1 9-Apr-2023
 # V2.2 28-Apr-2023
 # V2.3 9-Jul-2023 (include support for Microsoft Graph PowerShell SDK V2.0)
+# V2.4 12-Aug (make sure that everything works well for PowerShell V5 and V7 )
 # https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateOffice365PowerShellModules.PS1
 # Very simple script to check for updates to a defined set of PowerShell modules used to manage Office 365 services
 # If an update for a module is found, it is downloaded and applied.
