@@ -6,10 +6,12 @@
 # in the same period (older accounts are ignored because they are likely approved). For any account found, we send a polite email to the admin
 # to tell them that they need to validate that the guest is OK.
 
+# Updated 14-Aug-2023 for the Microsoft Graph PowerShell SDK 2.x
+
 $MsgFrom = "o365itprosrenewals@office365itpros.com" # Set your own address for email notifications here.
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 # Set TLS 1.2 for SMTP
-$Records = Search-UnifiedAuditLog -StartDate ((Get-Date).AddDays(-7)) -EndDate ((Get-Date).AddDays(1)) -ResultSize 5000 -Operations MemberAdded -RecordType MicrosoftTeams
+[array]$Records = Search-UnifiedAuditLog -StartDate ((Get-Date).AddDays(-7)) -EndDate ((Get-Date).AddDays(1)) -ResultSize 5000 -Operations MemberAdded -RecordType MicrosoftTeams
 
 If ($Records) {
    $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
@@ -18,9 +20,8 @@ If ($Records) {
      $AuditData = Convertfrom-Json $Rec.AuditData # Get payload
      ForEach ($M in $AuditData.Members) { # Examine users added to see if any are guests
       If (($M -Like "*#EXT#@*") -and ($AuditData.CommunicationType -eq "Team")) { # We have a guest user who's been added to a team rather than a group chat
-         $GuestUser = (Get-AzureADUser -ObjectId $M.UPN)
-         $CreationDate = (Get-AzureADUserExtension -ObjectId $GuestUser.ObjectId).get_item("createdDateTime") 
-         $AccountAge = ($CreationDate | New-TimeSpan).Days
+         $GuestUser = Get-MgUser -UserId $M.UPN -Property Id, DisplayName, Mail, CreatedDateTime
+         $AccountAge = ($GuestUser.CreatedDateTime | New-TimeSpan).Days
          If ($AccountAge -le 7) { # Guest created within last 7 days so write out details
             $ReportLine = [PSCustomObject]@{ 
                Guest            = $GuestUser.Mail   
@@ -30,7 +31,7 @@ If ($Records) {
                DateAddedTeams   = Get-Date($AuditData.CreationTime) -format g
                TeamName         = $AuditData.TeamName
                AddedBy          = $AuditData.UserId
-               AADGroupId       = $AuditData.AADGroupId} 
+               GruupId          = $AuditData.AADGroupId} 
             $Report.Add($ReportLine) 
          } # End if (AccountAge)   
      } # End if (Guest user check)
@@ -39,7 +40,7 @@ If ($Records) {
 } #End if (Records)
 
 If ($Report) { # Some records have been created, so let's report them.
-  CLS
+  Clear-Host
   $SmtpServer = "smtp.office365.com" ; $SmtpPort = '587'
   $ProgressDelta = 100/($Report.Count); $PercentComplete = 0; $UserNumber = 0
   # Define some variables for the message starting with HTML header with styles
@@ -56,6 +57,8 @@ If ($Report) { # Some records have been created, so let's report them.
      <p><strong>Date:</strong> $(Get-Date -Format g)</p>  
      <h2><u>New Update Available - Please Download Updated files for your eBook/u></h2>"
   # For each guest user found, create and send an email
+  # First Remove any records added by 'Microsoft Teams Sync'
+  $Report = $Report | Where-Object { $_.AddedBy -ne "Microsoft Teams Sync" }
   ForEach ($R in $Report) {
    $UserNumber++ 
    $UserStatus = $R.Name + "(" + $R.Guest + ") ["+ $UserNumber +"/" + $Users.Count + "]"
@@ -79,7 +82,7 @@ If ($Report) { # Some records have been created, so let's report them.
 } # End if
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
