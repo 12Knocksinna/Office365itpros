@@ -8,6 +8,16 @@
 
 # Updated 14-Aug-2023 for the Microsoft Graph PowerShell SDK 2.x
 
+$Modules = Get-Module | Select-Object -ExpandProperty Name
+# Connect to Exchange Online if not already connected
+If ("ExchangeOnlineManagement" -notin $Modules) {
+    Connect-ExchangeOnline 
+}
+# And connect to the Graph
+If ('Microsoft.Graph.Authentication' -notin $Modules) {
+  Connect-MgGraph -Scopes Directory.Read.All
+}
+
 $MsgFrom = "o365itprosrenewals@office365itpros.com" # Set your own address for email notifications here.
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 # Set TLS 1.2 for SMTP
