@@ -9,6 +9,9 @@ $Operations = "FileDeleted, FileDeletedFirstStageRecycleBin, FileDeletedSecondSt
 $StartDate = (Get-Date).AddDays(-90); $EndDate = (Get-Date) 
 $FirstStageDeletions = 0; $SecondStageDeletions = 0; $UserDeletions = 0
 $OutputFile = "c:\temp\ODSPFileDeletions.CSV"
+# Find out what the OneDrive base URL is for the tenant
+$ServiceDomain = (Get-AcceptedDomain) | Where-Object {$_.Default -eq $True} | Select-Object -ExpandProperty Name
+$OneDriveDomain = ("https://{0}-my.sharepoint.com/personal/" -f $ServiceDomain.Split(".")[0])
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 
 Clear-Host; Write-Host "Searching Office 365 Audit Records to find deletion records for SharePoint and OneDrive documents"
@@ -56,13 +59,29 @@ If (!($Records)) {
       $Workload = "SharePoint Online"
       If ($AuditData.SiteUrl -match "my.sharepoint.com") { $Workload = "OneDrive for Business"}
 
+      # Handle situation where it's a Teams meeting recording that expires
+      If ($AuditData.SourceFileName) {
+        $SiteURL  = $AuditData.SiteURL
+        $Folder   = $AuditData.SourceRelativeURL
+        $FileName = $AuditData.SourceFileName
+     } Elseif ($Rec.UserIds -ne "SHAREPOINT\system") {
+        $OneDriveUser = $Rec.Userids.Replace(".", "_")	
+        $OneDriveUser = $Rec.UserIds.Replace("@","-")
+        $OneDriveURL = $OneDriveDomain + $OneDriveUser
+        $AdjustedUrl = $OneDriveUrl + "/personal/" + $OneDriveUser + "/Documents/Recordings/"
+        $FileName = $AuditData.ObjectId.SubString($AdjustedUrl.Length, $AuditData.ObjectId.Length - $AdjustedUrl.Length)
+        $SiteUrl  = $OneDriveURL
+        $Folder   = "/Recordings/"
+        $FileName = $FileName
+     }
+
           $ReportLine = [PSCustomObject] @{
            TimeStamp    = Get-Date($AuditData.CreationTime) -format g
            "Deleted by" = $DeletedBy
            User         = $AuditData.UserId
-           Site         = $AuditData.SiteURL
-           "Folder"     = $AuditData.SourceRelativeURL
-           "File name"  = $AuditData.SourceFileName
+           Site         = $SiteURL
+           "Folder"     = $Folder
+           "File name"  = $FileName
            Workload     = $Workload
            Reason       = $Reason
            Action       = $AuditData.Operation
