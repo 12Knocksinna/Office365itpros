@@ -2,24 +2,31 @@
 # A script to report deletion activity for SharePoint Online and OneDrive for Business documents based on information in the Office 365 audit log
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportDeletedODSPDocuments.PS1
 
-$Operations = "FileDeleted, FileDeletedFirstStageRecycleBin, FileDeletedSecondStageRecycleBin" 
+# Updated 15-Aug-2023 because SharePoint Online changed its audit record for file deletions
+# from FileDeleted to FileRecycled
+
+$Operations = "FileDeleted, FileDeletedFirstStageRecycleBin, FileDeletedSecondStageRecycleBin, FileRecycled" 
 $StartDate = (Get-Date).AddDays(-90); $EndDate = (Get-Date) 
 $FirstStageDeletions = 0; $SecondStageDeletions = 0; $UserDeletions = 0
 $OutputFile = "c:\temp\ODSPFileDeletions.CSV"
+$Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 
-CLS; Write-Host "Searching Office 365 Audit Records to find deletion records for SharePoint and OneDrive documents"
+Clear-Host; Write-Host "Searching Office 365 Audit Records to find deletion records for SharePoint and OneDrive documents"
 [array]$Records = (Search-UnifiedAuditLog -Operations $Operations -StartDate $StartDate -EndDate $EndDate -ResultSize 5000 -Formatted)
-If ($Records.Count -eq 0) {
-    Write-Host "No audit records for ODSP deletions found." }
-Else {
+If (!($Records)) {
+    Write-Host "No audit records for ODSP deletions found." 
+} Else {
     Write-Host "Processing" $Records.Count "ODSP file deletion records..."
-    $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
     # Scan each audit record to extract information
     ForEach ($Rec in $Records) {
       $AuditData = ConvertFrom-Json $Rec.Auditdata
       Switch ($AuditData.Operation) {
-       "FileDeleted" { # Normal deletion
-          $Reason = "Deleted document from site"
+        "FileDeleted" { # Old Normal deletion
+           $Reason = "Moved document to site recycle bin"
+           $UserDeletions++
+        }
+       "FileRecycled" { # New Normal deletion
+          $Reason = "Moved document to site recycle bin"
           $UserDeletions++
          }
        "FileDeletedFirstStageRecycleBin" { # Deletion from the first stage recycle bin
@@ -42,9 +49,10 @@ Else {
       } #End Switch
 
       If ([string]::IsNullOrWhiteSpace($AuditData.UserAgent)) {
-          $UserAgent = "Background process" }
-      Else {
-          $UserAgent = $AuditData.UserAgent }
+          $UserAgent = "Background process"
+      } Else {
+          $UserAgent = $AuditData.UserAgent 
+      }
       $Workload = "SharePoint Online"
       If ($AuditData.SiteUrl -match "my.sharepoint.com") { $Workload = "OneDrive for Business"}
 
@@ -61,7 +69,7 @@ Else {
            Client       = $UserAgent }        
       $Report.Add($ReportLine) }
 }
-Cls
+Clear-Host
 Write-Host ("All done - ODSP Deletions in the period {0} to {1}" -f $StartDate, $EndDate)
 Write-Host ""
 Write-Host "Deletions from site:                    "  $UserDeletions
