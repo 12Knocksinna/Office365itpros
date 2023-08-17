@@ -56,7 +56,7 @@ ForEach ($Module in $O365Modules) {
       } Else {
          Write-Host ("Updating {0} module to version {1}" -f $Module, $CurrentVersion) -foregroundcolor Yellow
          Remove-Module $Module -ErrorAction SilentlyContinue
-         Update-Module $Module -Force -Confirm:$False
+         Update-Module $Module -Force -Confirm:$False -Scope AllUsers
          $UpdatedModules++
       } # End if 
     }
