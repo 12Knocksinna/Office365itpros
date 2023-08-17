@@ -44,7 +44,13 @@ ForEach ($User in $Users) {
     If ($D7Email.'Last Activity Date') {
       $LastActivityDate = Get-Date($D7Email.'Last Activity Date') -format  dd-MMM-yyyy   
     } Else {                              
-      $LastActivityDate = $Null }      
+      $LastActivityDate = $Null }  
+      
+    If ([string]::IsNullOrWhiteSpace($User.Mail)) {
+       $Domain = $User.UserPrincipalName.Split('@')[1]
+    }  Else {
+       $Domain = $User.Mail.Split('@')[1]
+    }
     
     $ReportLine = [PSCustomObject] @{  
         User            = $User.UserPrincipalName
@@ -59,7 +65,7 @@ ForEach ($User in $Users) {
         'D90 Mail Out'  = $D90Email.'Send Count'      
         'D180 Mail In'  = $D180Email.'Receive Count'  
         'D180 Mail Out' = $D180Email.'Send Count'     
-        Domain         = $User.Mail.Split('@')[1]}    
+        Domain          = $Domain } 
     $Report.Add($ReportLine)               
 } # End Foreach user    
  # Show the data sorted by the volume of outbound mail sent by a user                                
