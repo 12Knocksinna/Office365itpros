@@ -2,6 +2,10 @@
 # Example of how to search the Office 365 audit log to find who deleted messages. The output file can be refined to focus on specific
 # mailboxes
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindDeletedEmailAuditRecords.PS1
+
+If ($Null -eq (Get-ConnectionInformation)) {
+    Connect-ExchangeOnline
+}
 $StartDate = (Get-Date).AddDays(-90); $EndDate = (Get-Date) 
 $Records = (Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations "HardDelete", "SoftDelete" -ResultSize 5000) 
 If (!($Records)) { Write-Host "No deletion records found."; break } 
@@ -25,4 +29,4 @@ Else {
       Client             = $AuditData.ClientInfoString } 
     $Report.Add($ReportLine) }
   } 
-$Report | Sort Mailbox | Select Timestamp, Action, User, Mailbox, "Message Subjects", Folder | Out-GridView
+$Report | Sort-Object Mailbox | Select Timestamp, Action, User, Mailbox, "Message Subjects", Folder | Out-GridView
