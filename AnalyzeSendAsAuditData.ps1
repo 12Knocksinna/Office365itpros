@@ -19,7 +19,7 @@ $PermissionsUsedReport = [System.Collections.Generic.List[Object]]::new()
 
 # Check each assigned permission to establish if we can find an audit record to prove its use (or not)
 ForEach ($S in $SendAsData) {
-  $AuditCheck = $UserSendAsRecords | ? {$_.SentBy -eq $S.AssignedTo -and $_.SentAs -eq $S.UPN} | Select -ExpandProperty TimeStamp
+  $AuditCheck = $UserSendAsRecords | Where-Object {$_.SentBy -eq $S.AssignedTo -and $_.SentAs -eq $S.UPN} | Select -ExpandProperty TimeStamp
   If ($AuditCheck -eq $Null) {
        $PermissionsNotUsed++
        $ReportLine  = [PSCustomObject] @{
@@ -29,7 +29,7 @@ ForEach ($S in $SendAsData) {
          Status     = "SendAs permission not used"}
        $PermissionsUsedReport.Add($ReportLine) }
     Else {
-       $LastUsedDate  = $AuditCheck | Sort {$_.TimeStamp -as [datetime]} -Descending | Select -Last 1  # Grab latest SendAs
+       $LastUsedDate  = $AuditCheck | Sort-Object {$_.TimeStamp -as [datetime]} -Descending | Select -Last 1  # Grab latest SendAs
        $PermissionsUsed++
        $ReportLine  = [PSCustomObject] @{
          Mailbox    = $S.Mailbox
