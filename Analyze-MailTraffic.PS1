@@ -1,6 +1,7 @@
 # Analyze-Mailtraffic.PS1
 # An example of using the Exchange Online message trace log to analyze inbound and outbound traffic
 # for a Microsoft 365 tenant
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Analyze-MailTraffic.PS1
 
 # Check if we can run an Exchange Online cmdlet. If we can, go on, else connect to Exchange Online
 If ($Null -eq (Get-ConnectionInformation)) {
