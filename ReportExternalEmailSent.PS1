@@ -5,12 +5,11 @@
 # Uses cmdlets from the Exchange Online module and the Microsoft Graph PowerShell SDK.
 
 # Check that we have the necessary modules loaded
-$ModulesLoaded = Get-Module | Select Name
+$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 
 # Connect to the Microsoft Graph PowerShell SDK so that we can send email
 Connect-MgGraph -Scope "Mail.Send, Mail.ReadWrite"
-#Select-MgProfile Beta
 
 $TenantName = (Get-OrganizationConfig).DisplayName
 $StartDate = (Get-Date).AddDays(-10)
@@ -19,7 +18,7 @@ $ExternalCSVFile = "c:\temp\ExternalEmailSent.html"
 
 [array]$Users = Get-DistributionGroupMember -Identity Monitored.Users
 # Drop anything else but mailboxes
-[array]$Users = $Users | ? {$_.RecipientTypeDetails -eq "UserMailbox"}
+[array]$Users = $Users | Where-Object {$_.RecipientTypeDetails -eq "UserMailbox"}
 
 Write-Host ("Checking external email for {0} mailboxes" -f $Users.count)
 $Report = [System.Collections.Generic.List[Object]]::new() 
@@ -27,7 +26,7 @@ ForEach ($User in $Users) {
    Write-Host ("Checking messages sent by {0}" -f $User.DisplayName)
    # Get message information for the last ten days and filter so that we end up with just external addresses
    [string]$SenderAddress = $User.PrimarySmtpAddress
-   [array]$Messages = Get-MessageTrace -StartDate $StartDate -EndDate $EndDate -SenderAddress $SenderAddress -Status Delivered | ? {$_.RecipientAddress -notlike "*@Office365itpros*"}
+   [array]$Messages = Get-MessageTrace -StartDate $StartDate -EndDate $EndDate -SenderAddress $SenderAddress -Status Delivered | Where-Object {$_.RecipientAddress -notlike "*@Office365itpros*"}
    ForEach ($M in $Messages) {
      $ReportLine = [PSCustomObject][Ordered]@{
           Date      = Get-Date($M.Received) -format g 
@@ -40,8 +39,7 @@ ForEach ($User in $Users) {
 } # End ForEach Users
 
 # Create HTML content
-$Report = $Report | Sort User
-$Title = "External Email Sent Report"
+$Report = $Report | Sort-Object User
 $Today = Get-Date -format f
 $HtmlStart = 
 '<html><head><font face="Segoe UI"><Title>External Email Activity Report</Title></font></p><p><font face="Segoe UI"><h2>Tenant: ' + ($TenantName) + '</h2></p><p><font face="Segoe UI"><h3>Generated: ' + $Today + '</h3></font></p>
@@ -83,7 +81,7 @@ $HtmlMsg = "</body></html>" + $htmlheader + $Body + "<p>"
      
 # Construct the message body
      $MessageBody = @{
-         content = "$($Body)"
+         content = "$($HtmlMsg)"
          ContentType = 'html'
      }
 # Create a draft message in the signed-in user's mailbox
