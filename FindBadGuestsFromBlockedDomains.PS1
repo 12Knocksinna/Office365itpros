@@ -3,9 +3,10 @@
 # V2.0 12 June 2023
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindBadGuestsFromBlockedDomains.PS1
 
-# Check that the right modules are loaded
-$Modules = Get-Module
-If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
+# Check that we're connected to Exchange Online
+If ($Null -eq (Get-ConnectionInformation)) {
+    Connect-ExchangeOnline
+}
 
 Connect-MgGraph -Scopes Directory.Read.All, Policy.Read.All
 
