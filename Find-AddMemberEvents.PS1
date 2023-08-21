@@ -1,8 +1,9 @@
-# A script to show how to detect users with a specifc type of displayname can be detected if someone adds them to 
-# a team
+# A script to show how to detect users with a specific type of displayname can be detected if someone adds them to the 
+# membership of a team.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Find-AddMemberEvents.PS1
 
 Function Add-MessageRecipients {
- # Function to build an addressee list to send email   
+# Function to build an addressee list to send email   
  [cmdletbinding()]
      Param(
      [array]$ListOfAddresses )
@@ -22,7 +23,8 @@ If ($Null -eq (Get-ConnectionInformation)) {
 #         Directory.Read.All required to read user information from Entra ID
 Connect-MgGraph -Scopes Mail.Send.Shared, Directory.Read.All
 
-# Find users who have Project in their display name
+# Find users who have the string "Project" in their display name. This query excludes guest accounts and only finds accounts
+# with at least one assigned license.
 Write-Host "Finding user details to check"
 [array]$Users = Get-MgUser -Search "displayName:Project" -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel Eventual
 If (!($Users)) { 
@@ -99,3 +101,10 @@ $Params  += @{'isDeliveryReceiptRequested' = $True}
 # And send the message using the parameters that we've filled in
 Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
 Write-Host "All done!"
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
+# the Internet without first validating the code in a non-production environment. 
