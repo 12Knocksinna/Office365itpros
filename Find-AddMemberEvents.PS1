@@ -51,7 +51,7 @@ ForEach ($Rec in $Records) {
     # Check the members noted as added to a group
     ForEach ($Member in $AuditData.Members) {
         If ($UserLookup[$Member.Upn]) {
-           Write-Host ("User {0} added to team {1}" -f $Member.DisplayName, $AuditData.TeamName) 
+           # Write-Host ("User {0} added to team {1}" -f $Member.DisplayName, $AuditData.TeamName) 
            Switch ($Member.Role) {
             "1"  { $Role = "Member" }
             "2"  { $Role = "Owner"}
@@ -69,8 +69,8 @@ ForEach ($Rec in $Records) {
         }
     }
 }
-
-$Report | Out-GridView
+# Uncomment if you want to see the output
+# $Report | Out-GridView
 
 $EmailRecipient = "Lotte.Vetler@Office365itpros.com"
 Write-Host ("Sending results with {0} monitored events to {1}" -f $Report.count, $EmailRecipient )
@@ -80,7 +80,7 @@ $MsgFrom = "Customer.Services@Office365itpros.com"
 $ToRecipientList   = @( $EmailRecipient )
 [array]$MsgToRecipients = Add-MessageRecipients -ListOfAddresses $ToRecipientList
 $MsgSubject = "Monitored User Additions to Team membership"
-$HtmlHead = "<h2>Monitored User Additions to Teams</h2>"
+$HtmlHead = "<h2>Monitored User Additions to Teams</h2><p>The following additions to Teams membership occurred for monitored user accounts.</p>"
 $HtmlBody = $Report | ConvertTo-Html -Fragment 
 $HtmlMsg = "</body></html><p>" + $HtmlHead + $Htmlbody + "<p>"
 # Construct the message body
@@ -98,3 +98,4 @@ $Params  += @{'isDeliveryReceiptRequested' = $True}
 
 # And send the message using the parameters that we've filled in
 Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
+Write-Host "All done!"
