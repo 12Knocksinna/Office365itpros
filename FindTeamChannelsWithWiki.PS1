@@ -55,6 +55,7 @@ ForEach ($Team in $Teams) {
       } #End ForEach channel
      } #End If (archived check)
     Else { Write-Host "The" $Team.DisplayName "team is archived - no check done" }
+    Sleep -Milliseconds 100
 } #End ForEach Team
 
 $WikiReport = $Report | Where-Object {$_.AppId -eq "com.microsoft.teamspace.tab.wiki" -and $_.Check -eq "Wiki content exists"}
