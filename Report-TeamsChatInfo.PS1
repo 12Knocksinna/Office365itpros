@@ -1,7 +1,6 @@
 # Report-TeamsChatInfo.PS1
 # An example to show how to report the Teams chat threads for the user signed into an
 # interactive session with the Microsoft Graph PowerShell SDK
-# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-TeamsChatInfo.PS1
 
 # Connect to the Graph with the necessary permissions
 Connect-MgGraph -Scopes Chat.ReadWrite, Chat.ManageDeletion.All -NoWelcomeMessage
@@ -61,7 +60,7 @@ ForEach($Chat in $Chats) {
       Topic                = $Chat.Topic
       Created              = $Chat.CreatedDateTime
       LastUpdated          = $Chat.LastUpdatedDateTime
-      NumberOfParticipants = $MemberNames.Count
+      NumberOfParticipants = $Members.Count
       Participants         = $MemberNamesOutput
       TenantId             = $Chat.TenantId
       Tenant               = $TenantDisplayName
