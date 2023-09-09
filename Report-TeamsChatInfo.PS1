@@ -44,13 +44,11 @@ ForEach($Chat in $Chats) {
 
     # Extract the member display names and remove any blanks (accounts that no longer exist)
     [array]$MemberNames = $Members.displayName | Sort-Object -Unique
+    $NumberOfParticipants = $MemberNames.Count
     If ($MemberNames.Count -gt 0) {
         $MemberNamesOutput = $MemberNames -Join ", "
     }
 
-    If ($Members.Count -gt 0) {
-        $MemberNames = $Members.DisplayName -Join ", "
-    }
     # Get tenant display name
     $TenantDisplayName = "Unknown"
     $TenantDisplayName = $TenantsHash[$Chat.TenantId]
@@ -60,7 +58,7 @@ ForEach($Chat in $Chats) {
       Topic                = $Chat.Topic
       Created              = $Chat.CreatedDateTime
       LastUpdated          = $Chat.LastUpdatedDateTime
-      NumberOfParticipants = $Members.Count
+      NumberOfParticipants = $NumberOfParticipants
       Participants         = $MemberNamesOutput
       TenantId             = $Chat.TenantId
       Tenant               = $TenantDisplayName
