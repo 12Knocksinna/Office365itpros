@@ -20,7 +20,7 @@ ForEach ($Chat in $Chats) {
 
 $TenantsCount = @{}
 $TenantList = $TenantList | Sort-Object
-$TenantList | ForEach {$TenantsCount[$_]++}
+$TenantList | ForEach-Object {$TenantsCount[$_]++}
 $TenantsCount = $TenantsCount.GetEnumerator() | Sort-Object -Property Value -Descending
 $TenantsCount
 
