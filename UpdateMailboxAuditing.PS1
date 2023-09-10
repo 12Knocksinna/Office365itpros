@@ -1,14 +1,21 @@
 # UpdateMailboxAuditing.PS1
 # A script to update Office 365 E3 user and shared mailboxes and make sure that they are enabled for mailbox auditing
 # https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateMailboxAuditing.PS1
+# Check if we can run an Exchange Online cmdlet. If we can, go on, else connect to Exchange Online
+If ($Null -eq (Get-ConnectionInformation)) {
+  Connect-ExchangeOnline
+}
+# Connect to the Graph SDK
+Connect-MgGraph -Scopes Users.Read.All -NoWelcome
 # GUID for Office 365 E3
 $Office365E3 = "6fd2c87f-b296-42f0-b197-1e91e994b900"
+
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 $ProgressDelta = 100/($Mbx.count); $PercentComplete = 0; $MbxNumber = 0; $SharedMailboxNumber = 0; $MbxUpdated = 0; $SharedMbxUpdated
-CLS
-Write-Host "Finding Office 365 E3 mailboxes"
+Clear-Host
+Write-Host "Finding accounts (mailboxes) with Office 365 E3 licenses..."
 # Process mailboxes - Check Azure Active Directory to find accounts with Office 365 E3 licenses
-[array]$Mbx = Get-AzureADUser -All $True | ? {$_.AssignedLicenses -Match $Office365E3}
+[array]$Mbx = Get-MgUser -filter "assignedLicenses/any(s:s/skuId eq $Office365E3)" -All
 # Loop through accounts, find if they have not been enabled by checking CustomAttribute6, and enable if needed
 ForEach ($M in $Mbx) {
     $MbxNumber++
@@ -17,7 +24,7 @@ ForEach ($M in $Mbx) {
     $PercentComplete += $ProgressDelta
     $MbxProps = (Get-ExoMailbox -Identity $M.UserPrincipalName -Properties CustomAttribute6, RecipientTypeDetails)
     If ($MbxProps.CustomAttribute6 -ne "Mailbox Auditing Enabled") {
-       Set-Mailbox -Identity $M.UserPrincipalName -AuditEnabled $True -CustomAttribute6 "Mailbox Auditing Enabled"
+       Set-Mailbox -Identity $M.UserPrincipalName -AuditEnabled $True -AuditOwner @{Add="MailItemsAccessed"} -CustomAttribute6 "Mailbox Auditing Enabled"
        $MbxUpdated++
        $ReportLine  = [PSCustomObject] @{
            Mailbox         = $M.DisplayName
