@@ -6,7 +6,7 @@ If ($Null -eq (Get-ConnectionInformation)) {
   Connect-ExchangeOnline
 }
 # Connect to the Graph SDK
-Connect-MgGraph -Scopes Users.Read.All -NoWelcome
+Connect-MgGraph -Scopes User.Read.All -NoWelcome
 # GUID for Office 365 E3
 $Office365E3 = "6fd2c87f-b296-42f0-b197-1e91e994b900"
 
