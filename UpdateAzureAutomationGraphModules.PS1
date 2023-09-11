@@ -10,11 +10,15 @@ If (!($Status)) { Write-Host "Account not authenticated - exiting" ; break }
 
 # Find Latest version from PowerShell Gallery
 $DesiredVersion = (Find-Module -Name Microsoft.Graph | Select-Object -ExpandProperty Version)
-$DesiredVersion = $DesiredVersion.Major.toString() + "." + $DesiredVersion.Minor.toString() + "." + $DesiredVersion.Build.toString()
+If ($DesiredVersion -isnot [string]) { # Handle PowerShell 5 - PowerShell 7 returns a string
+   $DesiredVersion = $DesiredVersion.Major.toString() + "." + $DesiredVersion.Minor.toString() + "." + $DesiredVersion.Build.toString()
+}
 Write-Host ("Checking for version {0} of the Microsoft.Graph PowerShell module" -f $DesiredVersion)
 # Process Exchange Online also...
 $DesiredExoVersion = (Find-Module -Name ExchangeOnlineManagement | Select-Object -ExpandProperty Version)
-$DesiredExoVersion = $DesiredExoVersion.Major.toString() + "." + $DesiredExoVersion.Minor.toString() + "." + $DesiredExoVersion.Build.toString()
+If ($DesiredExoVersion -isnot [string]) { # Handle PowerShell 5 - PowerShell 7 returns a string
+    $DesiredExoVersion = $DesiredExoVersion.Major.toString() + "." + $DesiredExoVersion.Minor.toString() + "." + $DesiredExoVersion.Build.toString()
+}
 Write-Host ("Checking for version {0} of the Exchange Online Management module" -f $DesiredExoVersion)
 
 [Array]$AzAccounts = Get-AzAutomationAccount
