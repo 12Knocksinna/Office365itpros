@@ -3,7 +3,7 @@
 # interactive session with the Microsoft Graph PowerShell SDK
 
 # Connect to the Graph with the necessary permissions
-Connect-MgGraph -Scopes Chat.ReadWrite, Chat.ManageDeletion.All -NoWelcomeMessage
+Connect-MgGraph -Scopes Chat.ReadWrite, Chat.ManageDeletion.All -NoWelcome
  # Find the object identifier for the signed-in user
 $Account = (Get-MgContext).Account
 $UserId = (Get-MgUser -UserId $Account).Id

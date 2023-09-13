@@ -15,7 +15,7 @@ Function Add-MessageRecipients {
 } 
 # Start
 # Connect to the Graph SDK with the correct permissions
-Connect-MgGraph -Identity -NoWelcome -Scopes User.Read.All, Chat.Read.Basic, Mail.Send
+Connect-MgGraph -Identity -Scopes User.Read.All, Chat.Read.Basic, Mail.Send
 $Organization = Get-MgOrganization
 
 # Find users with licenses
