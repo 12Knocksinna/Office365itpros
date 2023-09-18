@@ -1,6 +1,7 @@
 # Create-EntraIDDynamicAUs.PS1
 # Example script to illustrate how to create dynamic administrative units for every department in
 # an organization
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Create-EntraIDDynamicAUs.PS1
 
 Connect-MgGraph -NoWelcome -Scopes Directory.ReadWrite.All
 Write-Host "Finding user accounts to analyze departments..."
