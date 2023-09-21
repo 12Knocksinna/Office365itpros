@@ -1,6 +1,7 @@
 # Assign-MultipleLicenses.PS1
 # An example script to demonstrate the principles of checking already-assigned licenses or 
 # availablity of licenses before attempting to assign licenses to Entra ID user accounts
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Assign-MultipleLicenses.PS1
 
 # Retrieve the products used in the tenant and construct a list of licenses and the units used
 [array]$Skus = Get-MgSubscribedSku
