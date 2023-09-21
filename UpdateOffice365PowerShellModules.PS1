@@ -65,8 +65,8 @@ ForEach ($Module in $O365Modules) {
 
 # Check and remove older versions of the modules from the PC
 Write-Host "Beginning clean-up phase..."
-[array]$InstalledModules = Get-InstalledModule
-[array]$GraphModules = $InstalledModules | Where-Object {$_.Name -Like "*Microsoft.Graph*"} | Select-Object -ExpandProperty Name
+[array]$SetofInstalledModules = Get-InstalledModule
+[array]$GraphModules = $SetOfInstalledModules | Where-Object {$_.Name -Like "*Microsoft.Graph*"} | Select-Object -ExpandProperty Name
 $ModulesToProcess = $O365Modules + $GraphModules | Sort-Object -Unique
 
 ForEach ($Module in $ModulesToProcess) {
