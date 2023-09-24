@@ -81,6 +81,7 @@ ForEach ($User in $Mbx) {
   
   # Generate a report
   $ReportFile = "c:\temp\UserMailTraffic.html"
+  $CSVFile = "c:\temp\UserMailTraffic.csv"
   $HtmlHead="<html>
          <style>
          BODY{font-family: Arial; font-size: 8pt;}
@@ -101,9 +102,10 @@ ForEach ($User in $Mbx) {
              <p><h3>Generated: " + (Get-Date -format g) + " for " + (Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName) + "</h3></p></div>"
           
   $HtmlBody = $MessageReport | ConvertTo-Html -Fragment 
-  $HtmlFile = "</body></html><p>" + $HtmlHead + $Htmlbody + "<p>" | Out-File $ReportFile  -Encoding UTF8
+ "</body></html><p>" + $HtmlHead + $Htmlbody + "<p>" | Out-File $ReportFile  -Encoding UTF8
 
-Write-Host ("All done - the report file is available in {0}" -f $ReportFile)
+$MessageReport | ConvertTo-Csv -NoTypeInformation $CSVFile 
+Write-Host ("All done - the HTML report is available in {0} and CSV in {1}" -f $ReportFile, $CSVFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
