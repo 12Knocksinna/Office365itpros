@@ -99,12 +99,12 @@ ForEach ($User in $Mbx) {
          <body>
              <div align=center>
              <p><h1>Message Traffic User Analysis</h1></p>
-             <p><h3>Generated: " + (Get-Date -format g) + " for " + (Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName) + "</h3></p></div>"
+             <p><h3>Generated: " + (Get-Date -format 'dd-MMM-yyyy hh:mm') + " for " + (Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName) + "</h3></p></div>"
           
   $HtmlBody = $MessageReport | ConvertTo-Html -Fragment 
  "</body></html><p>" + $HtmlHead + $Htmlbody + "<p>" | Out-File $ReportFile  -Encoding UTF8
 
-$MessageReport | ConvertTo-Csv -NoTypeInformation $CSVFile 
+$MessageReport | Export-Csv -NoTypeInformation $CSVFile 
 Write-Host ("All done - the HTML report is available in {0} and CSV in {1}" -f $ReportFile, $CSVFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
