@@ -4,15 +4,15 @@
 # Set threshold % of quota to use as warning level
 $Threshold = 85
 # Get all user mailboxes
-Cls
+Clear-Host
 Write-Host "Finding mailboxes..."
-[array]$Mbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox -Properties ProhibitSendReceiveQuota | Select DisplayName, ProhibitSendReceiveQuota, DistinguishedName
+[array]$Mbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox -Properties ProhibitSendReceiveQuota | Select-Object DisplayName, ProhibitSendReceiveQuota, DistinguishedName
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 ForEach ($M in $Mbx) {
     # Find current usage
     Write-Host "Processing" $M.DisplayName
     $ErrorText = $Null
-    $MbxStats = Get-ExoMailboxStatistics $M.DistinguishedName | Select ItemCount, TotalItemSize
+    $MbxStats = Get-ExoMailboxStatistics $M.DistinguishedName | Select-Object ItemCount, TotalItemSize
     # Return byte count of quota used
     [INT64]$QuotaUsed = [convert]::ToInt64(((($MbxStats.TotalItemSize.ToString().split("(")[-1]).split(")")[0]).split(" ")[0]-replace '[,]',''))
     # Byte count for mailbox quota
@@ -34,7 +34,7 @@ ForEach ($M in $Mbx) {
    $Report.Add($ReportLine)
 } 
 # Export to CSV
-$Report | Sort Mailbox | Export-csv -NoTypeInformation MailboxQuotaReport.csv
+$Report | Sort-Object Mailbox | Export-csv -NoTypeInformation MailboxQuotaReport.csv
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
