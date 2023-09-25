@@ -1,6 +1,7 @@
 # Check-SharedMailboxQuotas.PS1
 # Example of how to check the current quota usage of shared mailboxes and email
 # the results to owners of each mailbox
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Check-SharedMailboxQuotas.PS1
 
 Function Add-MessageRecipients {
     # Function to build an addressee list to send email   
@@ -21,7 +22,7 @@ If ($Null -eq (Get-ConnectionInformation)) {
 # Connect to the Graph to retrieve information about mailbox licenses and send messages. This 
 # uses an Entra ID registered app authenticated using a client thumbprint. The app has consent for the
 # necessary User.Read.All and Mail.Send.All permissions.
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478" # Define your tenant identifier here
+$TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478" # Define your tenant identifier here
 $AppId = "d86b1929-b818-411b-834a-206385bf5347" # Define the app identifier 
 $CertThumbPrint = "F79286DB88C21491110109A0222348FACF694CBD" # Define the certificate thumbprint
 Connect-MgGraph -NoWelcome -TenantId $TenantId -AppId $AppId -CertificateThumbprint $CertThumbPrint
