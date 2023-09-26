@@ -1,4 +1,10 @@
 # Monnitor-TeamMemberAdditions.PS1
+# An example of using the unified audit log to monitor for additions of new members to Teams.
+# Each new member added to some designated teams is checked to see if they come from a specific 
+# department. If they do, they're removed. If not, details of the new members are posted to a 
+# channel in the target team
+
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Monitor-TeamsMemberAdditions.PS1
 
 # Need to connect to Exchange Online to get audit event information
 If ($Null -eq (Get-ConnectionInformation)) {
@@ -32,7 +38,6 @@ ForEach ($Rec in $Records) {
   $UserAdded = $AuditData.ObjectId
   $Actor = $Rec.UserIds
   If ($GroupId -in $GroupsToCheck) {
-    Write-Host ("User {0} added to group {1} at {2}" -f $UserAdded, $GroupName, $Rec.CreationDate)
     $UserData = Get-MgUser -UserId $UserAdded -Property Id, displayName, department
     $ReportLine = [PSCustomObject]@{
       Team       = $GroupName
