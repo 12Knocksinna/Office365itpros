@@ -1,6 +1,7 @@
 # Check-SharedMailboxQuotas.PS1
 # Example of how to check the current quota usage of shared mailboxes and email
 # the results to owners of each mailbox
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Check-SharedMailboxQuotas.PS1
 
 Function Add-MessageRecipients {
     # Function to build an addressee list to send email   
