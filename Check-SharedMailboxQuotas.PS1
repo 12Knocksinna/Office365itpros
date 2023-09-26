@@ -21,9 +21,11 @@ If ($Null -eq (Get-ConnectionInformation)) {
 # Connect to the Graph to retrieve information about mailbox licenses and send messages. This 
 # uses an Entra ID registered app authenticated using a client thumbprint. The app has consent for the
 # necessary User.Read.All and Mail.Send.All permissions.
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478" # Define your tenant identifier here
+$TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478" # Define your tenant identifier here
 $AppId = "d86b1929-b818-411b-834a-206385bf5347" # Define the app identifier 
 $CertThumbPrint = "F79286DB88C21491110109A0222348FACF694CBD" # Define the certificate thumbprint
+# Get rid of any existing Graph sessions to make sure that we pick up the correct permissions
+Disconnect-MgGraph | Out-Null
 Connect-MgGraph -NoWelcome -TenantId $TenantId -AppId $AppId -CertificateThumbprint $CertThumbPrint
 
 # Mailbox to receive notifications when a shared mailbox has no registered user with full access
@@ -43,7 +45,7 @@ If (!($SharedMailboxes)) {
     $ExoP2 = $False; $NoOwnerFlag = $False
     Write-Host "Checking accounts with full access rights to shared mailbox..."
     [array]$Owners = Get-ExoMailboxPermission -Identity $Mbx.ExternalDirectoryObjectId | Where-Object {$_.User -ne "NT AUTHORITY\SELF"} | `
-           Select-Object User, AccessRights | Where-Object {$_.AccessRights -Like "FullAccess"}
+           Select-Object User, AccessRights | Where-Object {$_.AccessRights -Like "FullAccess"} | Select-Object -ExpandProperty User
     If (!($Owners)) { # No owners found - use default notification address
          $Owners += $DefaultNotificationAddress
          $NoOwnerFlag = $True
@@ -51,7 +53,8 @@ If (!($SharedMailboxes)) {
     } Else {
         [array]$ExpandedOwners = $Null
         ForEach ($Owner in $Owners) {
-            Switch ((Get-ExoRecipient -Identity $Owner).RecipientTypeDetails) {
+            $OwnerType = (Get-EXORecipient -Identity $Owner).RecipientTypeDetails
+            Switch ($OwnerType) {
                 "MailUniversalSecurityGroup" {
                    $ExpandedOwners += (Get-DistributionGroupMember -Identity $Owner).PrimarySmtpAddress }
                 "UserMailbox" {
@@ -81,6 +84,7 @@ If (!($SharedMailboxes)) {
      $MbxQuotaGB = [math]::Round(($MbxQuota/1GB),2)
      $QuotaPercentUsed = [math]::Round(($QuotaUsed/$MbxQuota)*100,2)
      $QuotaUsedGB = [math]::Round(($QuotaUsed/1GB),2)
+     
      $ReportLine = [PSCustomObject]@{
         Mailbox    = $Mbx.Identity
         Name       = $Mbx.DisplayName
