@@ -140,7 +140,9 @@ Set-Location -Path $TeamsV1Directory
 [int]$i =0
 # If we can find some JPG files to convert, go ahead and create new files
 If ($Files) {
-ForEach ($File in $Files) {
+ # Remove thumb nails and only process full definition files   
+ $Files = $Files | Where-Object {$_ -notlike "*_thumb.jpg*"}
+ ForEach ($File in $Files) {
     Write-Host ("Processing {0}..." -f $File)
     $Name = $File.Split(".")[0]
     $OutputFile = $Name + "_resized.jpg"
@@ -159,11 +161,13 @@ ForEach ($File in $Files) {
         Rename-Item $OutputFile $ThumbFileName
     }
     $CopyFiles = ("{0}*.jpg" -f $Guid)
+    # Copy files to the Teams V2 folder and clean up by removing them from the V1 folder
     Copy-Item $CopyFiles $TargetDirectory
+    Remove-Item $CopyFiles
     $i++
  } # End ForEach Files
 } # End if Files
-Write-Host ("All done. {0} files processed and copied to the Teams V2 directory. You should be able to use these files as background images in Teams V2 meetings" -f $i)
+Write-Host ("All done. {0} files processed and copied to the Teams V2 folder. You should be able to use these files as background images in Teams V2 meetings" -f $i)
 Set-Location -Path $TargetDirectory
 Get-ChildItem "*.jpg"
 Set-Location -Path "C:\"
