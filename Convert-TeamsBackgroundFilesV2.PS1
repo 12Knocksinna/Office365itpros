@@ -1,6 +1,8 @@
 # Convert-TeamsBackgroundFilesV2.PS1
 # Script to convert custom background images used with Teams V1 so that they can be used with the
 # V2 client.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Convert-TeamsBackgroundFilesV2.PS1
+
 <#
 .SYNOPSIS
    Resize an image 
@@ -124,7 +126,8 @@ Function Resize-Image() {
     }
 }
 
-# Start of processing
+# Start of processing to convert Teams background images
+
 # First, identify the target directory where Teams V2 stores its background images. Each
 # image has two files - a full version and a thumbnail.
 $TargetDirectory = $Env:appdata.Split("\Roaming")[0] + "\Local\Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\Backgrounds\Uploads"
@@ -160,7 +163,14 @@ ForEach ($File in $Files) {
     $i++
  } # End ForEach Files
 } # End if Files
-Write-Host ("All done. {0} files processed and copied to the Teams V2 directory" -f $i)
+Write-Host ("All done. {0} files processed and copied to the Teams V2 directory. You should be able to use these files as background images in Teams V2 meetings" -f $i)
 Set-Location -Path $TargetDirectory
 Get-ChildItem "*.jpg"
 Set-Location -Path "C:\"
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
+# the Internet without first validating the code in a non-production environment.
