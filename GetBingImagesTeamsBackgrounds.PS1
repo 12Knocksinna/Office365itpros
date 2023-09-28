@@ -36,16 +36,16 @@ CLS ; For ($i=0; $i -le 7; $i++) {
 
 # Clean up Bing images older than 30 days so we keep the number of background images to a reasonable number
 $RemoveDate = (Get-Date).AddDays(-30)
-$BingFiles = Get-ChildItem $TeamsBackgroundFiles | ? {($_.LastWriteTime -lt $RemoveDate) -and ($_.Name.Substring(0,5) -eq "Bing-")}
+$BingFiles = Get-ChildItem $TeamsBackgroundFiles | Where-Object {($_.LastWriteTime -lt $RemoveDate) -and ($_.Name.Substring(0,5) -eq "Bing-")}
 If ($BingFiles) {
    Write-Host "Cleaning up old Bing background images"
-   ForEach ($File in $BingFiles) { Del $File.FullName -Force}
+   ForEach ($File in $BingFiles) { Delete-Item $File.FullName -Force}
 }
 
 Write-Host "All done"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
