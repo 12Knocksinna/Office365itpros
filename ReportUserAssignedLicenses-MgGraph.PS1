@@ -45,6 +45,7 @@ Write-Host "Finding licensed user accounts..."
 If (!($Users)) { Write-Host "No licensed user accounts found - exiting"; break }
   Else { Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) }
 
+$OrgName  = (Get-MgOrganization).DisplayName
 $Report = [System.Collections.Generic.List[Object]]::new()
 $i = 0
 ForEach ($User in $Users) {
