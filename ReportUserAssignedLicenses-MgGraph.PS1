@@ -5,6 +5,7 @@
 
 # V1.1 27-Sep-2022 Add sign in data for users and calculate how long it's been since they signed in and used a license.
 # V1.2 23-Nov-2022 Added SKU usage summary to HTML report
+# V1.3 29-Sep-2023 Added support for group-based licensing
 
 [datetime]$RunDate = Get-Date
 $Version = "1.3"
@@ -154,7 +155,7 @@ $htmlhead="<html>
            <div align=center>
            <p><h1>Microsoft 365 License Report</h1></p>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
-           <p><h3>Generated: " + (Get-Date($CreationDate) -format g) + "</h3></p></div>"
+           <p><h3>Generated: " + (Get-Date($RunDate) -format g) + "</h3></p></div>"
 
 $Htmlbody1 = $Report | ConvertTo-Html -Fragment
 $Htmlbody2 = $SkuReport | ConvertTo-Html -Fragment
