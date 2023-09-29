@@ -6,8 +6,8 @@
 # V1.1 27-Sep-2022 Add sign in data for users and calculate how long it's been since they signed in and used a license.
 # V1.2 23-Nov-2022 Added SKU usage summary to HTML report
 
-[datetime]$CreationDate = Get-Date
-$Version = "1.2"
+[datetime]$RunDate = Get-Date
+$Version = "1.3"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
 $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
@@ -35,9 +35,11 @@ ForEach ($Line2 in $ImportServicePlans) { $ServicePlanHashTable.Add([string]$Lin
 
 # Find tenant accounts - but filtered so that we only fetch those with licenses
 Write-Host "Finding licensed user accounts..."
-[Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All `
-    -Property id, displayName, userPrincipalName, country, department, assignedlicenses, createdDateTime, jobTitle, signInActivity | `
-   Sort-Object DisplayName
+[Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
+    -ConsistencyLevel eventual -CountVariable Records -All `
+    -Property id, displayName, userPrincipalName, country, department, assignedlicenses, `
+       LicenseAssignmentStates, createdDateTime, jobTitle, signInActivity | `
+    Sort-Object DisplayName
 
 If (!($Users)) { Write-Host "No licensed user accounts found - exiting"; break }
   Else { Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) }
@@ -68,7 +70,7 @@ ForEach ($User in $Users) {
   # Calculate how long it's been since someone signed in
   If ([string]::IsNullOrWhiteSpace($User.SignInActivity.LastSignInDateTime) -eq $False) {
     [datetime]$LastSignInDate = $User.SignInActivity.LastSignInDateTime
-    $DaysSinceLastSignIn = ($CreationDate - $LastSignInDate).Days
+    $DaysSinceLastSignIn = ($RunDate - $LastSignInDate).Days
     $LastAccess = Get-Date($User.SignInActivity.LastSignInDateTime) -format g
     If ($DaysSinceLastSignIn -gt 60) { $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn) }
   }
@@ -80,23 +82,36 @@ ForEach ($User in $Users) {
 
   $AccountCreatedDate = $Null
   If ($User.CreatedDateTime) {
-     $AccountCreatedDate = Get-Date($User.CreatedDateTime) -format g }
-     
+     $AccountCreatedDate = Get-Date($User.CreatedDateTime) -format g 
+  }
+  
+#  Find out if any of the user's licenses are assigned via group-based licensing
+[array]$GroupAssignments = $User.licenseAssignmentStates | Where-Object {$Null -ne $_.AssignedByGroup}
+[array]$GroupLicensing = $Null
+# Figure out group-based licensing assignments if any exist
+ForEach ($G in $GroupAssignments) {
+       $GroupName = (Get-MgGroup -GroupId $G.AssignedByGroup).DisplayName
+       $GroupProductName = $SkuHashTable[$G.SkuId]
+       $GroupLicensing += ("{0} assigned from {1}" -f $GroupProductName, $GroupName)
+}
+$GroupLicensingAssignments = $GroupLicensing -Join ", "
+
   # Report information
   [string]$DisabledPlans = $DisabledPlans -join ", " 
   [string]$LicenseInfo = $LicenseInfo -join (", ")
   $ReportLine = [PSCustomObject][Ordered]@{  
-       User                    = $User.DisplayName
-       UPN                     = $User.UserPrincipalName
-       Country                 = $User.Country
-       Department              = $User.Department
-       Title                   = $User.JobTitle
-       Licenses                = $LicenseInfo
-      "Disabled Plans"         = $DisabledPlans 
-      "Account created"        = $AccountCreatedDate
-      "Last Signin"            = $LastAccess
-      "Days since last signin" = $DaysSinceLastSignIn
-       Status                  = $UnusedAccountWarning
+       User                     = $User.DisplayName
+       UPN                      = $User.UserPrincipalName
+       Country                  = $User.Country
+       Department               = $User.Department
+       Title                    = $User.JobTitle
+       Licenses                 = $LicenseInfo
+       "Disabled Plans"         = $DisabledPlans 
+       "Group based licensing"  = $GroupLicensingAssignments
+       "Account created"        = $AccountCreatedDate
+       "Last Signin"            = $LastAccess
+       "Days since last signin" = $DaysSinceLastSignIn
+       Status                   = $UnusedAccountWarning
   }
   $Report.Add($ReportLine)
   } #end If account is licensed
