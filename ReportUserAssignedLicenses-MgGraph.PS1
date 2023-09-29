@@ -155,13 +155,13 @@ $htmlhead="<html>
            <div align=center>
            <p><h1>Microsoft 365 License Report</h1></p>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
-           <p><h3>Generated: " + (Get-Date($RunDate) -format g) + "</h3></p></div>"
+           <p><h3>Generated: " + (Get-Date($RunDate) -format 'dd-MMM-yyyy hh:mm') + "</h3></p></div>"
 
 $Htmlbody1 = $Report | ConvertTo-Html -Fragment
 $Htmlbody2 = $SkuReport | ConvertTo-Html -Fragment
-$HtmlSeparator = "<p></p>"
+$HtmlSkuSeparator = "<p><h2>Product License Distribution</h2></p>"
 $Htmltail = "<p>Report created for: " + $OrgName + "</p>" +
-             "<p>Created: " + (Get-Date($RunDate) -format g) + "<p>" +
+             "<p>Created: " + (Get-Date($RunDate) -format 'dd-MMM-yyy hh:mm') + "<p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
              "<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
              "<p>Number of underused user accounts found:   " + $UnderUsedAccounts.Count + "</p>" +
@@ -169,7 +169,7 @@ $Htmltail = "<p>Report created for: " + $OrgName + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
              "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b>"	
 
-$htmlreport = $Htmlhead + $Htmlbody1 + $HtmlSeparator + $HtmlBody2 + $Htmltail
+$htmlreport = $Htmlhead + $Htmlbody1 + $HtmlSkuSeparator + $HtmlBody2 + $Htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
