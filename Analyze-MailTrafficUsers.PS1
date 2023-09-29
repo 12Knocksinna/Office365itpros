@@ -35,7 +35,7 @@ $Messages = $Messages | Where-Object {$_.Subject -NotLike "*HierarchySync*"}
 [array]$Domains = Get-AcceptedDomain | Select-Object -ExpandProperty DomainName
 
 # Fetch a list of user and shared mailboxes to process
-[array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, ShareMailbox -ResultSize Unlimited | Sort-Object DisplayName
+[array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited | Sort-Object DisplayName
 
 $MessageReport = [System.Collections.Generic.List[Object]]::new() 
 
