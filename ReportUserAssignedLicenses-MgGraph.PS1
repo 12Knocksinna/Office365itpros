@@ -4,7 +4,7 @@
 # See https://practical365.com/create-licensing-report-microsoft365-tenant/ for an article describing how to run the report
 
 # V1.1 27-Sep-2022 Add sign in data for users and calculate how long it's been since they signed in and used a license.
-# V1.2 23-Nov-2023 Added SKU usage summary to HTML report
+# V1.2 23-Nov-2022 Added SKU usage summary to HTML report
 
 [datetime]$CreationDate = Get-Date
 $Version = "1.2"
