@@ -160,7 +160,7 @@ $Htmlbody1 = $Report | ConvertTo-Html -Fragment
 $Htmlbody2 = $SkuReport | ConvertTo-Html -Fragment
 $HtmlSeparator = "<p></p>"
 $Htmltail = "<p>Report created for: " + $OrgName + "</p>" +
-             "<p>Created: " + (Get-Date($CreationDate) -format g) + "<p>" +
+             "<p>Created: " + (Get-Date($RunDate) -format g) + "<p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
              "<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
              "<p>Number of underused user accounts found:   " + $UnderUsedAccounts.Count + "</p>" +
