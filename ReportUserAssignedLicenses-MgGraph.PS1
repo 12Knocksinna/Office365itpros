@@ -88,7 +88,8 @@ ForEach ($User in $Users) {
   }
   
 #  Find out if any of the user's licenses are assigned via group-based licensing
-[array]$GroupAssignments = $User.licenseAssignmentStates | Where-Object {$Null -ne $_.AssignedByGroup}
+[array]$GroupAssignments = $User.licenseAssignmentStates | `
+       Where-Object {$Null -ne $_.AssignedByGroup -and $_.State -eq "Active"}
 [array]$GroupLicensing = $Null
 # Figure out group-based licensing assignments if any exist
 ForEach ($G in $GroupAssignments) {
@@ -101,19 +102,21 @@ $GroupLicensingAssignments = $GroupLicensing -Join ", "
   # Report information
   [string]$DisabledPlans = $DisabledPlans -join ", " 
   [string]$LicenseInfo = $LicenseInfo -join (", ")
+
+  # Generate report line
   $ReportLine = [PSCustomObject][Ordered]@{  
-       User                     = $User.DisplayName
-       UPN                      = $User.UserPrincipalName
-       Country                  = $User.Country
-       Department               = $User.Department
-       Title                    = $User.JobTitle
-       Licenses                 = $LicenseInfo
-       "Disabled Plans"         = $DisabledPlans 
-       "Group based licensing"  = $GroupLicensingAssignments
-       "Account created"        = $AccountCreatedDate
-       "Last Signin"            = $LastAccess
-       "Days since last signin" = $DaysSinceLastSignIn
-       Status                   = $UnusedAccountWarning
+       User                       = $User.DisplayName
+       UPN                        = $User.UserPrincipalName
+       Country                    = $User.Country
+       Department                 = $User.Department
+       Title                      = $User.JobTitle
+       "Direct assigned licenses" = $LicenseInfo
+       "Disabled Plans"           = $DisabledPlans 
+       "Group based licenses "    = $GroupLicensingAssignments
+       "Account created"          = $AccountCreatedDate
+       "Last Signin"              = $LastAccess
+       "Days since last signin"   = $DaysSinceLastSignIn
+       Status                     = $UnusedAccountWarning
   }
   $Report.Add($ReportLine)
   } #end If account is licensed
