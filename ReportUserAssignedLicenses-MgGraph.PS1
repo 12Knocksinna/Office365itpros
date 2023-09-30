@@ -46,6 +46,7 @@ If (!($Users)) { Write-Host "No licensed user accounts found - exiting"; break }
   Else { Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) }
 
 $OrgName  = (Get-MgOrganization).DisplayName
+$DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 $i = 0
 ForEach ($User in $Users) {
@@ -99,7 +100,42 @@ ForEach ($G in $GroupAssignments) {
 }
 $GroupLicensingAssignments = $GroupLicensing -Join ", "
 
-  # Report information
+# Detect if any duplicate licenses are assigned (direct and group-based)
+# Build a list of assigned SKUs
+$SkuReport = [System.Collections.Generic.List[Object]]::new()
+ForEach ($S in $User.AssignedLicenses) {
+   $ReportLine = [PSCustomObject][Ordered]@{ 
+      User   = $User.Id
+      Name   = $User.DisplayName 
+      Sku    = $S.SkuId
+      Method = "Direct" }
+  $SkuReport.Add($ReportLine)
+}
+ForEach ($S in $GroupAssignments) {
+    $ReportLine = [PSCustomObject][Ordered]@{ 
+      User   = $User.Id
+      Name   = $User.DisplayName
+      Sku    = $S.SkuId
+      Method = "Group" }
+    $SkuReport.Add($ReportLine)
+}
+# Check if any duplicates exist
+[array]$DuplicateSkus = $SkuReport | Group-Object Sku | Where-Object {$_.Count -gt 1} | Select-Object -ExpandProperty Name
+
+# If duplicates exist, resolve their SKU IDs into Product names and generate a warning for the report
+[string]$DuplicateWarningReport = "N/A"
+If ($DuplicateSkus) {
+ [array]$DuplicateSkuNames = $Null
+ $DuplicateSKUsAccounts++
+ $DuplicateSKULicenses = $DuplicateSKULicenses + $DuplicateSKUs.Count
+ ForEach ($DS in $DuplicateSkus) {
+   $SkuName = $SkuHashTable[$DS]
+   $DuplicateSkuNames += $SkuName
+ }
+ $DuplicateWarningReport = ("Warning: Duplicate licenses detected for: {0}" -f ($DuplicateSkuNames -join ", "))
+}
+
+# Report information
   [string]$DisabledPlans = $DisabledPlans -join ", " 
   [string]$LicenseInfo = $LicenseInfo -join (", ")
 
@@ -116,6 +152,7 @@ $GroupLicensingAssignments = $GroupLicensing -Join ", "
        "Account created"          = $AccountCreatedDate
        "Last Signin"              = $LastAccess
        "Days since last signin"   = $DaysSinceLastSignIn
+       "Duplicates detected"      = $DuplicateWarningReport
        Status                     = $UnusedAccountWarning
   }
   $Report.Add($ReportLine)
@@ -170,6 +207,8 @@ $Htmltail = "<p>Report created for: " + $OrgName + "</p>" +
              "<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
              "<p>Number of underused user accounts found:   " + $UnderUsedAccounts.Count + "</p>" +
              "<p>Percent underused user accounts:           " + $PercentUnderusedAccounts + "</p>" +
+             "<p>Accounts detected with duplicate licenses: " + $DuplicateSKUsAccounts + "</p>" +
+             "<p>Count of duplicate licenses:               " + $DuplicateSKULicenses + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
              "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b>"	
 
