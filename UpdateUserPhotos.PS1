@@ -27,7 +27,7 @@ ForEach ($User in $Users) {
    $CheckCount += $ProgDelta
    # Is EXODS happy with the user photo information for the account?
    $CheckPhoto = Get-MgUserPhoto -UserId $User.Id -ErrorAction SilentlyContinue
-   If (!$CheckPhoto) { # No photo found in mailbox
+   If (!$CheckPhoto) { # No photo found in user account
       $UserPhoto = $PhotoLocation + $User.UserPrincipalName.Split("@")[0]+".jpg"
       If (Test-Path $UserPhoto) { # Update the photo because we have a file
         Write-Host "Updating photo for" $User.DisplayName -Foregroundcolor Red
