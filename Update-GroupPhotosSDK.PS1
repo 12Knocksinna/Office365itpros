@@ -1,7 +1,7 @@
 # Update-GroupPhotos.PS1
 # Example script to show how to check the photos for Microsoft 365 Groups against a list of approved photos
 # and update them if necessary
-# https://github.com/12Knocksinna/Office365itpros/blob/master/Update-GroupPhotos.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Update-GroupPhotosSDK.PS1
 # V2 Upgraded 3-Oct-2023 for the Microsoft Graph PowerShell SDK
 
 # Define the sensitivity labels for the groups that we want to find
