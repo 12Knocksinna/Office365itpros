@@ -11,6 +11,7 @@ $PhotoDirectory = "c:\temp\GroupPhotos\"
 
 Connect-MgGraph -Scopes Directory.ReadWrite.All -NoWelcome
 
+[int]$i=0
 [array]$Groups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'unified')" -All
 # Filter groups to extract those with the desired labels
 $Groups = $Groups | Where-Object {$_.AssignedLabels.LabelId -in $LabelsToCheck} | Sort-Object DisplayName
@@ -36,6 +37,7 @@ ForEach ($Group in $Groups) {
         Write-Host ("Group {0} has a photo" -f $Group.DisplayName)
      } Else {
         Set-MgGroupPhotoContent -GroupId $Group.Id -InFile $PhotoFile
+        $i++
         $Photo | Add-Member -NotePropertyName Photo -NotePropertyValue $PhotoFile -Force
      } 
    } Else { # No photo available
@@ -43,6 +45,8 @@ ForEach ($Group in $Groups) {
    }
 
 } # End Foreach group
+
+Write-Host ("All done. {0} photos updated." -f $i)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
