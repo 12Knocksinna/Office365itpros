@@ -136,8 +136,7 @@ $TeamsV1Directory = $Env:appdata + "\Microsoft\Teams\Backgrounds\Uploads"
 
 # Check that the two folders are available
 If (!(Test-Path -Path $TargetDirectory)) {
-    Write-Host ("The {0} folder is not on this PC. Install the Teams 2.1 client before running this script" -f $TargetDirectory)
-    break
+    Create-Item $TargetDirectory
 }
 
 If (!(Test-Path $TeamsV1Directory)) {
