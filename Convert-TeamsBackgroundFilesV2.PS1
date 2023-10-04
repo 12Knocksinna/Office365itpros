@@ -134,6 +134,17 @@ $TargetDirectory = $Env:appdata.Split("\Roaming")[0] + "\Local\Packages\MSTeams_
 # Now find the folder where Teams V1 stored its background files
 $TeamsV1Directory = $Env:appdata + "\Microsoft\Teams\Backgrounds\Uploads"
 
+# Check that the two folders are available
+If (!(Test-Path -Path $TargetDirectory)) {
+    Write-Host ("The {0} folder is not on this PC. Install the Teams 2.1 client before running this script" -f $TargetDirectory)
+    break
+}
+
+If (!(Test-Path $TeamsV1Directory)) {
+    Write-Host ("The Teams V1 folder for background images is not on this PC - exiting!" -f $TeamsV1Directory)
+    break
+}
+
 # Get the set of files that we can convert
 Set-Location -Path $TeamsV1Directory
 [array]$Files = Get-ChildItem "*.jpg" | Select-Object -ExpandProperty Name
