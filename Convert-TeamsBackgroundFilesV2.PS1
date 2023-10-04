@@ -130,7 +130,7 @@ Function Resize-Image() {
 
 # First, identify the target directory where Teams V2 stores its background images. Each
 # image has two files - a full version and a thumbnail.
-$TargetDirectory = $Env:appdata.Split("\Roaming")[0] + "\Local\Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\Backgrounds\Uploads"
+$TargetDirectory = ($Env:appdata -Split("\\Roaming"))[0] + "\Local\Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\Backgrounds\Uploads"
 # Now find the folder where Teams V1 stored its background files
 $TeamsV1Directory = $Env:appdata + "\Microsoft\Teams\Backgrounds\Uploads"
 
