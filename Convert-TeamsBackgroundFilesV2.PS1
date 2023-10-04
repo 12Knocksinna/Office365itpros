@@ -136,7 +136,7 @@ $TeamsV1Directory = $Env:appdata + "\Microsoft\Teams\Backgrounds\Uploads"
 
 # Check that the two folders are available
 If (!(Test-Path -Path $TargetDirectory)) {
-    Create-Item $TargetDirectory
+    New-Item -Path $TargetDirectory -ItemType Directory
 }
 
 If (!(Test-Path $TeamsV1Directory)) {
