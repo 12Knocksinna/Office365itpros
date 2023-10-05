@@ -9,7 +9,7 @@ Clear-Host
 
 # Look for disabled accounts
 Write-Host "Checking for disabled Entra ID user accounts..."
-[array]$Accounts = Get-MgUser -filter "accountEnabled eq false and userType eq 'member'" -Property `
+[array]$Accounts = Get-MgUser -All -Filter "accountEnabled eq false and userType eq 'member'" -Property `
        AccountEnabled, Id, DisplayName, userPrincipalName, assignedLicenses, licenseAssignmentStates
 If (!($Accounts)) { 
     Write-Host "No disabled accounts found - exiting"
