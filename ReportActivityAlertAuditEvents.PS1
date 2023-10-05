@@ -34,7 +34,7 @@ If ($Records.Count -eq 0) {
         $Report.Add($ReportLine) }
 }} 
 
-$Report | Select Timestamp, Operation, User, Action
+$Report | Select-Object Timestamp, Operation, User, Action
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
