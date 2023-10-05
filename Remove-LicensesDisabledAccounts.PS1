@@ -1,5 +1,6 @@
 # Remove-LicenseDisabledAccounts.PS1
 # Example of how to remove licenses from disabled Entra ID accounts
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-LicensesDisabledAccounts.PS1
 
 # Connect to the Graph
 Connect-MgGraph -NoWelcome -Scopes Directory.ReadWrite.All
