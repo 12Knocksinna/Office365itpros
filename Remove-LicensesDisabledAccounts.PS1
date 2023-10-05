@@ -5,6 +5,7 @@
 Connect-MgGraph -NoWelcome -Scopes Directory.ReadWrite.All
 # Define service plans that we shouldn't disable
 [array]$Exclusions = "ENTERPRISEPACK", "SPE_E3", "SPE_E5", "SPE_E5_NOPSTNCONF", "SPB", "ENTERPRISEPREMIUM_NOPSTNCONF", "ENTERPRISE_PREMIUM"
+Clear-Host
 
 # Look for disabled accounts
 Write-Host "Checking for disabled Entra ID user accounts..."
@@ -73,7 +74,7 @@ ForEach ($Account in $Accounts) {
         Write-Host ("No removable licenses found for account {0}" -f $Account.DisplayName) 
     }
 }
-
+Write-Host ""
 Write-Host ("Script finished. A total of {0} licenses were removed from {1} accounts" -f $LicenseRemovalCount, $Accounts.count)
 Write-Host ""
 $Report | Format-Table Name, 'Licenses Removed', TimeStamp -AutoSize
