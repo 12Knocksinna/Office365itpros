@@ -58,6 +58,7 @@ ForEach ($Contact in $Contacts) {
   If ($Contact.DisplayName)     { $DisplayName = $Contact.DisplayName }
 
   # Calculate values for mail nickname and user principal name for the guest account
+  # Use your own domain rather than office365itpros.com....
   $Alias = $Contact.alias -replace '[?]',''
   $NickName = $Alias + ".Contact"
   $UPN = $NickName + "#EXT#@Office365itpros.com"
