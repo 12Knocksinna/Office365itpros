@@ -9,7 +9,7 @@ Connect-MgGraph -NoWelcome -Scopes Directory.ReadWrite.All
 # Look for disabled accounts
 Write-Host "Checking for disabled Entra ID user accounts..."
 [array]$Accounts = Get-MgUser -filter "accountEnabled eq false and userType eq 'member'" -Property `
-       AccountEnabled, Id, DisplayName, userPrincipalName, assignedLicenses
+       AccountEnabled, Id, DisplayName, userPrincipalName, assignedLicenses, licenseAssignmentStates
 If (!($Accounts)) { 
     Write-Host "No disabled accounts found - exiting"
     Break
@@ -22,13 +22,30 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 
 ForEach ($Account in $Accounts) {
     # Get the currently assigned licenses
-    [array]$CurrentLicenses = Get-MgUserLicenseDetail -UserId $Account.Id | Select-Object SkuId, SkuPartNumber 
+    Write-Host ("Checking licenses for disabled account {0}" -f $Account.userPrincipalName) -ForegroundColor Yellow
+    [array]$CurrentLicensesStage1 = Get-MgUserLicenseDetail -UserId $Account.Id | Select-Object SkuId, SkuPartNumber 
     [array]$LicensesToRemove = $Null
     [array]$RemovedLicenses = $Null
-    ForEach ($License in $CurrentLIcenses) {
+    [array]$CurrentLicensesStage2 = $Null
+    $GroupName = $Null
+    # See if any licenses are assigned by group-based licensing
+    [array]$GroupAssignments = $Account.licenseAssignmentStates `
+        | Where-Object {$Null -ne $_.AssignedByGroup -and $_.State -eq "Active"} | Select-Object SkuId, AssignedByGroup
+    $GroupsHash = @{}
+    ForEach ($G in $GroupAssignments) { $GroupsHash.Add([string]$G.SkuId,[string]$G.AssignedByGroup) }  
+    ForEach ($License in $CurrentLicensesStage1)  {
+    # If a group-based license is found, flag it. Otherwise add to the licenses to check in the next stage
+        If ($License.SkuId -in $GroupAssignments.SkuId ) {
+           $GroupName = (Get-MgGroup -GroupId $GroupsHash[$License.SkuId]).DisplayName
+           Write-Host ("License {0} assigned by group-based licensing (group {1}): can't remove it" -f $License.SkuPartNumber, $GroupName ) -ForegroundColor Red 
+        } Else {
+            $CurrentLicensesStage2 += $License
+        }       
+    }    
+    ForEach ($License in $CurrentLIcensesStage2) {
         If ($License.SkuPartNumber -in $Exclusions) {
             Write-Host ("Excluded license {0} found and will not be removed" -f $License.SkuPartNumber) -ForegroundColor Red
-        } ELse {
+        } Else {
             $LicensesToRemove += $License.SkuId
             $RemovedLicenses += $License.SkuPartNumber
         }
@@ -53,11 +70,13 @@ ForEach ($Account in $Accounts) {
             Write-Host ("Problem removing licenses from account {0} - please investigate!" -f $Account.DisplayName)
         }
     } Else {
-        Write-Host ("No removable licenses found for account {1}" -f $Account.DisplayName) 
+        Write-Host ("No removable licenses found for account {0}" -f $Account.DisplayName) 
     }
 }
 
 Write-Host ("Script finished. A total of {0} licenses were removed from {1} accounts" -f $LicenseRemovalCount, $Accounts.count)
+Write-Host ""
+$Report | Format-Table Name, 'Licenses Removed', TimeStamp -AutoSize
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
