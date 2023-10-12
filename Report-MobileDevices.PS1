@@ -75,7 +75,7 @@ ForEach ($M in $Mbx) {
 [array]$SyncMailboxes = $Report | Sort-Object UPN -Unique | Select-Object UPN
 [array]$SyncDevices = $Report | Sort-Object DeviceId -Unique | Select-Object DeviceId
 [array]$SyncDevices30 = $Report | Where-Object {$_.DaysSinceLastSync -gt 30} 
-$$HtmlReport = $Report | Select-Object DeviceId, DeviceOS, Model, UA, User, UPN, FirstSync, DaysSinceFirstSync, LastSync, DaysSinceLastSync | Sort-Object UPN | ConvertTo-Html -Fragment
+$HtmlReport = $Report | Select-Object DeviceId, DeviceOS, Model, UA, User, UPN, FirstSync, DaysSinceFirstSync, LastSync, DaysSinceLastSync | Sort-Object UPN | ConvertTo-Html -Fragment
 
 # Create the HTML report
 $Htmltail = "<p>Report created for: " + ($Organization) + "</p><p>" +
