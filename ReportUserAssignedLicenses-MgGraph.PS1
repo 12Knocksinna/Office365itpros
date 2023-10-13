@@ -115,14 +115,14 @@ ForEach ($User in $Users) {
 
 # Detect if any duplicate licenses are assigned (direct and group-based)
 # Build a list of assigned SKUs
-$SkuReport = [System.Collections.Generic.List[Object]]::new()
+$SkuUserReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($S in $DirectAssignments)  {
    $ReportLine = [PSCustomObject][Ordered]@{ 
       User   = $User.Id
       Name   = $User.DisplayName 
       Sku    = $S.SkuId
       Method = "Direct" }
-  $SkuReport.Add($ReportLine)
+  $SkuUserReport.Add($ReportLine)
 }
 ForEach ($S in $GroupAssignments) {
     $ReportLine = [PSCustomObject][Ordered]@{ 
@@ -130,7 +130,7 @@ ForEach ($S in $GroupAssignments) {
       Name   = $User.DisplayName
       Sku    = $S.SkuId
       Method = "Group" }
-    $SkuReport.Add($ReportLine)
+    $SkuUserReport.Add($ReportLine)
 }
 
 # Check if any duplicates exist
