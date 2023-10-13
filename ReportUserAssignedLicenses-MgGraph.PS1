@@ -6,9 +6,10 @@
 # V1.1 27-Sep-2022 Add sign in data for users and calculate how long it's been since they signed in and used a license.
 # V1.2 23-Nov-2022 Added SKU usage summary to HTML report
 # V1.3 29-Sep-2023 Added support for group-based licensing
+# V1.4 13-Oct-2023 Fixed some bugs
 
 [datetime]$RunDate = Get-Date
-$Version = "1.3"
+$Version = "1.4"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
 $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
@@ -50,60 +51,72 @@ $DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 $i = 0
 ForEach ($User in $Users) {
- $UnusedAccountWarning = "OK"; $i++
- Write-Host ("Processing account {0} {1}/{2}" -f $User.UserPrincipalName, $i, $Users.Count)
- If ([string]::IsNullOrWhiteSpace($User.AssignedLicenses) -eq $False) { # Only process account if it has some licenses
-  [array]$LicenseInfo = $Null; [array]$DisabledPlans = $Null
-  ForEach ($License in $User.AssignedLicenses) {
-     If ($SkuHashTable.ContainsKey($License.SkuId) -eq $True) { # We found a match in the SKU hash table
-        $LicenseInfo += $SkuHashTable.Item($License.SkuId) 
-   } Else { # Nothing doing, so output the SkuID
-        $LicenseInfo += $License }
-  # Report any disabled service plans in licenses
-   If ([string]::IsNullOrWhiteSpace($License.DisabledPlans) -eq $False ) { # Check if disabled service plans in a license
-     ForEach ($DisabledPlan in $License.DisabledPlans) { # Try and find what service plan is disabled
-       If ($ServicePlanHashTable.ContainsKey($DisabledPlan) -eq $True) { # We found a match in the Service Plans hash table
-          $DisabledPlans += $ServicePlanHashTable.Item($DisabledPlan) }
-       Else { # Nothing doing, so output the Service Plan ID
+  $UnusedAccountWarning = "OK"; $i++
+  Write-Host ("Processing account {0} {1}/{2}" -f $User.UserPrincipalName, $i, $Users.Count)
+  If ([string]::IsNullOrWhiteSpace($User.AssignedLicenses) -eq $False) { # Only process account if it has some licenses
+    [array]$LicenseInfo = $Null; [array]$DisabledPlans = $Null
+    #  Find out if any of the user's licenses are assigned via group-based licensing
+    [array]$GroupAssignments = $User.licenseAssignmentStates | `
+      Where-Object {$Null -ne $_.AssignedByGroup -and $_.State -eq "Active"}
+    [array]$GroupLicensing = $Null
+    # Figure out group-based licensing assignments if any exist
+    ForEach ($G in $GroupAssignments) {
+      $GroupName = (Get-MgGroup -GroupId $G.AssignedByGroup).DisplayName
+      $GroupProductName = $SkuHashTable[$G.SkuId]
+      $GroupLicensing += ("{0} assigned from {1}" -f $GroupProductName, $GroupName)
+    }
+    $GroupLicensingAssignments = $GroupLicensing -Join ", "
+    [Array]$DirectAssignments = $Null
+    [Array]$AllAssignments = $User.AssignedLicenses.SkuId
+
+    ForEach ($SkuId in $AllAssignments) {
+      If ($SkuId -notin $GroupAssignments.SkuId) {
+        $DirectAssignments += $SkuId
+      }
+    }
+    # Figure out details of direct assigned licenses
+    [array]$UserLicenses = $User.AssignedLicenses
+    ForEach ($License in $DirectAssignments) {
+      If ($SkuHashTable.ContainsKey($License) -eq $True) { # We found a match in the SKU hash table
+        $LicenseInfo += $SkuHashTable.Item($License) 
+      } Else { # Nothing doing, so output the SkuID
+        $LicenseInfo += $License 
+      }
+
+    # Report any disabled service plans in licenses
+    $License = $UserLicenses | Where-Object {$_.SkuId -eq $License}
+    If ([string]::IsNullOrWhiteSpace($License.DisabledPlans) -eq $False ) { # Check if disabled service plans in a license
+      ForEach ($DisabledPlan in $License.DisabledPlans) { # Try and find what service plan is disabled
+        If ($ServicePlanHashTable.ContainsKey($DisabledPlan) -eq $True) { # We found a match in the Service Plans hash table
+          $DisabledPlans += $ServicePlanHashTable.Item($DisabledPlan) 
+        } Else { # Nothing doing, so output the Service Plan ID
           $DisabledPlans += $DisabledPlan }
-      } # End ForEach disabled plans
-    } # End if check for disabled plans  
-   } # End Foreach Licenses
+        } # End ForEach disabled plans
+      } # End if check for disabled plans  
+    } # End of license processing
 
   # Calculate how long it's been since someone signed in
   If ([string]::IsNullOrWhiteSpace($User.SignInActivity.LastSignInDateTime) -eq $False) {
-    [datetime]$LastSignInDate = $User.SignInActivity.LastSignInDateTime
-    $DaysSinceLastSignIn = ($RunDate - $LastSignInDate).Days
-    $LastAccess = Get-Date($User.SignInActivity.LastSignInDateTime) -format g
-    If ($DaysSinceLastSignIn -gt 60) { $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn) }
-  }
-  Else {
-    $DaysSinceLastSignIn = "Unknown"
-    $UnusedAccountWarning = ("Unknown last sign-in for account")
-    $LastAccess = "Unknown"
-  }
+      [datetime]$LastSignInDate = $User.SignInActivity.LastSignInDateTime
+      $DaysSinceLastSignIn = ($RunDate - $LastSignInDate).Days
+      $LastAccess = Get-Date($User.SignInActivity.LastSignInDateTime) -format g
+      If ($DaysSinceLastSignIn -gt 60) { 
+          $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn) }
+      } Else {
+          $DaysSinceLastSignIn = "Unknown"
+          $UnusedAccountWarning = ("Unknown last sign-in for account")
+          $LastAccess = "Unknown"
+      }
 
   $AccountCreatedDate = $Null
   If ($User.CreatedDateTime) {
      $AccountCreatedDate = Get-Date($User.CreatedDateTime) -format g 
   }
-  
-#  Find out if any of the user's licenses are assigned via group-based licensing
-[array]$GroupAssignments = $User.licenseAssignmentStates | `
-       Where-Object {$Null -ne $_.AssignedByGroup -and $_.State -eq "Active"}
-[array]$GroupLicensing = $Null
-# Figure out group-based licensing assignments if any exist
-ForEach ($G in $GroupAssignments) {
-       $GroupName = (Get-MgGroup -GroupId $G.AssignedByGroup).DisplayName
-       $GroupProductName = $SkuHashTable[$G.SkuId]
-       $GroupLicensing += ("{0} assigned from {1}" -f $GroupProductName, $GroupName)
-}
-$GroupLicensingAssignments = $GroupLicensing -Join ", "
 
 # Detect if any duplicate licenses are assigned (direct and group-based)
 # Build a list of assigned SKUs
 $SkuReport = [System.Collections.Generic.List[Object]]::new()
-ForEach ($S in $User.AssignedLicenses) {
+ForEach ($S in $DirectAssignments)  {
    $ReportLine = [PSCustomObject][Ordered]@{ 
       User   = $User.Id
       Name   = $User.DisplayName 
@@ -119,6 +132,7 @@ ForEach ($S in $GroupAssignments) {
       Method = "Group" }
     $SkuReport.Add($ReportLine)
 }
+
 # Check if any duplicates exist
 [array]$DuplicateSkus = $SkuReport | Group-Object Sku | Where-Object {$_.Count -gt 1} | Select-Object -ExpandProperty Name
 
