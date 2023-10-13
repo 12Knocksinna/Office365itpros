@@ -134,7 +134,7 @@ ForEach ($S in $GroupAssignments) {
 }
 
 # Check if any duplicates exist
-[array]$DuplicateSkus = $SkuReport | Group-Object Sku | Where-Object {$_.Count -gt 1} | Select-Object -ExpandProperty Name
+[array]$DuplicateSkus = $SkuUserReport | Group-Object Sku | Where-Object {$_.Count -gt 1} | Select-Object -ExpandProperty Name
 
 # If duplicates exist, resolve their SKU IDs into Product names and generate a warning for the report
 [string]$DuplicateWarningReport = "N/A"
