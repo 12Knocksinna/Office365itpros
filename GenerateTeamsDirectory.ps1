@@ -8,7 +8,7 @@ Connect-MgGraph -Scopes Group.Read.All, Directory.Read.All
 # Example Link https://teams.microsoft.com/l/team/19%3aiVtGhQV1iyIVXHgaR6wGxW6Y3QbaziQSC2y8ke0qnxQ1%40thread.tacv2/conversations?groupId=96054cd2-8c97-4975-98ae-64a2a2ef05d2&tenantId=22e90715-3da6-4a78-9ec6-b3282389492b
 
 $Organization = Get-MgOrganization
-$OrgName = $Organization.Name
+$OrgName = $Organization.DisplayName
 $Date = Get-Date -Format 'dd-MMM-yyyy hh:mm'
 $TenantId = $Organization.Id
 
@@ -83,8 +83,8 @@ ForEach ($T in $Teams) {
 
 $Private = $Teams.Count - $Public
 $htmlbody = $Report | ConvertTo-Html -Fragment
-$htmltail = "<p>Report created for: " + $OrgName + "
-             </p>
+$htmltail = "<h3>Report created for: " + $OrgName + "
+             </h3>
              <p>Number of teams scanned    : " + $Teams.Count + "</p>" + 	
             "<p>Number of private teams    : " + $Private + "</p>" +
             "<p>Number of public teams     : " + $Public + "</p></html>"
