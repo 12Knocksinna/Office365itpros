@@ -2,15 +2,15 @@
 # Hide the Microsoft 365 Groups used by Teams which might be still visible to Exchange clients and the Exchange address lists
 # https://github.com/12Knocksinna/Office365itpros/blob/master/HideGroupsUsedByTeams.PS1
 
-CLS
-$ModulesLoaded = Get-Module | Select Name
+Clear-Host
+$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 
 $HiddenGroups = 0
 Write-Host "Finding team-enabled Microsoft 365 Groups and checking for any which are visible to Exchange clients"
 [array]$Groups = Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited 
 # Reduce to the set visible to Exchange clients
-[array]$Groups = $Groups | ? {$_.HiddenFromExchangeClientsEnabled -eq $False}
+[array]$Groups = $Groups | Where-Object {$_.HiddenFromExchangeClientsEnabled -eq $False}
 
 # Process the remaining groups and hide them from Exchange
 If ($Groups.Count -ne 0) {
@@ -19,8 +19,9 @@ If ($Groups.Count -ne 0) {
      $HiddenGroups++
      Set-UnifiedGroup -Identity $Group.ExternalDirectoryObjectId -HiddenFromExchangeClientsEnabled:$True -HiddenFromAddressListsEnabled:$True
   }
+} Else { 
+  Write-Host "No team-enabled Microsoft 365 Groups are visible to Exchange clients and address lists" 
 }
-Else { Write-Host "No team-enabled Microsoft 365 Groups are visible to Exchange clients and address lists" }
 
 Write-Host ("All done. {0} team-enabled groups hidden from Exchange clients" -f $HiddenGroups)
 
