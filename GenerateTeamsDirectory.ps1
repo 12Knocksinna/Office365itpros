@@ -3,13 +3,15 @@
 # V1.0 16 Apr 2019
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GenerateTeamsDirectory.ps1
 # Tony Redmond
+Connect-ExchangeOnline
+Connect-MgGraph -Scopes Group.Read.All, Directory.Read.All
+# Example Link https://teams.microsoft.com/l/team/19%3aiVtGhQV1iyIVXHgaR6wGxW6Y3QbaziQSC2y8ke0qnxQ1%40thread.tacv2/conversations?groupId=96054cd2-8c97-4975-98ae-64a2a2ef05d2&tenantId=22e90715-3da6-4a78-9ec6-b3282389492b
 
-# Example Link https://teams.microsoft.com/l/team/19%3a099f14ec32cc4793a7ef99238dbaac86%40thread.skype/conversations?groupId=5b617155-a124-4e32-a230-022dfe0b80ac&tenantId=b662313f-14fc-43a2-9a7a-d2e27f4f3478
-$OrgName = (Get-OrganizationConfig).Name
-$Today = (Get-Date)
-$Date = (Get-Date).ToShortDateString()
-$TenantId = "&tenantId=b662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$DeepLinkPrefix = "https://teams.microsoft.com/l/team/19%3aa68e793c288743329333fb32d5d010ad%40thread.skype/conversations?groupId="
+$Organization = Get-MgOrganization
+$OrgName = $Organization.Name
+$Date = Get-Date -Format 'dd-MMM-yyyy hh:mm'
+$TenantId = $Organization.Id
+
 $ReportFile = "c:\temp\ListOfTeams.html"
 $CSVFile = "c:\temp\ListofTeams.csv"
 $htmlhead="<!DOCTYPE html>
@@ -29,47 +31,56 @@ $htmlhead="<!DOCTYPE html>
 	   </style>
 	   <body>
            <div align=center>
-           <p><h1>List of Teams</h1></p>
+           <p><h1>Teams Organization Directory for " + $OrgName + "</h1></p>
            <p><h3>Generated: " + $date + "</h3></p></div>"
 		
-Write-Host "Fetching List of Teams"
-$Teams = Get-Team | Sort DisplayName
-$Public = 0; $Private = 0
+Write-Host "Fetching details of Teams"
+[array]$Teams = Get-MgGroup -Filter "resourceProvisioningOptions/any(x:x eq 'Team')" -All | Sort-Object DisplayName
+$Public = 0; $Private = 0; [int]$i=0
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file
-Write-Host "Processing" $Teams.Count "teams"
+Write-Host ("Processing directory information for {0} teams" -f $Teams.Count)
 ForEach ($T in $Teams) {
-   $DeepLink = $DeepLinkPrefix + $T.GroupId + $TenantId
-   $G = (Get-UnifiedGroup -Identity $T.GroupId | Select ManagedBy, ManagerSmtp, GroupMemberCount, GroupExternalMemberCount, AccessType)
-   $Access = $G.AccessType
-   Write-Host "Team" $T.DisplayName "access type" $G.AccessType
-   If ($Access -eq "Public") { $Public++ }
+    $i++
+    $InternalId = Get-MgTeam -TeamId $T.Id | Select-Object -ExpandProperty InternalId
+    $DeepLink = ("https://teams.microsoft.com/l/team/{0}/conversations?groupId={1}&tenantId={2}" -f $InternalId, $T.Id, $TenantId)
+    $JoinLink = ("<a href={0}>Join Link</a>" -f $DeepLink)
+    $G = (Get-UnifiedGroup -Identity $T.Id | Select-Object ManagedBy, ManagerSmtp, GroupMemberCount, GroupExternalMemberCount, AccessType)
+    $Access = $G.AccessType
+    Write-Host ("Team ({0}/{1}): {2} access type: {3}" -f $i, $Teams.count, $T.DisplayName, $G.AccessType)
+    If ($Access -eq "Public") { 
+        $Public++ 
+    }
 # Figure out who owns the underlying Office 365 group
    $ManagerDetails = $G.ManagedBy
     If ([string]::IsNullOrWhiteSpace($ManagerDetails) -and [string]::IsNullOrEmpty($ManagerDetails)) {
       $ManagerDetails = $Null
-      Write-Host $T.DisplayName "has no owners!" -ForegroundColor Red}
-    Else {
-      $ManagerDetails = (Get-Mailbox -Identity $G.ManagedBy[0]) | Select DisplayName, PrimarySmtpAddress}
-    If ($ManagerDetails -eq $Null) {
+      Write-Host $T.DisplayName "has no owners!" -ForegroundColor Red
+    } Else {
+      [array]$ManagerDetails = (Get-ExoMailbox -Identity $G.ManagedBy[0]) | Select-Object DisplayName, PrimarySmtpAddress
+    }
+    If ($Null -eq $ManagerDetails) {
       $ManagedBy = "No Group Owners" 
-      $ManagerSmtp = $Null }
-    Else {
+      $ManagerSmtp = $Null 
+    } Else {
       $ManagedBy = $ManagerDetails.DisplayName
-      $ManagerSmtp = $ManagerDetails.PrimarySmtpAddress }
+      $ManagerSmtp = $ManagerDetails.PrimarySmtpAddress 
+    }
 
    # Generate a line for this group for our report
    $ReportLine = [PSCustomObject][Ordered]@{
           Team                = $T.DisplayName
           Description         = $T.Description
-          JoinLink            = $DeepLink
+          JoinLink            = $JoinLink
           Owner               = $ManagedBy
           OwnerSMTP           = $ManagerSmtp 
           Members             = $G.GroupMemberCount
           ExternalGuests      = $G.GroupExternalMemberCount
           Access              = $Access }
    # And store the line in the report object
-   $Report.Add($ReportLine)     }
+   $Report.Add($ReportLine)     
+}
 #End of processing teams - now create the HTML report and CSV file
+
 $Private = $Teams.Count - $Public
 $htmlbody = $Report | ConvertTo-Html -Fragment
 $htmltail = "<p>Report created for: " + $OrgName + "
@@ -78,8 +89,12 @@ $htmltail = "<p>Report created for: " + $OrgName + "
             "<p>Number of private teams    : " + $Private + "</p>" +
             "<p>Number of public teams     : " + $Public + "</p></html>"
 $htmlreport = $htmlhead + $htmlbody + $htmltail
-$htmlreport | Out-File $ReportFile  -Encoding UTF8
+Add-Type -AssemblyName System.Web
+[System.Web.HttpUtility]::HtmlDecode($htmlreport) | Out-File $ReportFile -Encoding UTF8
 $Report | Export-CSV -NoTypeInformation $CSVFile
+
+Write-Host ""
+Write-Host ("All done. {0} teams processed. Output files are in {1} and {2}" -f $Teams.count, $ReportFile, $CsvFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
