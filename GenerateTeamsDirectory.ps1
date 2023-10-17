@@ -94,7 +94,7 @@ Add-Type -AssemblyName System.Web
 $Report | Export-CSV -NoTypeInformation $CSVFile
 
 Write-Host ""
-Write-Host ("All done. {0} teams processed. Output files are in {1} and {2}" -f $Teams.count, $ReportFile, $CsvFile)
+Write-Host ("All done. directory information for {0} teams processed. The output files are in {1} and {2}" -f $Teams.count, $ReportFile, $CsvFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
