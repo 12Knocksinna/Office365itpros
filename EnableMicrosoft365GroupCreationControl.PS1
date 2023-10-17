@@ -82,8 +82,7 @@ ForEach ($Owner in $Owners) {
 Write-Host ("The name of the group defined to control group creation is {0} and its identifier is {1}. Its owners are {2}." -f (Get-MgGroup -GroupId $GroupId).DisplayName, $GroupId, $OwnerNames)
 Write-Host ""
 Write-Host “The accounts allowed to create new Microsoft 365 groups are:”
-$Members = Get-MgGroupMember -GroupId $GroupId
-ForEach ($Member in $Members) {(Get-MgUser -UserId $Member.Id).DisplayName }
+(Get-MgGroupMember -GroupId $GroupId).additionalProperties.displayName
 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
