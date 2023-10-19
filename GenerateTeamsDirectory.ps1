@@ -4,7 +4,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/GenerateTeamsDirectory.ps1
 # Tony Redmond
 Connect-ExchangeOnline
-Connect-MgGraph -Scopes Group.Read.All, Directory.Read.All
+Connect-MgGraph -Scopes Group.Read.All, Directory.Read.All -NoWelcome
 # Example Link https://teams.microsoft.com/l/team/19%3aiVtGhQV1iyIVXHgaR6wGxW6Y3QbaziQSC2y8ke0qnxQ1%40thread.tacv2/conversations?groupId=96054cd2-8c97-4975-98ae-64a2a2ef05d2&tenantId=22e90715-3da6-4a78-9ec6-b3282389492b
 
 $Organization = Get-MgOrganization
@@ -75,7 +75,9 @@ ForEach ($T in $Teams) {
           OwnerSMTP           = $ManagerSmtp 
           Members             = $G.GroupMemberCount
           ExternalGuests      = $G.GroupExternalMemberCount
-          Access              = $Access }
+          Access              = $Access 
+          Deeplink            = $Deeplink 
+    }
    # And store the line in the report object
    $Report.Add($ReportLine)     
 }
