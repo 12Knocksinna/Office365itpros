@@ -1,6 +1,7 @@
 # Populate-TeamsDirectorySPOList-Graph.PS1
 # The Microsoft Graph PowerShell SDK Version of how to populate the contents of a SharePoint List using the Teams directory data
 # created by GenerateTeamsDirectory.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Populate-TeamsDirectorySPOList-Graph.PS1
 
 Connect-MgGraph -Scopes Sites.ReadWrite.All, Sites.Manage.All -NoWelcome
 # Get target site 
