@@ -1,6 +1,6 @@
 # Populate-TeamsExternalAccess.PS1
 # Finds the domains used by guest accounts and uses them to build an external access allow list
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Populate-TeamsExternalAccess.PS1
 
 Connect-MgGraph -NoWelcome -Scopes User.Read.All
 [array]$Guests = Get-MgUser -All -Filter "usertype eq 'Guest'"
