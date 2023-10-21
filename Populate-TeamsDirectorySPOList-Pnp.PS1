@@ -1,6 +1,7 @@
 # Populate-TeamsDirectorySPOList-PnP.PS1
 # Example of how to populate the contents of a SharePoint List using the Teams directory data
 # created by GenerateTeamsDirectory.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Populate-TeamsDirectorySPOList-Pnp.PS1
 
 # Check that we can access CSV file created by GenerateTeamsDirectory.PS1
 $CSVFile = 'C:\temp\ListofTeams.csv'
