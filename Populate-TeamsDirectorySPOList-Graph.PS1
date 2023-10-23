@@ -65,15 +65,12 @@ $ListDetails = '{
         "text": { }
       },
     ],
-    "list": {
-      "template": "Links"
-    }
   }'
 Invoke-MgGraphRequest -Uri $Uri -Method Post -Body $ListDetails | Out-Null
 # Rename the Notes column that's inherited from the Links template
 $List = Get-MgSiteList -SiteId $Site.Id -Filter "displayName eq 'Teams Directory - Graph'"
 $ColumnId = (Get-MgSiteListColumn -SiteId  $Site.Id -ListId $List.Id | `
-    Where-Object {$_.Name -eq 'Comments'}).Id
+    Where-Object {$_.Name -eq 'Title'}).Id
 Update-MgSiteListColumn -ColumnDefinitionId $ColumnId -SiteId $Site.Id -ListId $List.Id `
   -Description 'Name of the team' -DisplayName 'Team Name' -Name 'TeamName' | Out-Null
 
@@ -85,8 +82,10 @@ $Uri = ("https://graph.microsoft.com/v1.0/sites/{0}/lists/{1}/items" -f $Site.Id
 ForEach ($Team in $TeamsData) {
   Write-Host ("Adding directory record for team {0} {1}/{2}" -f $Team.Team, $i, $TeamsData.Count)
   $i++
+  # Note that the Title field inherited from the blank template retains its name even if
+  # it has a display name of 'Team Name'
   $FieldsDataObject  = [PSCustomObject] @{
-        Comments       = $Team.Team
+        Title          = $Team.Team
         Deeplink       = $Team.Deeplink
         Description    = $Team.Description
         Owner          = $Team.Owner
