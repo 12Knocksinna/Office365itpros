@@ -1,30 +1,9 @@
 # GetUserSignInDataGraph.PS1
 # A script to fetch user sign-in data from the Microsoft Graph
-# https://github.com/12Knocksinna/Office365itpros/blob/master/GetUserSignInDataGraph.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/GetUserSignInDataGraphSDK.PS1
 #
 Clear-Host
-# Define the values applicable for the application used to connect to the Graph (change these for your tenant)
-$AppId = "d716b32c-0edb-48be-9385-30a9cfd96155"
-$TenantId = "c662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
 
-# Construct URI and body needed for authentication
-$uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
-$body = @{
-    client_id     = $AppId
-    scope         = "https://graph.microsoft.com/.default"
-    client_secret = $AppSecret
-    grant_type    = "client_credentials" }
-
-# Get OAuth 2.0 Token
-$tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
-
-# Unpack Access Token
-$token = ($tokenRequest.Content | ConvertFrom-Json).access_token
-
-# Base URL
-$headers = @{Authorization = "Bearer $token"}
-$Now = Get-Date
 
 # Get User sign in data
 Write-Host "Accessing the Graph to get user sign-in data..."
@@ -41,14 +20,13 @@ ForEach ($User in $SignInData) {
       $LastUserSignInDate = $User.SignInActivity['lastSignInDateTime']
       If ($Null -ne $LastUserSignInDate) {
           $LastSignInOutput = Get-Date($LastUserSignInDate) -format g
-          $DaysSinceSignIn = (New-TimeSpan -Start $LastUserSignInDate -End $Now).Days
+          $DaysSinceSignIn = (New-TimeSpan $LastUserSignInDate).Days
       }
    } Else { #No sign in data for this user account
       $LastSignInOutput = "Never or > 180 days" 
       $DaysSinceSignIn = "N/A" 
    }
-
-     
+ 
    $ReportLine  = [PSCustomObject] @{          
      UPN                = $User.UserPrincipalName
      DisplayName        = $User.DisplayName
@@ -74,7 +52,7 @@ While ($Null -ne $NextLink) { # We do... so process them.
          $LastUserSignInDate = $User.SignInActivity.LastSignInDateTime
          If ($Null -ne $LastUserSignInDate) {
             $LastSignInOutput = Get-Date($LastUserSignInDate) -format g
-            $DaysSinceSignIn = (New-TimeSpan -Start $LastUserSignInDate -End $Now).Days
+            $DaysSinceSignIn = (New-TimeSpan $LastUserSignInDate).Days
         }
       } Else { #No sign in data for this user account
          $LastSignInOutput = "Never or > 180 days" 
