@@ -4,13 +4,12 @@
 # V2.0 - Include check for content from wiki configuration
 
 Connect-MgGraph -Scopes Directory.Read.All, Team.ReadBasic.All, TeamSettings.Read.All, ChannelSettings.Read.All, TeamsTab.Read.All
-Select-MgProfile Beta
 
 Write-Host "Finding Teams"
-[array]$Teams = Get-MgGroup -Filter "resourceProvisioningOptions/Any(x:x eq 'Team')" -All
+[array]$Teams = Get-MgGroup -Filter "resourceProvisioningOptions/Any(x:x eq 'Team')" -All | Sort-Object DisplayName
 If (!($Teams)) {Write-Host "For some reason, I can't find any Teams... exiting..."; break }
-$Teams = $Teams | Sort-Object DisplayName
-CLS
+
+Clear-Host
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report; $ReportLine = $Null
 $i = 0
 # Loop through each team to examine its channels, tabs, and apps
@@ -27,7 +26,8 @@ ForEach ($Team in $Teams) {
          # Write-Host ("Processing tab {0} in channel {1} of team {2}" -f $Tab.DisplayName, $Channel.DisplayName, $Team.DisplayName) 
          ForEach ($Tab in $Tabs) {
            $WikiContent = $False; $TeamOwners = $Null
-           If ($Tab.TeamsApp.Id -eq "com.microsoft.teamspace.tab.wiki") { # Check if the wiki configuration says that it has some content
+           If ($Tab.TeamsApp.Id -eq "com.microsoft.teamspace.tab.wiki") { 
+            # Check if the wiki configuration says that it has some content
              [array]$TabData = Get-MgTeamChannelTab -ChannelId $Channel.Id -TeamId $Team.Id -TeamsTabId $Tab.Id  -ExpandProperty TeamsApp
              $WikiContent = $TabData.Configuration.AdditionalProperties['hasContent']
             }  #End if Wiki tab
@@ -50,12 +50,12 @@ ForEach ($Team in $Teams) {
               AppId          = $Tab.TeamsApp.Id
             }
          $Report.Add($ReportLine) } #End ForEach Tabs
-         Sleep -Milliseconds 50 # Brief pause before next channel
+         Start-Sleep -Milliseconds 50 # Brief pause before next channel
        } #End if Tabs
       } #End ForEach channel
      } #End If (archived check)
     Else { Write-Host "The" $Team.DisplayName "team is archived - no check done" }
-    Sleep -Milliseconds 100
+    Start-Sleep -Milliseconds 100
 } #End ForEach Team
 
 $WikiReport = $Report | Where-Object {$_.AppId -eq "com.microsoft.teamspace.tab.wiki" -and $_.Check -eq "Wiki content exists"}
