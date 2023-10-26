@@ -33,6 +33,7 @@ ForEach ($File in $DataFiles) {
                 $ReportLine = [PSCustomObject]@{ 
                       Timestamp        = $Line.origin_timestamp_utc
                       Sender           = $Line.sender_address
+                      Subject          = $Line.message_subject
                       Recipient        = $Line.Recipient_Status
                       RecipientInfo    = $RecipientInfo
                       Outcome          = $RecipientOutcome 
@@ -47,7 +48,9 @@ ForEach ($File in $DataFiles) {
         }
 }
 
-# Split into outbound and inbound files
+$Report | Sort-Object TimeStamp | Select-Object Timestamp, Sender, Subject, Recipient | Out-GridView
+
+# Split into outbound and inbound files (when we have data files containing both types of data)
 $OutboundEmail = $Report | Where-Object {$_.Direction -eq 'Originating'} | Sort-Object Timestamp 
 $InboundEmail = $Report | Where-Object {$_.Direction -eq 'Incoming'} | Sort-Object Timestamp 
 
