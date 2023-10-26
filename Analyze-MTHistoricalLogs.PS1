@@ -1,6 +1,7 @@
 # Analyze-MTHistoricalLogs.PS1
 # Folder where the historical message tracking logs downloaded from Exchange Online are stored
 $DataFolder = "c:\temp\MtData\"
+$CSVFile = "c:\temp\HistoricalMessageTrace.CSV"
 
 [array]$DataFiles = Get-ChildItem -Path $DataFolder | Select-Object -ExpandProperty Name
 
@@ -49,6 +50,7 @@ ForEach ($File in $DataFiles) {
 }
 
 $Report | Sort-Object TimeStamp | Select-Object Timestamp, Sender, Subject, Recipient | Out-GridView
+$Report | Export-CSV -NoTypeInformation $CSVFile
 
 # Split into outbound and inbound files (when we have data files containing both types of data)
 $OutboundEmail = $Report | Where-Object {$_.Direction -eq 'Originating'} | Sort-Object Timestamp 
