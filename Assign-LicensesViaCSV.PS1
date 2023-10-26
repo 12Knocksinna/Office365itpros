@@ -72,10 +72,12 @@ Write-Host "Looking for accounts to process..."
 Write-Host ""
 # Import user accounts to assign licenses to - all that's important here is to establish an array of
 # user accounts to process. Instead of reading information from a CSV file, the data could come from 
-# by running the Get-MgUser cmdlet with a filter to fetch certain accounts
+# running the Get-MgUser cmdlet with a filter to fetch certain accounts
 If ($LicensesAvailable -eq $True) {
   [array]$Users = Import-CSV $InputFile
-  # Check that there are sufficient licenses available to assign to the number of accounts to process
+  If (!($Users)) {
+    Write-Host "Unable to find any users to process - exiting"; break
+  } Else {  # Check that there are sufficient licenses available to assign to the number of accounts to process
   If ($Users.Count -gt $SkuList[$i].Available) {
     Write-Host ("{0} users are to receive licenses but there are only {1} licenses available - exiting." -f $Users.Count,  $SkuListing[$i].Available) 
     $LicensesAvailable = $False
