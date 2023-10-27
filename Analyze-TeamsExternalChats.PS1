@@ -9,9 +9,9 @@ $HomeTenant = Get-MgOrganization
 $HomeTenantId = $HomeTenant.Id
 # Find domains in the tenant so that we can discard chats with local people
 [array]$Domains = Get-MgDomain | Select-Object -ExpandProperty Id
-# Create hash table to store external tenant information
+# Create hash table to store information about external tenants
 $ExternalTenants = @{}
-# Find users to check
+# Find user accounts to check
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
     -ConsistencyLevel eventual -CountVariable Records -All | Sort-Object displayName
 Write-Output ("Found {0} user accounts to process..." -f $users.Count)
@@ -30,7 +30,7 @@ ForEach ($User in $Users) {
             [array]$OtherParticipant = $Participants | `
                Where-Object {$_.additionalProperties.email -ne $User.userPrincipalName}
             If ($OtherParticipant.displayName) { 
-               $ExternalTenantName = $Null 
+               $TenantName = $Null 
                # See if we can get a domain name for the other participant 
                Try {
                     $EmailDomain = $OtherParticipant.additionalProperties.email.split('@')[1]
@@ -41,29 +41,27 @@ ForEach ($User in $Users) {
                $ExternalTenantId = $OtherParticipant.additionalProperties.tenantId.ToString()
                If ($ExternalTenantId -ne $HomeTenantId) {
                     Try {
-                      $ExternalTenantName = $ExternalTenants[$ExternalTenantId] }
+                       $TenantName = $ExternalTenants[$ExternalTenantId] }
                     Catch {
-                       Write-Output ("Need to resolve tenant id {0}" -f $ExternalTenantId) 
+                       Write-Output ("Resolving tenant id {0}" -f $ExternalTenantId) 
                     }  
                     $ChatCount = "N/A"
-                    If (!($ExternalTenantName)) {
-                        # If we haven't met this tenant before, record its details
+                    If (!($TenantName)) {
+                        # Couldn't find the tenant, so resolve its identifier and record its details
                         $Uri = ("https://graph.microsoft.com/beta/tenantRelationships/findTenantInformationByTenantId(tenantId='{0}')" -f `
                         $ExternalTenantId)
                         $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
-                        $ExternalTenantName = $ExternalTenantData.displayName
-                        $ExternalTenants.Add($ExternalTenantId, $ExternalTenantName)
-                    } Else {
-                        # Get chat count for chats owned by our domain          
-                        [array]$ChatMessages = Get-MgChatMessage -ChatId $Chat.id -All
-                        $ChatCount = $ChatMessages.Count
+                        $TenantName = $ExternalTenantData.displayName
+                        $ExternalTenants.Add($ExternalTenantId, $TenantName)
                     }
                 }
-               If (!($ExternalTenantName)) {
-                    $ExternalTenantName = $HomeTenant.DisplayName
-               }
-               # If the domain of the other participant doesn't belong to this tenant, record it
-               If ($Domain -notin $Domains) {
+                If ($ExternalTenantId -eq $HomeTenantId) {
+                    $TenantName = $HomeTenant.DisplayName
+                    [array]$ChatMessages = Get-MgChatMessage -ChatId $Chat.id -All
+                    $ChatCount = $ChatMessages.Count
+                }
+                # If the domain of the other participant doesn't belong to this tenant, record it
+                If ($Domain -notin $Domains) {
                       $Reportline = [PsCustomObject]@{
                         Chat                 = $Chat.Id 
                         User                 = $User.displayName
@@ -71,7 +69,7 @@ ForEach ($User in $Users) {
                         Participant          = $OtherParticipant.displayName
                         'Participant Email'  = $OtherParticipant.additionalProperties.email
                         Domain               = $EmailDomain
-                        'Tenant Name'        = $ExternalTenantName
+                        'Owning Tenant Name' = $TenantName
                         Role                 = $OtherParticipant.Roles
                         ChatCreated          = $Chat.CreatedDateTime
                         LastUpdated          = $Chat.LastUpdatedDateTime
