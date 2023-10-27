@@ -3,9 +3,17 @@
 # Because the chat API uses delegated access in interactive mode, this code can only process
 # chats for other users when run as an app or in an Azure Automation runbook
 
-Connect-MgGraph -NoWelcome -Scopes User.Read.All, Chat.Read.Basic, Mail.Send
-
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All
+Connect-MgGraph -NoWelcome -Scopes User.Read.All, Chat.Read.All, Mail.Send
+# Fetch organization information
+$HomeTenant = Get-MgOrganization
+$HomeTenantId = $HomeTenant.Id
+# Find domains in the tenant so that we can discard chats with local people
+[array]$Domains = Get-MgDomain | Select-Object -ExpandProperty Id
+# Create hash table to store external tenant information
+$ExternalTenants = @{}
+# Find users to check
+[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
+    -ConsistencyLevel eventual -CountVariable Records -All | Sort-Object displayName
 Write-Output ("Found {0} user accounts to process..." -f $users.Count)
 $ChatReport = [System.Collections.Generic.List[Object]]::new()
 
@@ -21,24 +29,62 @@ ForEach ($User in $Users) {
             # Remove the user we're processing
             [array]$OtherParticipant = $Participants | `
                Where-Object {$_.additionalProperties.email -ne $User.userPrincipalName}
-            If ($OtherParticipant.displayName) {   
-             
-               [array]$Chats = Get-MgChatMessage -ChatId $Chat.id 
-               $Reportline = [PsCustomObject]@{
-                Chat         = $Chat.Id 
-                Owner        = $User.userPrincipalName
-                Participant  = $OtherParticipant.additionalProperties.email
-                Domain       = $OtherParticipant.additionalProperties.email.split('@')[1]
-                Role         = $OtherParticipant.Roles
-                ChatCreated  = $Chat.CreatedDateTime
-                LastUpdated  = $Chat.LastUpdatedDateTime
-                ChatMessages = $Chats.count
+            If ($OtherParticipant.displayName) { 
+               $ExternalTenantName = $Null 
+               # See if we can get a domain name for the other participant 
+               Try {
+                    $EmailDomain = $OtherParticipant.additionalProperties.email.split('@')[1]
+               }   Catch {
+                    $EmailDomain = $Null
                }
-               $ChatReport.Add($ReportLine) 
+               # Now check if the owning domain for the chat is the home or the external tenant
+               $ExternalTenantId = $OtherParticipant.additionalProperties.tenantId.ToString()
+               If ($ExternalTenantId -ne $HomeTenantId) {
+                    Try {
+                      $ExternalTenantName = $ExternalTenants[$ExternalTenantId] }
+                    Catch {
+                       Write-Output ("Need to resolve tenant id {0}" -f $ExternalTenantId) 
+                    }  
+                    $ChatCount = "N/A"
+                    If (!($ExternalTenantName)) {
+                        # If we haven't met this tenant before, record its details
+                        $Uri = ("https://graph.microsoft.com/beta/tenantRelationships/findTenantInformationByTenantId(tenantId='{0}')" -f `
+                        $ExternalTenantId)
+                        $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
+                        $ExternalTenantName = $ExternalTenantData.displayName
+                        $ExternalTenants.Add($ExternalTenantId, $ExternalTenantName)
+                    } Else {
+                        # Get chat count for chats owned by our domain          
+                        [array]$ChatMessages = Get-MgChatMessage -ChatId $Chat.id -All
+                        $ChatCount = $ChatMessages.Count
+                    }
+                }
+               If (!($ExternalTenantName)) {
+                    $ExternalTenantName = $HomeTenant.DisplayName
+               }
+               # If the domain of the other participant doesn't belong to this tenant, record it
+               If ($Domain -notin $Domains) {
+                      $Reportline = [PsCustomObject]@{
+                        Chat                 = $Chat.Id 
+                        User                 = $User.displayName
+                        UPN                  = $User.userPrincipalName
+                        Participant          = $OtherParticipant.displayName
+                        'Participant Email'  = $OtherParticipant.additionalProperties.email
+                        Domain               = $EmailDomain
+                        'Tenant Name'        = $ExternalTenantName
+                        Role                 = $OtherParticipant.Roles
+                        ChatCreated          = $Chat.CreatedDateTime
+                        LastUpdated          = $Chat.LastUpdatedDateTime
+                        'Chat Messages'      = $ChatCount
+                    }
+                    $ChatReport.Add($ReportLine) 
+                }
             }
         }
     }
 }
+
+Write-Output ("{0} chats found with external people in the {1} tenant" -f $ChatReport.count, $HomeTenant.displayName)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
