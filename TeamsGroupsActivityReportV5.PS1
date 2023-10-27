@@ -155,9 +155,10 @@ $TeamsDataHash = @{}
 ForEach ($Team in $TeamsData) {
    If (!([string]::IsNullOrWhiteSpace($Team.LastActivityDate))) {
       $DaysSinceActive = (New-Timespan -Start ($Team.LastActivityDate -as [datetime]) -End ($Team.Reportrefreshdate -as [datetime])).Days
-      $LastActiveDate = Get-Date ($Team.lastActivityDate) -format dd-MMM-yyyy }
-   Else { $DaysSinceActive = "> 90"
-       $LastActiveDate = "More than 90 days ago" }
+      $LastActiveDate = Get-Date ($Team.lastActivityDate) -format dd-MMM-yyyy 
+    } Else { $DaysSinceActive = "> 90"
+       $LastActiveDate = "More than 90 days ago" 
+    }
    $ReportLine  = [PSCustomObject] @{   
       Team            = $Team.teamName
       Privacy         = $Team.teamType
@@ -191,20 +192,20 @@ ForEach ($Team in $TeamsData) {
 }
 # ------
 
-CLS
+Clear-Host
 # Check that we are connected to Exchange Online
-$ModulesLoaded = Get-Module | Select Name
+$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 # OK, we seem to be fully connected to Exchange Online.     
 
 # Setup some stuff we use
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
-$TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
+$TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 $Version = "V5.10"
 $TimeToRefreshToken = "57" # Token lifetime
-CLS
+Clear-Host
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
 # Comment these lines out if you don't want the script to create a temp directory to store its output files
 $path = "C:\Temp"
@@ -333,7 +334,7 @@ ForEach ($Group in $Groups) {
        } # End Else
    } # End if against $SPOData
    Else { 
-       CLS; Write-Host "Continuing to fetch information about Microsoft 365 Groups..." 
+       Clear-Host; Write-Host "Continuing to fetch information about Microsoft 365 Groups..." 
    } # Get rid of mucky SharePoint error  308 
 
    # Get Member and Guest member counts
@@ -362,7 +363,7 @@ ForEach ($Group in $Groups) {
   # Check for expired access token and renew if necessary
   $Global:Token = CheckAccessToken
 } 
-$GroupsList = $GroupsList | Sort DisplayName
+$GroupsList = $GroupsList | Sort-Object DisplayName
 
 Write-Host "Getting information about team-enabled groups..."
 # Get Teams
@@ -379,7 +380,7 @@ If (!$GroupsCount) {Write-Host "No Microsoft 365 Groups can be found - exiting";
 If (!$TeamsCount) {Write-Host "No Microsoft Teams found in the tenant - continuing..." }
 
 $S2 = Get-Date # End of fetching
-CLS
+Clear-Host
 Write-Host "Fetching data for" $GroupsCount "Microsoft 365 Groups took" ($S2 - $S1).TotalSeconds "seconds"
 
 # Set up progress bar and create output list
@@ -457,13 +458,13 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
 
 # Check for activity in the group's SharePoint site
    $SPOFileCount = 0; $SPOStorageUsed = "N/A"; $SPOLastActivityDate = $Null; $DaysSinceLastSPOActivity = "N/A"
-   If ($G.SharePointURL -ne $Null) {    
+   If ($Null -ne $G.SharePointURL) {    
       If ($Datatable[$G.SharePointURL]) { # Look up hash table to find usage information for the site
         $ThisSiteData = $Datatable[$G.SharePointURL]
         $SPOFileCount = $ThisSiteData.FileCount
         $SPOStorageUsed = $ThisSiteData.StorageUsed
         $SPOLastActivityDate = $ThisSiteData.LastActivityDate 
-        If ($SPOLastActivityDate -ne $Null) {
+        If ($Null -ne $SPOLastActivityDate) {
            $DaysSinceLastSPOActivity = (New-TimeSpan -Start $SPOLastActivityDate -End $Today).Days }
    }
    Else { # The SharePoint document library URL is blank, so the document library was never created for this group
@@ -474,7 +475,7 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
        $ObsoleteSPOGroups++; $ObsoleteReportLine = $ObsoleteReportLine + " No SPO activity detected in the last 90 days." }   
 
 # Generate warnings for SPO 
-   If ($G.SharePointDocLib -eq $Null) {
+   If ($Null -ne $G.SharePointDocLib) {
        $SPOStatus = "Document library never created"
        $NumberWarnings++ }
 
@@ -486,7 +487,8 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
     # Nope, so we have to get the data from Exchange Online by looking in the TeamsMessagesData file in the non-IPM root
        Write-Host "Checking Exchange Online for Teams activity data..."
        Try {
-        [array]$TeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot -ErrorAction SilentlyContinue | ? {$_.FolderType -eq "TeamsMessagesData" })
+        [array]$TeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot -ErrorAction SilentlyContinue | `
+          Where-Object {$_.FolderType -eq "TeamsMessagesData" })
            }
        Catch { # Report the error
          Write-Host ("Error fetching Team message data for {0} - continuing" -f $G.DisplayName) 
@@ -582,7 +584,7 @@ $htmlreport | Out-File $ReportFile  -Encoding UTF8
 $Report | Export-CSV -NoTypeInformation $CSVFile
 $Report | Out-GridView
 # Summary note
-CLS
+Clear-Host
 Write-Host " "
 Write-Host "Results - Teams and Microsoft 365 Groups Activity Report" $Version
 Write-Host "-------------------------------------------------------------"
