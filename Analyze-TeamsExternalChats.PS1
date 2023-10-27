@@ -37,9 +37,11 @@ ForEach ($User in $Users) {
                }   Catch {
                     $EmailDomain = $Null
                }
-               # Now check if the owning domain for the chat is the home or the external tenant
-               $ExternalTenantId = $OtherParticipant.additionalProperties.tenantId.ToString()
-               If ($ExternalTenantId -ne $HomeTenantId) {
+            # Only process a chat if the other participant comes from a domain outside the home tenant
+            If ($EmailDomain -notin $Domains) {
+               # Check if the owning domain for the chat is the home or the external tenant
+                $ExternalTenantId = $OtherParticipant.additionalProperties.tenantId.ToString()
+                If ($ExternalTenantId -ne $HomeTenantId) {
                     Try {
                        $TenantName = $ExternalTenants[$ExternalTenantId] }
                     Catch {
@@ -60,9 +62,7 @@ ForEach ($User in $Users) {
                     [array]$ChatMessages = Get-MgChatMessage -ChatId $Chat.id -All
                     $ChatCount = $ChatMessages.Count
                 }
-                # If the domain of the other participant doesn't belong to this tenant, record it
-                If ($Domain -notin $Domains) {
-                      $Reportline = [PsCustomObject]@{
+                $Reportline = [PsCustomObject]@{
                         Chat                 = $Chat.Id 
                         User                 = $User.displayName
                         UPN                  = $User.userPrincipalName
