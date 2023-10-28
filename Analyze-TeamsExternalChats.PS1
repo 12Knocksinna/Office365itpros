@@ -25,10 +25,14 @@ ForEach ($User in $Users) {
         Write-Output ("Found {0} one-on-one chats for {1}" -f $Chats.count, $User.DisplayName)
         ForEach ($Chat in $Chats) {
             # Find participants
-            [array]$Participants = Get-MgChatMember -ChatId $Chat.Id
-            # Remove the user we're processing
-            [array]$OtherParticipant = $Participants | `
-               Where-Object {$_.additionalProperties.email -ne $User.userPrincipalName}
+            Try {
+                [array]$Participants = Get-MgChatMember -ChatId $Chat.Id
+                # Remove the user we're processing
+                [array]$OtherParticipant = $Participants | `
+                   Where-Object {$_.additionalProperties.email -ne $User.userPrincipalName}
+            } Catch {
+                Write-Output ("Can't fetch participant information for chat {0}" -f $Chat.Id)
+            }
             If ($OtherParticipant.displayName) { 
                $TenantName = $Null 
                # See if we can get a domain name for the other participant 
