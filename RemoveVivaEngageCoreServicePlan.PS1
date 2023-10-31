@@ -23,22 +23,32 @@ If (!($Users)) { Write-Host "Oddly, we can't find any licensed accounts ... exit
 
 $UserLicensesUpdated = [System.Collections.Generic.List[Object]]::new() ; $i =0
 ForEach ($User in $Users) {
- $i++
- Write-Host ("Checking licenses assigned to account {0} {1}/{2}" -f $User.Displayname, $i, $Users.count)
- $License = $Null; $LicenseSkuId = $Null
+   $i++
+   Write-Host ("Checking licenses assigned to account {0} {1}/{2}" -f $User.Displayname, $i, $Users.count)
+    $License = $Null; $LicenseSkuId = $Null
  # Find out what SKU the account has
- If ($Office365E3 -in $User.AssignedLicenses.SkuId) { $LicenseSkuId = $Office365E3; $License = "Office 365 E3" }
- If ($Office365E5NoConf -in $User.AssignedLicenses.SkuId)  { $LicenseSkuId = $Office365E5NoConf; $License = "Office 365 E5 (No Conf)" }
- If ($Office365E5 -in $User.AssignedLicenses.SkuId) { $LicenseSkuId = $Office365E5; $License = "Office 365 E5"}
- If ($Office365E1 -in $User.AssignedLicenses.SkuId) { $LicenseSkuId = $Office365E1; $License = "Office 365 E1" }
+   If ($Office365E3 -in $User.AssignedLicenses.SkuId) { 
+      $LicenseSkuId = $Office365E3; $License = "Office 365 E3" 
+   }
+   If ($Office365E5NoConf -in $User.AssignedLicenses.SkuId)  { 
+      $LicenseSkuId = $Office365E5NoConf; $License = "Office 365 E5 (No Conf)" 
+   }
+   If ($Office365E5 -in $User.AssignedLicenses.SkuId) { 
+      $LicenseSkuId = $Office365E5; $License = "Office 365 E5"
+   }
+   If ($Office365E1 -in $User.AssignedLicenses.SkuId) { 
+      $LicenseSkuId = $Office365E1; $License = "Office 365 E1" 
+   }
 
- If ($LicenseSkuId -eq $Null) {
-    Write-Host ("Can't find the right license SKU for account {0} - continuing" -f $User.UserPrincipalName)
-    continue }
+   If ($Null -eq $LicenseSkuId) {
+      Write-Host ("Can't find the right license SKU for account {0} - continuing" -f $User.UserPrincipalName)
+      continue 
+   }
  # Viva Engage Code only for Office 365 E3 or E1?
- If ($LicenseSkuId -eq $Office365E5 -or $LicenseSkuId -eq $Office365E5NoConf) {
-    Write-Host ("Can't remove the Viva Engage Core service plan from the Office 365 E5 license assigned to {0} - continuing" -f $User.UserPrincipalName)
-    continue }
+   If ($LicenseSkuId -eq $Office365E5 -or $LicenseSkuId -eq $Office365E5NoConf) {
+      Write-Host ("Can't remove the Viva Engage Core service plan from the Office 365 E5 license assigned to {0} - continuing" -f $User.UserPrincipalName)
+      continue 
+   }
 
  # Examine service plans assigned to the account to see if they include Yammer
  [array]$AllLicenses = Get-MgUserLicenseDetail -UserId $User.Id | Select-Object -ExpandProperty ServicePlans | Sort-Object ServicePlanId -Unique
@@ -46,26 +56,28 @@ ForEach ($User in $Users) {
  [array]$DisabledLicenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Disabled'}
  
  # Check if Yammer Enterprise is disabled for the account. If it is, disable Viva Engage Core unless it's already disabled
- If ($YammerServicePlan -in $DisabledLicenses.ServicePlanId -and $VivaEngageCoreServicePlan -notin $DisabledLicenses.ServicePlanId ) {
+   If ($YammerServicePlan -in $DisabledLicenses.ServicePlanId -and $VivaEngageCoreServicePlan -notin $DisabledLicenses.ServicePlanId ) {
 
  # Add any previously disabled service plans if present and compose the license options
- If ($DisabledLicenses) { $DisabledSPs = $DisabledLicenses.ServicePlanId }
+      If ($DisabledLicenses) { 
+         $DisabledSPs = $DisabledLicenses.ServicePlanId 
+      }
  # Add Viva Engage Core service plan
- $DisabledSPs += $VivaEngageCoreServicePlan  
+      $DisabledSPs += $VivaEngageCoreServicePlan  
 
- $LicenseOptions = @{SkuId = $LicenseSkuId ; DisabledPlans = $DisabledSPs} 
+      $LicenseOptions = @{SkuId = $LicenseSkuId ; DisabledPlans = $DisabledSPs} 
 
- Write-Host ("Disabling the Viva Engage Core service plan from the {0} license for account {1}" -f $License, $User.DisplayName) -foregroundcolor Red
- $Status = Set-MgUserLicense -UserId $User.Id -AddLicenses $LicenseOptions -RemoveLicenses @()
- $ReportLine  = [PSCustomObject] @{
-       User                   = $User.DisplayName 
-       UPN                    = $User.UserPrincipalName
-       Department             = $User.Department
-       Country                = $User.Country
-       "Service Plan Removed" = $VivaEngageCoreServicePlan  
-       License                = $License } 
-    $UserLicensesUpdated.Add($ReportLine) 
- } #End if
+      Write-Host ("Disabling the Viva Engage Core service plan from the {0} license for account {1}" -f $License, $User.DisplayName) -foregroundcolor Red
+      $Status = Set-MgUserLicense -UserId $User.Id -AddLicenses $LicenseOptions -RemoveLicenses @()
+      $ReportLine  = [PSCustomObject] @{
+         User                   = $User.DisplayName 
+         UPN                    = $User.UserPrincipalName
+         Department             = $User.Department
+         Country                = $User.Country
+         "Service Plan Removed" = $VivaEngageCoreServicePlan  
+         License                = $License } 
+      $UserLicensesUpdated.Add($ReportLine) 
+   } #End if
 } #End ForEach Users
 
 Write-Host ""
