@@ -10,13 +10,26 @@
 # Directory.Read.All: Read tenant information from directory
 # Mail.Send: Send email with results
 
+Function Add-MessageRecipients {
+    # Function to build an addressee list to send email   
+     [cmdletbinding()]
+         Param(
+         [array]$ListOfAddresses )
+          ForEach ($SMTPAddress in $ListOfAddresses) {
+               @{
+                  emailAddress = @{address = $SMTPAddress}
+               }    
+            }
+    } 
+
+# Start of processing
 # Define the home tenant where the job will run
 $HomeTenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$CSVFile = "c:\temp\TeamsExternalAccessScan.csv"
 
 # Connect to the Graph and Teams endpoints using certificate-based authentication
 # For this to work, you must create an app and upload an X.509 certificate. You then use the client (application)
 # identifier and the certificate thumbprint to authenticate. 
-
 Connect-MgGraph -NoWelcome -ClientId 8f005189-8c58-4fb5-a226-8851e13490cb `
   -CertificateThumbprint F79286DB88C21491110109A0222348FACF694CBD -TenantId $HomeTenantId
 Connect-MicrosoftTeams -TenantId $HomeTenantId `
@@ -119,15 +132,56 @@ If (!($ConfiguredDomains)) {
 } Else {  
     [array]$MissingDomains = $ExternalDomains | Where-Object {$_ -notin $ConfiguredDomains}
     If ($MissingDomains) {
-        Write-Output ("The following external domains are not configured for external access: {0}" -f ($MissingDomains -join ", ")) 
+        $MissingDomainsOutput = $MissingDomains -Join ", "
+        Write-Output ("The following external domains are not configured for external access: {0}" -f $MissingDomainsOutput) 
     } Else {
         Write-Output ("External Access is configured for all external domains found in the scan")
     }
 }
 
+# Email the results
+$EmailRecipient = "Tony.Redmond@office365itpros.com"
+# Send a message from the shared mailbox
+$MsgFrom = "Azure.Management.Account@office365itpros.com"
+# Add your recipient address here
+$ToRecipientList   = @( $EmailRecipient )
+[array]$MsgToRecipients = Add-MessageRecipients -ListOfAddresses $ToRecipientList
+$MsgSubject = "Teams external access review"
+$HtmlHead = "<h2>Teams external chat participant report</h2><p>The following chats have been found to involve external participants.</p>"
+$HtmlBody = $ChatReport | Select-Object User, UPN, 'Participant Email', Domain, ChatCreated, 'Chat Messages' | `
+    ConvertTo-Html -Fragment 
+# Add a line about missing domains if there are any in the external access configuration, else just send the
+# data about external chats
+If ($MissingDomains) {
+    $HtmlBody2 = "<h2>The following domains are not in the tenant external access configuration: </h2>" + `
+       "<p>" + $MissingDomainsOutput + "</p>" 
+    $HtmlMsg = "</body></html><p>" + $HtmlHead + $Htmlbody + "<p>" + $HtmlBody2 + "<p>"
+} Else {
+    $HtmlMsg = "</body></html><p>" + $HtmlHead + $Htmlbody + "<p>"
+}
+# Construct the message body
+$MsgBody = @{
+  Content = "$($HtmlMsg)"
+  ContentType = 'html'  
+ }
+
+$Message =  @{subject           = $MsgSubject}
+$Message += @{toRecipients      = $MsgToRecipients}  
+$Message += @{body              = $MsgBody}
+$Params   = @{'message'         = $Message}
+$Params  += @{'saveToSentItems' = $True}
+$Params  += @{'isDeliveryReceiptRequested' = $True}
+
+# And send the message using the parameters that we've filled in
+Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
+Write-Output ("Message containing external chat information sent to {0}!" -f $EmailRecipient)
+
+$ChatReport | Export-Csv -NoTypeInformation $CSVFile
+Write-Output ("The complete data file is available in {0}" -f $CSVFile)
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
