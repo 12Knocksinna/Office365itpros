@@ -3,10 +3,27 @@
 # Because the chat API uses delegated access in interactive mode, this code can only process
 # chats for other users when run as an app or in an Azure Automation runbook
 
-Connect-MgGraph -NoWelcome -Scopes User.Read.All, Chat.Read.All, Mail.Send
+# Permissions used:
+# CrossTenantInformation.ReadBasic.All: Read tenant id and return tenant name
+# User.Read.All: Read user information
+# Chat.Read.All: Read user chats
+# Directory.Read.All: Read tenant information from directory
+# Mail.Send: Send email with results
+
+# Define the home tenant where the job will run
+$HomeTenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+
+# Connect to the Graph and Teams endpoints using certificate-based authentication
+# For this to work, you must create an app and upload an X.509 certificate. You then use the client (application)
+# identifier and the certificate thumbprint to authenticate. 
+
+Connect-MgGraph -NoWelcome -ClientId 8f005189-8c58-4fb5-a226-8851e13490cb `
+  -CertificateThumbprint F79286DB88C21491110109A0222348FACF694CBD -TenantId $HomeTenantId
+Connect-MicrosoftTeams -TenantId $HomeTenantId `
+   -ApplicationId 8f005189-8c58-4fb5-a226-8851e13490cb -Certificate F79286DB88C21491110109A0222348FACF694CBD
 # Fetch organization information
 $HomeTenant = Get-MgOrganization
-$HomeTenantId = $HomeTenant.Id
+
 # Find domains in the tenant so that we can discard chats with local people
 [array]$Domains = Get-MgDomain | Select-Object -ExpandProperty Id
 # Create hash table to store information about external tenants
@@ -18,7 +35,7 @@ Write-Output ("Found {0} user accounts to process..." -f $users.Count)
 $ChatReport = [System.Collections.Generic.List[Object]]::new()
 
 ForEach ($User in $Users) {
-    Write-Output ("Processing chats for user {0}..." -f $User.DisplayName)
+    Write-Output ("Lookimng for chats for user {0}..." -f $User.DisplayName)
     # Find the onOnOne chats for this user
     [array]$Chats = Get-MgBetaUserChat -Userid $User.Id -All -Filter "ChatType eq 'oneOnOne'"
     If ($Chats) {
@@ -79,14 +96,35 @@ ForEach ($User in $Users) {
                         LastUpdated          = $Chat.LastUpdatedDateTime
                         'Chat Messages'      = $ChatCount
                     }
-                    $ChatReport.Add($ReportLine) 
+                    $ChatReport.Add($ReportLine)
+                    # Slight pause before continuing... wouldn't want to be throttled
+                    Start-Sleep -Milliseconds 500 
                 }
             }
         }
     }
 }
 
+Write-Output ""
 Write-Output ("{0} chats found with external people in the {1} tenant" -f $ChatReport.count, $HomeTenant.displayName)
+Write-Output ""
+
+Write-Output "Checking the Teams External Access configuration for the tenant..."
+# Find if we need to update the external access configuration
+[array]$ExternalDomains = $ChatReport.Domain | Sort-Object -Unique
+$DomainConfiguration  = Get-CsTenantFederationConfiguration  | Select-Object -ExpandProperty AllowedDomains
+[array]$ConfiguredDomains = $DomainConfiguration.AllowedDomain.Domain
+If (!($ConfiguredDomains)) {
+    Write-Output ("The {0} tenant doesn't have any configured domains for external access" -f $HomeTenant.displayName)
+} Else {  
+    [array]$MissingDomains = $ExternalDomains | Where-Object {$_ -notin $ConfiguredDomains}
+    If ($MissingDomains) {
+        Write-Output ("The following external domains are not configured for external access: {0}" -f ($MissingDomains -join ", ")) 
+    } Else {
+        Write-Output ("External Access is configured for all external domains found in the scan")
+    }
+}
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
