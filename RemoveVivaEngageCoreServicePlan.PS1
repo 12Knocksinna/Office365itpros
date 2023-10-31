@@ -4,7 +4,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveVivaEngageCoreServicePlan.PS1
 # Updated for SDK V2 21-Jul-2023
 
-Connect-MgGraph
+Connect-MgGraph -NoWelcome
 
 # Define service plan and license identifiers
 $YammerServicePlan = "7547a3fe-08ee-4ccb-b430-5077c5041653"
@@ -14,7 +14,6 @@ $Office365E3 = "6fd2c87f-b296-42f0-b197-1e91e994b900"
 $Office365E5 = "c7df2760-2c81-4ef7-b578-5b5392b571df"
 $Office365E1 = "18181a46-0d4e-45cd-891e-60aabd171b4e"
 
-Connect-MgGraph
 # Find and process licensed Azure AD users
 Write-Host "Searching for licensed Azure AD accounts"
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All `
