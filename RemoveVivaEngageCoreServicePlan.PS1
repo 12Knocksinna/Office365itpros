@@ -14,14 +14,17 @@ $Office365E3 = "6fd2c87f-b296-42f0-b197-1e91e994b900"
 $Office365E5 = "c7df2760-2c81-4ef7-b578-5b5392b571df"
 $Office365E1 = "18181a46-0d4e-45cd-891e-60aabd171b4e"
 
-# Find and process licensed Azure AD users
-Write-Host "Searching for licensed Azure AD accounts"
+# Find and process licensed Entra ID users
+Write-Host "Searching for licensed user accounts"
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All `
   -Property Id, displayName, userPrincipalName, assignedLicenses, department, country| Sort-Object DisplayName
-If (!($Users)) { Write-Host "Oddly, we can't find any licensed accounts ... exiting!" ; break }
+If (!($Users)) { 
+   Write-Host "Oddly, we can't find any licensed accounts ... exiting!" ; break 
+}
 
 $UserLicensesUpdated = [System.Collections.Generic.List[Object]]::new() ; $i =0
 ForEach ($User in $Users) {
+   [array]$DisabledSPs = $Null
    $i++
    Write-Host ("Checking licenses assigned to account {0} {1}/{2}" -f $User.Displayname, $i, $Users.count)
     $License = $Null; $LicenseSkuId = $Null
@@ -45,7 +48,7 @@ ForEach ($User in $Users) {
    }
  # Viva Engage Code only for Office 365 E3 or E1?
    If ($LicenseSkuId -eq $Office365E5 -or $LicenseSkuId -eq $Office365E5NoConf) {
-      Write-Host ("Can't remove the Viva Engage Core service plan from the Office 365 E5 license assigned to {0} - continuing" -f $User.UserPrincipalName)
+      Write-Host ("Can't remove the Viva Engage Core service plan from the license assigned to {0} - continuing" -f $User.UserPrincipalName)
       continue 
    }
 
@@ -55,7 +58,8 @@ ForEach ($User in $Users) {
  [array]$DisabledLicenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Disabled'}
  
  # Check if Yammer Enterprise is disabled for the account. If it is, disable Viva Engage Core unless it's already disabled
-   If ($YammerServicePlan -in $DisabledLicenses.ServicePlanId -and $VivaEngageCoreServicePlan -notin $DisabledLicenses.ServicePlanId ) {
+   If ($YammerServicePlan -in $DisabledLicenses.ServicePlanId `
+      -and $VivaEngageCoreServicePlan -notin $DisabledLicenses.ServicePlanId ) {
 
  # Add any previously disabled service plans if present and compose the license options
       If ($DisabledLicenses) { 
