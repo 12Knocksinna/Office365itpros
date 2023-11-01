@@ -1,6 +1,8 @@
 # Test-ComplianceHolds.PS1
 # Test the Invoke-HoldRemovalAction cmdlet 
-# https://learn.microsoft.com/en-us/powershell/module/exchange/invoke-holdremovalaction?view=exchange-ps&WT.mc_id=M365-MVP-9501
+# Documentation: https://learn.microsoft.com/en-us/powershell/module/exchange/invoke-holdremovalaction?view=exchange-ps&WT.mc_id=M365-MVP-9501
+# This script: https://github.com/12Knocksinna/Office365itpros/blob/master/Test-ComplianceHolds.PS1
+# 1-Nov-2023
 
 # Connect to Exchange Online and then to the Compliance endpoint
 Connect-ExchangeOnline
