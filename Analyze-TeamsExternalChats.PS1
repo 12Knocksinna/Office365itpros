@@ -2,6 +2,8 @@
 # Analyze User chats to find chats with people outside the tenant
 # Because the chat API uses delegated access in interactive mode, this code can only process
 # chats for other users when run as an app or in an Azure Automation runbook
+# V1.0 1 Nov 2023
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Analyze-TeamsExternalChats.PS1
 
 # Permissions used:
 # CrossTenantInformation.ReadBasic.All: Read tenant id and return tenant name
