@@ -108,10 +108,10 @@ ForEach ($User in $Users) {
                         ChatCreated          = $Chat.CreatedDateTime
                         LastUpdated          = $Chat.LastUpdatedDateTime
                         'Chat Messages'      = $ChatCount
-                    }
-                    $ChatReport.Add($ReportLine)
-                    # Slight pause before continuing... wouldn't want to be throttled
-                    Start-Sleep -Milliseconds 500 
+                }
+                $ChatReport.Add($ReportLine)
+                # Slight pause before continuing... wouldn't want to be throttled
+                Start-Sleep -Milliseconds 500 
                 }
             }
         }
