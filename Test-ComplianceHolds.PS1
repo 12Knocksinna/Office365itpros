@@ -6,27 +6,88 @@
 Connect-ExchangeOnline
 Connect-IPPSSession
 
+$CSVFileEXO = "c:\temp\EXOMailboxHolds.CSV"
+$CSVFileSPO = "c:\temp\SPOSiteHolds.CSV"
+
+Write-Host "Looking for mailboxes to process..."
 # Fetch user mailboxes
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -Properties LitigationHoldEnabled | `
         Sort-Object DisplayName
 If (!($Mbx)) {
     Write-Host "Unable to find mailboxes - exiting"; break
 }
+
+# Loop through mailboxes and figure out what kind of hold information is reported
+[int]$i = 0
 $MbxReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($M in $Mbx) {
-    Write-Host ("Analyzing holds on mailbox {0}" -f $M.displayName)
-    $HoldData = Invoke-HoldRemovalAction -Action GetHolds -ExchangeLocation $M.ExternalDirectoryObjectId
+    $i++
+    $HoldOutput = $Null
+    Write-Host ("Analyzing holds on mailbox {0} ({1}/{2})" -f $M.displayName, $i, $Mbx.count)
+    [array]$HoldData = Invoke-HoldRemovalAction -Action GetHolds -ExchangeLocation $M.ExternalDirectoryObjectId
+    # Throw away any blank entries
+    $HoldData = $HoldData | Where-Object {$_.length -gt 0}
+    If (!($HoldData)) {
+        $HoldInformation = "No holds on mailbox"
+    } Else {
+        [array]$HoldInformation = $Null
+        ForEach ($Hold in $HoldData) {
+            If ($Hold -eq 'DelayHold') {
+                Write-Output "Delay hold set"
+                $HoldOutput += "Delay Hold set"
+            }
+            If ($Hold -eq '98E9BABD09A04bcf8455A58C2AA74182Unlimit') {
+                $HoldInformation += "Litigation Hold set"
+            } 
+            If ($Hold -ne '98E9BABD09A04bcf8455A58C2AA74182Unlimit' -and $Hold -ne 'DelayHold') {
+                Write-Host "Legacy hold set"
+                $HoldInformation += $Hold
+            }
+        }
+    }
+    If ($HoldInformation) {
+        $HoldOutput = $HoldInformation -Join ", "
+    }
     $Reportline = [PsCustomObject]@{
         User    = $M.DisplayName
         UPN     = $M.UserPrincipalName
-        Holds   = $HoldData
+        Holds   = $HoldOutput
     }
     $MbxReport.Add($ReportLine)
+}
+$MbxReport | Export-CSV -NoTypeInformation $CSVFileEXO
+Write-Host ("Exchange mailbox legacy hold information available in {0}" -f $CSVFileEXO)
 
+# SharePoint
+Write-Host "Finished dealing with Exchange Online - Now moving to SharePoint Online"
+Import-Module Microsoft.Online.Sharepoint.PowerShell
+Connect-SPOService -url https://office365itpros-admin.sharepoint.com  -Credential (Get-Credential)
+
+[array]$Sites = Get-SpoSite -Limit All -Template "Group#0"
+$SPOReport = [System.Collections.Generic.List[Object]]::new()
+[Int]$i = 0
+ForEach ($Site in $Sites) {
+  $i++
+  Write-Host ("Processing site {0} {1}/{2}" -f $Site.Title, $i, $Sites.Count)
+  [array]$HoldData = Invoke-HoldRemovalAction -Action GetHolds -SharePointLocation $Site.Url
+  If ($HoldData) {
+     Write-Host ("Found holds on site {0} {1}" -f $Site.Title, $Site.Url) -ForegroundColor Red
+     ForEach ($Hold in $HoldData) {
+       $HoldInfo = Get-RetentionCompliancePolicy -Identity $Hold
+       Write-Host ("Microsoft 365 Retention Policy set is {0}" -f $HoldInfo.Name) -ForegroundColor Yellow
+       $Reportline = [PsCustomObject]@{
+            Site    = $Site.Url
+            Title   = $Site.Title
+            HoldId  = $Hold
+            Hold    = $HoldInfo.name
+       }
+       $SPOReport.Add($ReportLine)
+    }
+  }
 }
 
-
-
+$SPOReport | Export-CSV -NoTypeInformation $CSVFileSPO
+Write-Host ("SharePoint Online site hold information available in {0}" -f $CSVFileSPO)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
