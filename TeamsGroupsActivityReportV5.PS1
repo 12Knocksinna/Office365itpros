@@ -28,6 +28,7 @@
 # V5.8 15-Sep-2022 Improved check for groups with no owners
 # V5.9 05-Jan-2023 Increased access token lifetime from 50 to 57 minutes and created new CheckAccessToken function.
 # V5.10 23-Jan-2023 Include code to handle bad data returned by Exchange Online for mailbox inbox statistics
+# V5.11 01-Nov-2023 
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -203,7 +204,7 @@ $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-
 $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
-$Version = "V5.10"
+$Version = "V5.11"
 $TimeToRefreshToken = "57" # Token lifetime
 Clear-Host
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
