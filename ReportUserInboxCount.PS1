@@ -4,6 +4,14 @@
 # You need an Azure AD registered app with consent for the Mail.Read application permission.
 
 CLS
+# Check that the required modules are installed
+$requiredModules = @("ExchangeOnlineManagement", "ImportExcel")
+$missingModules = $requiredModules | Where-Object { !(Get-Module -ListAvailable -Name $_) }
+if ($missingModules) {
+    Write-Host "Please install the missing modules: $($missingModules -join ', ') and then run the script."
+    break
+}
+
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
