@@ -24,16 +24,28 @@ Function Add-MessageRecipients {
 
 # Start of processing
 # Define the home tenant where the job will run
-$HomeTenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$HomeTenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $CSVFile = "c:\temp\TeamsExternalAccessScan.csv"
 
+# Define the settings used for certificate-based authentication for the registered app you want to use
+# Thumbprint for the X.509 certificate uploaded to the registered app
+$CertificateThumbPrint = "F79286DB88C21491110109A0222348FACF694CBD"
+# Application (client) identifier for the registered app. Get this value from the app properties
+$AppId = "8f005189-8c58-4fb5-a226-8851e13490cb"
+
 # Connect to the Graph and Teams endpoints using certificate-based authentication
-# For this to work, you must create an app and upload an X.509 certificate. You then use the client (application)
-# identifier and the certificate thumbprint to authenticate. 
-Connect-MgGraph -NoWelcome -ClientId 8f005189-8c58-4fb5-a226-8851e13490cb `
-  -CertificateThumbprint F79286DB88C21491110109A0222348FACF694CBD -TenantId $HomeTenantId
-Connect-MicrosoftTeams -TenantId $HomeTenantId `
-   -ApplicationId 8f005189-8c58-4fb5-a226-8851e13490cb -Certificate F79286DB88C21491110109A0222348FACF694CBD
+# Certificate-based authentication depends on the tenant id, app id, and certificate thumbprint. All must be
+# defined and accurate as otherwise authentication will fail
+Write-Host "Connecting to the Graph SDK endpoint..."
+Connect-MgGraph -NoWelcome -ClientId $AppId -CertificateThumbprint $CertificateThumbPrint -TenantId $HomeTenantId
+Write-Host "Now connecting to the Microsoft Teams endpoint..."
+$Status = Connect-MicrosoftTeams -TenantId $HomeTenantId -ApplicationId $AppId -Certificate $CertificateThumbPrint
+
+If (!($Status.Account -ne $AppId)) {
+    Write-Host "Whoops... can't connect!"; break
+} Else {
+    Write-Host "All connected. Now setting things up..."
+}
 # Fetch organization information
 $HomeTenant = Get-MgOrganization
 

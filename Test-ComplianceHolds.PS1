@@ -76,12 +76,18 @@ ForEach ($Site in $Sites) {
      Write-Host ("Found holds on site {0} {1}" -f $Site.Title, $Site.Url) -ForegroundColor Red
      ForEach ($Hold in $HoldData) {
        $HoldInfo = Get-RetentionCompliancePolicy -Identity $Hold
-       Write-Host ("Microsoft 365 Retention Policy set is {0}" -f $HoldInfo.Name) -ForegroundColor Yellow
+       If ($HoldInfo.IsAdaptivePolicy -eq $True) {
+            $AdaptiveFlag = "Adaptive Policy"
+       } Else {
+            $AdaptiveFlag = "Static Policy"
+       }
+       Write-Host ("Microsoft 365 Retention Policy set is {0} ({1})" -f $HoldInfo.Name, $AdaptiveFlag) -ForegroundColor Yellow
        $Reportline = [PsCustomObject]@{
-            Site    = $Site.Url
-            Title   = $Site.Title
-            HoldId  = $Hold
-            Hold    = $HoldInfo.name
+            Site            = $Site.Url
+            Title           = $Site.Title
+            HoldId          = $Hold
+            Hold            = $HoldInfo.name
+            'Policy Scope'  = $AdaptiveFlag
        }
        $SPOReport.Add($ReportLine)
     }
