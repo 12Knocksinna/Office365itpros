@@ -54,7 +54,7 @@ ForEach ($User in $Users) {
 
  # Examine service plans assigned to the account to see if they include Yammer
  [array]$AllLicenses = Get-MgUserLicenseDetail -UserId $User.Id | Select-Object -ExpandProperty ServicePlans | Sort-Object ServicePlanId -Unique
- [array]$Licenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Success'}
+# [array]$Licenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Success'}
  [array]$DisabledLicenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Disabled'}
  
  # Check if Yammer Enterprise is disabled for the account. If it is, disable Viva Engage Core unless it's already disabled
@@ -72,6 +72,10 @@ ForEach ($User in $Users) {
 
       Write-Host ("Disabling the Viva Engage Core service plan from the {0} license for account {1}" -f $License, $User.DisplayName) -foregroundcolor Red
       $Status = Set-MgUserLicense -UserId $User.Id -AddLicenses $LicenseOptions -RemoveLicenses @()
+      If ($Status) {
+         Write-Host "License adjustment succeeded"
+      }
+   
       $ReportLine  = [PSCustomObject] @{
          User                   = $User.DisplayName 
          UPN                    = $User.UserPrincipalName
