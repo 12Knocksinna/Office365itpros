@@ -5,7 +5,7 @@
 # 1-Nov-2023
 
 # Connect to Exchange Online and then to the Compliance endpoint
-Connect-ExchangeOnline -SkipLoadingCmdletHelp 
+Connect-ExchangeOnline -SkipLoadingCmdletHelp
 Connect-IPPSSession -CommandName Invoke-HoldRemovalAction
 
 $CSVFileEXO = "c:\temp\EXOMailboxHolds.CSV"
