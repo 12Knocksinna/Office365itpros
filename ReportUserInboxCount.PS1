@@ -5,12 +5,20 @@
 
 Clear-Host
 # Check that we are connected to Exchange Online
-$ModulesLoaded = Get-Module | Select-Object Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {
-    Write-Host "Please connect to the Exchange Online Management module and then restart the script"; 
+Import-Module ImportExcel -ErrorAction SilentlyContinue
+$ExcelAvailable = $True
+[array]$ModulesLoaded = Get-Module | Select-Object -ExpandProperty Name 
+If  ("ExchangeOnlineManagement" -notin $ModulesLoaded) {
+    Write-Host "Please connect to the Exchange Online Management module and then restart the script"
+    Break
+}
+# See if we can use ImportExcel
+If ("ImportExcel" -notin $ModulesLoaded) {
+    $ExcelAvailable = $False
 }
 
-$ReportFile = "c:\temp\UserInboxCounts.xlsx"
+$ExcelOutput = "c:\temp\UserInboxCounts.xlsx"
+$CSVOutput = "c:\temp\UserInboxCounts.csv"
 
 # Define the values applicable for the application used to connect to the Graph - change these for your tenant
 # to use the app id and app secret for the Azure AD registered app you want to use for this script
@@ -61,7 +69,15 @@ ForEach ($M in $Mbx) {
 }
 
 # If you don't have the ImportExcel module available, you can change this to export to a CSV file using the Export-CSV cmdlet
-$Report | Sort-Object UnreadCount -Descending | Export-Excel -Path $ReportFile -WorkSheetName "Inbox Counts" -TableStyle Medium16 -Title "Inbox Data for Mailboxes"
+$Report | Sort-Object UnreadCount -Descending
+If ($ExcelAvailable -eq $True) {
+    Export-Excel -Path $ExcelOutput -WorkSheetName "Inbox Counts" -TableStyle Medium16 `
+      -Title "Inbox Data for Mailboxes"
+    Write-Host ("Excel worksheet available in {0}" -f $ExcelOutput)
+} Else {
+    Export-CSV -NoTypeInformation $CSVOutput
+    Write-Host ("CSV file available in {0}" -f $CSVOutput)
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
