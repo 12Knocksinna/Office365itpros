@@ -3,10 +3,12 @@
 # A script to show how to fetch mailbox folder statistics using a combination of PowerShell and the Microsoft Graph ListFolders API
 # You need an Azure AD registered app with consent for the Mail.Read application permission.
 
-CLS
+Clear-Host
 # Check that we are connected to Exchange Online
-$ModulesLoaded = Get-Module | Select Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+$ModulesLoaded = Get-Module | Select-Object Name
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {
+    Write-Host "Please connect to the Exchange Online Management module and then restart the script"; 
+}
 
 $ReportFile = "c:\temp\UserInboxCounts.xlsx"
 
