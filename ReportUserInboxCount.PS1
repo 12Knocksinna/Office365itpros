@@ -38,7 +38,7 @@ $Headers = @{
             'ConsistencyLevel' = "eventual" }
 
 Write-Host "Finding user mailboxes..."
-[array]$Mbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox | Sort DisplayName
+[array]$Mbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox | Sort-Object DisplayName
 If (!($Mbx)) { Write-Host "No mailboxes found... exiting!" ; break }
 $Report = [System.Collections.Generic.List[Object]]::new()
 $i = 1
@@ -46,9 +46,9 @@ ForEach ($M in $Mbx) {
     Write-Host ("Processing mailbox {0} of {1}: {2}" -f $i, $Mbx.Count, $M.DisplayName); $i++
     $Uri = "https://graph.microsoft.com/v1.0/users/" + $M.ExternalDirectoryObjectId + "/mailFolders?`$top=250"
     $FolderData = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json"
-    $InboxData = $FolderData.Value | ? {$_.displayname -eq "Inbox"}
-    $TotalMbxItems = ($FolderData.Value.totalitemcount | Measure-Object -Sum | Select -ExpandProperty Sum)
-    $TotalMbxSize = ($FolderData.Value.SizeInBytes | Measure-Object -Sum | Select -ExpandProperty Sum)
+    $InboxData = $FolderData.Value | Where-Object {$_.displayname -eq "Inbox"}
+    $TotalMbxItems = ($FolderData.Value.totalitemcount | Measure-Object -Sum | Select-Object -ExpandProperty Sum)
+    $TotalMbxSize = ($FolderData.Value.SizeInBytes | Measure-Object -Sum | Select-Object -ExpandProperty Sum)
     $ReportLine = [PSCustomObject][Ordered]@{  # Write out details of the mailbox
        "User"              = $M.DisplayName
        UPN                 = $M.UserPrincipalName
@@ -61,7 +61,7 @@ ForEach ($M in $Mbx) {
 }
 
 # If you don't have the ImportExcel module available, you can change this to export to a CSV file using the Export-CSV cmdlet
-$Report | Sort UnreadCount -Descending | Export-Excel -Path $ReportFile -WorkSheetName "Inbox Counts" -TableStyle Medium16 -Title "Inbox Data for Mailboxes"
+$Report | Sort-Object UnreadCount -Descending | Export-Excel -Path $ReportFile -WorkSheetName "Inbox Counts" -TableStyle Medium16 -Title "Inbox Data for Mailboxes"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
