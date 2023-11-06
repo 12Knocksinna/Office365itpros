@@ -2,6 +2,7 @@
 # Script to report the usage of Loop workspaces in a tenant
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-LoopWorkspaces.PS1
 # 6-Nov-2023
+
 # Connect to SharePoint Online
 Import-Module Microsoft.Online.Sharepoint.PowerShell
 Connect-SPOService -url https://office365itpros-admin.sharepoint.com -Credential (Get-Credential)
@@ -13,6 +14,8 @@ If (!($LoopWorkspaces)) {
     Write-Host "Can't get Loop workspaces - exiting"; break
 }
 
+$CSVOutputFile = "C:\temp\LoopWorkSpaces.CSV"
+
 # Define the licenses that allow users to create Loop workspaces. We use this information to figure out if the
 # licenses assigned to the owner account allows them to create more workspaces.
 $LoopValidLicenses = @{}
@@ -23,8 +26,10 @@ $LoopValidLicenses.Add("0c21030a-7e60-4ec7-9a0f-0042e0e0211a", "Microsoft 365 E3
 $LoopValidLicenses.Add("06ebc4ee-1bb5-47dd-8120-11324bc54e06", "Microsoft 365 E5")
 
 $Report = [System.Collections.Generic.List[Object]]::new()
-$TotalBytes = 0; $LicenseOK = 0
+$TotalBytes = 0; $LicenseOK = 0; $i = 0
 ForEach ($LoopSpace in $LoopWorkspaces) {
+    $i++
+    Write-Output ("Analyzing workspace {0} {1}/{2}" -f $LoopSpace.ContainerId, $i, $LoopWorkspaces.count)
     # Get detail of the workspace
     $LoopSpaceDetails =  Get-SPOContainer -OwningApplicationID a187e399-0c36-4b98-8f04-1edc167a0996 `
       -Identity $LoopSpace.ContainerId
@@ -72,6 +77,7 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
 
 $Report | Out-GridView
 $Users = $Report | Select-Object Owner, License | Sort-Object Owner -Unique
+$Report | Export-CSV -NoTypeInformation $CSVOutputFile
 
 $TotalLoopStorage = "{0:N2}" -f ($TotalBytes/1GB)
 Write-Output ""
@@ -80,6 +86,8 @@ Write-Output ("Number of Loop workspaces found: {0}" -f $LoopWorkspaces.count)
 Write-Output ""
 Write-Output "Details of Users and License status (to create new Loop workspaces)"
 $Users | Sort-Object License
+Write-Output ""
+Write-Output ("Details can be found in the CSV file {0}" -f $CSVOutputFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
