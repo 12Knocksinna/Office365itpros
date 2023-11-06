@@ -4,7 +4,7 @@
 # 6-Nov-2023
 # Connect to SharePoint Online
 Import-Module Microsoft.Online.Sharepoint.PowerShell
-Connect-SPOService -url https://redmondassociates-admin.sharepoint.com -Credential (Get-Credential)
+Connect-SPOService -url https://office365itpros-admin.sharepoint.com -Credential (Get-Credential)
 # Connect to the Graph
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All
 
