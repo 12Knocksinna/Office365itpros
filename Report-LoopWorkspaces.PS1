@@ -1,6 +1,7 @@
 # Report-LoopWorkspaces.PS1
 # Script to report the usage of Loop workspaces in a tenant
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-LoopWorkspaces.PS1
+# 6-Nov-2023
 # Connect to SharePoint Online
 Import-Module Microsoft.Online.Sharepoint.PowerShell
 Connect-SPOService -url https://redmondassociates-admin.sharepoint.com -Credential (Get-Credential)
@@ -12,7 +13,8 @@ If (!($LoopWorkspaces)) {
     Write-Host "Can't get Loop workspaces - exiting"; break
 }
 
-# Define the licenses that allow users to create Loop workspaces
+# Define the licenses that allow users to create Loop workspaces. We use this information to figure out if the
+# licenses assigned to the owner account allows them to create more workspaces.
 $LoopValidLicenses = @{}
 $LoopValidLicenses.Add("f245ecc8-75af-4f8e-b61f-27d8114de5f3", "Microsoft 365 Business Standard")
 $LoopValidLicenses.Add("cbdc14ab-d96c-4c30-b9f4-6ada7cdc1d46", "Microsoft 365 Business Premium")
@@ -23,9 +25,10 @@ $LoopValidLicenses.Add("06ebc4ee-1bb5-47dd-8120-11324bc54e06", "Microsoft 365 E5
 $Report = [System.Collections.Generic.List[Object]]::new()
 $TotalBytes = 0; $LicenseOK = 0
 ForEach ($LoopSpace in $LoopWorkspaces) {
-
+    # Get detail of the workspace
     $LoopSpaceDetails =  Get-SPOContainer -OwningApplicationID a187e399-0c36-4b98-8f04-1edc167a0996 `
       -Identity $LoopSpace.ContainerId
+    # Get detail about the owner
     [array]$Owners = $LoopSpaceDetails.Owners
     ForEach ($Owner in $Owners) {
         $LicenseFound = $Null; $LoopLicenseStatus = "Unlicensed"
