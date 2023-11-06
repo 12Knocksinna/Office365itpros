@@ -15,7 +15,7 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 $DaysToCheck = 7 # Number of days to check for recent roadmap items that are posted to Teams
 
 #Fetch current set of roadmap items and parse the information
-$Updates = (Invoke-RestMethod -Uri $RoadmapItems  -Method Get)
+[array]$Updates = (Invoke-RestMethod -Uri $RoadmapItems  -Method Get)
 ForEach ($Item in $Updates) {               
       # Figure out the categories
       $i = $Item.Category.Count
@@ -26,7 +26,7 @@ ForEach ($Item in $Updates) {
         elseif ($Item.Category.Contains("Rolling out")) { $color = "ffff00"  }
         else { $color = "00cc00"  }
      # Now process the categories to identify favorite products
-     $Outlook = $False; $OneDrive = $False; $Stream = $False; $Exchange = $False; $SharePoint = $False; $Windows = $False; $InTune = $False; $Yammer = $False; $AAD = $False; $Forms = $False; $iOS = $False; $Android = $False; $O365 = $False; $Project = $False; $Planner = $False; $Teams = $False; $GCC = $False; $Education = $False; $Mac = $False; $Excel = $False; $Developer = $False; $AllEnv = $False; $StandardMT = $False; $MCAS = $False; $Dod = $False; $Compliance = $False; $MIP = $False; $Visio = $False; $Technology = $Null
+     $Outlook = $False; $OneDrive = $False; $Stream = $False; $Exchange = $False; $SharePoint = $False; $Windows = $False; $InTune = $False; $Yammer = $False; $AAD = $False; $Forms = $False; $iOS = $False; $Android = $False; $O365 = $False; $Project = $False; $Planner = $False; $Teams = $False; $GCC = $False; $Education = $False; $Mac = $False; $Excel = $False; $Developer = $False; $AllEnv = $False; $StandardMT = $False; $MCAS = $False; $Dod = $False; $MIP = $False; $Visio = $False; $Technology = $Null
      If ($Item.Category.Contains("Outlook")) { $Outlook = $True; $Technology = "Outlook"}
      If ($Item.Category.Contains("Exchange")) { $Exchange = $True; $O365 = $True; $Technology = "Exchange" }
      If ($Item.Category.Contains("SharePoint")) { $SharePoint = $True; $O365 = $True; $Technology = "SharePoint"}
@@ -108,7 +108,7 @@ ForEach ($Item in $Updates) {
 
 # Now we have processed the list, we can export it to CSV and then loop through it to generate cards for recent items
 Write-Host $Report.Count "Microsoft 365 Roadmap Items stored in c:\temp\RoadmapItems.csv"
-$Report | Sort FeatureId | Export-CSV -NoTypeInformation c:\temp\RoadmapItems.csv
+$Report | Sort-Object FeatureId | Export-CSV -NoTypeInformation c:\temp\RoadmapItems.csv
 
 Write-Host "Checking the Roadmap for Office 365 updates in the last" $DaysToCheck "days..."
 ForEach ($Item in $Report) {
