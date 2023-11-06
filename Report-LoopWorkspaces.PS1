@@ -40,6 +40,12 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
             }
         }
     }
+    [array]$Members = $Null
+    [array]$Managers = $LoopSpaceDetails.Managers
+    ForEach ($Manager in $Managers) {
+        $Member = Get-MgUser -UserId $Manager
+        $Members += $Member.DisplayName
+    }
 
     $StorageUsed = "{0:N2}" -f ($LoopSpaceDetails.StorageUsedInBytes/1MB)
     $TotalBytes = $TotalBytes + $LoopSpaceDetails.StorageUsedInBytes
@@ -53,6 +59,7 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
         UPN            = $User.UserPrincipalName
         License        = $LoopLicenseStatus
         Product        = $LicenseName
+        Members        = ($Members -Join ", ")
         Created        = $LoopSpaceDetails.CreatedOn
         SiteURL        = $LoopSpaceDetails.ContainerSiteUrl
         "Storage (MB)" = $StorageUsed
@@ -60,6 +67,7 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
     $Report.Add($ReportLine)
 }
 
+$Report | Out-GridView
 $Users = $Report | Select-Object Owner, License | Sort-Object Owner -Unique
 
 $TotalLoopStorage = "{0:N2}" -f ($TotalBytes/1GB)
