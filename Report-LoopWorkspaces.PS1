@@ -39,11 +39,11 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
     [array]$Owners = $LoopSpaceDetails.Owners
     ForEach ($Owner in $Owners) {
         $LicenseFound = $Null; $LoopLicenseStatus = "Unlicensed";  $LicenseName = $Null
-        # Find if the Loop service plan is successfully provisioned for the account
+        # Find if the Loop service plan is successfully provisioned or is awaiting provisioning for the account
         [array]$UserLicenseData = Get-MgUserLicenseDetail -UserId $Owner
         $LoopLicense = $UserLicenseData | Select-Object -ExpandProperty ServicePlans | `
              Where-Object {$_.ServicePlanId -eq $LoopServicePlan} | Select-Object -ExpandProperty ProvisioningStatus
-        If ($LoopLicense -eq 'Success') {
+        If ($LoopLicense -in 'Success', 'PendingProvisioning') {
             $LicenseOK++
             $LoopLicenseStatus = "OK"
         }
