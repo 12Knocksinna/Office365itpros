@@ -38,14 +38,28 @@ ForEach ($M in $Mbx) {
                 Write-Output "Delay hold set"
                 $HoldOutput += "Delay Hold set"
             }
+            # Litigation hold
             If ($Hold -eq '98E9BABD09A04bcf8455A58C2AA74182Unlimit') {
                 $HoldInformation += "Litigation Hold set"
             } 
-            If ($Hold -ne '98E9BABD09A04bcf8455A58C2AA74182Unlimit' -and $Hold -ne 'DelayHold') {
+            # Hold imposed by eDiscovery case
+            If ($Hold.SubString(0,4) -eq 'UniH') {
+                $eDiscoveryHoldId = $Hold.SubString(4, $Hold.Length-4)
+                $eDiscoveryHoldName = $Null
+                $eDiscoveryHoldName = (Get-CaseHoldPolicy -Identity $eDiscoveryHoldId -ErrorAction SilentlyContinue).Name 
+                If ($eDiscoveryHoldName) {
+                    $HoldInformation += ("eDiscoveryHold: {0}" -f $eDiscoveryHoldName)
+                } Else {
+                    Write-Output ("Unable to identify hold identifier {0}" -f $eDiscoveryHoldId) 
+                    $HoldInformation += ("Unidentified eDiscoveryId: {0}" -f $eDiscoveryHoldId)
+                }
+            }
+            # Anything else
+            } If (($Hold -ne 'DelayHold') -and ($Hold -ne '98E9BABD09A04bcf8455A58C2AA74182Unlimit') `
+                -and ($Hold.SubString(0,4) -ne 'UniH')) {
                 Write-Host "Legacy hold set"
                 $HoldInformation += $Hold
             }
-        }
     }
     If ($HoldInformation) {
         $HoldOutput = $HoldInformation -Join ", "
