@@ -9,12 +9,14 @@ Connect-SPOService -url https://office365itpros-admin.sharepoint.com -Credential
 # Connect to the Graph
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All
 
+Write-Host "Looking for Loop workspaces..."
 [array]$LoopWorkspaces = Get-SPOContainer -OwningApplicationID a187e399-0c36-4b98-8f04-1edc167a0996
 If (!($LoopWorkspaces)) {
     Write-Host "Can't get Loop workspaces - exiting"; break
 }
 
 $CSVOutputFile = "C:\temp\LoopWorkSpaces.CSV"
+$LoopServicePlan = 'c4b8c31a-fb44-4c65-9837-a21f55fcabda'
 
 # Define the licenses that allow users to create Loop workspaces. We use this information to figure out if the
 # licenses assigned to the owner account allows them to create more workspaces.
@@ -36,15 +38,22 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
     # Get detail about the owner
     [array]$Owners = $LoopSpaceDetails.Owners
     ForEach ($Owner in $Owners) {
-        $LicenseFound = $Null; $LoopLicenseStatus = "Unlicensed"
-        $User = Get-MgUser -UserId $Owner -Property Id, displayName, department, UserPrincipalName, assignedLicenses
-        [array]$SKUs = $User.AssignedLicenses.SkuId
+        $LicenseFound = $Null; $LoopLicenseStatus = "Unlicensed";  $LicenseName = $Null
+        # Find if the Loop service plan is successfully provisioned for the account
+        [array]$UserLicenseData = Get-MgUserLicenseDetail -UserId $Owner
+        $LoopLicense = $UserLicenseData | Select-Object -ExpandProperty ServicePlans | `
+             Where-Object {$_.ServicePlanId -eq $LoopServicePlan} | Select-Object -ExpandProperty ProvisioningStatus
+        If ($LoopLicense -eq 'Success') {
+            $LicenseOK++
+            $LoopLicenseStatus = "OK"
+        }
+        # Find what SKU the Loop service plan belongs to
+        $User = Get-MgUser -UserId $Owner -Property Id, displayName, department, UserPrincipalName
+        [array]$SKUs = $UserLicenseData.SkuId
         ForEach ($Sku in $Skus) {
             $LicenseFound = $LoopValidLicenses[$Sku]
             If ($LicenseFound) {
-               $LicenseOK++
-               $LoopLicenseStatus = "OK"
-               $LicenseName = $LicenseFound
+                $LicenseName = $LicenseFound
             }
         }
     }
@@ -65,6 +74,7 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
         Description    = $LoopSpace.Description
         Owner          = $User.DisplayName
         UPN            = $User.UserPrincipalName
+        Department     = $User.Department
         License        = $LoopLicenseStatus
         Product        = $LicenseName
         Members        = ($Members -Join ", ")
