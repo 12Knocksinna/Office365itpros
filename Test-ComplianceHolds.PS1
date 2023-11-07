@@ -50,8 +50,8 @@ ForEach ($M in $Mbx) {
                 If ($eDiscoveryHoldName) {
                     $HoldInformation += ("eDiscoveryHold: {0}" -f $eDiscoveryHoldName)
                 } Else {
-                    Write-Output ("Unable to identify hold identifier {0}" -f $eDiscoveryHoldId) 
-                    $HoldInformation += ("Unidentified eDiscoveryId: {0}" -f $eDiscoveryHoldId)
+                    Write-Output ("Unable to identify hold identifier {0}" -f $Hold) 
+                    $HoldInformation += ("Unidentified eDiscoveryId: {0}" -f $Hold)
                 }
             }
             # Anything else
