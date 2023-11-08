@@ -36,22 +36,22 @@ $Messages = $Messages | Where-Object {$_.Subject -NotLike "*HierarchySync*"}
 
 # Fetch a list of user and shared mailboxes to process
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited | Sort-Object DisplayName
-
 $MessageReport = [System.Collections.Generic.List[Object]]::new() 
 
 ForEach ($User in $Mbx) {
     Write-Host ("Processing email for {0}" -f $User.DisplayName)
     # Get messages sent by the user
-    [array]$UserMessages = $Report | Where-Object {$_.Sender -eq $User.PrimarySmtpAddress}
+    [array]$UserMessages = $Messages | Where-Object {$_.SenderAddress -eq $User.PrimarySmtpAddress}
     If ($UserMessages) {
     # We’ve found some messages to process, so let’s do that
-        [int]$ExternalEmail = 0; [int]$InternalEmail = 0; [array]$ExternalDomains = $Null
-        ForEach ($M in $UserMessages) {
-         If ($M.RecipientDomain -in $Domains) {
-           $InternalEmail++ 
+    [int]$ExternalEmail = 0; [int]$InternalEmail = 0; [array]$ExternalDomains = $Null
+    ForEach ($M in $UserMessages) {
+        $MsgRecipientDomain = $M.RecipientAddress.Split('@')[1]    
+        If ($MsgRecipientDomain -in $Domains) {
+            $InternalEmail++ 
         } Else {
-           $ExternalEmail++
-           $ExternalDomains += $M.RecipientDomain
+            $ExternalEmail++
+            $ExternalDomains += $MsgRecipientDomain
         }
       } # End Foreach message
       $ExternalDomains = $ExternalDomains | Sort-Object -Unique
