@@ -1,5 +1,5 @@
 # FindInactiveDls
-# Find inactive distribution lists based on the message trace informnation, which means we can only go back 7 days...
+# Find inactive distribution lists based on the message trace information, which means we can only go back ten days...
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindInactiveDLs.PS1
 
 # Updated 28-Oct-2023
