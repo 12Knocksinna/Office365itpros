@@ -5,13 +5,12 @@ Connect-ExchangeOnline
 $CSVOutputFile = "C:\Temp\EmailProxyAddresses.csv"
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
 # First, let's do mailboxes
+
 Write-Host "Fetching details of user, shared, equipment, and room mailboxes..."
 [array]$Mbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox, SharedMailbox, RoomMailbox, EquipmentMailbox
-
 Write-Host ("Processing details for {0} mailboxes..." -f $Mbx.count)
 ForEach ($M in $Mbx) {
-    [array]$MailAddresses = $M.EMailAddresses
-    ForEach ($Address in $MailAddresses) {
+    ForEach ($Address in $M.EMailAddresses) {
         $AddressType = $Address.Split(":")[0]
         $AddressProxy = $Address.Split(":")[1]
         If ($AddressType -eq 'smtp') {
@@ -33,8 +32,7 @@ Write-Host "Fetching details of group mailboxes..."
 
 Write-Host ("Processing details of {0} group mailboxes" -f $GroupMailboxes.count)
 ForEach ($Gmbx in $GroupMailboxes) {
-    [array]$MailAddresses = $Gmbx.EMailAddresses
-    ForEach ($Address in $MailAddresses) {
+    ForEach ($Address in $Gmbx.EMailAddresses) {
         $AddressType = $Address.Split(":")[0]
         $AddressProxy = $Address.Split(":")[1]
         If ($AddressType -eq 'smtp') {
@@ -57,8 +55,7 @@ Write-Host "Fetching details of mail-enabled public folders..."
 If ($PFs) {
     Write-Host ("Processing details for {0} mail-enabled public folders..." -f $PFs.Count)
     ForEach ($PF in $PFs) {
-        [array]$MailAddresses = $PF.EMailAddresses
-        ForEach ($Address in $MailAddresses) {
+        ForEach ($Address in $PF.EMailAddresses) {
             $AddressType = $Address.Split(":")[0]
             $AddressProxy = $Address.Split(":")[1]
             If ($AddressType -eq 'smtp') {
@@ -83,8 +80,7 @@ Write-Host "Fetching details of distribution lists..."
 If ($DLs) {
     Write-Host ("Processing details for {0} distribution lists..." -f $DLs.Count)
     ForEach ($DL in $DLs) {
-        [array]$MailAddresses = $DL.EMailAddresses
-        ForEach ($Address in $MailAddresses) {
+        ForEach ($Address in $DL.EMailAddresses) {
             $AddressType = $Address.Split(":")[0]
             $AddressProxy = $Address.Split(":")[1]
             If ($AddressType -eq 'smtp') {
@@ -108,14 +104,13 @@ Write-Host "Fetching details of dynamic distribution lists..."
 If ($DDLs) {
     Write-Host ("Processing details for {0} dynamic distribution lists..." -f $DLs.Count)
     ForEach ($DDL in $DDLs) {
-        [array]$MailAddresses = $DDL.EMailAddresses
-        ForEach ($Address in $MailAddresses) {
+        ForEach ($Address in $DDL.EMailAddresses) {
             $AddressType = $Address.Split(":")[0]
             $AddressProxy = $Address.Split(":")[1]
             If ($AddressType -eq 'smtp') {
                 $ReportLine = [PSCustomObject]@{ 
                     ProxyAddress = $AddressProxy
-                    Object       = $DDL.DisplayName
+                    Name         = $DDL.DisplayName
                     UPN          = $DDL.primarySmtpAddress
                     ObjectId     = 'N/A'
                     Type         = "Dynamic Distribution list"
