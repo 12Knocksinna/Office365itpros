@@ -1,34 +1,37 @@
 # Report-AURolesAndMembers.PS1
 # Show how to use the Microsoft Graph PowerShell SDK (V2 or later) to report administrative units, users with role assignments to manage the AUs
 # and the membership of the AUs
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-AURolesAndMembers.PS1
+# Updated 14-Nov-2023 to remove some beta cmdlets and replace them with V1.0 cmdlets (based on SDK V2.9)
 
-Connect-MgGraph -Scopes Directory.Read.All
+Connect-MgGraph -Scopes Directory.Read.All -NoWelcome
 
 $OutputFile = "c:\temp\AdminUnitAssignments.csv"  
-$Version = "V1.0"
+$Version = "V1.1"
 $HtmlReportFile = "c:\temp\AdminUnitAssignments.html"  
 
 Write-Host "Looking for administrative units and role assignments..."
-[array]$AdminUnits = Get-MgBetaDirectoryAdministrativeUnit | Sort-Object DisplayName
-[array]$Assignments = Get-MgBetaRoleManagementDirectoryRoleAssignment
+[array]$AdminUnits = Get-MgDirectoryAdministrativeUnit | Sort-Object DisplayName
+[array]$Assignments = Get-MgRoleManagementDirectoryRoleAssignment
 Write-Host ("Now examining details of {0} administrative units and {1} role assignments..." -f $AdminUnits.count, $Assignments.count)
 
 [int]$i=0
 $Report = [System.Collections.Generic.List[Object]]::new()  
 ForEach ($AU in $AdminUnits) {
- $i++
- Write-Output ("Processing admin unit: {0} ({1}/{2})..." -f $AU.DisplayName, $i, $AdminUnits.count)
- $AUAssignments = $Null; $AUAssignments = $Null
+   $i++
+   Write-Output ("Processing admin unit: {0} ({1}/{2})..." -f $AU.DisplayName, $i, $AdminUnits.count)
+   $AUAssignments = $Null; $AUAssignments = $Null
 
- $AUId = "/administrativeUnits/" + $AU.Id
- If ($AU.IsMemberManagementRestricted -eq $True) {
-   $Scope = "Restricted"    
- } Else {
-   $Scope = "Directory" }
+   $AUId = "/administrativeUnits/" + $AU.Id
+   If ($AU.IsMemberManagementRestricted -eq $True) {
+      $Scope = "Restricted"    
+   } Else {
+      $Scope = "Directory" 
+   }
 
- $AUAssignments = $Assignments | Where-Object {$_.directoryscopeid -eq $AuId}
- $RoleData = $Null;  [array]$Roles = $Null
- ForEach ($AUAssignment in $AUAssignments) {
+   $AUAssignments = $Assignments | Where-Object {$_.directoryscopeid -eq $AuId}
+   $RoleData = $Null;  [array]$Roles = $Null
+   ForEach ($AUAssignment in $AUAssignments) {
       # Check if assignment is for a user account
       $Result = Get-MgUser -UserId $AUAssignment.PrincipalId -ErrorAction SilentlyContinue
       $Type = "User"
@@ -48,32 +51,32 @@ ForEach ($AU in $AdminUnits) {
       } ElseIf ($Result -and $Type -eq "Group") {
         $AuGroupMembers = Get-MgGroupMember -GroupId $AuAssignment.PrincipalId -All
         ForEach ($Member in $AuGroupMembers.additionalProperties.displayName) {
-          $RoleData = ("{0}/{1} ({2})" -f $Member, $Type, $Role.DisplayName)
-          $Roles += $RoleData }
+            $RoleData = ("{0}/{1} ({2})" -f $Member, $Type, $Role.DisplayName)
+            $Roles += $RoleData }
       }
- } 
- # Check if the membership is dynamic or static
- If ($AU.additionalProperties.membershipType) {
-    $AuMembershipType = "Dynamic" 
-    $AuMembershipRule = $AU.additionalProperties.membershipRule
- } Else {
-    $AuMembershipType = "Static" 
-    $AuMembershipRule = $Null
- }
+   } 
+   # Check if the membership is dynamic or static
+   If ($AU.additionalProperties.membershipType) {
+      $AuMembershipType = "Dynamic" 
+      $AuMembershipRule = $AU.additionalProperties.membershipRule
+   } Else {
+      $AuMembershipType = "Static" 
+      $AuMembershipRule = $Null
+   }
 
- # Get membership
- [array]$AuMembers = Get-MgBetaAdministrativeUnitMember -AdministrativeUnitId $Au.Id -All
- [array]$MemberUsers = $AuMembers.additionalProperties | Where-Object {$_.'@odata.type' -eq "#microsoft.graph.user"}
- [array]$MemberGroups = $AuMembers.additionalProperties | Where-Object {$_.'@odata.type' -eq "#microsoft.graph.group"}
- $AuMembersNames = $AuMembers.additionalproperties.displayName -Join ", "
+   # Get membership
+   [array]$AuMembers = Get-MgBetaAdministrativeUnitMember -AdministrativeUnitId $Au.Id -All
+   [array]$MemberUsers = $AuMembers.additionalProperties | Where-Object {$_.'@odata.type' -eq "#microsoft.graph.user"}
+   [array]$MemberGroups = $AuMembers.additionalProperties | Where-Object {$_.'@odata.type' -eq "#microsoft.graph.group"}
+   $AuMembersNames = $AuMembers.additionalproperties.displayName -Join ", "
 
- If ($Roles) {
-    $RoleDisplayNames = $Roles -join ", "
- } Else {
-    $RoleDisplayNames = "Administrator Roles"
- }
+   If ($Roles) {
+      $RoleDisplayNames = $Roles -join ", "
+   } Else {
+      $RoleDisplayNames = "Administrator Roles"
+   }
 
- $ReportLine = [PSCustomObject]@{
+   $ReportLine = [PSCustomObject]@{
         DisplayName     = $AU.DisplayName
         Description     = $AU.Description
         Id              = $AU.Id
@@ -85,7 +88,7 @@ ForEach ($AU in $AdminUnits) {
         MembershipType  = $AuMembershipType
         MembershipRule  = $AuMembershipRule
         }
-      $Report.Add($ReportLine)
+   $Report.Add($ReportLine)
 
 } #End ForEach AU
 
