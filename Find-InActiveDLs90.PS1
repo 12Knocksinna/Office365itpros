@@ -1,6 +1,6 @@
 # Find-InactiveDls90.PS1
 # Find inactive distribution lists based on hostorical message trace information, which allows us to go back 90 days.
-# https://github.com/12Knocksinna/Office365itpros/blob/master/Find-InactiveDLs90.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Find-InActiveDLs90.PS1
 
 # Updated 10-Nov-2023
 
