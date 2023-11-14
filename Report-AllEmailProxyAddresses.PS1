@@ -1,6 +1,9 @@
 # A script to report all the proxy addresses assigned to mail-enabled objects in the organization
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-AllEmailProxyAddresses.PS1
-Connect-ExchangeOnline
+
+If ($Null -eq (Get-ConnectionInformation)) {
+    Connect-ExchangeOnline
+}
 
 $CSVOutputFile = "C:\Temp\EmailProxyAddresses.csv"
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
