@@ -128,19 +128,19 @@ $Level3 = $Null; $Level4 = $Null; $Level2 = $Null; $NFF2 = $Null; $NFF3 = $Null
    $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $FolderId)
    [array]$Level1 = Get-GraphData -Uri $Uri -AccessToken $Token
    $Output = $Level1
-   $Level2 = $Level1 | ? {$_.ChildFolderCount -gt 0}
+   $Level2 = $Level1 | Where-Object {$_.ChildFolderCount -gt 0}
    If ($Level2) {
       ForEach ($NF2 in $Level2) {
        $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF2.Id)
        [array]$NFF2 = Get-GraphData -Uri $Uri -AccessToken $Token
        $Output = $Output + $NFF2 }}
-   $Level3 = $NFF2 | ? {$_.ChildFolderCount -gt 0}
+   $Level3 = $NFF2 | Where-Object {$_.ChildFolderCount -gt 0}
    If ($Level3) {
      ForEach ($NF3 in $Level3) {
       $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF3.Id)
        [array]$NFF3 = Get-GraphData -Uri $Uri -AccessToken $Token
      $Output = $Output + $NFF3 }}
-   $Level4 = $NFF3 | ? {$_.ChildFolderCount -gt 0}
+   $Level4 = $NFF3 | Where-Object {$_.ChildFolderCount -gt 0}
    If ($Level4) {
      ForEach ($NF4 in $Level4) {
       $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF4.Id)
@@ -153,7 +153,7 @@ $Level3 = $Null; $Level4 = $Null; $Level2 = $Null; $NFF2 = $Null; $NFF3 = $Null
 # End Functions
 
 # Check that we have the necessary Exchange Online module loaded
-$ModulesLoaded = Get-Module | Select Name
+$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 
 # Set these values to those appropriate in your tenant
@@ -231,7 +231,7 @@ ForEach ($M in $Mbx) {
    ForEach ($F in $AllFolders) {
      $DataTable.Add([String]$F.Id,[String]$F.DisplayName) }
    # Find folders with child folders
-   [array]$FoldersWithChildFolders = $AllFolders | ? {$_.ChildFolderCount -gt 0}
+   [array]$FoldersWithChildFolders = $AllFolders | Where-Object {$_.ChildFolderCount -gt 0}
 
    ForEach ($ChildFolder in $FoldersWithChildFolders) {
    [array]$ChildFolders = UnpackFolders -FolderId $ChildFolder.Id -UserId $M.ExternalDirectoryObjectId
@@ -295,7 +295,7 @@ If (($Action -eq "Report only") -and ($Folder -eq "All")) {
 # Sometimes the set of messages returns includes an item with @odata.context rather than @odata.etag. This filter removes those records
  $Messages = $Messages | Where-Object {$_.id -ne $Null}
 
-If (($Messages.Count -gt 0) -and ($Messages."@odata.context" -eq $Null)) { #We have some messages to delete or report
+If (($Messages.Count -gt 0) -and ($Null -eq $Messages."@odata.context")) { #We have some messages to delete or report
 
   Write-Host ("Found {0} matching message(s) in mailbox {1} " -f $Messages.count, $M.DisplayName)
   ForEach ($Message in $Messages) {
