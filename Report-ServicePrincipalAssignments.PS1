@@ -1,6 +1,8 @@
 # Reoport-ServicePrincipalAssignments.PS1
 # Example script to demonstrate how to report the assignments of users and groups to Entra ID enterprise applications
 # (service principals)
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ServicePrincipalAssignments.PS1
+# 15-Nov-2023
 
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All, Application.Read.All
 
