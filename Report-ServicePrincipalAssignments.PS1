@@ -5,21 +5,26 @@
 # 15-Nov-2023
 
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All, Application.Read.All
+$TenantId = (Get-MgOrganization).Id
 
-[array]$ServicePrincipals = Get-MgServicePrincipal -All
+[array]$ServicePrincipals = Get-MgServicePrincipal -All 
+
 If ($ServicePrincipals) {
-    Write-Host ("Analyzing assignments for {0} service principals..." -f $ServicePrincipals.count)
+    [array]$EnterpriseApps = $ServicePrincipals | Where-Object {$_.AppOwnerOrganizationId -ne $TenantId} | `
+        Sort-Object DisplayName
+    Write-Host ("Analyzing assignments for {0} Enterprise Apps..." -f $EnterpriseApps.count)
     $Report = [System.Collections.Generic.List[Object]]::new() 
     $CSVOutputFile = "C:\temp\ServicePrincipalAssignments.CSV"
 } Else {
     Write-Host "Can't find any service principals - exiting"; break
 }
 [int]$i = 0
-ForEach ($SP in $ServicePrincipals) {
-    [array]$Assignments = Get-MgServicePrincipalAppRoleAssignedTo -ServicePrincipalId $SP.Id
+ForEach ($App in $EnterpriseApps) {
+    [array]$Assignments = Get-MgServicePrincipalAppRoleAssignedTo -ServicePrincipalId $App.Id | `
+            Where-Object {$_.PrincipalType -ne 'ServicePrincipal'}
     If ($Assignments) {
         $i++
-        Write-Host ("Found assignments for {0}" -f $SP.DisplayName)
+        Write-Host ("Found assignments for {0}" -f $App.DisplayName)
         ForEach ($Assignment in $Assignments) {
             $ReportLine = [PSCustomObject]@{
                 TimeStamp   = $Assignment.CreatedDateTime  
@@ -35,6 +40,7 @@ ForEach ($SP in $ServicePrincipals) {
     }
 }
 
+$Report | Select-Object Resource, DisplayName, TimeStamp, Id, ResourceId | Out-GridView
 Write-Host ("Found {0} assignments - data available in {1}" -f $i, $CSVOutputFile)
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
 
