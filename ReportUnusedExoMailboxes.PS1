@@ -8,46 +8,48 @@ $ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 
 # Connect to the Microsoft Graph PowerShell SDK so that we can read sign in data
-Connect-MgGraph -Scope "User.Read.All", "AuditLog.Read.All"
+Connect-MgGraph -Scopes User.Read.All, AuditLog.Read.All -NoWelcome
 
 # Find mailboxes and check if they are unused
 $Now = Get-Date; [int]$i = 0
 Write-Host "Looking for User Mailboxes..."
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | `
-   Select-Object DisplayName, DistinguishedName, UserPrincipalName, ExternalDirectoryObjectId | Sort-Object DisplayName
+    Select-Object DisplayName, DistinguishedName, UserPrincipalName, ExternalDirectoryObjectId | Sort-Object DisplayName
   Write-Host ("Reporting {0} mailboxes..." -f $Mbx.Count)
   $Report = [System.Collections.Generic.List[Object]]::new() 
   ForEach ($M in $Mbx) {
-   $i++  
-   Write-Host ("Processing {0} {1}/{2}" -f $M.DisplayName, $i, $Mbx.count) 
-   $LastActive = $Null
-   $Log = Export-MailboxDiagnosticLogs -Identity $M.DistinguishedName -ExtendedProperties 
-   $xml = [xml]($Log.MailboxLog) 
-   $LastEMail = $Null; $LastCalendar = $Null; $LastContacts = $Null; $LastFile = $Null
-   $LastEmail = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastEmailTimeCurrentValue"}).Value
-   $LastCalendar = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastCalendarTimeCurrentValue"}).Value
-   $LastContacts = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastContactsTimeCurrentValue"}).Value
-   $LastFile = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastFileTimeCurrentValue"}).Value
-   $LastLogonTime = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastLogonTime"}).Value 
-   $LastActive = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastUserActionWorkloadAggregateTime"}).Value 
-     If ($LastActive) {
-      $DaysSinceActive = (New-TimeSpan -Start $LastActive -End $Now).Days }
-   Else {
-      $DaysSinceActive = "N/A" }
+    $i++  
+    Write-Host ("Processing {0} {1}/{2}" -f $M.DisplayName, $i, $Mbx.count) 
+    $LastActive = $Null
+    $Log = Export-MailboxDiagnosticLogs -Identity $M.DistinguishedName -ExtendedProperties 
+    $xml = [xml]($Log.MailboxLog) 
+    $LastEMail = $Null; $LastCalendar = $Null; $LastContacts = $Null; $LastFile = $Null
+    $LastEmail = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastEmailTimeCurrentValue"}).Value
+    $LastCalendar = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastCalendarTimeCurrentValue"}).Value
+    $LastContacts = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastContactsTimeCurrentValue"}).Value
+    $LastFile = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastFileTimeCurrentValue"}).Value
+    $LastLogonTime = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastLogonTime"}).Value 
+    $LastActive = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastUserActionWorkloadAggregateTime"}).Value 
+    If ($LastActive) {
+      $DaysSinceActive = (New-TimeSpan -Start $LastActive -End $Now).Days 
+    } Else {
+      $DaysSinceActive = "N/A" 
+    }
   
-   # Get Mailbox statistics
-   $Stats = (Get-ExoMailboxStatistics -Identity $M.DistinguishedName)
-   $MbxSize = ($Stats.TotalItemSize.Value.ToString()).Split("(")[0] 
-   # Get last Sign in from Azure AD sign in logs
-   $LastUserSignIn = $Null
-   $LastUserSignIn = (Get-MgAuditLogSignIn -Filter "UserId eq '$($M.ExternalDirectoryObjectId)'" -Top 1).CreatedDateTime
-   If ($LastUserSignIn) {
-       $LastUserSignInDate = Get-Date($LastUserSignIn) -format g }
-   Else {
-       $LastUserSignInDate = "No sign in records found in last 30 days" }
-   # Get account enabled status
-   $AccountEnabled = (Get-MgUser -UserId $M.ExternalDirectoryObjectId -Property AccountEnabled).AccountEnabled
-   $ReportLine = [PSCustomObject][Ordered]@{ 
+    # Get Mailbox statistics
+    $Stats = (Get-ExoMailboxStatistics -Identity $M.DistinguishedName)
+    $MbxSize = ($Stats.TotalItemSize.Value.ToString()).Split("(")[0] 
+    # Get last Sign in from Azure AD sign in logs
+    $LastUserSignIn = $Null
+    $LastUserSignIn = (Get-MgAuditLogSignIn -Filter "UserId eq '$($M.ExternalDirectoryObjectId)'" -Top 1).CreatedDateTime
+    If ($LastUserSignIn) {
+       $LastUserSignInDate = Get-Date($LastUserSignIn) -format g 
+    } Else {
+       $LastUserSignInDate = "No sign in records found in last 30 days" 
+    }
+    # Get account enabled status
+    $AccountEnabled = (Get-MgUser -UserId $M.ExternalDirectoryObjectId -Property AccountEnabled).AccountEnabled
+    $ReportLine = [PSCustomObject][Ordered]@{ 
         Mailbox         = $M.DisplayName 
         UPN             = $M.UserPrincipalName
         Enabled         = $AccountEnabled
@@ -61,7 +63,8 @@ Write-Host "Looking for User Mailboxes..."
         LastCalendar    = $LastCalendar
         LastContacts    = $LastContacts
         LastFile        = $LastFile } 
-   $Report.Add($ReportLine) } 
+    $Report.Add($ReportLine) 
+  } 
 $Report | Sort-Object DaysSinceActive -Descending | Out-GridView
 
 # Extract the mailboxes that are inactive for more than 60 days but only take 25 because that's how much we can post in Teams
