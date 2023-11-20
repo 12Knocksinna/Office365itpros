@@ -5,6 +5,15 @@
 Connect-ExchangeOnline#
 Connect-MgGraph -NoWelcome -Scopes Reports.Read.All
 
+$ObfuscatedReset = $False
+
+# Before doing anything, we need to make sure that the Graph returns non-obfuscated user daya
+If ((Get-MgBetaAdminReportSetting).DisplayConcealedNames -eq $True) {
+    $Parameters = @{ displayConcealedNames = $False }
+    Update-MgBetaAdminReportSetting -BodyParameter $Parameters
+    $ObfuscatedReset = $True
+ }
+
 Write-Host "Fetching Microsoft 365 usage data"
 Get-MgReportEmailActivityUserDetail -Period 'D180' -Outfile EmailActivity.CSV 
 [array]$EmailActivityData = Import-CSV EmailActivity.CSV
@@ -48,6 +57,13 @@ ForEach ($M in $Mbx) {
    $OutputReport.Add($ReportLine)
  }
 $OutputReport | Format-Table Name, UPN, Items, Size, LastActivity 
+
+# Now reset the obfuscated user data setting if necessary
+
+If ($ObfuscatedReset -eq $True) {
+    $Parameters = @{ displayConcealedNames = $True }
+    Update-MgBetaAdminReportSetting -BodyParameter $Parameters
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
