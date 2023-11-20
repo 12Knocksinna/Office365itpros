@@ -6,14 +6,13 @@
 Connect-ExchangeOnline#
 Connect-MgGraph -NoWelcome -Scopes Reports.Read.All
 
+# Before doing anything, we need to make sure that the Graph returns non-obfuscated user data
 $ObfuscatedReset = $False
-
-# Before doing anything, we need to make sure that the Graph returns non-obfuscated user daya
 If ((Get-MgBetaAdminReportSetting).DisplayConcealedNames -eq $True) {
     $Parameters = @{ displayConcealedNames = $False }
     Update-MgBetaAdminReportSetting -BodyParameter $Parameters
     $ObfuscatedReset = $True
- }
+}
 
 Write-Host "Fetching Microsoft 365 usage data"
 Get-MgReportEmailActivityUserDetail -Period 'D180' -Outfile EmailActivity.CSV 
