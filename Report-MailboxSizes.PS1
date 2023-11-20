@@ -1,6 +1,7 @@
 # Report-MailboxSizes.PS1
 # Script to demonstrate how to report mailbox statistics using Graph usage data
 # V1.0 20-Nov-2023
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-MailboxSizes.PS1
 
 Connect-ExchangeOnline#
 Connect-MgGraph -NoWelcome -Scopes Reports.Read.All
