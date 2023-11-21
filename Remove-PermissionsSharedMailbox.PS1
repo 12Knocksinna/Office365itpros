@@ -87,7 +87,7 @@ If ($Mailboxes -ne "All") {
     }
 }
 
-# After all that, what are we going to do
+# After all that, we should tell the administrator what are we going to do
 Write-Host ""
 Write-Host "Processing permission removal from shared mailboxes"
 Write-Host "---------------------------------------------------"
@@ -111,23 +111,23 @@ ForEach ($SM in $TargetSM) {
         # Check if this user has permission for this mailbox
         If ($U.UserPrincipalName -in $Permissions.User) {
             Write-Host ("Found user {0} with full access permission for shared mailbox {1}" -f $U.DisplayName, $SM.DisplayName) -ForegroundColor Red
-            # Remove-MailboxPermission -User $U.ExternalDirectoryObjectId -AccessRights FullAccess -Confirm:$false
+            Remove-MailboxPermission -Identity $SM.ExternalDirectoryObjectId -User $U.UserPrincipalName -AccessRights FullAccess -Confirm:$false
             $RemovedFullAccess = $True
             $RemovedFullAccessCount++
         }
         # Remove Send on behalf of permission if granted
-        [array]$SendOnBehalfOf = Get-ExoMailbox -Identity $SM.ExternalDirectoryObjectId -Properties GrantSendOnBehalfTo | Select-Object -ExpandProperty GrantSendOnBehalfTo
+        [array]$SendOnBehalfOf = Get-ExoMailbox -Identity $SM.UserPrincipalName -Properties GrantSendOnBehalfTo | Select-Object -ExpandProperty GrantSendOnBehalfTo
         If ($U.Alias -in $SendOnBehalfOf) {
             Write-Host ("Removing Send on Behalf Of permission for {0} from {1}" -f $U.DisplayName, $SM.DisplayName) -ForegroundColor Yellow
-            # Set-Mailbox -Identity $SM.ExternalDirectoryObjectUd -GrantSendOnBehalfTo @{remove="$U.UserPrincipalName"} `
-            #   -ErrorAction SilentlyContinue
+            Set-Mailbox -Identity $SM.ExternalDirectoryObjectId -GrantSendOnBehalfTo @{remove="$U.UserPrincipalName"} `
+               -ErrorAction SilentlyContinue
             $RemovedSendOnBehalfOf = $True
             $RemovedSendOnBehalfOfCount++
         }
         # Remove Send As permission if granted
         If (Get-ExoRecipientPermission -Identity $SM.ExternalDirectoryObjectId -Trustee $U.UserPrincipalName -AccessRights SendAs) {
             Write-Host ("Removing Send As permission for {0} from {1}" -f $U.DisplayName, $SM.DisplayName) -ForegroundColor Yellow
-            # Remove-RecipientPermission -AccessRights SendAs -Trustee $U.UserPrincipalName -ErrorAction SilentlyContinue
+            Remove-RecipientPermission -Identity $SM.ExternalDirectoryObjectId -AccessRights SendAs -Trustee $U.UserPrincipalName -Confirm:$False -ErrorAction SilentlyContinue
             $RemovedSendAs = $True
             $RemovedSendAsCount++
         }
