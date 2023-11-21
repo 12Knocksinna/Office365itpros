@@ -96,11 +96,11 @@ $RemovalResults = [System.Collections.Generic.List[Object]]::new()
 [int]$RemovedFullAccessCount = 0; [int]$RemovedSendOnBehalfOfCount = 0; [int]$RemovedSendAsCount = 0
 ForEach ($SM in $TargetSM) {
     $i++
-    $RemovedSendAs = $false; $RemovedSendOnBehalfOf = $False; $RemovedFullAccess = $False
-    Write-Host ("Removing permissions for shared mailbox {0} ({1}/{2})" -f $SM.DisplayName, $i, $TargetSM.count)
+    Write-Host ("Checking permissions for shared mailbox {0} ({1}/{2})" -f $SM.DisplayName, $i, $TargetSM.count)
     $Permissions = Get-MailboxPermission -Identity $SM.ExternalDirectoryObjectId `
         | Where-Object {$_.User -ne 'NT AUTHORITY\SELF' -and $_.IsInherited -ne $true }
     ForEach ($U in $UsersToProcess) {
+        $RemovedSendAs = $false; $RemovedSendOnBehalfOf = $False; $RemovedFullAccess = $False
         # Check if this user has permission for this mailbox
         If ($U.UserPrincipalName -in $Permissions.User) {
             Write-Host ("Found user {0} with full access permission for shared mailbox {1}" -f $U.DisplayName, $SM.DisplayName) -ForegroundColor Red
