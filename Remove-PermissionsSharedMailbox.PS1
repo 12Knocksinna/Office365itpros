@@ -1,5 +1,11 @@
 # Remove-PermissionsSharedMailbox.PS1
 # Sample script to show how to remove permissions for one or more users from shared mailboxes.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-PermissionsSharedMailbox.PS1
+# V1.0 20-Nov-2023
+# Two simple parameters - the set of user mailboces to check against a set of shared mailboxes. Both can be 'All' meaning
+# that the script will check all of the objects of that type. Or they can be a comma-separated lists of mailbox identities
+# that the script wll resolve and then process.
+
 param (
     [Parameter(Mandatory=$true)]
     [string]$Mailboxes,
