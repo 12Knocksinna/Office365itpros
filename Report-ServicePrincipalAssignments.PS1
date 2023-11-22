@@ -10,7 +10,9 @@ $TenantId = (Get-MgOrganization).Id
 [array]$ServicePrincipals = Get-MgServicePrincipal -All 
 
 If ($ServicePrincipals) {
-    [array]$EnterpriseApps = $ServicePrincipals | Where-Object {$_.AppOwnerOrganizationId -ne $TenantId} | `
+    # This filter finds enterprise apps where app role assignment is required. If you want to report
+    # assignments for all enterprise apps, remove the clause that looks for $_.AppRoleAssignmentRequired to be True
+    [array]$EnterpriseApps = $ServicePrincipals | Where-Object {$_.AppOwnerOrganizationId -ne $TenantId -and $_.AppRoleAssignmentRequired -eq $True} | `
         Sort-Object DisplayName
     Write-Host ("Analyzing assignments for {0} Enterprise Apps..." -f $EnterpriseApps.count)
     $Report = [System.Collections.Generic.List[Object]]::new() 
