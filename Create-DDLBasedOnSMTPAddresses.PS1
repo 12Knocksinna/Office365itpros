@@ -37,7 +37,7 @@ ForEach ($D in $Domains) {
     $DDLAlias = ("Domain.{0}" -f ($D.Split("@")))
     If ($Null -eq (Get-DynamicDistributionGroup -Identity $DDLAlias -ErrorAction SilentlyContinue)) {
         Write-Host ("Creating dynamic distribution list for the {0} domain..." -f $D) -ForegroundColor Yellow
-        $Filter = "CustomAttribute13 -eq '$D'"
+        $Filter = "CustomAttribute13 -eq '$D' -and RecipientTypeDetails -eq 'UserMailbox'"
         $DDLName = ("{0} users" -f $D)
         $DDLDisplayName = ("People with {0} primary SMTP addresses" -f $D)
         $DDLPrimarySMTPAddress = ("{0}@office365itpros.com" -f $DDLAlias)
