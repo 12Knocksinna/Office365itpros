@@ -9,7 +9,7 @@ If (Get-ConnectionInformation) {
     Connect-ExchangeOnline -SkipLoadingCmdletHelp
 }
 
-[array]$Domains = "office365itpros.com", "redmondassociates.org"
+[array]$Domains = "office365itpros.com", "office365exchangebook.com"
 $DefaultDDLOwner = "Lotte.Vetler@Office365itpros.com"
 
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited `
