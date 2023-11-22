@@ -34,7 +34,7 @@ If ($Mbx) {
 Write-Host "Finished processing mailboxes - now creating dynamic distribution lists"
 # Loop through each domain and create a dynamic distribution list (if one doesn't exist already)
 ForEach ($D in $Domains) {
-    $DDLAlias = ("Domain.{0}" -f ($D.Split("@")))
+    $DDLAlias = ("Domain.{0}" -f $D)
     If ($Null -eq (Get-DynamicDistributionGroup -Identity $DDLAlias -ErrorAction SilentlyContinue)) {
         Write-Host ("Creating dynamic distribution list for the {0} domain..." -f $D) -ForegroundColor Yellow
         $Filter = "CustomAttribute13 -eq '$D' -and RecipientTypeDetails -eq 'UserMailbox'"
