@@ -38,7 +38,14 @@
 #
 #+-------------------------- Functions etc. -------------------------
 
-# Extra line
+<# 
+Extra line
+
+Here's some more stuff
+
+Is it online and safe?
+
+#>
 
 
 function Get-GraphData {
