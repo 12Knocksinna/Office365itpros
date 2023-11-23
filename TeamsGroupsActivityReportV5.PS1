@@ -38,6 +38,9 @@
 #
 #+-------------------------- Functions etc. -------------------------
 
+# Extra line
+
+
 function Get-GraphData {
 # Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
 # GET data from Microsoft Graph.
