@@ -19,7 +19,7 @@ If (!($DataFiles)) {
 Write-Host ("Preparing to process {0} historical message trace data files..." -f $DataFiles.count)
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
 
-# Create a hash table of distribution list SMTP addresses and display names thatg we can use to
+# Create a hash table of distribution list SMTP addresses and display names that we can use to
 # check if a recipient in a message trace file is a DL
 [array]$DLs = Get-DistributionGroup -ResultSize Unlimited
 $DLSMTPAddresses = @{}
