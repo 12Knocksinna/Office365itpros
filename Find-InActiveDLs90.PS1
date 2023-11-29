@@ -61,7 +61,6 @@ ForEach ($File in $DataFiles) {
    }
 }  
 
-$Report | Sort-Object TimeStamp -Descending | Out-GridView
 $OutputReport = [System.Collections.Generic.List[Object]]::new()
 [int]$TotalDLOK = 0
 # Check each DL to see if we can find a record
@@ -88,7 +87,8 @@ ForEach ($DL in $DLs) {
    }
 }
 
-$Report | Export-CSV -NoTypeInformation $CSVFile
+$OutputReport | Sort-Object TimeStamp -Descending | Out-GridView
+$OutputReport | Export-CSV -NoTypeInformation $CSVFile
 $PercentOK = ($TotalDLOK/$DLs.Count).ToString("P")
 
 Write-Host ""
