@@ -51,12 +51,13 @@ ForEach ($Team in $Teams) {
      Set-MailboxAutoReplyConfiguration -Identity $Team.Id -ExternalMessage "Sorry, this mailbox doesn't accept email" `
       -AutoReplyState Enabled -InternalMessage $InternalMessage 
    } Else {
-      Write-Host ()"Using default auto-reply for {0}" -f $Team.DisplayName)
+      Write-Host ("Using default auto-reply for {0}" -f $Team.DisplayName)
       Set-MailboxAutoReplyConfiguration -Identity $Team.Id `
          -ExternalMessage "Sorry, this mailbox doesn't accept email" -ExternalAudience All `
          -AutoReplyState Enabled -InternalMessage "Please use Teams to communicate with us" 
    }
-} # End For each team
+} 
+# End For each team
 
 # Comment these lines out if you don't want the script to create a temp directory to store its output files
 $path = "C:\Temp"
