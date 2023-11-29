@@ -84,10 +84,18 @@ ForEach ($DL in $DLs) {
       $OutputReport.Add($ReportLine)
    } Else {
       Write-Host ("No messages found for distribution list {0}" -f $DL.DisplayName) -ForegroundColor Yellow
+      $ReportLine = [PSCustomObject]@{ 
+         Timestamp = "N/A"
+         Sender    = "N/A"
+         DLName    = $DL.DisplayName
+         DLSMTP    = $DL.PrimarySMTPAddress
+         Subject   = "No messages found"
+      }
+      $OutputReport.Add($ReportLine)
    }
 }
 
-$OutputReport | Sort-Object TimeStamp -Descending | Out-GridView
+$OutputReport | Sort-Object TimeStamp | Out-GridView
 $OutputReport | Export-CSV -NoTypeInformation $CSVFile
 $PercentOK = ($TotalDLOK/$DLs.Count).ToString("P")
 
