@@ -30,7 +30,9 @@ ForEach ($P in $TenantSKUs) {
 [array]$ServicePlanData = $ProductData | Select-Object Service_Plan_Id, Service_Plan_Name, Service_Plans_Included_Friendly_Names | `
     Sort-Object Service_Plan_Id -Unique
 $ServicePlanHash = @{}
-ForEach ($SP in $ServicePlanData) { $ServicePlanHash.Add([string]$SP.Service_Plan_Id,[string]$SP.Service_Plans_Included_Friendly_Names) }
+ForEach ($SP in $ServicePlanData) { 
+    $ServicePlanHash.Add([string]$SP.Service_Plan_Id,[string]$SP.Service_Plans_Included_Friendly_Names)
+}
 
 # This section creates an array containing service plans from the original SKU with matching service plans
 # from the new SKU. The idea is that when assigning the new license, if any service plans are disabled for the old SKU,
@@ -110,7 +112,7 @@ ForEach ($User in $Report) {
         # Now to remove the old license
         $Status = Set-MgUserLicense -UserId $UserId -AddLicenses @() -RemoveLicenses $OriginalSku
         If ($Status) {
-            Write-Host ("{0} license removed from to account {1}" -f ($TenantSkuHash[$OriginalSKU]), $User.User )
+            Write-Host ("{0} license removed from account {1}" -f ($TenantSkuHash[$OriginalSKU]), $User.User )
         }
     }
 }
