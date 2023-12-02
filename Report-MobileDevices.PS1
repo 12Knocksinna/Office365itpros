@@ -24,10 +24,10 @@ $HtmlHead ="<html>
 $Version = "1.0"
 $HtmlReportFile = "c:\temp\MobileDevices.html"
 $CSVReportFile = "c:\temp\MobileDevices.csv"
-$Organization = Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName
 
 Connect-ExchangeOnline
 
+$Organization = Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName
 [array]$Mbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox | Sort-Object DisplayName
 If (!($Mbx)) { Write-Host "Unable to find any user mailboxes..." ; break }
 
