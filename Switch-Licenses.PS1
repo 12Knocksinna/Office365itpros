@@ -104,7 +104,15 @@ ForEach ($User in $Report) {
         }
         Write-Host ("Calculated service plans to disable {0}" -f ($DisabledServicePlansToUse -join ", "))
     }
-    Set-MgUserLicense -UserId $UserId -AddLicenses @{SkuId = $NewSKU; DisabledPlans = $DisabledServicePlansToUse} -RemoveLicenses @()
+    $Status = Set-MgUserLicense -UserId $UserId -AddLicenses @{SkuId = $NewSKU; DisabledPlans = $DisabledServicePlansToUse} -RemoveLicenses @()
+    If ($Status) {
+        Write-Host ("{0} license assigned to account {1}" -f ($TenantSkuHash[$NewSKU]), $User.User )
+        # Now to remove the old license
+        $Status = Set-MgUserLicense -UserId $UserId -AddLicenses @() -RemoveLicenses $OriginalSku
+        If ($Status) {
+            Write-Host ("{0} license removed from to account {1}" -f ($TenantSkuHash[$OriginalSKU]), $User.User )
+        }
+    }
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
