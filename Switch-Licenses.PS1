@@ -82,10 +82,10 @@ ForEach ($User in $Users) {
             $DisabledServicePlans = $null
             [array]$DisabledServicePlans = $License.DisabledPlans 
             $ReportLine = [PSCustomObject]@{ 
-                UserId  = $User.Id
-                User    = $User.DisplayName
-                SkuId   = $License.SkuId
-                DisabledPlans = $DisabledServicePlans }
+                UserId          = $User.Id
+                DisplayName     = $User.DisplayName
+                SkuId           = $License.SkuId
+                DisabledPlans   = $DisabledServicePlans }
         $Report.Add($ReportLine)        
         }
     }
@@ -93,11 +93,11 @@ ForEach ($User in $Users) {
 
 # Loop to go through user accounts and remove the old license and assign the new - with appropriate service plans
 ForEach ($User in $Report) {
-    Write-Host ("Processing licenses for account: {0}" -f $User.User)
+    [array]$DisabledServicePlansToUse = $Null
+    Write-Host ("Processing licenses for account: {0}" -f $User.DisplayName)
     If ($Null -ne $User.DisabledPlans) {
-    # Process disabled service plans
-        [array]$DisabledServicePlansToUse = $Null
-        Write-Host ("Disabled service plans {0}" -f ($User.DisabledPlans -join ", "))  
+    # Process disabled service plans to make sure that we have a good set to bring to the new license
+        # Write-Host ("Disabled service plans {0}" -f ($User.DisabledPlans -join ", "))  
         ForEach ($SP in $User.DisabledPlans) {
             $FoundSP = $SwappedServicePlans | Where-Object {$_.OldSP -eq $SP}
             If ($FoundSP) {
@@ -106,15 +106,19 @@ ForEach ($User in $Report) {
                 $DisabledServicePlansToUse += $SP
             }
         }
-        Write-Host ("Calculated service plans to disable {0}" -f ($DisabledServicePlansToUse -join ", "))
+        # Write-Host ("Calculated service plans to disable {0}" -f ($DisabledServicePlansToUse -join ", "))
     }
-    $Status = Set-MgUserLicense -UserId $UserId -AddLicenses @{SkuId = $NewSKU; DisabledPlans = $DisabledServicePlansToUse} -RemoveLicenses @()
-    If ($Status) {
-        Write-Host ("{0} license assigned to account {1}" -f ($TenantSkuHash[$NewSKU]), $User.User )
+    $Status = Set-MgUserLicense -UserId $User.UserId `
+        -AddLicenses @{SkuId = $NewSKU; DisabledPlans = $DisabledServicePlansToUse} `
+        -RemoveLicenses @() -ErrorAction SilentlyContinue
+    If (!($Status)) {
+        Write-Host "Error assigning license - please check availability" -ForegroundColor Red
+    } Else {
+        Write-Host ("{0} license assigned to account {1}" -f ($TenantSkuHash[$NewSKU]), $User.DisplayName )
         # Now to remove the old license
-        $Status = Set-MgUserLicense -UserId $UserId -AddLicenses @() -RemoveLicenses $OriginalSku
+        $Status = Set-MgUserLicense -UserId $User.UserId -AddLicenses @() -RemoveLicenses $OriginalSku -ErrorAction SilentlyContinue
         If ($Status) {
-            Write-Host ("{0} license removed from account {1}" -f ($TenantSkuHash[$OriginalSKU]), $User.User )
+            Write-Host ("{0} license removed from account {1}" -f ($TenantSkuHash[$OriginalSKU]), $User.DisplayName )
         }
     }
 }
