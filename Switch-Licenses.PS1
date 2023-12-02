@@ -32,6 +32,23 @@ ForEach ($P in $TenantSKUs) {
 $ServicePlanHash = @{}
 ForEach ($SP in $ServicePlanData) { $ServicePlanHash.Add([string]$SP.Service_Plan_Id,[string]$SP.Service_Plans_Included_Friendly_Names) }
 
+[array]$NewSP = $ProductData | Where-Object {$_.GUID -eq $NewSKU} | Sort-Object Service_Plan_Name -Descending
+[array]$OldSP = $ProductData | Where-Object {$_.GUID -eq $OriginalSKU} 
+$SwappedServicePlans = [System.Collections.Generic.List[Object]]::new()
+ForEach ($ServicePlan in $OldSP) {
+    $Check = $ServicePlan.Service_Plan_Name.SubString(0,$ServicePlan.Service_Plan_Name.Length -2) + "*"
+    $Found = $NewSP | Where-Object {$_.Service_Plan_Name -like $Check} | Select-Object -First 1
+    If ($Found) {
+        $ReportLine = [PSCustomObject]@{ 
+           OldSP        = $ServicePlan.Service_Plan_Id
+           OldSPName    = $ServicePlan.Service_Plan_Name
+           NewSP        = $Found.Service_Plan_Id
+           NewSPName    = $Found.Service_Plan_Name 
+        }
+        $SwappedServicePlans.Add($ReportLine)
+    }
+}
+
 Write-Host ("Looking for user accounts licensed for {0} ({1}...)" -f ($TenantSkuHash[$OriginalSKU]), $OriginalSKU)
 [array]$Users = Get-MgUser -filter "assignedLicenses/any(s:s/skuId eq $OriginalSKU)" -All `
     -Property Id, displayName, assignedLicenses
