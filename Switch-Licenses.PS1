@@ -1,5 +1,7 @@
 # Switch-Licenses.PS1
-# Switch licenses for a set of Entra ID user accounts
+# Switch licenses for a set of Entra ID user accounts. This example shows the processing to switch user accounts
+# from Office 365 E3 licenses to Microsoft 365 E5 licenses.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Switch-Licenses.PS1
 # V1.0 2-Dec-2023
 
 Connect-MgGraph -Scopes User.ReadWrite.All -NoWelcome
