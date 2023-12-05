@@ -1,5 +1,7 @@
 # Update-BreakGlassUsersCAPolicies.PS1
 # Make sure that our break glass users are excluded from every CA policy that's active in the organization
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Update-BreakGlassUsersCAPolicies.PS1
+# V1.0 5-Dec-2023
 
 Connect-MgGraph -NoWelcome -Scopes Policy.ReadWrite.ConditionalAccess
 [array]$BreakGlassUsers = "91813a30-f048-48f1-a0f2-fd7c72020515", "b7289bc7-7e4e-44e2-ae1b-7e13e94e3749"
