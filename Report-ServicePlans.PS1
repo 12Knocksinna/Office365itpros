@@ -1,7 +1,7 @@
 # Report-ServicePlans.PS1
 # Script to report the service plans found in subscriptions for a Microsoft 365 tenant
 # V1.0 30-Nov-2023
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ServicePlans.PS1
 
 [string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
 $Version = "1.0"
