@@ -8,7 +8,7 @@
 # V1.3 29-Sep-2023 Added support for group-based licensing
 # V1.4 13-Oct-2023 Fixed some bugs
 
-[datetime]$RunDate = Get-Date
+[string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
 $Version = "1.4"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
 $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
@@ -170,8 +170,9 @@ If ($DuplicateSkus) {
        Status                     = $UnusedAccountWarning
   }
   $Report.Add($ReportLine)
-  } #end If account is licensed
-  Else { $UnlicensedAccounts++}
+  } Else { #end If account is licensed
+    $UnlicensedAccounts++
+  }
 } # End ForEach Users
 
 $UnderusedAccounts = $Report | Where-Object {$_.Status -ne "OK"}
@@ -210,13 +211,13 @@ $htmlhead="<html>
            <div align=center>
            <p><h1>Microsoft 365 License Report</h1></p>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
-           <p><h3>Generated: " + (Get-Date($RunDate) -format 'dd-MMM-yyyy hh:mm') + "</h3></p></div>"
+           <p><h3>Generated: " + $RunDate + "</h3></p></div>"
 
 $Htmlbody1 = $Report | ConvertTo-Html -Fragment
 $Htmlbody2 = $SkuReport | ConvertTo-Html -Fragment
 $HtmlSkuSeparator = "<p><h2>Product License Distribution</h2></p>"
 $Htmltail = "<p>Report created for: " + $OrgName + "</p>" +
-             "<p>Created: " + (Get-Date($RunDate) -format 'dd-MMM-yyy hh:mm') + "<p>" +
+             "<p>Created: " + $RunDate + "<p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
              "<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
              "<p>Number of underused user accounts found:   " + $UnderUsedAccounts.Count + "</p>" +
