@@ -131,7 +131,7 @@ $HTMLHead="<html>
 	   </style>
 	   <body>
            <div align=center>
-           <p><h1>Microsoft 365 Subsriptions and Service Plan Report</h1></p>
+           <p><h1>Microsoft 365 Subscriptions and Service Plan Report</h1></p>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
            <p><h3>Generated: " + $RunDate + "</h3></p></div>"
 
