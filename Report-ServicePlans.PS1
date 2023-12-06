@@ -150,8 +150,10 @@ ForEach ($TableRow in $XML.table.SelectNodes("tr")) {
     $TableRow.SetAttribute("class","tablerow")
     ## If row has TD and TD[5] is 3 or less
     If (($TableRow.td) -and ([int]$TableRow.td[5] -le 3))  {
-        ## tag the TD with the class "warn" defined in the heading
+        ## tag the TD with eirher the color for "warn" or "pass" defined in the heading
         $TableRow.SelectNodes("td")[5].SetAttribute("class","warn")
+    } ElseIf (($TableRow.td) -and ([int]$TableRow.td[5] -gt 3)) {
+        $TableRow.SelectNodes("td")[5].SetAttribute("class","pass")
     }
 }
 # Wrap the output table with a div tag
