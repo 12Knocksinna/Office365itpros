@@ -3,35 +3,44 @@
 # 6-Dec-2023
 #
 
+Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All
+
 $Headers = @{ConsistencyLevel="Eventual"}  
 $Uri = "https://graph.microsoft.com/beta/users?`$count=true&`$filter=(assignedLicenses/`$count ne 0 and userType eq 'Member')&$`top=999&`$select=id, displayName, usertype, signInActivity"
 [array]$Data = Invoke-MgGraphRequest -Uri $Uri -Headers $Headers
 [array]$Users = $Data.Value
 
-$Data = Invoke-MgGraphRequest -Uri $Uri -Method Get -Headers @{"ConsistencyLevel" = "eventual"}
-[array]$Users = $Data.Value
 If (!($Users)) {
     Write-Host "Can't find any users... exiting!" ; break
 }
 
-$Report = [System.Collections.Generic.List[Object]]::new()
-Write-Host ("Processing {0} users..." -f $Users.count)
+While ($Null -ne $Data.'@odata.nextLink') {
+    Write-Host ("Fetching more user accounts - currently at {0}" -f $Users.count)
+    $Uri = $Data.'@odata.nextLink'
+    [array]$Data = Invoke-MgGraphRequest -Uri $Uri -Headers $Headers
+    $Users = $Users + $Data.Value
+ }
+ Write-Host ("All available user accounts fetched ({0}) - now processing sign in report" -f $Users.count)
 
+$Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
-    $DaysSinceLastLogOn = $Null; $DaysSinceLastSuccessfulSignIn = $Null
+    $DaysSinceLastSignIn = $Null; $DaysSinceLastSuccessfulSignIn = $Null
+    $DaysSinceLastSignIn = "N/A"; $DaysSinceLastSuccessfulSignIn = "N/A"
     $LastSuccessfulSignIn = $User.signInActivity.lastSuccessfulSignInDateTime
-    $LastLogin = $User.signInActivity.lastSignInDateTime
+    $LastSignIn = $User.signInActivity.lastSignInDateTime
     If (!([string]::IsNullOrWhiteSpace($LastSuccessfulSignIn))) {
         $DaysSinceLastSuccessfulSignIn = (New-TimeSpan $LastSuccessfulSignIn).Days 
-        $DaysSinceLastLogOn = (New-TimeSpan $LastLogin).Days
+    }
+    If (!([string]::IsNullOrWhiteSpace($LastSignIn))) {
+        $DaysSinceLastSignIn = (New-TimeSpan $LastSignIn).Days
     }    
     $DataLine = [PSCustomObject][Ordered]@{
         User = $User.displayName
         UserId = $User.ID
-        'Last successful sign in'   = $LastSuccessfulSignIn
-        'Last successful log on'    = $LastLogin
-        'Days since sign in'        = $DaysSinceLastSuccessfulSignIn
-        'Days since log on'         = $DaysSinceLastLogOn
+        'Last successful sign in'        = $LastSuccessfulSignIn
+        'Last sign in'                   = $LastSignIn
+        'Days since successful sign in'  = $DaysSinceLastSuccessfulSignIn
+        'Days since sign in'             = $DaysSinceLastSignIn
     }
     $Report.Add($DataLine)
 }
