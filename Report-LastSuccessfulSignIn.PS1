@@ -3,8 +3,10 @@
 # 6-Dec-2023
 #
 
+# Connect to the Graph SDK with the correct permissions
 Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All
 
+# Find licensed user accounts
 $Headers = @{ConsistencyLevel="Eventual"}  
 $Uri = "https://graph.microsoft.com/beta/users?`$count=true&`$filter=(assignedLicenses/`$count ne 0 and userType eq 'Member')&$`top=999&`$select=id, displayName, usertype, signInActivity"
 [array]$Data = Invoke-MgGraphRequest -Uri $Uri -Headers $Headers
@@ -14,6 +16,7 @@ If (!($Users)) {
     Write-Host "Can't find any users... exiting!" ; break
 }
 
+# Paginate until we have all the user accounts
 While ($Null -ne $Data.'@odata.nextLink') {
     Write-Host ("Fetching more user accounts - currently at {0}" -f $Users.count)
     $Uri = $Data.'@odata.nextLink'
@@ -22,6 +25,7 @@ While ($Null -ne $Data.'@odata.nextLink') {
  }
  Write-Host ("All available user accounts fetched ({0}) - now processing sign in report" -f $Users.count)
 
+ # And report what we've found
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
     $DaysSinceLastSignIn = $Null; $DaysSinceLastSuccessfulSignIn = $Null
