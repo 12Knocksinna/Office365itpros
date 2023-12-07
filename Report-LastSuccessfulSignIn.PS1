@@ -1,7 +1,7 @@
 # Report-LastSuccessfulSignIn.PS1
 # Demo script to show the use of the new (from 1-Dec-2023) lastSuccessfulSignInDateTime property currently available in beta
 # 6-Dec-2023
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-LastSuccessfulSignIn.PS1
 
 # Connect to the Graph SDK with the correct permissions
 Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All
