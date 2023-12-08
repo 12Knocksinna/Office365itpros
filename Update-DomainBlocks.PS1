@@ -27,7 +27,7 @@ Connect-ExchangeOnline -SkipLoadingCmdletHelp
 
 # Transport rule to use for blocking top-level domains
 $TransportRuleName = "Block Inbound messages from selected top-level domains"
-# Recipient for the email sent at the end of the script
+# Recipient for the email sent at the end of the script - define the addresses you want to use here
 $EmailRecipient = "Peter.Bedson@o365maestro.onmicrosoft.com"
 # Message will be sent from the account running the script. If used with the Mail.Send permission in an Azure
 # Automation runbook, the sender can be any mailbox in the organization
