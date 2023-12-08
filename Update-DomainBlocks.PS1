@@ -177,7 +177,7 @@ If ($IndividualDomainBlocks) {
             -ErrorAction SilentlyContinue 
         $BlockedDomains = Get-TransportRule -Identity $TransportRuleName2 | Select-Object -ExpandProperty SenderDomainIs
         If (!(Compare-Object -ReferenceObject $IndividualDomainBlocks -DifferenceObject $BlockedDomains)) {
-            Write-Output ("Transport rule updated to block email from these domains {0}:" -f ($IndividualDomainBlocks -join ", "))
+            Write-Output ("Transport rule updated to block email from these domains: {0}" -f ($IndividualDomainBlocks -join ", "))
         }    
     }
 }
