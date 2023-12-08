@@ -3,7 +3,7 @@
 # apply them through the tenant allow/block lists and through a transport rule (mail flow rule)
 # to block all inbound email from selected top-level domains.
 # V1.0 1-Dec-2023
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Update-DomainBlocks.PS1
 
 Function Add-MessageRecipients {
     # Function to build an addressee list to send email   
