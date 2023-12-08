@@ -28,6 +28,7 @@ Connect-ExchangeOnline -SkipLoadingCmdletHelp
 # Transport rules to use for blocking top-level domains (TLDs) and individual domains
 $TransportRuleName = "Block Inbound messages from selected top-level domains"
 $TransportRuleName2 = "Block Email From Selected Domains"
+$ExpirationDate = (Get-Date).AddDays(90).ToUniversalTime()
 
 # Recipient for the email sent at the end of the script - define the addresses you want to use here
 $EmailRecipient = "Peter.Bedson@o365maestro.onmicrosoft.com"
@@ -82,8 +83,9 @@ ForEach ($BlockSender in $SenderBlocks) {
         Write-Output ("Removing current block for {0}" -f $BlockSender.ItemToBlock)
         $Status = Remove-TenantAllowBlockListItems -ListType Sender -Ids $CheckSender.Identity -ErrorAction SilentlyContinue
     }
-    # Add the new sender block
-    $Status = (New-TenantAllowBlockListItems -ListType Sender -Entries $BlockSender.ItemToBlock -Block -ErrorAction SilentlyContinue)
+    # Add the new sender block list entry
+    $Status = (New-TenantAllowBlockListItems -ListType Sender -Entries $BlockSender.ItemToBlock -Block `
+        -ExpirationDate $ExpirationDate -ErrorAction SilentlyContinue)
     If ($Status) {
         Write-Output ("Block successfully applied for {0}" -f $BlockSender.ItemToBlock)
         $BlockData = [PSCustomObject][Ordered]@{
@@ -113,7 +115,9 @@ ForEach ($BlockURL in $URLBlocks) {
         Write-Output ("Removing current block for {0}" -f $URLToBlock)
         $Status = Remove-TenantAllowBlockListItems -ListType URL -Entries $URLToBlock -ErrorAction SilentlyContinue
     }
-    $Status = (New-TenantAllowBlockListItems -ListType URL -Entries $URLToBlock -Block -ErrorAction SilentlyContinue)
+    # Add the block for 90 days
+    $Status = (New-TenantAllowBlockListItems -ListType URL -Entries $URLToBlock -Block `
+        -ExpirationDate $ExpirationDate -ErrorAction SilentlyContinue)
     If ($Status) {
         Write-Output ("Block successfully applied for {0}" -f $URLToBlock)
         $BlockData = [PSCustomObject][Ordered]@{
