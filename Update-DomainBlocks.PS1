@@ -16,7 +16,7 @@ Function Add-MessageRecipients {
 } 
 
 # Connect to the Graph SDK endpoint (tested with SDK V2.10)
-Connect-MgGraph -Scopes Sites.ReadWrite.All, Sites.Manage.All -NoWelcome
+Connect-MgGraph -Scopes Sites.Read.All, Sites.Manage.All, Mail.Send -NoWelcome
 # To run in Azure Automation with a managed identity use
 # Connect-MgGraph -NoWelcome -Identity
 
