@@ -175,7 +175,7 @@ If ($IndividualDomainBlocks) {
         Write-Output "Updating transport rule to block specific email domains..."
         Set-TransportRule -Identity $TransportRuleName2 -SenderDomainIs $IndividualDomainBlocks -Comments $Comments `
             -ErrorAction SilentlyContinue 
-        $BlockedDomains = Get-TransportRule -Identity $TransportRuleName | Select-Object -ExpandProperty FromAddressMatchesPatterns
+        $BlockedDomains = Get-TransportRule -Identity $TransportRuleName2 | Select-Object -ExpandProperty SenderDomainIs
         If (!(Compare-Object -ReferenceObject $IndividualDomainBlocks -DifferenceObject $BlockedDomains)) {
             Write-Output ("Transport rule updated to block email from these domains {0}:" -f ($IndividualDomainBlocks -join ", "))
         }    
@@ -194,9 +194,9 @@ If ($NewRuleCreated) {
     $HtmlMsg = $HtmlMsg + ("<p>Transport rule <b>{0}</b> updated to block top-level domains</p>" -f $TransportRuleName)
 }
 If ($NewRuleCreated2) {
-    $HtmlMsg = $HtmlMsg + ("<p><b>New transport rule created to block email from specific domains: {0}</b></p>" -f $TransportRuleName)
+    $HtmlMsg = $HtmlMsg + ("<p><b>New transport rule created to block email from specific domains: {0}</b></p>" -f $TransportRuleName2)
 } Else {
-    $HtmlMsg = $HtmlMsg + ("<p>Transport rule <b>{0}</b> updated to block email from specific domains</p>" -f $TransportRuleName)
+    $HtmlMsg = $HtmlMsg + ("<p>Transport rule <b>{0}</b> updated to block email from specific domains</p>" -f $TransportRuleName2)
 }
 # Construct the message body
 $MsgBody = @{
