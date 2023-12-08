@@ -131,12 +131,12 @@ If ($TLDBlocksforTransportRule) {
 # Now to update the transport rule to block TLDs if any TLDs are to be blocked. 
 # First, check if a rule exists. If it doesn't, create it
     [array]$CheckTransportRule = Get-TransportRule -Identity $TransportRuleName -ErrorAction SilentlyContinue
+    $Comments = ("Rule updated automatically on {0} to process TLDs: {1}" -f (Get-Date -format 'dd-MMM-yy HH:mm'), ($TLDBlocksforTransportRule -join ", "))
     If (!($CheckTransportRule)) {
     # Transport rule not present, so create new rule
         $NewRule = New-TransportRule -Name $TransportRuleName -Enabled $True `
             -FromAddressMatchesPatterns $TLDBlocksforTransportRule -SenderAddressLocation 'Header' `
-            -Comments 'Transport rule created to stop inbound email from specified top level domains' `
-            -Quarantine $true
+            -Comments $Comments -Quarantine $true
         If ($NewRule) {
             Write-Output "Transport rule created to block email from specified TLDs" 
             $NewRuleCreated = $true
@@ -144,7 +144,6 @@ If ($TLDBlocksforTransportRule) {
     } Else {
     # We have a transport rule, so update it
         Write-Output "Updating transport rule for TLD blocks..."
-        $Comments = ("Rule updated automatically on {0} to process domains: {1}" -f (Get-Date -format 'dd-MMM-yy HH:mm'), ($TLDBlocksforTransportRule -join ", "))
         Set-TransportRule -Identity $TransportRuleName -FromAddressMatchesPatterns $TLDBlocksforTransportRule `
             -ErrorAction SilentlyContinue -Comments $Comments
         $BlockedTLDs = Get-TransportRule -Identity $TransportRuleName | Select-Object -ExpandProperty FromAddressMatchesPatterns
@@ -157,12 +156,12 @@ If ($TLDBlocksforTransportRule) {
 # And check if we have to block individual domains
 If ($IndividualDomainBlocks) {
     [array]$CheckTransportRule = Get-TransportRule -Identity $TransportRuleName2 -ErrorAction SilentlyContinue
+    $Comments = ("Rule updated automatically on {0} to process domains: {1}" -f (Get-Date -format 'dd-MMM-yy HH:mm'), ($IndividualDomainBlocks -join ", "))
     If (!($CheckTransportRule)) {
     # Transport rule not present, so create new rule
         $NewRule = New-TransportRule -Name $TransportRuleName2 -Enabled $True `
             -SenderDomainIs $IndividualDomainBlocks `
-            -Comments 'Transport rule created to stop inbound email from specified domains' `
-            -Quarantine $true
+            -Comments $Comments -Quarantine $true
         If ($NewRule) {
             Write-Output "Transport rule created to block email for individual domains" 
             $NewRuleCreated2 = $true
@@ -170,9 +169,8 @@ If ($IndividualDomainBlocks) {
     } Else {
     # We have a transport rule, so update it
         Write-Output "Updating transport rule to block specific email domains..."
-        $Comments = ("Rule updated automatically on {0} to process domains: {1}" -f (Get-Date -format 'dd-MMM-yy HH:mm'), ($TLDBlocksforTransportRule -join ", "))
-        Set-TransportRule -Identity $TransportRuleName2 -SenderDomainIs $IndividualDomainBlocks `
-            -ErrorAction SilentlyContinue -Comments $Comments
+        Set-TransportRule -Identity $TransportRuleName2 -SenderDomainIs $IndividualDomainBlocks -Comments $Comments `
+            -ErrorAction SilentlyContinue 
         $BlockedDomains = Get-TransportRule -Identity $TransportRuleName | Select-Object -ExpandProperty FromAddressMatchesPatterns
         If (!(Compare-Object -ReferenceObject $IndividualDomainBlocks -DifferenceObject $BlockedDomains)) {
             Write-Output ("Transport rule updated to block email from these domains {0}:" -f ($IndividualDomainBlocks -join ", "))
