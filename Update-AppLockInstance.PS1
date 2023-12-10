@@ -1,5 +1,7 @@
 # Update-AppLockInstance.PS1
 # Update Entra ID applications that don't have app instance lock set
+# V1.0 8-Dec-2023
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Update-AppLockInstance.PS1
 
 Connect-MgGraph -NoWelcome -Scopes Application.ReadWrite.All
 
