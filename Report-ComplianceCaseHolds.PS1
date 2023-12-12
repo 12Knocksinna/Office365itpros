@@ -1,5 +1,7 @@
 # Report-ComplianceCaseHolds.PS1
 # Generate a report about holds for eDiscovery cases
+# V1.0 12-Dec-2023
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ComplianceCaseHolds.PS1
 
 $Status = Get-ConnectionInformation
 If (!($Status)) {
