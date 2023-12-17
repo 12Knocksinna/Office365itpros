@@ -8,13 +8,17 @@ $Modules = @( "ExchangeOnlineManagement" )
 # Requires -Modules $Modules
 
 $ModulesLoaded = Get-Module | Select Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online management module and then restart the script"; break}
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {
+   Write-Host "Please connect to the Exchange Online management module and then restart the script"; break
+}
 
 # Connect to the compliance endpoint
 Write-Host "Finding details of sensitivity labels defined in the tenant" 
 Connect-IPPSSession
 [array]$Labels = Get-Label
-If (!($Labels)) {Write-Host "Error: can't retrieve sensitivity labels - exiting"; break}
+If (!($Labels)) {
+   Write-Host "Error: can't retrieve sensitivity labels - exiting"; break
+}
 
 # Create and populate hash table to lookup sensitivity labels
 $LabelLookUp = @{}
@@ -24,7 +28,7 @@ Write-Host ("{0} sensitivity labels found" -f $Labels.count)
 Write-Host "Finding audit records for document upload and modified events..."
 $StartDate = (Get-Date).AddDays(-90)
 $EndDate = (Get-Date).AddDays(1)
-[array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Formatted -ResultSize 5000 -Operations FileUploaded, DocumentSensitivityMismatchDetected, FileModified
+[array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Formatted -ResultSize 5000 -Operations FileUploaded, DocumentSensitivityMismatchDetected, FileModified -SessionCommand ReturnLargeSet
 If (!($Records)) {Write-Host "Error: Can't find any audit records to process - exiting" ; break}
 Write-Host ("Processing {0} audit records..." -f $Records.count)
 
@@ -68,7 +72,7 @@ ForEach ($M in $MismatchRecords) {
    $Report.Add($ReportLine)
 }
 
-$Report | Out-GridView
+$Report | Sort-Object {$_.Date -as [datetime]} | Out-GridView
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
