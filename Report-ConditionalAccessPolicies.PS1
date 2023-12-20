@@ -1,6 +1,7 @@
 # Report-ConditionalAccessPolicies.PS1
 # A script to show how to report conditional access policy settings
 # V1.0 16-Dec-2023
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ConditionalAccessPolicies.PS1
 
 Connect-MgGraph -NoWelcome -Scopes User.Read.All, Policy.Read.All, Group.Read.All, Agreement.Read.All, Application.Read.All
 Write-Host 'Finding conditional access policies'
@@ -281,6 +282,7 @@ ForEach ($Policy in $CAPolicies) {
     $Report.Add($DataLine)
 }
 
+$Report | Out-GridView
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
