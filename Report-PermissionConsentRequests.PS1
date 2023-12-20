@@ -2,6 +2,7 @@
 # Script showing how to report the permission consent requests executed by users
 # original code from ghdineshs@gmail.com
 # V1.0 
+# https://github.com/12Knocksinna/Office365itpros/edit/master/Report-PermissionConsentRequests.PS1
 
 #Connect to Graph - I believe Directory.Read.All also suffices
 Connect-MgGraph -NoWelcome -Scopes ConsentRequest.Read.All
@@ -55,3 +56,9 @@ ForEach ($ConsentRequest in $ConsentRequest) {
 $Report | Export-Csv $CSVFile -NoTypeInformation -Encoding UTF8
 $Report | Out-GridView
 Write-Host ("All done - report is available in {0}" -f $CSVFile)
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# first validating the code in a non-production environment.
