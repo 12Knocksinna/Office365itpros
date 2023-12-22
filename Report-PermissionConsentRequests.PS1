@@ -18,7 +18,7 @@ If (!($ConsentRequests)) {
 }
 
 Write-Host ("Processing {0} administrator consent requests..." -f $ConsentRequests.Count)
-ForEach ($ConsentRequest in $ConsentRequest) {
+ForEach ($ConsentRequest in $ConsentRequests) {
     $RequestedUsers = $Null
     [array]$RequestedUsers = Get-MgIdentityGovernanceAppConsentRequestUserConsentRequest -AppConsentRequestId $ConsentRequest.Id
     ForEach ($RequestedUser in $RequestedUsers) {
