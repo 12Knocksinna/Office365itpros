@@ -3,6 +3,11 @@
 # V1.0 16-Dec-2023
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ConditionalAccessPolicies.PS1
 
+[string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
+$Version = "1.0"
+$CSVOutputFile = "c:\temp\CAPoliciesReport.CSV"
+$ReportFile = "c:\temp\CAPoliciesReport.html"
+
 Connect-MgGraph -NoWelcome -Scopes User.Read.All, Policy.Read.All, Group.Read.All, Agreement.Read.All, Application.Read.All
 Write-Host 'Finding conditional access policies'
 [array]$CAPolicies = Get-MgIdentityConditionalAccessPolicy | Sort-Object displayName
@@ -136,9 +141,66 @@ ForEach ($Policy in $CAPolicies) {
     [array]$IncludedUsers = $Users.IncludeUsers
     [array]$IncludedGroups = $Users.IncludeGroups
     [array]$ExcludedGroups = $Users.ExcludeGroups
-    $ExcludeGuests = $Conditions.Users | Select-Object -ExpandProperty ExcludeGuestsOrExternalUsers
-    $IncludeGuests = $Conditions.Users | Select-Object -ExpandProperty IncludeGuestsOrExternalUsers
-    
+    $ExcludeGuests = $Conditions.Users.ExcludeGuestsOrExternalUsers | Select-Object -ExpandProperty GuestOrExternalUserTypes
+    $IncludeGuests = $Conditions.Users.IncludeGuestsOrExternalUsers | Select-Object -ExpandProperty GuestOrExternalUserTypes
+
+    $ExcludeGuestsOutput = $null
+    $IncludeGuestsOutput = $null
+    # Excluded Guests
+    If ($ExcludeGuests) {
+        [array]$GuestTypes = $null
+        ForEach ($Guest in $ExcludeGuests) {
+            Switch ($Guest) {
+                "internalGuest" { 
+                    $GuestType = "Local Guest users" }
+                "b2bCollaborationGuest" {
+                    $GuestType = "B2B Collaboration guest users"
+                }
+                "b2bCollaborationMember" {
+                    $GuestType = "B2B Collaboration member users" 
+                }
+                "b2bDirectConnectUser" {
+                    $GuestType = "B2B Direct connect users"
+                }
+                "otherExternalUser" {
+                    $GuestType = "Other external users"
+                }
+                "serviceProvider" {
+                    $GuestType = "Service Provider users"
+                }
+            }
+            $GuestTypes += $GuestType
+        }
+        $ExcludeGuestsOutput = $GuestTypes -join ", "
+    }
+
+    # included guests
+    If ($IncludeGuests) {
+        [array]$GuestTypes = $null
+        ForEach ($Guest in $IncludeGuests) {
+            Switch ($Guest) {
+                "internalGuest" { 
+                    $GuestType = "Local Guest users" }
+                "b2bCollaborationGuest" {
+                    $GuestType = "B2B Collaboration guest users"
+                }
+                "b2bCollaborationMember" {
+                    $GuestType = "B2B Collaboration member users" 
+                }
+                "b2bDirectConnectUser" {
+                    $GuestType = "B2B Direct connect users"
+                }
+                "otherExternalUser" {
+                    $GuestType = "Other external users"
+                }
+                "serviceProvider" {
+                    $GuestType = "Service Provider users"
+                }
+            }
+            $GuestTypes += $GuestType
+        }
+        $IncludeGuestsOutput = $GuestTypes -join ", "
+    }
     # Included groups
     [string]$IncludedGroupsOutput = $null
     If ($IncludedGroups) {
@@ -251,8 +313,8 @@ ForEach ($Policy in $CAPolicies) {
         'Excluded groups'               = $ExcludedGroupsOutput
         'Included roles'                = $IncludedRolesOutput
         'Excluded roles'                = $ExcludedRolesOutput
-        'Include guests'               = $IncludeGuests
-        'Exclude guests'                = $ExcludeGuests
+        'Include guests'                = $IncludeGuestsOutput
+        'Exclude guests'                = $ExcludeGuestsOutput
         'User risk levels'              = $UserRiskLevels
         'Sign in risk levels'           = $SignInRiskLevels
         'SP risk levels'                = $ServicePrincipalRiskLevels
@@ -281,6 +343,78 @@ ForEach ($Policy in $CAPolicies) {
     }
     $Report.Add($DataLine)
 }
+
+# Now to generate a HTML report
+Write-Host "Generating report..."
+$OrgName  = (Get-MgOrganization).DisplayName
+#  First, define the header.
+$HTMLHead="<html>
+	   <style>
+	   BODY{font-family: Arial; font-size: 8pt;}
+	   H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
+	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
+	   TD{border: 1px solid #969595; padding: 5px; }
+	   td.enabled{background: #B7EB83;}
+	   td.disabled{background: #E3242B;}
+	   </style>
+	   <body>
+           <div align=center>
+           <p><h1>Conditional Access Policies Report</h1></p>
+           <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
+           <p><h3>Generated: " + $RunDate + "</h3></p></div>"
+
+
+# This section highlights whether a conditional access policy is enabled or disabled in the summary.
+# Idea from https://stackoverflow.com/questions/37662940/convertto-html-highlight-the-cells-with-special-values
+# First, convert the CA Policies report to HTML and then import it into an XML structure
+[array]$CAPoliciesTable = $Report | Select-Object 'Policy Name', 'Policy', State, 'Created', 'Last Modified'
+$HTMLTable = $CAPoliciesTable | ConvertTo-Html -Fragment
+[xml]$XML = $HTMLTable
+# Create an attribute class to use, name it, and append to the XML table attributes
+$TableClass = $XML.CreateAttribute("class")
+$TableClass.Value = "State"
+$XML.table.Attributes.Append($TableClass) | Out-Null
+# Conditional formatting for the table rows. The number of available units is in table row 6, so we update td[5]
+ForEach ($TableRow in $XML.table.SelectNodes("tr")) {
+    # each TR becomes a member of class "tablerow"
+    $TableRow.SetAttribute("class","tablerow")
+    ## If row has TD check the state of the policy
+    If (($TableRow.td) -and ([string]$TableRow.td[2] -eq 'enabled'))  {
+        ## tag the TD with eirher the color for "warn" or "pass" defined in the heading
+        $TableRow.SelectNodes("td")[2].SetAttribute("class","enabled")
+    } ElseIf (($TableRow.td) -and ([string]$TableRow.td[2] -eq 'disabled')) {
+        $TableRow.SelectNodes("td")[2].SetAttribute("class","disabled")
+    }
+}
+# Wrap the output table with a div tag
+$HTMLBody = [string]::Format('<div class="tablediv">{0}</div>',$XML.OuterXml)
+
+# Add separate section for each policy
+[string]$HTMLPolicySeparator = "<p><h2>Details of Conditional Access Policies</h2></p>"
+[string]$HTMLPolicyOutput = $null
+
+# Foreach policy, extract its details and output
+ForEach ($Policy in $Report) {
+    $HTMLPolicyHeader = "<h3>Policy Settings for <b>" + $Policy.'Policy Name' + "<b></h3><p>"
+    $HTMLPolicyContent = $Policy | `
+      Select-Object 'Included apps', 'Excluded apps', 'Included Locations', 'Excluded locations', 'Included users', 'Excluded users', 'Included groups', 'Excluded groups', 'Included roles', 'Excluded roles', 'Include guests','Exclude guests'  | ConvertTo-HTML -Fragment
+    $HTMLPolicyOutput = $HTMLPolicyOutput + $HTMLPolicyHeader + $HTMLPolicyContent + "<p><p>"
+}
+
+# End stuff to output
+$HTMLTail = "<p>Report created for the " + $OrgName + " tenant on " + $RunDate + "<p>" +
+             "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
+             "<p>Number of conditionl access policies found:     " + $CAPolicies.Count + "</p>" +
+             "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
+             "<p>Entra ID Conditional Access Policies Report<b> " + $Version + "</b>"	
+
+$HTMLReport = $HTMLHead + $HTMLBody + $HTMLPolicySeparator + $HTMLPolicyOutput + $HTMLtail
+$HTMLReport | Out-File $ReportFile  -Encoding UTF8
+
+Write-Host ("Output report is available in {0}" -f $ReportFile)
 
 $Report | Out-GridView
 
