@@ -61,10 +61,10 @@ If (($Answer -gt 0) -and ($Answer -le $i)) {
     [string]$SelectedSku = $SkuList[$i].SkuPartNumber
     [string]$SelectedSkuId = $SkuList[$i].SkuId
     Write-Host "OK. The selected product SKU to assign to user accounts is:" $SelectedSku
-    }  Elseif ($Answer -eq 0) { 
+    } Elseif ($Answer -eq 0) { 
     #Abort
-    Write-Host "Script stopping..." ; break 
-  }
+        Write-Host "Script stopping..." ; break 
+}
 } # End listing of available SKUs
 
 Write-Host ""
@@ -74,14 +74,15 @@ Write-Host ""
 # user accounts to process. Instead of reading information from a CSV file, the data could come from 
 # running the Get-MgUser cmdlet with a filter to fetch certain accounts
 If ($LicensesAvailable -eq $True) {
-  [array]$Users = Import-CSV $InputFile
-  If (!($Users)) {
-    Write-Host "Unable to find any users to process - exiting"; break
-  } Else {  # Check that there are sufficient licenses available to assign to the number of accounts to process
-  If ($Users.Count -gt $SkuList[$i].Available) {
-    Write-Host ("{0} users are to receive licenses but there are only {1} licenses available - exiting." -f $Users.Count,  $SkuListing[$i].Available) 
-    $LicensesAvailable = $False
-  }
+    [array]$Users = Import-CSV $InputFile
+    If (!($Users)) {
+        Write-Host "Unable to find any users to process - exiting"; break
+    } Else {  # Check that there are sufficient licenses available to assign to the number of accounts to process
+        If ($Users.Count -gt $SkuList[$i].Available) {
+        Write-Host ("{0} users are to receive licenses but there are only {1} licenses available - exiting." -f $Users.Count,  $SkuListing[$i].Available) 
+        $LicensesAvailable = $False
+        }
+    }    
 }
 
 If ($LicensesAvailable -eq $True) {
