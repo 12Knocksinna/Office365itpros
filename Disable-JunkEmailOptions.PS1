@@ -1,6 +1,7 @@
 # Disable-JunkEmailOptions.PS1
 # A runbook to look for recently added mailboxes and update their junk email configuration if necessary
-# V1.0
+# V1.0 2-Jan-2024
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Disable-JunkEmailOptions.PS1
 
 # replace practical365.onmicrosoft.com with your Microsoft 365 service domain
 Connect-ExchangeOnline -ManagedIdentity -Organization practical365.onmicrosoft.com
