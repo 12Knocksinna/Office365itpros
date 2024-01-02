@@ -400,7 +400,8 @@ $HTMLBody = [string]::Format('<div class="tablediv">{0}</div>',$XML.OuterXml)
 ForEach ($Policy in $Report) {
     $HTMLPolicyHeader = "<h3>Policy Settings for <b>" + $Policy.'Policy Name' + "<b></h3><p>"
     $HTMLPolicyContent = $Policy | `
-      Select-Object 'Included apps', 'Excluded apps', 'Included Locations', 'Excluded locations', 'Included users', 'Excluded users', 'Included groups', 'Excluded groups', 'Included roles', 'Excluded roles', 'Include guests','Exclude guests'  | ConvertTo-HTML -Fragment
+      Select-Object 'Authentication strength', 'Auth strength description', 'Included apps', 'Excluded apps', 'Included Locations', 'Excluded locations', `
+       'Included users', 'Excluded users', 'Included groups', 'Excluded groups', 'Included roles', 'Excluded roles', 'Include guests','Exclude guests'  | ConvertTo-HTML -Fragment
     $HTMLPolicyOutput = $HTMLPolicyOutput + $HTMLPolicyHeader + $HTMLPolicyContent + "<p><p>"
 }
 
@@ -414,9 +415,8 @@ $HTMLTail = "<p>Report created for the " + $OrgName + " tenant on " + $RunDate +
 $HTMLReport = $HTMLHead + $HTMLBody + $HTMLPolicySeparator + $HTMLPolicyOutput + $HTMLtail
 $HTMLReport | Out-File $ReportFile  -Encoding UTF8
 
-Write-Host ("Output report is available in {0}" -f $ReportFile)
-
-$Report | Out-GridView
+$Report | Export-Csv -NoTypeInformation $CSVOutputFile -Encoding utf8
+Write-Host ("HTML format report is available in {0}  and CSV file in {1}" -f $ReportFile, $CSVOutputFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
