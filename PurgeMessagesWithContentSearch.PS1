@@ -5,6 +5,7 @@
 # the results of that search. Note: This approach only works when there are fewer than 10 items to be removed from mailboxes.
 # If more problematic items exist in a mailbox, consider using the Search-Mailbox cmdlet to remove them.
 # V1.1 July 2022
+# V1.2 4-Jan-2024
 # ---------------------------------------
 
 $Status = Get-ConnectionInformation -ErrorAction SilentlyContinue
