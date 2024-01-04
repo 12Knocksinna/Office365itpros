@@ -3,6 +3,7 @@
 #
 # A script to purge messages from Exchange Online using the famous Search-Mailbox cmdlet. The script can either delete items or report an estimate
 # V1.0 September 2021
+# V1.1 4-Jan-2024
 # ---------------------------------------
 # Runs like .\PurgeMessagesWithSearchMailbox.PS1 -DeleteItems [$True/$False]
 # $True will force Search-Mailbox to remove items from Exchange Online mailboxes, $False will run an estimate search against the mailboxes
@@ -11,11 +12,12 @@ Param ([parameter (mandatory)] [ValidateSet($True,$False)] $DeleteItems )
 
 If ($DeleteItems -ne $True -and $DeleteItems -ne $False) { Write-Host "No mode specified - please rerun" ; break }
 
-$ModulesLoaded = Get-Module | Select Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
-# OK, we seem to be fully connected to Exchange Online. 
+$Status = Get-ConnectionInformation -ErrorAction SilentlyContinue
+If (!($Status)) {
+  Connect-ExchangeOnline -SkipLoadingCmdletHelp
+}
 
-CLS
+Clear-Host
 Switch ($DeleteItems) {
   $True {
      $Mode = "delete"
@@ -26,20 +28,20 @@ Switch ($DeleteItems) {
 } #EndSwitch
 
 # Some information to identify the messages we want to purge
-$Sender = "no-reply@microsoft.com"
+$BadSender = "no-reply@microsoft.com"
 # Date range for the search - make this as precise as possible
 $StartDate = "1-Jan-2019"
-$EndDate = "13-Sep-2021"
+$EndDate = "13-Sep-2024"
 $BodyText = "Your month in review"
 $Subject = "MyAnalytics"
 
-$SearchQuery = "From:" + $Sender + " Sent:" + $StartDate + ".." + $EndDate
+$SearchQuery = "From:" + $BadSender + " Sent:" + $StartDate + ".." + $EndDate
 If ([string]::IsNullOrWhiteSpace($BodyText) -eq $False) { $SearchQuery = $SearchQuery + ' Body: "*' + $BodyText + '*"' }
 If ([string]::IsNullOrWhiteSpace($Subject) -eq $False) { $SearchQuery = $SearchQuery + ' Subject:"*' + $Subject + '*"' }
 
 Write-Host ("Finding user and shared mailboxes to run query {0} against in (1) mode" -f $SearchQuery, $Mode)
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited
-CLS
+Clear-Host
 $CSVOutput = "C:\temp\ExoSearchRemovals.CSV"
 $Report = [System.Collections.Generic.List[Object]]::new();
 $Successes=0
@@ -53,10 +55,10 @@ ForEach ($M in $Mbx) {
    $CheckCount += $ProgDelta
 
    If ($DeleteItems -eq $True) { #Go ahead and delete items
-      $SearchOutput = Search-Mailbox -Identity $M.UserPrincipalName -SearchQuery $SearchQuery -DeleteContent -Force -WarningAction SilentlyContinue -SearchDumpster
+      $SearchOutput = Search-Mailbox -Identity $M.ExternalDirectoryObjectId -SearchQuery $SearchQuery -DeleteContent -Force -WarningAction SilentlyContinue -SearchDumpster
     }
     ElseIf ($DeleteItems -eq $False) { # Estimate Search
-      $SearchOutput = Search-Mailbox -Identity $M.UserPrincipalName -SearchQuery $SearchQuery -EstimateResultOnly -Force -WarningAction SilentlyContinue -SearchDumpster
+      $SearchOutput = Search-Mailbox -Identity $M.ExternalDirectoryObjectId -SearchQuery $SearchQuery -EstimateResultOnly -Force -WarningAction SilentlyContinue -SearchDumpster
    }
    Switch ($SearchOutput.Success) { 
      "True" { # Success
