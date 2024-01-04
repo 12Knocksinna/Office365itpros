@@ -93,7 +93,7 @@ Switch ($DeleteItems) {
    $True   { Write-Host ("{0} mailboxes processed and {1} items removed." -f $Mbx.Count, $TotalItems) }
    $False  { Write-Host ("{0} mailboxes processed and {1} items found. " -f $Mbx.Count, $TotalItems) }
 }
-$Report | Out-GridView
+$Report | Where-Object {$_.Items -gt 0} | Out-GridView
 Export-CSV -Notypeinformation $CSVOutput 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
