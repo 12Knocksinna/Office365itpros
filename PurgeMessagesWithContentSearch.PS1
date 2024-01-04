@@ -7,8 +7,14 @@
 # V1.1 July 2022
 # ---------------------------------------
 
-Connect-ExchangeOnline -SkipLoadingCmdletHelp
+$Status = Get-ConnectionInformation -ErrorAction SilentlyContinue
+If (!($Status)) {
+  Connect-ExchangeOnline -SkipLoadingCmdletHelp
+}
+
+# Connect to the compliance endpoint
 Connect-IPPSSession
+
 # Some information to identify the messages we want to purge
 $BadSender = "badactor@badboys.com"
 $Subject = "Special Offer for you"
