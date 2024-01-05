@@ -1,4 +1,8 @@
 # Report-UserPasswordChanges
+# A script tp show how to report details of user password settings including dates for last password changes
+# V1.0 5-Jan-2024
+
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-UserPasswordChanges.PS1
 
 Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All
 
