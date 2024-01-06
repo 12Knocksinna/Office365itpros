@@ -1,5 +1,6 @@
 # Report-UserPasswordChanges
-# A script tp show how to report details of user password settings including dates for last password changes
+# A script tp show how to report details of user password settings including dates for last password changes and 
+# information about account MFA enablement
 # V1.0 5-Jan-2024
 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-UserPasswordChanges.PS1
@@ -8,8 +9,8 @@ Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All
 
 [string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
 $Version = "1.0"
-$CSVOutputFile = "c:\temp\UserPasswordReport.CSV"
-$ReportFile = "c:\temp\UserPasswordReport.html"
+$CSVOutputFile = "c:\temp\UserAuthenticationReport.CSV"
+$ReportFile = "c:\temp\UserAuthenticationReport.html"
 
 Write-Host "Retrieving user details"
 # We use a Graph API request here instead of an SDK cmdlet because the Last successful interactive sign in data is
@@ -113,7 +114,7 @@ $HTMLHead="<html>
 	   </style>
 	   <body>
            <div align=center>
-           <p><h1>User Password Report</h1></p>
+           <p><h1>User Passwords and Authentication Report</h1></p>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
            <p><h3>Generated: " + $RunDate + "</h3></p></div>"
 
@@ -167,7 +168,7 @@ $HTMLTail = "<p>Report created for the " + $OrgName + " tenant on " + $RunDate +
 "<p>Admin accounts not registered for MFA:   " + $NumberAdminNoMFA + " (" + $PercentMFAAdmins + ")</p>" +
 "<p>Names of admin accounts not registrered: " + $AdminNoMFANames + "</p>" +
 "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
-"<p>Entra ID User Account Password Report<b> " + $Version + "</b>"	
+"<p>Entra ID User Passwords and Authentication Report<b> " + $Version + "</b>"	
 
 $HTMLReport = $HTMLHead + $HTMLBody + $HTMLtail
 $HTMLReport | Out-File $ReportFile  -Encoding UTF8
