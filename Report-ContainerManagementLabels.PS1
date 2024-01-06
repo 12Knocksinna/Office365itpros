@@ -6,8 +6,8 @@
 Connect-MgGraph -Scopes Directory.Read.All
 
 $Version = "1.0"
-$HtmlReportFile = "c:\temp\ContainerManagementLabels.html"
-$CSVReportFile = "c:\temp\ContainerManagementLabels.CSV"
+$HtmlReportFile = "ContainerManagementLabels.html"
+$CSVReportFile = "ContainerManagementLabels.CSV"
 $Organization = Get-MgOrganization
 
 Write-Host "Finding Microsoft 365 Groups to process..."
