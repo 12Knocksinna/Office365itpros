@@ -107,12 +107,19 @@ If ($MissingOwners) {
   $HtmlReport = $HtmlReport + $HtmlHeading + $HtmlData 
 }
 
+# Add section about missing owners (if any)
+[array]$MismatchLabels = $Report | Where-Object {$_.LabelId -ne $Group.CustomAttribute14}
+If ($MismatchLabels) {
+  $HtmlData = MismatchLabels | ConvertTo-Html -Fragment
+}
+
 # Create the HTML report
 $Htmltail = "<p>Report created for: " + ($Organization.DisplayName) + "</p><p>" +
              "<p>Number of Microsoft 365 Group:    " + $Groups.count + "</p>" +
              "<p>Number of labels used:            " + $LabelUnique.count + "</p>" +
              "<p>Number of groups without a label: " + $MissingLabels.count + "</p>" +
              "<p>Number of groups without owners:  " + $MissingOwners.count + "</p>" +
+             "<p>Number of missmatch label:          " + $MismatchLabels.count + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------" +
              "<p>Microsoft 365 Groups and Container Management Sensitivity Labels <b>" + $Version + "</b>"	
 $HtmlReport = $HtmlHead + $HtmlReport + $HtmlTail
