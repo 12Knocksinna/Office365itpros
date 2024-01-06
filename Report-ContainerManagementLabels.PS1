@@ -41,15 +41,15 @@ ForEach ($Group in $Groups) {
     $Status = $Status + "*** No Group Owners ***"
  }
 
- $ReportLine = [PSCustomObject][Ordered]@{
-    Id        = $Group.Id
-    Name      = $Group.DisplayName
-    Owners    = $GroupOwnerNames
-    Label     = $LabelName
-    LabelId   = $LabelId 
-    Status    = $Status }                  
- $Report.Add($ReportLine) 
-
+$ReportLine = [PSCustomObject][Ordered]@{
+Id = $Group.Id
+Name = $Group.DisplayName
+Owners = $GroupOwnerNames
+Label = $LabelName
+LabelId = $LabelId
+State = $Group.CustomAttribute14
+Status = $Status }
+$Report.Add($ReportLine)
 } # End processing groups
 
 # Generate the report files
