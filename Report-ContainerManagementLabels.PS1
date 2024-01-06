@@ -4,6 +4,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ContainerManagementLabels.PS1
 
 Connect-MgGraph -Scopes Directory.Read.All
+Connect-ExchangeOnline
 
 $Version = "1.0"
 $HtmlReportFile = "ContainerManagementLabels.html"
@@ -11,7 +12,9 @@ $CSVReportFile = "ContainerManagementLabels.CSV"
 $Organization = Get-MgOrganization
 
 Write-Host "Finding Microsoft 365 Groups to process..."
-[array]$Groups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'unified')" -All
+# Use Exchange Online instead of the Graph
+[array]$Groups = Get-UnifiedGroup -ResultSize Unlimited
+# [array]$Groups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'unified')" -All
 If (!($Groups)) { Write-Host "Whoops - can't find any Microsoft 365 Groups" ; break }
 
 Write-Host ("Found {0} groups - now checking container management labels" -f $Groups.count)
@@ -21,11 +24,11 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Group in $Groups) {
  $LabelId = $Null; $LabelName = $Null; $GroupOwnerNames = $Null; $Status = $Null
 
- $Uri = ("https://graph.microsoft.com/v1.0/groups/{0}?`$select=assignedLabels" -f $Group.Id)
+ $Uri = ("https://graph.microsoft.com/v1.0/groups/{0}?`$select=assignedLabels" -f $Group.ExternalDirectoryObjectId)
  $LabelData = Invoke-GraphRequest -Uri $Uri
  $LabelName = $LabelData.assignedLabels.displayName
  $LabelId   = $LabelData.assignedLabels.labelId
- [array]$GroupOwners = Get-MgGroupOwner -GroupId $Group.Id
+ [array]$GroupOwners = Get-MgGroupOwner -GroupId $Group.ExternalDirectoryObjectId
  If ($GroupOwners) {
    [string]$GroupOwnerNames = $GroupOwners.additionalProperties.displayName -join ", " }
 
@@ -42,14 +45,14 @@ ForEach ($Group in $Groups) {
  }
 
 $ReportLine = [PSCustomObject][Ordered]@{
-Id = $Group.Id
-Name = $Group.DisplayName
-Owners = $GroupOwnerNames
-Label = $LabelName
-LabelId = $LabelId
-State = $Group.CustomAttribute14
-Status = $Status }
-$Report.Add($ReportLine)
+	Id = $Group.Id
+	Name = $Group.DisplayName
+	Owners = $GroupOwnerNames
+	Label = $LabelName
+	LabelId = $LabelId
+	'Registered label' = $Group.CustomAttribute14
+	Status = $Status }
+	$Report.Add($ReportLine)
 } # End processing groups
 
 # Generate the report files
