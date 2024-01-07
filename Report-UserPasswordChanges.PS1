@@ -12,6 +12,26 @@ $Version = "1.0"
 $CSVOutputFile = "c:\temp\UserAuthenticationReport.CSV"
 $ReportFile = "c:\temp\UserAuthenticationReport.html"
 
+# Define the optional MFA user sign-in file downloaded from the Entra ID admin center
+$UserSignInDataFile = "c:\temp\InteractiveSignIns.CSV"
+# Flag indicating if MFA user sign-in data is available
+$MFADataAvailable = $false
+
+# If the file is available, import it (the “incoming token type” column must be removed first)
+If (Test-Path $UserSignInDataFile) {
+    [array]$MFASignIns = Import-CSV $UserSignInDataFile -ErrorAction SilentlyContinue
+    # If some data was imported, reduce it down to unique entries for user accounts that have used MFA
+    If ($MFASignIns) {
+        [array]$MFAUserData = $MFASignIns | Where-Object {$_.'user type' -eq 'Member' -and $_.Status -eq 'Success'} |`
+          Sort-Object {$_.'Date (UTC)' -as [datetime]} | Sort-Object 'User ID' -Unique | `
+          Select-Object 'User ID', 'User', 'UserName', 'Date (UTC)','Multifactor authentication result', 'Multifactor authentication auth method'
+        $MFADataAvailable = $true
+        Write-Host ("MFA User Sign In Data available: using file dated {0}" -f  (Get-Item $UserSignInDataFile).LastWriteTime)
+    } Else {
+        Write-Host ("MFA User Sign In Data file ({0}) unavailable" -f $UserSignInDataFile)
+    }
+}
+
 Write-Host "Retrieving user details"
 # We use a Graph API request here instead of an SDK cmdlet because the Last successful interactive sign in data is
 # unavailable in SDK V2.11
@@ -70,29 +90,71 @@ While ($Null -ne $Data.'@odata.nextLink') {
     }
 
     # Get MFA status for the user
-  
     $UserMFAStatus  = $MFAData | Where-Object {$_.Id -eq $User.Id}
     $AuthenticationTypesOutput = $UserMFAStatus.MethodsRegistered -join ", "
 
-     $DataLine = [PSCustomObject][Ordered]@{
-         User = $User.displayName
-         UserId = $User.Id
-         'Last password change'             = $LastPasswordChange
-         'Days since password change'       = $DaysSincePasswordChange
-         'Last successful sign in'          = $LastSuccessfulSignIn
-         'Last sign in'                     = $LastSignIn
-         'Days since successful sign in'    = $DaysSinceLastSuccessfulSignIn
-         'Days since sign in'               = $DaysSinceLastSignIn
-         'Session tokens valid from'        = $SessionTokensValidFrom 
-         'Password policies applied'        = $PasswordPoliciesOutput
-         'Authentication types'             = $AuthenticationTypesOutput
-         'Admin flag'                       = $UserMFAStatus.isAdmin
-         'MFA capable'                      = $UserMFAStatus.IsMfaCapable
-         'MFA registered'                   = $UserMFAStatus.IsMfaRegistered
-         'MFA default method'               = $UserMFAStatus.DefaultMfaMethod
-         'Secondary auth. method'           = $UserMFAStatus.UserPreferredMethodForSecondaryAuthentication
-     }
-     $Report.Add($DataLine)
+    # Make sure dates are all in a common format
+    If ($LastSignIn) {
+        $LastSignInOutput = (Get-Date $LastSignIn -format 'dd-MMM-yyyy HH:mm')
+    }
+    If ($LastPasswordChange) {
+        $LastPasswordChangeOutput = (Get-Date $LastPasswordChange -format 'dd-MMM-yyyy HH:mm')
+    }
+    If ($LastSuccessfulSignIn) {
+        $LastSuccessfulSignInOutput = (Get-Date $LastSuccessfulSignIn -format 'dd-MMM-yyyy HH:mm')
+    }
+    If ($SessionTokensValidFrom) {
+        $SessionTokensValidFromOutput = (Get-Date $SessionTokensValidFrom -format 'dd-MMM-yyyy HH:mm')
+    }
+
+    If ($MFADataAvailable) {
+        $MFAVerifiedDate = $null
+        $MFAVerifiedDate = $MFAUserData | Where-Object {$_.'User Id' -eq $User.Id} | Select-Object -ExpandProperty 'Date (UTC)'
+        If ($MFAVerifiedDate) {
+            $MFAVerifiedDate = (Get-Date $MFAVerifiedDate -format 'dd-MMM-yyyy HH:mm')
+        }
+
+        $DataLine = [PSCustomObject][Ordered]@{
+            User = $User.displayName
+            UserId = $User.Id
+            'Last password change'             = $LastPasswordChangeOutput
+            'Days since password change'       = $DaysSincePasswordChange
+            'Last successful sign in'          = $LastSuccessfulSignInOutput
+            'Last sign in'                     = $LastSignInOutput
+            'Days since successful sign in'    = $DaysSinceLastSuccessfulSignIn
+            'Days since sign in'               = $DaysSinceLastSignIn
+            'Session tokens valid from'        = $SessionTokensValidFromOutput
+            'Password policies applied'        = $PasswordPoliciesOutput
+            'Authentication types'             = $AuthenticationTypesOutput
+            'Admin flag'                       = $UserMFAStatus.isAdmin
+            'MFA capable'                      = $UserMFAStatus.IsMfaCapable
+            'MFA registered'                   = $UserMFAStatus.IsMfaRegistered
+            'MFA last used'                    = $MFAVerifiedDate
+            'MFA default method'               = $UserMFAStatus.DefaultMfaMethod
+            'Secondary auth. method'           = $UserMFAStatus.UserPreferredMethodForSecondaryAuthentication
+        }
+    } Else {
+        $DataLine = [PSCustomObject][Ordered]@{
+            User = $User.displayName
+            UserId = $User.Id
+            'Last password change'             = $LastPasswordChangeOutput
+            'Days since password change'       = $DaysSincePasswordChange
+            'Last successful sign in'          = $LastSuccessfulSignInOutput
+            'Last sign in'                     = $LastSignInOutput
+            'Days since successful sign in'    = $DaysSinceLastSuccessfulSignIn
+            'Days since sign in'               = $DaysSinceLastSignIn
+            'Session tokens valid from'        = $SessionTokensValidFromOutput
+            'Password policies applied'        = $PasswordPoliciesOutput
+            'Authentication types'             = $AuthenticationTypesOutput
+            'Admin flag'                       = $UserMFAStatus.isAdmin
+            'MFA capable'                      = $UserMFAStatus.IsMfaCapable
+            'MFA registered'                   = $UserMFAStatus.IsMfaRegistered
+            'MFA default method'               = $UserMFAStatus.DefaultMfaMethod
+            'Secondary auth. method'           = $UserMFAStatus.UserPreferredMethodForSecondaryAuthentication
+        }
+    }
+    # Output report line
+    $Report.Add($DataLine)
  }
  
 # Now to generate a HTML report
@@ -117,7 +179,6 @@ $HTMLHead="<html>
            <p><h1>User Passwords and Authentication Report</h1></p>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
            <p><h3>Generated: " + $RunDate + "</h3></p></div>"
-
 
 # This section highlights whether a conditional access policy is enabled or disabled in the summary.
 # Idea from https://stackoverflow.com/questions/37662940/convertto-html-highlight-the-cells-with-special-values
@@ -176,7 +237,7 @@ $HTMLReport | Out-File $ReportFile  -Encoding UTF8
 $Report | Export-Csv -NoTypeInformation $CSVOutputFile -Encoding utf8
 Write-Host ("HTML format report is available in {0}  and CSV file in {1}" -f $ReportFile, $CSVOutputFile)
 
- # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
