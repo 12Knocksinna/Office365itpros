@@ -219,12 +219,26 @@ $HTMLBody = [string]::Format('<div class="tablediv">{0}</div>',$XML.OuterXml)
 $PercentMFAUsers = ($NumberUsersNoMFA/$Users.Count).ToString("P")
 $PercentMFAAdmins = ($NumberAdminNoMFA/$AdminUsers.Count).ToString("P")
 
+# If MFA data is available, find out how many MFA-capable users are actually connecting with MFA
+If ($MFADataAvailable) {
+    [array]$MFAActiveUsers = $Report | Where-Object {$_.'MFA last used' -ne $null}
+    $PercentMFAActive = ($MFAActiveUsers.Count/$MFAUsers.Count).toString("P")
+}
 
  # End stuff to output
 $HTMLTail = "<p>Report created for the " + $OrgName + " tenant on " + $RunDate + "<p>" +
 "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
 "<p>Number of user accouts analyzed:         " + $Users.Count + "</p>" +
-"<p>Number of admin accounts:                " + $AdminUsers.Count + "</p>" +
+"<p>Number of admin accounts found:          " + $AdminUsers.Count + "</p>" +
+"<p>Number of accounts registred for MFA:    " + $MFAUsers.Count + "</p>"
+
+If ($MFADataAvailable) {
+    $HTMLTail = $HTMLTail +
+    "<p>Number of MFA accounts active:          " + $MFAActiveUsers.count + "</p>" +
+    "<p>Percentage of MFA accounts active:      " + $PercentMFAActive + "</p>"
+}
+
+$HTMLTail = $HTMLTail + 
 "<p>User accounts not registered for MFA:    " + $NumberUsersNoMFA + " (" + $PercentMFAUsers + ")</p>" +
 "<p>Admin accounts not registered for MFA:   " + $NumberAdminNoMFA + " (" + $PercentMFAAdmins + ")</p>" +
 "<p>Names of admin accounts not registrered: " + $AdminNoMFANames + "</p>" +
