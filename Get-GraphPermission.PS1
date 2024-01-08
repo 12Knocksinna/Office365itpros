@@ -77,5 +77,6 @@ function Get-GraphScriptPermission {
     }
 }
 
-# Original version from https://gist.github.com/HCRitter/d7017ce1eeb66689b14a108423d383ab
+# Original version from https://gist.github.com/HCRitter/d7017ce1eeb66689b14a108423d383ab. See
+# https://www.linkedin.com/pulse/get-graphscriptpermission-christian-ritter-gsaie/ for more information.
 # Amended in several places to make the list of scopes a string rather than an array
