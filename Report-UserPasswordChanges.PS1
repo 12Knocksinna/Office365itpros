@@ -5,7 +5,7 @@
 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-UserPasswordChanges.PS1
 
-Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All
+Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All, UserAuthenticationMethod.Read.All
 
 [string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
 $Version = "1.0"
