@@ -22,6 +22,8 @@ The function returns an object with the following properties for each Microsoft.
 - Scopes: A list of scopes associated with the command. Each object has the following properties:
     - Name: The name of the permission.
     - IsAdmin: Indicates whether the permission requires admin privileges.
+
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Get-GraphPermission.PS1
 #>
 function Get-GraphScriptPermission {
     [CmdletBinding()]
