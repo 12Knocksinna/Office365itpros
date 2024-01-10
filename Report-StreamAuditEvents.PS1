@@ -1,6 +1,7 @@
 # Report-StreamAuditEvents.PS1
 # Report the audit events collected in the audit event log for Stream video creation and editing
 # V1.0 10-Jan-2023
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-StreamAuditEvents.PS1
 
 $Status = Get-ConnectionInformation -ErrorAction SilentlyContinue
 If (!($Status)) {
