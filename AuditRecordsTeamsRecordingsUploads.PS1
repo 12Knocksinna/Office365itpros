@@ -1,18 +1,24 @@
 # AuditRecordsTeamsRecordingsUploads.PS1
 # A script to show how to use audit records in the Office 365 audit log to track uploads of Teams meeting recordings
 
-$ModulesLoaded = Get-Module | Select Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+$Status = Get-ConnectionInformation -ErrorAction SilentlyContinue
+If (!($Status)) {
+  Connect-ExchangeOnline -SkipLoadingCmdletHelp 
+}
 
-# Start and end date for the audit scan. By default, we look for 14 days, but you can choose \
+# Start and end date for the audit scan. By default, we look for 14 days, but you can choose 
 # any value you like up to 365 (assuming Office 365 E5)
-$StartDate = (Get-Date).AddDays(-14); $EndDate = (Get-Date) # Set your own date span here!
+$StartDate = (Get-Date).AddDays(-180); $EndDate = (Get-Date) # Set your own date span here!
 $OutputCSVFile = "C:\temp\AuditEventsTeamsRecordings.csv"
 
 # Find the audit records
-[array]$Records = (Search-UnifiedAuditLog -Operations FileUploaded, FileModified -StartDate $StartDate -EndDate $EndDate -Formatted -ResultSize 5000)
+[array]$Records = (Search-UnifiedAuditLog -Operations FileUploaded, FileModified -StartDate `
+   $StartDate -EndDate $EndDate -Formatted -ResultSize 5000 -SessionCommand ReturnLargeset)
 
-If (!($Records)) {Write-Host "No audit records found - exiting!"; break}
+If (!($Records)) {
+   Write-Host "No audit records found - exiting!"; break
+}
+$Records = $Records | Sort-Object {$_.CreationDate -as [datetime]}
 
 $TaggedRecordings = [System.Collections.Generic.List[Object]]::new() 	
 ForEach ($Rec in $Records) {
@@ -37,7 +43,7 @@ ForEach ($Rec in $Records) {
 } #End For
 
 # Generate the list of audit events for Teams recordings
-$UploadedMeetings = $TaggedRecordings | ? {$_.Recording -notlike "*~tmp*"}
+$UploadedMeetings = $TaggedRecordings | Where-Object {$_.Recording -notlike "*~tmp*"}
 $UploadedMeetings | Out-GridView
 $UploadedMeetings | Export-CSV -NoTypeInformation $OutputCSVFile
 
