@@ -10,12 +10,14 @@ If (!($Status)) {
 
 $EndDate = (Get-Date).AddDays(1); $StartDate = (Get-Date).AddDays(-30)
 [array]$Operations = "FileUploaded", "FileModified", "FileAccessed"
+Write-Host "Looking for Stream audit events..."
 [array]$Records = (Search-UnifiedAuditLog -Operations $Operations -StartDate $StartDate -EndDate $EndDate `
   -Formatted -ResultSize 5000 -SessionCommand ReturnLargeSet)
 If (!($Records)) {
     Write-Host "No audit records found - exiting!"; break
 }
 
+Write-Host "Processing events..."
 $StreamEvents = [System.Collections.Generic.List[Object]]::new() 
 $Records = $Records | Sort-Object CreatedDateTime
 ForEach ($Rec in $Records) {
@@ -40,8 +42,10 @@ ForEach ($Rec in $Records) {
    } #End If
 } #End For
 
+Write-Host ""
 $StreamFileOperations = $StreamEvents | Sort-Object {$_.Timestamp -as [datetime]} | Where-Object { $_.User -ne "app@sharepoint" }
 $StreamFileOperations | Group-Object User | Sort-Object Count -Descending | Format-Table Name, Count
+$StreamFileOperations | Out-GridView
 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
