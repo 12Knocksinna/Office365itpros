@@ -6,7 +6,8 @@
 # Check that we're connected to SharePoint Online
 $Modules = Get-Module
 If ("Microsoft.Online.Sharepoint.PowerShell" -notin $Modules.Name) { 
-   Write-Host "Please connect to the SharePoint Online management module and restart the script."; break }
+   Write-Host "Please connect to the SharePoint Online management module and restart the script."; break 
+}
 
 # Connect to the Microsoft Graph
 Connect-MgGraph -Scopes Directory.Read.All, Group.Read.All
