@@ -70,7 +70,7 @@ function Get-GraphScriptPermission {
             }
             $GraphScopeReport.Add($DataLine) 
         }
-        $GraphScopeReport
+        $GraphScopeReport | Sort-Object Cmdlet -Unique
     }
     
     end {
