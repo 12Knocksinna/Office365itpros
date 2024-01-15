@@ -14,7 +14,7 @@ Function Add-MessageRecipients {
         }
 } 
 
-Connect-MgGraph -Scopes 'Application.Read.All' -NoWelcome
+Connect-MgGraph -Scopes 'Application.Read.All', 'Mail.Send' -NoWelcome
 
 $CheckDate = Get-Date
 # Define the warning period to check for app secrets that are about to expire
