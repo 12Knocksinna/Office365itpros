@@ -156,7 +156,7 @@ $ToRecipientList   = @( $EmailRecipient )
 [array]$MsgToRecipients = Add-MessageRecipients -ListOfAddresses $ToRecipientList
 $MsgSubject = "Entra ID Registered App Credentials Report"
 $HtmlHead = "<h2>Expiring and Active Credentials</h2><p>Current status of Entra ID registered apps and the credentials found for each app.</p>"
-$HtmlBody = $Report | Select-Object "App Name", RecordType, "Credential Name", Expiration, "Days until expiry", Status | ConvertTo-Html -Fragment 
+$HtmlBody = $Report | Select-Object "App Name", Status, RecordType, Owners, "Credential Name", Expiration, "Days until expiry" | ConvertTo-Html -Fragment 
 
 # Add the color coding for the status values
 $HTMLBody = $HTMLBody -replace "<head>", "<head>`n$EmailCSS`n"
