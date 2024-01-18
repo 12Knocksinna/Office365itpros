@@ -2,7 +2,8 @@
 # An example of using a script to check Entra ID registered apps to see if any have app secrets that are due to expire
 # and inform admins of the fact.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ExpiringAppSecrets.PS1
-# V1.0 2-Jan-2023
+# V1.0 2-Jan-2024
+# V1.1 16-Jan-2024 # Added app owner to output
 
 Function Add-MessageRecipients {
     # Function to build an addressee list to send email   
@@ -72,6 +73,12 @@ If (!($RegisteredApps)) {
 $Report = [System.Collections.Generic.List[Object]]::new() 
 ForEach ($App in $RegisteredApps) {
     Write-Host ("Processing {0} app" -f $App.DisplayName)
+    $AppOwnersOutput = "No app owner registered"
+    # Check for application owners
+    [array]$AppOwners = Get-MgApplicationOwner -ApplicationId $App.Id
+    If ($AppOwners) {
+        $AppOwnersOutput = $AppOwners.additionalProperties.displayName -join ", "
+    }
 
     # Get the app secrets (if any are defined for the app
     [array]$AppSecrets = $App.passwordCredentials
@@ -91,6 +98,7 @@ ForEach ($App in $RegisteredApps) {
             $DataLine = [PSCustomObject] @{
                 "App Name"          = $App.DisplayName
                 "App Id"            = $App.Id
+                Owners              = $AppOwnersOutput
                 "Credential name"   = $AppSecret.DisplayName
                 "Created"           = $AppSecret.startDateTime
                 "Credential Id"     = $AppSecret.KeyId
@@ -108,7 +116,7 @@ ForEach ($App in $RegisteredApps) {
     ForEach ($Certificate in $Certificates) {
         $ExpirationDays = $null; $Status = $null
         If ($null -ne $Certificate.endDateTime) {
-            Write-Host ("Certificate {0} has end date {1}" -f $Certificate.displayName, $Certificate.endDateTime)
+            # Write-Host ("Certificate {0} has end date {1}" -f $Certificate.displayName, $Certificate.endDateTime)
             $ExpirationDays = (New-TimeSpan -Start $CheckDate -End $Certificate.endDateTime).Days
             # Figure out app secret status based on the number of days until it expires
             If ($ExpirationDays -lt 0) {
@@ -122,6 +130,7 @@ ForEach ($App in $RegisteredApps) {
             $DataLine = [PSCustomObject] @{
                 "App Name"          = $App.DisplayName
                 "App Id"            = $App.Id
+                Owners              = $AppOwnersOutput
                 "Credential name"   = $Certificate.DisplayName
                 "Created"           = $Certificate.StartDateTime
                 "Credential Id"     = $Certificate.KeyId
