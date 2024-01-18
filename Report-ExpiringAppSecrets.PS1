@@ -21,6 +21,9 @@ $CheckDate = Get-Date
 # Define the warning period to check for app secrets that are about to expire
 [int]$ExpirationWarningPeriod = 30
 
+# CSV Output file
+$CSVOutputFile = "C:\temp\AppSecretsAndCerts.CSV"
+
 # Add a CSS to use when highlighting issues in the emailed report
 $EmailCSS = @"
 <style>
@@ -146,6 +149,7 @@ ForEach ($App in $RegisteredApps) {
 }
 
 $Report = $Report | Sort-Object RecordType, "App Name"
+$Report | Export-Csv -NoTypeInformation $CSVOutputFile
 
 Write-Host ("All done - emailing details to {0}" -f ($EmailRecipient -join ", "))
 $ToRecipientList   = @( $EmailRecipient )
@@ -178,6 +182,7 @@ $Params  += @{'isDeliveryReceiptRequested' = $True}
 # And send the message using the parameters that we've filled in
 Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
 Write-Output ("Message containing information about expiring App Secrets for mailboxes sent to {0}!" -f ($EmailRecipient -join ", "))
+Write-Output ("Full details are available in the CSV file {0}" -f $CSVOutputFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
