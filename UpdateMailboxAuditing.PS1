@@ -24,6 +24,7 @@ ForEach ($M in $Mbx) {
     $PercentComplete += $ProgressDelta
     $MbxProps = (Get-ExoMailbox -Identity $M.UserPrincipalName -Properties CustomAttribute6, RecipientTypeDetails)
     If ($MbxProps.CustomAttribute6 -ne "Mailbox Auditing Enabled") {
+       Set-Mailbox -Identity $M.UserPrincipalName -AuditEnabled $false
        Set-Mailbox -Identity $M.UserPrincipalName -AuditEnabled $True -AuditOwner @{Add="MailItemsAccessed"} -CustomAttribute6 "Mailbox Auditing Enabled"
        $MbxUpdated++
        $ReportLine  = [PSCustomObject] @{
