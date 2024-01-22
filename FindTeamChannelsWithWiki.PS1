@@ -26,7 +26,7 @@ ForEach ($Team in $Teams) {
          # Debug line - uncomment it to see the channelid details as they are processed
          # Write-Host ("Processing tab {0} in channel {1} of team {2}" -f $Tab.DisplayName, $Channel.DisplayName, $Team.DisplayName) 
          ForEach ($Tab in $Tabs) {
-           $WikiContent = $False; $TeamOwners = $Null
+           $WikiContent = $False; $TeamOwners = $null
            If ($Tab.TeamsApp.Id -eq "com.microsoft.teamspace.tab.wiki") { 
             # Check if the wiki configuration says that it has some content
              [array]$TabData = Get-MgTeamChannelTab -ChannelId $Channel.Id -TeamId $Team.Id -TeamsTabId $Tab.Id  -ExpandProperty TeamsApp
