@@ -1,6 +1,6 @@
 # Find-TeamChannelsWithWebSites.PS1
 # Quick and dirty script to find tabs pointing to websites in Teams channels
-# https://github.com/12Knocksinna/Office365itpros/blob/master/Find-TeamChannelsWithWebSites.PS1
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Find-TeamsChannelsWithWebSites.PS1
 # Provoked by change announced in MC708500 (20 Jan 2024)
 
 Connect-MgGraph -NoWelcome `
@@ -21,6 +21,9 @@ ForEach ($Team in $Teams) {
    $ProgressBar = "Processing Team " + $Team.DisplayName + " (" + $i + " of " + $Teams.Count + ")"
     If ($TeamDetails.IsArchived -ne $True) { # Team is not archived, so we can fetch information
         Write-Progress -Activity "Checking Teams Information" -Status $ProgressBar -PercentComplete ($i/$Teams.Count*100)
+        # Get Team owners 
+        [array]$Owners = Get-MgGroupOwner -GroupId $Team.Id
+        $TeamOwners = $Owners.AdditionalProperties.displayName -Join ", "
         [array]$TeamChannels = Get-MgTeamChannel -TeamId $Team.Id -ErrorAction SilentlyContinue
         ForEach ($Channel in $TeamChannels) {
             [array]$Tabs = Get-MgTeamChannelTab -ChannelId $Channel.Id -TeamId $Team.Id -ExpandProperty TeamsApp -ErrorAction SilentlyContinue
@@ -28,17 +31,17 @@ ForEach ($Team in $Teams) {
             # Debug line - uncomment it to see the channelid details as they are processed
             # Write-Host ("Processing tab {0} in channel {1} of team {2}" -f $Tab.DisplayName, $Channel.DisplayName, $Team.DisplayName) 
             ForEach ($Tab in $Tabs) {
-                $TeamOwners = $null; $WebSiteURL = $null
+                $WebSiteURL = $null
                 If ($Tab.TeamsApp.Id -eq "com.microsoft.teamspace.tab.web") { 
-                # Get Team owners 
-                    [array]$OwnerData = Get-MgGroupOwner -GroupId $Team.Id
-                    $TeamOwners = $OwnerData.AdditionalProperties.displayName -Join ", "     
-                    $WebSiteURL = $Tab.WebURL
-                    $StartPosition = $Tab.WebURL.IndexOf("webUrl=") + 7
-                    $LabelPosition =  $Tab.WebURL.IndexOf("&label")
-                    $URLLength = ($LabelPosition - ($StartPosition))
-                    $WebSite = $WebSiteURL.SubString($StartPosition, $URLLength)
-                    $WebSiteURL = [System.Web.HttpUtility]::UrlDecode($WebSite)
+                    If ($Tab.WebURL) {
+                        $StartPosition = $Tab.WebURL.IndexOf("webUrl=") + 7
+                        $LabelPosition =  $Tab.WebURL.IndexOf("&label")
+                        $URLLength = ($LabelPosition - ($StartPosition))
+                        $WebSite = $Tab.WebURL.SubString($StartPosition, $URLLength)
+                        $WebSiteURL = [System.Web.HttpUtility]::UrlDecode($WebSite)
+                    } Else {
+                        $WebSiteURL = "Can't find web site URL"
+                    }
                     $ReportLine = [PSCustomObject][Ordered]@{
                         Team           = $Team.DisplayName
                         Channel        = $Channel.DisplayName

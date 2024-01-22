@@ -36,7 +36,7 @@ ForEach ($Team in $Teams) {
               $True     { 
                  # Get Team owners 
                  [array]$OwnerData = Get-MgGroupOwner -GroupId $Team.Id
-                 $TeamOwners = $OwnerData.AdditionalProperties.displayName -Join "|"
+                 $TeamOwners = $OwnerData.AdditionalProperties.displayName -Join ", "
                  $WikiCheck = "Wiki content exists"}
               $False    { $WikiCheck = "No content" }
               Default    { $WikiCheck = "No content" }
