@@ -1,7 +1,7 @@
-# FindTeamChannelsWithWiki.PS1
-# Quick and dirty script to find wiki tabs in Teams channels
-# https://github.com/12Knocksinna/Office365itpros/blob/master/FindTeamChannelsWithWiki.PS1
-# V2.0 - Include check for content from wiki configuration
+# Find-TeamChannelsWithWebSites.PS1
+# Quick and dirty script to find tabs pointing to websites in Teams channels
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Find-TeamChannelsWithWebSites.PS1
+# Provoked by change announced in MC708500 (20 Jan 2024)
 
 Connect-MgGraph -NoWelcome `
   -Scopes Directory.Read.All, Team.ReadBasic.All, TeamSettings.Read.All, ChannelSettings.Read.All, TeamsTab.Read.All
@@ -11,6 +11,7 @@ Write-Host "Finding Teams"
 If (!($Teams)) {Write-Host "For some reason, I can't find any Teams... exiting..."; break }
 
 Clear-Host
+Write-Host ("Processing {0} teams to check for tabs containing websites" -f $Teams.count)
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
 $i = 0
 # Loop through each team to examine its channels, tabs, and apps
@@ -67,6 +68,3 @@ Write-Host ("All done. {0} Teams processed. The Wiki tab with content was found 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
-
-# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
-# the Internet without first validating the code in a non-production environment. 
