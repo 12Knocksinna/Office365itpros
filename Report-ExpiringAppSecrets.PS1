@@ -3,7 +3,8 @@
 # and inform admins of the fact.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ExpiringAppSecrets.PS1
 # V1.0 2-Jan-2024
-# V1.1 16-Jan-2024 # Added app owner to output
+# V1.1 16-Jan-2024 Added app owner to output
+# V1.2 23-Jan-2024 Addded output of app permissions
 
 Function Add-MessageRecipients {
     # Function to build an addressee list to send email   
@@ -15,7 +16,26 @@ Function Add-MessageRecipients {
         }
 } 
 
-Connect-MgGraph -Scopes 'Application.Read.All', 'Mail.Send' -NoWelcome
+function Get-ServicePrincipalRoleById {
+    # Original from https://github.com/michevnew/PowerShell/blob/master/app_Permissions_inventory_GraphSDK.ps1
+    # this function checks a hash table containing details of the service principals used by standard
+    # apps like the Microsoft Graph. The returned value is the properties of the service principal,
+    # including the set of roles (permissions) supported by the app. The script can check a
+    # resource identifier for a permission against the set of roles to find the display name (role name).
+    # Putting this data in a hash table and retrieving the data from the table is more
+    # performant than retrieving the permission names each time we process a script by running the
+    # Get-MgServicePrincipal cmdlet like this:
+    #  $P = (Get-MgServicePrincipal -ServicePrincipalId $AppRoleAssignment.resourceId).appRoles | Where-Object id -match $AppRoleAssignment.AppRoleId | Select-Object -ExpandProperty Value
+    
+    Param(
+    #Service principal object
+    [Parameter(Mandatory=$true)][ValidateNotNullOrEmpty()]$SpID)
+    
+    If (!$SPHashTable[$SpID]) {
+        $SPHashTable[$SpID] = Get-MgServicePrincipal -ServicePrincipalId $SpID -Verbose:$false -ErrorAction Stop
+    }
+    return $SPHashTable[$spID]
+}
 
 $CheckDate = Get-Date
 # Define the warning period to check for app secrets that are about to expire
@@ -24,7 +44,10 @@ $CheckDate = Get-Date
 # CSV Output file
 $CSVOutputFile = "C:\temp\AppSecretsAndCerts.CSV"
 
-# Add a CSS to use when highlighting issues in the emailed report
+# Define hash table to hold data for standard apps like the Microsoft Graph (appId = 00000003-0000-0000-c000-000000000000)
+$SPHashTable = @{}
+
+# A CSS to use when highlighting issues in the emailed report
 $EmailCSS = @"
 <style>
     table {
@@ -60,11 +83,14 @@ $EmailCSS = @"
 $MsgFrom = (Get-MgContext).Account
 # $MsgFrom = "Azure.Management.Account@office365itpros.com"
 
-# Find registered Entra ID apps that are limited to our organization (not multi-organization)
-[array]$RegisteredApps = Get-MgApplication -All -Property Id, displayName, keyCredentials, passwordCredentials, signInAudience | `
-    Where-Object SignInAudience -match "AzureADMyOrg" | Sort-Object DisplayName
-# Remove SharePoint helper apps https://learn.microsoft.com/en-us/answers/questions/1187017/sharepoint-online-client-extensibility-web-applica
-$RegisteredApps = $RegisteredApps | Where-Object DisplayName -notLike "SharePoint Online Client Extensibility Web Application Principal*"
+[array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", `
+  "Files.ReadWrite.All", "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", `
+  "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All"
+
+# Start of processing
+# -------------------
+    
+Connect-MgGraph -Scopes 'Application.Read.All', 'Mail.Send' -NoWelcome
 
 If (!($RegisteredApps)) {
     Write-Host "Can't retrieve details of any Entra ID registered apps - exiting"
@@ -73,7 +99,18 @@ If (!($RegisteredApps)) {
     Write-Host ("{0} registered applications found - proceeeding to analyze app secrets" -f $RegisteredApps.count)
 }
 
+# Find registered Entra ID apps that are limited to our organization (not multi-organization)
+[array]$RegisteredApps = Get-MgApplication -All -Property Id, appId, displayName, keyCredentials, passwordCredentials, signInAudience | `
+    Where-Object SignInAudience -match "AzureADMyOrg" | Sort-Object DisplayName
+# Remove SharePoint helper apps https://learn.microsoft.com/en-us/answers/questions/1187017/sharepoint-online-client-extensibility-web-applica
+$RegisteredApps = $RegisteredApps | Where-Object DisplayName -notLike "SharePoint Online Client Extensibility Web Application Principal*"
+
+# Populate an array with details of Service Principals for apps that run in this tenant
+[array]$ServicePrincipals = Get-MgServicePrincipal -All | Where-Object SignInAudience -match 'AzureADMyOrg'
+
 $Report = [System.Collections.Generic.List[Object]]::new() 
+$Report2 = [System.Collections.Generic.List[Object]]::new() # For app permissions
+
 ForEach ($App in $RegisteredApps) {
     Write-Host ("Processing {0} app" -f $App.DisplayName)
     $AppOwnersOutput = "No app owner registered"
@@ -146,11 +183,37 @@ ForEach ($App in $RegisteredApps) {
             $Report.Add($DataLine)
         }
     }
+    # Retrieve permissions for the app
+    $SP = $ServicePrincipals | Where-Object AppId -match $App.AppId
+    # Get permissions assigned to app
+    $PermissionsOutput = $null; [array]$Permissions = $null
+    If ($SP) {
+        [array]$AppRoleAssignments = Get-MgServicePrincipalAppRoleAssignment -All -ServicePrincipalId $SP.id -ErrorAction Stop -Verbose:$false
+        # For each assigned permission, find its name
+        Foreach ($AppRoleAssignment in $AppRoleAssignments) {
+            $Permission = (Get-ServicePrincipalRoleById $AppRoleAssignment.resourceId).AppRoles | Where-Object id -match $AppRoleAssignment.AppRoleId | Select-Object -ExpandProperty Value
+            If ($Permission -in $HighPriorityPermissions) {
+                $Permission = $Permission + " *"
+            }
+            $Permissions += $Permission
+        }
+        $PermissionsOutput = $Permissions -Join ", "
+    }
+    $DataLine2 = [PSCustomObject] @{
+        "App Name"          = $App.DisplayName
+        "App Id"            = $App.Id
+        Permissions         = $PermissionsOutput.Trim()
+    }
+    $Report2.Add($DataLine2)
 }
 
 $Report = $Report | Sort-Object RecordType, "App Name"
 $Report | Export-Csv -NoTypeInformation $CSVOutputFile
 
+# Get set of apps with permissions
+$Report2 = $Report2 | Where-Object {([string]::IsNullOrWhiteSpace($_.Permissions)) -eq $false}
+
+# Email the report
 Write-Host ("All done - emailing details to {0}" -f ($EmailRecipient -join ", "))
 $ToRecipientList   = @( $EmailRecipient )
 [array]$MsgToRecipients = Add-MessageRecipients -ListOfAddresses $ToRecipientList
@@ -164,7 +227,11 @@ $HTMLBody = $HTMLBody -replace "<td>Active</td>", "<td style=`"background-color:
 $HTMLBody = $HtmlBody -replace "<td>Expiring Soon</td>", "<td style=`"background-color: #FFFF00;`">expiring</td>"
 $HtmlBody = $HtmlBody -replace "<td>Expired</td>", "<td style=`"background-color: #FF0000;`">expired</td>"
 
-$HTMLMsg = "</body></html><p>" + $HTMLHead + $HTMLBody + "<p>"
+# Add details about apps with high-value permissions
+$HTMLBody2 = $Report2 | ConvertTo-HTML -Fragment
+
+$HTMLBody2 = "<p><h2>Applications with High-Priority Permissions</h2><p>" + $HTMLBody2 + "Astericked permissions are important<p></p>"
+$HTMLMsg = "</body></html><p>" + $HTMLHead + $HTMLBody + $HTMLBody2 + "<p>"
 
 # Construct the message body
 $MsgBody = @{
