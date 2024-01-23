@@ -5,12 +5,7 @@
 Connect-AzAccount -Identity
 $AccessToken = Get-AzAccessToken -ResourceUrl "https://graph.microsoft.com"
 Connect-MgGraph -AccessToken $AccessToken.Token
-
-#Define the desired graph endpoint
-Select-MgProfile Beta
-# Define Output Files - only used if executed interactively
-$OutputFile = "c:\temp\AppsAndPermissions.csv"
-$OutputFile2 = "c:\temp\AppsForReview.csv"
+# From SDK 2.0 on, this can simply be Connect-MgGraph -Identity
 
 # Get tenant information
 $Tenant = (Get-MgOrganization)
@@ -50,13 +45,13 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 $ProblemApps = [System.Collections.Generic.List[Object]]::new()
 
 # Find all service principals belonging to registered apps
-[array]$SPs = Get-MgServicePrincipal -top 999 -Filter "Tags/any(t:t eq 'WindowsAzureActiveDirectoryIntegratedApp')"
+[array]$SPs = Get-MgServicePrincipal -All -Filter "Tags/any(t:t eq 'WindowsAzureActiveDirectoryIntegratedApp')"
 # And those for managed identities
-[array]$ManagedIdentities = Get-MgServicePrincipal -top 999 -Filter "ServicePrincipalType eq 'ManagedIdentity'"
+[array]$ManagedIdentities = Get-MgServicePrincipal -All -Filter "ServicePrincipalType eq 'ManagedIdentity'"
 [array]$Apps = $SPs + $ManagedIdentities
 
 # Loop through the apps and managed identities we've found to resolve the permissions assigned to each app
-Write-Output ("{0} service principals for Azure AD registered apps found" -f $Apps.Count)
+Write-Output ("{0} service principals for Entra ID registered apps found" -f $Apps.Count)
 $i = 0
 ForEach ($App in $Apps) {
    $i++; $AppRecentFlag = $False
@@ -65,7 +60,7 @@ ForEach ($App in $Apps) {
         [datetime]$AppCreationDate = $App.AdditionalProperties.createdDateTime
     } Else {
      # For some reason, no app created date is available, so set it to a date in 1970
-        [datetime]$AppCreationDate = ‘1970-01-01’
+        [datetime]$AppCreationDate = '1970-01-01'
    }
    If ($AppCreationDate -gt $CheckforRecent) {$AppRecentFlag = $True}
    [array]$AppRoles = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $App.Id
@@ -89,15 +84,17 @@ ForEach ($App in $Apps) {
      
        If ($App.ServicePrincipalType -ne "ManagedIdentity") {
           If ($App.AppOwnerOrganizationId -eq $TenantId) { #Resolve tenant name
-            $Name = $TenantName }
-          Else {
-            $LookUpId = $App.AppOwnerOrganizationId.toString()
-            $Uri = "https://graph.microsoft.com/beta/tenantRelationships/findTenantInformationByTenantId(tenantId='$LookUpId')"
-            $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
-            $Name = $ExternalTenantData.DisplayName }
-       $VerifiedPublisher = $Null
-       If ($App.AdditionalProperties["verifiedpublisher"]) { 
-          $VerifiedPublisher = $App.AdditionalProperties["verifiedpublisher"] }
+              $Name = $TenantName 
+          } Else {
+              $LookUpId = $App.AppOwnerOrganizationId.toString()
+              $Uri = "https://graph.microsoft.com/beta/tenantRelationships/findTenantInformationByTenantId(tenantId='$LookUpId')"
+              $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
+              $Name = $ExternalTenantData.DisplayName 
+          }
+        $VerifiedPublisher = $Null
+        If ($App.AdditionalProperties["verifiedpublisher"]) { 
+            $VerifiedPublisher = $App.AdditionalProperties["verifiedpublisher"] 
+        }
        } 
    
        $ReportLine  = [PSCustomObject] @{
@@ -127,7 +124,7 @@ Write-Output "Permissions found"
 Write-Output "-----------------"
 Write-Output ""
 
-$Report | Group Permission | Sort-Object Name | Format-Table Name, Count
+$Report | Group-Object Permission | Sort-Object Name | Format-Table Name, Count
 # Uncomment the next two lines if you want to generate the output file (interactive use only)
 # $Report | Export-CSV -NoTypeInformation $OutputFile
 # Write-Output ("Full permissions report is available in {0}" -f $OutputFile)
@@ -208,7 +205,7 @@ If ($AppOutput) { # Generate a report and post it to Teams
 	<tbody>'
 
 ForEach ($A in $AppOutput) {
-      $Body += "<tr><td><font face='Segoe UI'>$($A.DisplayName)</font></td><td><font face='Segoe UI'>$($A.ServicePrincipalId)</td></font><td><font face='Segoe UI'>$($A.Publisher)</td></font><td><font face='Segoe UI'>$($A.Permissions)</td></font><td><font face='Segoe UI'>$($A.SPType)</td><td><font face='Segoe UI'>$($A.CreatedDate)</td><td><font face='Segoe UI'>$($A.LastSignIn)</td></tr></font>"
+    $Body += "<tr><td><font face='Segoe UI'>$($A.DisplayName)</font></td><td><font face='Segoe UI'>$($A.ServicePrincipalId)</td></font><td><font face='Segoe UI'>$($A.Publisher)</td></font><td><font face='Segoe UI'>$($A.Permissions)</td></font><td><font face='Segoe UI'>$($A.SPType)</td><td><font face='Segoe UI'>$($A.CreatedDate)</td><td><font face='Segoe UI'>$($A.LastSignIn)</td></tr></font>"
     }
 $Body += "</tbody></table><p>" 
 $Body += '</body></html>'
@@ -223,17 +220,15 @@ $UserPassword = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "ExoAcco
 [pscredential]$UserCredentials = New-Object System.Management.Automation.PSCredential ($UserName, $SecurePassword)
 # Get Site URL to use with PnP connection
 $SiteURL = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "SPOSiteURL" -AsPlainText
-# Target channel identifier for incoming webhook connector
-$TargetChannel = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "IncomingWebhookId" -AsPlainText
 # Target team and channel in that team to which we post a message containing the report
 $TargetTeamId = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "TargetTeamId" -AsPlainText
 $TargetTeamChannel = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "TargetChannelID" -AsPlainText
 
-  # Connect to PnP using the account credentials we just retrieved
-  $PnpConnection = Connect-PnPOnline $SiteURL -Credentials $UserCredentials -ReturnConnection
-  # Post message to Teams
+# Connect to PnP using the account credentials we just retrieved
+$PnpConnection = Connect-PnPOnline $SiteURL -Credentials $UserCredentials -ReturnConnection
+# Post message to Teams
   Submit-PnPTeamsChannelMessage -Team $TargetTeamId -Channel $TargetTeamChannel -Message $Body -ContentType Html -Important -Connection $PnpConnection
- }
+}
 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
