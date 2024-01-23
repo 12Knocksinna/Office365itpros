@@ -1,9 +1,10 @@
 # Update-TenantCustomBranding.PS1
 # A runbook to update the tenant's sign-in text and background image when the year changes
 # 
-Connect-MgGraph -Scopes Organization.ReadWrite.All -NoWelcome -Identity
+Connect-MgGraph -Scopes Organization.ReadWrite.All -NoWelcome 
+# If running in Azure Automation, use Connect-MgGraph -Scopes Organization.ReadWrite.All -NoWelcome -Identity
 
-$TenantId = (Get-MgOrganization).TenantId
+$TenantId = (Get-MgOrganization).Id
 # Get current sign-in text
 [string]$SignInText = (Get-MgOrganizationBranding -OrganizationId $TenantId).SignInPageText
 [string]$CurrentYear = Get-Date -format yyyy
