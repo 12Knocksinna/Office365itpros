@@ -25,6 +25,5 @@ If ($YearPresent -gt 0) {
         Invoke-MgGraphRequest -Method PUT -Uri $Uri -InputFilePath $DefaultYearImage -ContentType "image/jpg"
     } Else {
         Write-Output "No new background image available to update"
-    }
-    
+    }   
 }
