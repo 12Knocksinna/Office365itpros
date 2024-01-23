@@ -50,6 +50,10 @@ $SPHashTable = @{}
 # A CSS to use when highlighting issues in the emailed report
 $EmailCSS = @"
 <style>
+	BODY{font-family: Arial; font-size: 8pt;}
+	H1{font-size: 22px; font-family: 'Segoe UI Light';}
+	H2{font-size: 18px; font-family: 'Segoe UI Light';}
+	H3{font-size: 16px; font-family: 'Segoe UI Light';}
     table {
         border-collapse: collapse;
         font-size: 10px;
