@@ -96,18 +96,18 @@ $MsgFrom = (Get-MgContext).Account
     
 Connect-MgGraph -Scopes 'Application.Read.All', 'Mail.Send' -NoWelcome
 
+# Find registered Entra ID apps that are limited to our organization (not multi-organization)
+[array]$RegisteredApps = Get-MgApplication -All -Property Id, appId, displayName, keyCredentials, passwordCredentials, signInAudience | `
+    Where-Object SignInAudience -match "AzureADMyOrg" | Sort-Object DisplayName
+# Remove SharePoint helper apps https://learn.microsoft.com/en-us/answers/questions/1187017/sharepoint-online-client-extensibility-web-applica
+$RegisteredApps = $RegisteredApps | Where-Object DisplayName -notLike "SharePoint Online Client Extensibility Web Application Principal*"
+
 If (!($RegisteredApps)) {
     Write-Host "Can't retrieve details of any Entra ID registered apps - exiting"
     Break
 } Else {
     Write-Host ("{0} registered applications found - proceeeding to analyze app secrets" -f $RegisteredApps.count)
 }
-
-# Find registered Entra ID apps that are limited to our organization (not multi-organization)
-[array]$RegisteredApps = Get-MgApplication -All -Property Id, appId, displayName, keyCredentials, passwordCredentials, signInAudience | `
-    Where-Object SignInAudience -match "AzureADMyOrg" | Sort-Object DisplayName
-# Remove SharePoint helper apps https://learn.microsoft.com/en-us/answers/questions/1187017/sharepoint-online-client-extensibility-web-applica
-$RegisteredApps = $RegisteredApps | Where-Object DisplayName -notLike "SharePoint Online Client Extensibility Web Application Principal*"
 
 # Populate an array with details of Service Principals for apps that run in this tenant
 [array]$ServicePrincipals = Get-MgServicePrincipal -All | Where-Object SignInAudience -match 'AzureADMyOrg'
