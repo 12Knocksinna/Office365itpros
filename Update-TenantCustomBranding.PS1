@@ -6,7 +6,11 @@ Connect-MgGraph -Scopes Organization.ReadWrite.All -NoWelcome
 
 $TenantId = (Get-MgOrganization).Id
 # Get current sign-in text
-[string]$SignInText = (Get-MgOrganizationBranding -OrganizationId $TenantId).SignInPageText
+[string]$SignInText = (Get-MgOrganizationBranding -OrganizationId $TenantId -ErrorAction SilentlyContinue).SignInPageText
+If ($SignInText.Length -eq 0) {
+    Write-Host "Branding information not found - exiting"
+    break
+}
 [string]$CurrentYear = Get-Date -format yyyy
 $DefaultYearImage = "c:\temp\DefaultYearImage.jpg"
 $YearPresent = $SignInText.IndexOf($CurrentYear)
