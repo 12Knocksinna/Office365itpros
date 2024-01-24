@@ -36,6 +36,9 @@ ForEach ($Team in $Teams) {
                     If ($Tab.WebURL) {
                         $StartPosition = $Tab.WebURL.IndexOf("webUrl=") + 7
                         $LabelPosition =  $Tab.WebURL.IndexOf("&label")
+                        If ($LabelPosition -eq -1) {
+                            $LabelPosition = $Tab.WebURL.IndexOf("&label")
+                        }
                         $URLLength = ($LabelPosition - ($StartPosition))
                         $WebSite = $Tab.WebURL.SubString($StartPosition, $URLLength)
                         $WebSiteURL = [System.Web.HttpUtility]::UrlDecode($WebSite)
