@@ -1,5 +1,7 @@
 # Get-ServiceHealthInformation.PS1
 # Example of using the Graph Service Communication API with Microsoft Graph PowerShell SDK cmdlets
+# V1.0 25-Jan-2024
+#
 
 Function Add-MessageRecipients {
     # Function to build an addressee list to send email   
