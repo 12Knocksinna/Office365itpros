@@ -1,7 +1,5 @@
 # Get-ServiceHealthInformation.PS1
 # Example of using the Graph Service Communication API with Microsoft Graph PowerShell SDK cmdlets
-# V1.0 25-Jan-2024
-#
 
 Function Add-MessageRecipients {
     # Function to build an addressee list to send email   
@@ -13,6 +11,7 @@ Function Add-MessageRecipients {
         }
 } 
 
+# Connect to the Graph with the required permissions
 Connect-MgGraph -Scopes ServiceHealth.Read.All, ServiceMessage.Read.All, Mail.Send -NoWelcome
        
 # Recipient for the email sent at the end of the script - define the addresses you want to use here. They can be single recipients,
