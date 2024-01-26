@@ -35,9 +35,10 @@ ForEach ($Team in $Teams) {
                 If ($Tab.TeamsApp.Id -eq "com.microsoft.teamspace.tab.web") { 
                     If ($Tab.WebURL) {
                         $StartPosition = $Tab.WebURL.IndexOf("webUrl=") + 7
+                        # Some website tabs have &Label and some have ?Label, so we check for both
                         $LabelPosition =  $Tab.WebURL.IndexOf("&label")
                         If ($LabelPosition -eq -1) {
-                            $LabelPosition = $Tab.WebURL.IndexOf("&label")
+                            $LabelPosition = $Tab.WebURL.IndexOf("?label")
                         }
                         $URLLength = ($LabelPosition - ($StartPosition))
                         $WebSite = $Tab.WebURL.SubString($StartPosition, $URLLength)
