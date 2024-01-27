@@ -1,59 +1,277 @@
 # ReportTeamsPolicyAssignments.PS1
 # Generate a report about major Teams policies assigned to user accounts
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportTeamsPolicyAssignments.PS1
-$ModulesLoaded = Get-Module | Select-Object Name
+# V1.1 27-Jan-2024 Add support for group assigned policies
+
+function Get-GroupNameByRef {   
+    Param(
+    #GroupId
+    [Parameter(Mandatory=$true)][ValidateNotNullOrEmpty()]$GroupId)
+    
+    If (!$GroupNames[$GroupId]) {
+        $GroupNames[$GroupId] = Get-MgGroup -GroupId $GroupId -ErrorAction Stop
+    }
+    return $GroupNames[$GroupId]
+}
+
+[array]$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "MicrosoftTeams")) {Write-Host "Please connect to the Microsoft Teams module and then restart the script"; break}
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online management module and then restart the script"; break}
+
+Connect-MgGraph -NoWelcome -Scopes Organization.Read.All, Group.Read.All
+
+$OrgName = (Get-MgOrganization).DisplayName
+[string]$CreationDate = Get-Date -format 'dd-MMM-yyyy HH:mm'
+$Global:GroupNames = @{}
+$CSVOutput = "c:\temp\TeamsPolicyAssignments.CSV"
+$ReportFile = "c:\temp\TeamsPolicyAssignments.html"
+
+Write-Host "Looking for Teams-enabled users..."
 [array]$Users = Get-CsOnlineUser -ResultSize 5000
 # Filter the set to get Teams users - this will filter out all but cloud-only Teams users. If you don't want to use the filter, comment it out.
 $Users = $Users | Where-Object {$_.InterpretedUserType -eq "PureOnlineTeamsOnlyUser" -or $_.InterpretedUserType -eq "PureOnlineTeamsOnlyUserFailedPublishingToAAD"} | Sort-Object DisplayName
-If (!($Users)) {Write-Host "No users found - exiting"; break }
+If (!($Users)) 
+    {Write-Host "No users found - exiting"; 
+    break 
+}
+
+# Set up report file
 $Report = [System.Collections.Generic.List[Object]]::new()
+[int]$i = 0
 # Process each user to fetch their policy assignments
+$TenantDefaultString = "Tenant Default"
 ForEach ($User in $Users) {
-    $TenantDefaultString = "Tenant Default" 
+    $i++
+    Write-Host ("Processing user {0} ({1}/{2})... " -f $User.displayName, $i, $Users.count)
     $TeamsMeetingPolicy = $TenantDefaultString
     $TeamsMessagingPolicy = $TenantDefaultString
     $TeamsAppSetupPolicy = $TenantDefaultString
-    $TeamsAppPermissionsPolicy = $TenantDefaultString
+    $TeamsAppPermissionPolicy = $TenantDefaultString
     $TeamsEncryptionPolicy = $TenantDefaultString
     $TeamsUpdatePolicy = $TenantDefaultString
-    $TeamsChannelsPolicy = $TenantDefaultString
-    $TeamsFeedbackPolicy = $TenantDefaultString
-    $TeamsLiveEventsPolicy = $TenantDefaultString
-    If ($User.TeamsMeetingPolicy) {$TeamsMeetingPolicy = $User.TeamsMeetingPolicy}
-    If ($User.TeamsMessagingPolicy) {$TeamsMessagingPolicy = $User.TeamsMessagingPolicy}
-    If ($User.TeamsAppSetupPolicy) {$TeamsAppSetupPolicy = $User.TeamsAppSetupPolicy}
-    If ($User.TeamsAppPermissionPolicy) {$TeamsAppPermissionsPolicy = $User.TeamsAppPermissionPolicy}
-    If ($User.TeamsEnhancedEncryptionPolicy) {$TeamsEncryptionPolicy = $User.TeamsEnhancedEncryptionPolicy}
-    If ($User.TeamsUpdateManagementPolicy) {$TeamsUpdatePolicy = $User.TeamsUpdateManagementPolicy}
-    If ($User.TeamsChannelsPolicy) {$TeamsChannelsPolicy = $User.TeamsChannelsPolicy}
-    If ($User.TeamsFeedbackPolicy) {$TeamsFeedbackPolicy = $User.TeamsFeedbackPolicy}
-    If ($User.TeamsMeetingBroadcastPolicy) {$TeamsLiveEventsPolicy = $User.TeamsMeetingBroadcastPolicy}
+    $TeamsPolicy = $TenantDefaultString
+    $TeamsEventsPolicy = $TenantDefaultString
+    $TeamsAudioConferencingPolicy = $TenantDefaultString
+
+    # Meeting policy
+    $CurrentAssignment = $null
+    If ($User.TeamsMeetingPolicy) {
+        $TeamsMeetingPolicy = $User.TeamsMeetingPolicy.Name
+    } Else {
+        [array]$PolicyAssignments = Get-CsUserPolicyAssignment -Identity $User.UserPrincipalName `
+          -PolicyType TeamsMeetingPolicy | Select-Object -ExpandProperty PolicySource
+        If ($PolicyAssignments) {
+            $CurrentAssignment = $PolicyAssignments[0]
+        }
+        If ($CurrentAssignment) {
+            Switch ($CurrentAssignment.AssignmentType) {
+                "Direct" {
+                    $TeamsMeetingPolicy = ("{0} (Direct)" -f $CurrentAssignment.PolicyName)
+                }
+                "Group" {
+                    $GroupName = (Get-GroupNameByRef -GroupId $CurrentAssignment.Reference).DisplayName
+                    $TeamsMeetingPolicy = ("{0} (Group: {1})" -f $CurrentAssignment.PolicyName, $GroupName)
+                }
+            }
+        }
+    }
+    # Messaging policy
+    $CurrentAssignment = $null
+    If ($User.TeamsMessagingPolicy) {
+        $TeamsMessagingPolicy = $User.TeamsMessagingPolicy.Name
+    } Else {
+        [array]$PolicyAssignments = Get-CsUserPolicyAssignment -Identity $User.UserPrincipalName `
+          -PolicyType TeamsMessagingPolicy | Select-Object -ExpandProperty PolicySource
+        If ($PolicyAssignments) {
+            $CurrentAssignment = $PolicyAssignments[0]
+        }
+        If ($CurrentAssignment) {
+            Switch ($CurrentAssignment.AssignmentType) {
+                "Direct" {
+                    $TeamsMessagingPolicy = ("{0} (Direct)" -f $CurrentAssignment.PolicyName)
+                }
+                "Group" {
+                    $GroupName = (Get-GroupNameByRef -GroupId $CurrentAssignment.Reference).DisplayName
+                    $TeamsMessagingPolicy = ("{0} (Group: {1})" -f $CurrentAssignment.PolicyName, $GroupName)
+                }
+            }
+        }
+    }    
+    # App setup policy
+    $CurrentAssignment = $null
+    If ($User.TeamsAppSetupPolicy) {
+        $TeamsAppSetupPolicy = $User.TeamsAppSetupPolicy
+    } Else {
+        [array]$PolicyAssignments = Get-CsUserPolicyAssignment -Identity $User.UserPrincipalName `
+          -PolicyType TeamsAppSetupPolicy | Select-Object -ExpandProperty PolicySource
+        If ($PolicyAssignments) {
+            $CurrentAssignment = $PolicyAssignments[0]
+        }
+        If ($CurrentAssignment) {
+            Switch ($CurrentAssignment.AssignmentType) {
+                "Direct" {
+                    $TeamsAppSetupPolicy = ("{0} (Direct)" -f $CurrentAssignment.PolicyName)
+                }
+                "Group" {
+                    $GroupName = (Get-GroupNameByRef -GroupId $CurrentAssignment.Reference).DisplayName
+                    $TeamsAppSetupPolicy = ("{0} (Group: {1})" -f $CurrentAssignment.PolicyName, $GroupName)
+                }
+            }
+        }
+    }
+    # App Permission policy
+    $CurrentAssignment = $null
+    If ($User.TeamsAppPermissionPolicy) {
+        $TeamsAppPermissionPolicy = $User.TeamsAppPermissionPolicy
+    } Else {
+        [array]$PolicyAssignments = Get-CsUserPolicyAssignment -Identity $User.UserPrincipalName `
+          -PolicyType TeamsAppPermissionPolicy | Select-Object -ExpandProperty PolicySource
+        If ($PolicyAssignments) {
+            $CurrentAssignment = $PolicyAssignments[0]
+        }
+        If ($CurrentAssignment) {
+            Switch ($CurrentAssignment.AssignmentType) {
+                "Direct" {
+                    $TeamsAppPermissionPolicy = ("{0} (Direct)" -f $CurrentAssignment.PolicyName)
+                }
+                "Group" {
+                    $GroupName = (Get-GroupNameByRef -GroupId $CurrentAssignment.Reference).DisplayName
+                    $TeamsAppPermissionPolicy = ("{0} (Group: {1})" -f $CurrentAssignment.PolicyName, $GroupName)
+                }
+            }
+        }
+    }
+    # Teams policy
+    $CurrentAssignment = $null
+    If ($User.TeamsChannelsPolicy) {
+        $TeamsPolicy = $User.TeamsChannelsPolicy
+    } Else {
+        [array]$PolicyAssignments = Get-CsUserPolicyAssignment -Identity $User.UserPrincipalName `
+          -PolicyType TeamsChannelsPolicy | Select-Object -ExpandProperty PolicySource
+        If ($PolicyAssignments) {
+            $CurrentAssignment = $PolicyAssignments[0]
+        }
+        If ($CurrentAssignment) {
+            Switch ($CurrentAssignment.AssignmentType) {
+                "Direct" {
+                    $TeamsPolicy = ("{0} (Direct)" -f $CurrentAssignment.PolicyName)
+                }
+                "Group" {
+                    $GroupName = (Get-GroupNameByRef -GroupId $CurrentAssignment.Reference).DisplayName
+                    $TeamsPolicy = ("{0} (Group: {1})" -f $CurrentAssignment.PolicyName, $GroupName)
+                }
+            }
+        }
+    }   
+    # Teams encryption policy
+    $CurrentAssignment = $null
+    If ($User.TeamsEnhancedEncryptionPolicy) {
+        $TeamsEncryptionPolicy = $User.TeamsEnhancedEncryptionPolicy
+    } Else {
+        [array]$PolicyAssignments = Get-CsUserPolicyAssignment -Identity $User.UserPrincipalName `
+          -PolicyType TeamsEnhancedEncryptionPolicy | Select-Object -ExpandProperty PolicySource
+        If ($PolicyAssignments) {
+            $CurrentAssignment = $PolicyAssignments[0]
+        }
+        If ($CurrentAssignment) {
+            Switch ($CurrentAssignment.AssignmentType) {
+                "Direct" {
+                    $TeamsEncryptionPolicy = ("{0} (Direct)" -f $CurrentAssignment.PolicyName)
+                }
+                "Group" {
+                    $GroupName = (Get-GroupNameByRef -GroupId $CurrentAssignment.Reference).DisplayName
+                    $TeamsEncryptionPolicy = ("{0} (Group: {1})" -f $CurrentAssignment.PolicyName, $GroupName)
+                }
+            }
+        }
+    }   
+    # Teams Update management policy
+    $CurrentAssignment = $null
+    If ($User.TeamsUpdateManagementPolicy) {
+        $TeamsUpdatePolicy = $User.TeamsUpdateManagementPolicy
+    } Else {
+        [array]$PolicyAssignments = Get-CsUserPolicyAssignment -Identity $User.UserPrincipalName `
+          -PolicyType TeamsUpdateManagementPolicy | Select-Object -ExpandProperty PolicySource
+        If ($PolicyAssignments) {
+            $CurrentAssignment = $PolicyAssignments[0]
+        }
+        If ($CurrentAssignment) {
+            Switch ($CurrentAssignment.AssignmentType) {
+                "Direct" {
+                    $TeamsUpdatePolicy = ("{0} (Direct)" -f $CurrentAssignment.PolicyName)
+                }
+                "Group" {
+                    $GroupName = (Get-GroupNameByRef -GroupId $CurrentAssignment.Reference).DisplayName
+                    $TeamsUpdatePolicy = ("{0} (Group: {1})" -f $CurrentAssignment.PolicyName, $GroupName)
+                }
+            }
+        }
+    }   
+    # Teams Events policy
+    $CurrentAssignment = $null
+    If ($User.TeamsEventsPolicy) {
+        $TeamsEventsPolicy = $User.TeamsEventsPolicy
+    } Else {
+        [array]$PolicyAssignments = Get-CsUserPolicyAssignment -Identity $User.UserPrincipalName `
+          -PolicyType TeamsEventsPolicy | Select-Object -ExpandProperty PolicySource
+        If ($PolicyAssignments) {
+            $CurrentAssignment = $PolicyAssignments[0]
+        }
+        If ($CurrentAssignment) {
+            Switch ($CurrentAssignment.AssignmentType) {
+                "Direct" {
+                    $TeamsEventsPolicy = ("{0} (Direct)" -f $CurrentAssignment.PolicyName)
+                }
+                "Group" {
+                    $GroupName = (Get-GroupNameByRef -GroupId $CurrentAssignment.Reference).DisplayName
+                    $TeamsEventsPolicy = ("{0} (Group: {1})" -f $CurrentAssignment.PolicyName, $GroupName)
+                }
+            }
+        }
+    }   
+    # Teams Audio Conferencing Policy
+    $CurrentAssignment = $null
+    If ($User.TeamsAudioConferencingPolicy) {
+        $TeamsAudioConferencingPolicy = $User.TeamsAudioConferencingPolicy
+    } Else {
+        [array]$PolicyAssignments = Get-CsUserPolicyAssignment -Identity $User.UserPrincipalName `
+          -PolicyType TeamsAudioConferencingPolicy | Select-Object -ExpandProperty PolicySource
+        If ($PolicyAssignments) {
+            $CurrentAssignment = $PolicyAssignments[0]
+        }
+        If ($CurrentAssignment) {
+            Switch ($CurrentAssignment.AssignmentType) {
+                "Direct" {
+                    $TeamsAudioConferencingPolicy = ("{0} (Direct)" -f $CurrentAssignment.PolicyName)
+                }
+                "Group" {
+                    $GroupName = (Get-GroupNameByRef -GroupId $CurrentAssignment.Reference).DisplayName
+                    $TeamsAudioConferencingPolicy = ("{0} (Group: {1})" -f $CurrentAssignment.PolicyName, $GroupName)
+                }
+            }
+        }
+    }   
+    
     # Output a report line
     $ReportLine = [PSCustomObject][Ordered]@{  
         User                         = $User.DisplayName
         UPN                          = $User.UserPrincipalName
         "Messaging Policy"           = $TeamsMessagingPolicy
         "Meeting Policy"             = $TeamsMeetingPolicy
+        "Audio conferencing policy"  = $TeamsAudioConferencingPolicy
         "App Setup Policy"           = $TeamsAppSetupPolicy
-        "App Permissions Policy"     = $TeamsAppPermissionsPolicy
+        "App Permissions Policy"     = $TeamsAppPermissionPolicy
         "Enhanced Encryption Policy" = $TeamsEncryptionPolicy
         "Update Policy"              = $TeamsUpdatePolicy
-        "Channels Policy"            = $TeamsChannelsPolicy
-        "Feedback Policy"            = $TeamsFeedbackPolicy
-        "Live Events"                = $TeamsLiveEventsPolicy
-	"InterpretedUserType"        = $User.InterpretedUserType
+        "Teams Policy"               = $TeamsPolicy
+        "Teams Events"               = $TeamsEventsPolicy
+	    "InterpretedUserType"        = $User.InterpretedUserType
     }
- #  Add it to the report
+ #  Add the line to the report
     $Report.Add($ReportLine) 
- }
-$CSVOutput = "c:\temp\TeamsPolicyAssignments.CSV"
-$ReportFile = "c:\temp\TeamsPolicyAssignments.html"
+}
+
 # Create the HTML report
-$OrgDisplayName = (Get-OrganizationConfig).DisplayName
-$CreationDate = Get-Date -format g
-$Version = "1.0"
+$Version = "1.1"
 $htmlhead="<html>
 	   <style>
 	   BODY{font-family: Arial; font-size: 8pt;}
@@ -71,11 +289,11 @@ $htmlhead="<html>
 	   <body>
            <div align=center>
            <p><h1>Teams Policy Assignment Report</h1></p>
-           <p><h2><b>For the " + $OrgDisplayName + " organization</b></h2></p>
+           <p><h2><b>For the " + $OrgName + " organization</b></h2></p>
            <p><h3>Generated: " + (Get-Date -format g) + "</h3></p></div>"
 
 $htmlbody1 = $Report | ConvertTo-Html -Fragment
-$htmltail = "<p>Report created for: " + $OrgDisplayName + "</p>" +
+$htmltail = "<p>Report created for: " + $OrgName + "</p>" +
              "<p>Created: " + $CreationDate + "<p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
              "<p>Number of Teams users found:    " + $Users.Count + "</p>" +

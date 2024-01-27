@@ -7,15 +7,38 @@
 # V1.2 23-Nov-2022 Added SKU usage summary to HTML report
 # V1.3 29-Sep-2023 Added support for group-based licensing
 # V1.4 13-Oct-2023 Fixed some bugs
+# V1.5 26-Jan-2024 Added license pricing computation
+
+Function Get-LicenseCosts {
+  # Function to calculate the annual costs of the licenses assigned to a user account  
+  [cmdletbinding()]
+      Param( [array]$Licenses )
+      [int]$Costs = 0
+      ForEach ($License in $Licenses) {
+          [string]$LicenseCost = $PricingHashTable[$License]
+          # Monthly cost in cents (because some licenses cost sums like 16.40)
+          [float]$LicenseCostCents = [float]$LicenseCost * 100
+          If ($LicenseCostCents -gt 0) {
+              # Compute annual cost for the license
+              [float]$AnnualCost = $LicenseCostCents * 12
+              # Add to the cumulative license costs
+              $Costs = $Costs + ($AnnualCost)
+              # Write-Host ("License {0} Cost {1} running total {2}" -f $License, $LicenseCost, $Costs)
+          }
+      }
+    # Return 
+    Return ($Costs/100)
+} 
 
 [string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
-$Version = "1.4"
+[datetime]$RunNow = Get-Date
+$Version = "1.5"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
 $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
 
 # Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
-Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog.Read.All"
+Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog.Read.All" -NoWelcome
 
 # This step depends on the availability of some CSV files generated to hold information about the product licenses used in the tenant and 
 # the service plans in those licenses. See https://github.com/12Knocksinna/Office365itpros/blob/master/CreateCSVFilesForSKUsAndServicePlans.PS1 
@@ -35,6 +58,18 @@ ForEach ($Line in $ImportSkus) { $SkuHashTable.Add([string]$Line.SkuId, [string]
 $ServicePlanHashTable = @{}
 ForEach ($Line2 in $ImportServicePlans) { $ServicePlanHashTable.Add([string]$Line2.ServicePlanId, [string]$Line2.ServicePlanDisplayName) }
 
+# If pricing information is in the $ImportSkus array, we can add the information to the report. We prepare to do this
+# by setting the $PricingInfoAvailable to $true and populating the $PricingHashTable
+$PricingInfoAvailable = $false
+
+If ($ImportSkus[0].Price) {
+    $PricingInfoAvailable = $true
+    $Global:PricingHashTable = @{}
+    ForEach ($Line in $ImportSkus) { 
+      $PricingHashTable.Add([string]$Line.SkuId, [string]$Line.Price) 
+    }
+}
+
 # Find tenant accounts - but filtered so that we only fetch those with licenses
 Write-Host "Finding licensed user accounts..."
 [Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
@@ -43,21 +78,26 @@ Write-Host "Finding licensed user accounts..."
        LicenseAssignmentStates, createdDateTime, jobTitle, signInActivity | `
     Sort-Object DisplayName
 
-If (!($Users)) { Write-Host "No licensed user accounts found - exiting"; break }
-  Else { Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) }
+If (!($Users)) { 
+    Write-Host "No licensed user accounts found - exiting"; break 
+} Else { 
+    Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) 
+}
 
 $OrgName  = (Get-MgOrganization).DisplayName
 $DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 $i = 0
+[float]$TotalLicenseCosts = 0
+
 ForEach ($User in $Users) {
-  $UnusedAccountWarning = "OK"; $i++
+  $UnusedAccountWarning = "OK"; $i++; $UserCosts = 0
   Write-Host ("Processing account {0} {1}/{2}" -f $User.UserPrincipalName, $i, $Users.Count)
   If ([string]::IsNullOrWhiteSpace($User.AssignedLicenses) -eq $False) { # Only process account if it has some licenses
-    [array]$LicenseInfo = $Null; [array]$DisabledPlans = $Null
+    [array]$LicenseInfo = $Null; [array]$DisabledPlans = $Null; 
     #  Find out if any of the user's licenses are assigned via group-based licensing
     [array]$GroupAssignments = $User.licenseAssignmentStates | `
-      Where-Object {$Null -ne $_.AssignedByGroup -and $_.State -eq "Active"}
+      Where-Object {$null -ne $_.AssignedByGroup -and $_.State -eq "Active"}
     [array]$GroupLicensing = $Null
     # Figure out group-based licensing assignments if any exist
     ForEach ($G in $GroupAssignments) {
@@ -71,17 +111,19 @@ ForEach ($User in $Users) {
 
     ForEach ($SkuId in $AllAssignments) {
       If ($SkuId -notin $GroupAssignments.SkuId) {
-        $DirectAssignments += $SkuId
+          $DirectAssignments += $SkuId
       }
     }
+
     # Figure out details of direct assigned licenses
     [array]$UserLicenses = $User.AssignedLicenses
     ForEach ($License in $DirectAssignments) {
       If ($SkuHashTable.ContainsKey($License) -eq $True) { # We found a match in the SKU hash table
-        $LicenseInfo += $SkuHashTable.Item($License) 
-      } Else { # Nothing doing, so output the SkuID
-        $LicenseInfo += $License 
+          $LicenseInfo += $SkuHashTable.Item($License) 
+      } Else { # Nothing found in the SKU hash table, so output the SkuID
+          $LicenseInfo += $License 
       }
+    }
 
     # Report any disabled service plans in licenses
     $License = $UserLicenses | Where-Object {$_.SkuId -eq $License}
@@ -90,71 +132,99 @@ ForEach ($User in $Users) {
         If ($ServicePlanHashTable.ContainsKey($DisabledPlan) -eq $True) { # We found a match in the Service Plans hash table
           $DisabledPlans += $ServicePlanHashTable.Item($DisabledPlan) 
         } Else { # Nothing doing, so output the Service Plan ID
-          $DisabledPlans += $DisabledPlan }
-        } # End ForEach disabled plans
-      } # End if check for disabled plans  
-    } # End of license processing
+          $DisabledPlans += $DisabledPlan 
+        }
+      } # End ForEach disabled plans
+    } # End if check for disabled plans  
 
-  # Calculate how long it's been since someone signed in
-  If ([string]::IsNullOrWhiteSpace($User.SignInActivity.LastSignInDateTime) -eq $False) {
-      [datetime]$LastSignInDate = $User.SignInActivity.LastSignInDateTime
-      $DaysSinceLastSignIn = ($RunDate - $LastSignInDate).Days
-      $LastAccess = Get-Date($User.SignInActivity.LastSignInDateTime) -format g
-      If ($DaysSinceLastSignIn -gt 60) { 
-          $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn) }
-      } Else {
-          $DaysSinceLastSignIn = "Unknown"
-          $UnusedAccountWarning = ("Unknown last sign-in for account")
-          $LastAccess = "Unknown"
-      }
-
-  $AccountCreatedDate = $Null
-  If ($User.CreatedDateTime) {
-     $AccountCreatedDate = Get-Date($User.CreatedDateTime) -format g 
-  }
-
-# Detect if any duplicate licenses are assigned (direct and group-based)
-# Build a list of assigned SKUs
-$SkuUserReport = [System.Collections.Generic.List[Object]]::new()
-ForEach ($S in $DirectAssignments)  {
-   $ReportLine = [PSCustomObject][Ordered]@{ 
+  # Detect if any duplicate licenses are assigned (direct and group-based)
+  # Build a list of assigned SKUs
+  $SkuUserReport = [System.Collections.Generic.List[Object]]::new()
+  ForEach ($S in $DirectAssignments)  {
+    $ReportLine = [PSCustomObject][Ordered]@{ 
       User   = $User.Id
       Name   = $User.DisplayName 
       Sku    = $S.SkuId
-      Method = "Direct" }
+      Method = "Direct" 
+    }
   $SkuUserReport.Add($ReportLine)
-}
-ForEach ($S in $GroupAssignments) {
+  }
+  ForEach ($S in $GroupAssignments) {
     $ReportLine = [PSCustomObject][Ordered]@{ 
       User   = $User.Id
       Name   = $User.DisplayName
       Sku    = $S.SkuId
-      Method = "Group" }
+      Method = "Group" 
+    }
     $SkuUserReport.Add($ReportLine)
+  }
+
+  # Check if any duplicates exist
+  [array]$DuplicateSkus = $SkuUserReport | Group-Object Sku | `
+    Where-Object {$_.Count -gt 1} | Select-Object -ExpandProperty Name
+
+  # If duplicates exist, resolve their SKU IDs into Product names and generate a warning for the report
+  [string]$DuplicateWarningReport = "N/A"
+  If ($DuplicateSkus) {
+    [array]$DuplicateSkuNames = $Null
+    $DuplicateSKUsAccounts++
+    $DuplicateSKULicenses = $DuplicateSKULicenses + $DuplicateSKUs.Count
+    ForEach ($DS in $DuplicateSkus) {
+      $SkuName = $SkuHashTable[$DS]
+      $DuplicateSkuNames += $SkuName
+    }
+    $DuplicateWarningReport = ("Warning: Duplicate licenses detected for: {0}" -f ($DuplicateSkuNames -join ", "))
+  }
+} Else { 
+    $UnlicensedAccounts++
 }
 
-# Check if any duplicates exist
-[array]$DuplicateSkus = $SkuUserReport | Group-Object Sku | Where-Object {$_.Count -gt 1} | Select-Object -ExpandProperty Name
+  # Calculate how long it's been since someone signed in
+  If ([string]::IsNullOrWhiteSpace($User.SignInActivity.LastSignInDateTime) -eq $False) {
+    [datetime]$LastSignInDate = $User.SignInActivity.LastSignInDateTime
+    $DaysSinceLastSignIn = ($RunNow - $LastSignInDate).Days
+    $LastAccess = Get-Date($User.SignInActivity.LastSignInDateTime) -format 'dd-MMM-yyyy HH:mm'
+    If ($DaysSinceLastSignIn -gt 60) { 
+        $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn)
+    } 
+  } Else {
+    $DaysSinceLastSignIn = "Unknown"
+    $UnusedAccountWarning = ("Unknown last sign-in for account")
+    $LastAccess = "Unknown"
+  }
 
-# If duplicates exist, resolve their SKU IDs into Product names and generate a warning for the report
-[string]$DuplicateWarningReport = "N/A"
-If ($DuplicateSkus) {
- [array]$DuplicateSkuNames = $Null
- $DuplicateSKUsAccounts++
- $DuplicateSKULicenses = $DuplicateSKULicenses + $DuplicateSKUs.Count
- ForEach ($DS in $DuplicateSkus) {
-   $SkuName = $SkuHashTable[$DS]
-   $DuplicateSkuNames += $SkuName
- }
- $DuplicateWarningReport = ("Warning: Duplicate licenses detected for: {0}" -f ($DuplicateSkuNames -join ", "))
-}
+  $AccountCreatedDate = $Null
+  If ($User.CreatedDateTime) {
+    $AccountCreatedDate = Get-Date($User.CreatedDateTime) -format 'dd-MMM-yyyy HH:mm' 
+  }
 
-# Report information
+  # Report information
   [string]$DisabledPlans = $DisabledPlans -join ", " 
   [string]$LicenseInfo = $LicenseInfo -join (", ")
 
-  # Generate report line
-  $ReportLine = [PSCustomObject][Ordered]@{  
+  If ($PricingInfoAvailable) { 
+    # Output report line iwth pricing info
+    [float]$UserCosts =  Get-LicenseCosts -Licenses $UserLicenses.SkuId
+    $TotalLicenseCosts = $TotalLicenseCosts + $UserCosts
+    $ReportLine = [PSCustomObject][Ordered]@{  
+      User                       = $User.DisplayName
+      UPN                        = $User.UserPrincipalName
+      Country                    = $User.Country
+      Department                 = $User.Department
+      Title                      = $User.JobTitle
+      "Direct assigned licenses" = $LicenseInfo
+      "Disabled Plans"           = $DisabledPlans 
+      "Group based licenses"     = $GroupLicensingAssignments
+      "License Costs"            = $UserCosts.toString('F2')
+      "Account created"          = $AccountCreatedDate
+      "Last Signin"              = $LastAccess
+      "Days since last signin"   = $DaysSinceLastSignIn
+      "Duplicates detected"      = $DuplicateWarningReport
+      Status                     = $UnusedAccountWarning
+    }
+  } Else { 
+    # No pricing information
+    $ReportLine = [PSCustomObject][Ordered]@{  
        User                       = $User.DisplayName
        UPN                        = $User.UserPrincipalName
        Country                    = $User.Country
@@ -162,17 +232,16 @@ If ($DuplicateSkus) {
        Title                      = $User.JobTitle
        "Direct assigned licenses" = $LicenseInfo
        "Disabled Plans"           = $DisabledPlans 
-       "Group based licenses "    = $GroupLicensingAssignments
+       "Group based licenses"     = $GroupLicensingAssignments
        "Account created"          = $AccountCreatedDate
        "Last Signin"              = $LastAccess
        "Days since last signin"   = $DaysSinceLastSignIn
        "Duplicates detected"      = $DuplicateWarningReport
        Status                     = $UnusedAccountWarning
-  }
+      }
+    }
+  
   $Report.Add($ReportLine)
-  } Else { #end If account is licensed
-    $UnlicensedAccounts++
-  }
 } # End ForEach Users
 
 $UnderusedAccounts = $Report | Where-Object {$_.Status -ne "OK"}
@@ -221,7 +290,13 @@ $Htmltail = "<p>Report created for: " + $OrgName + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
              "<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
              "<p>Number of underused user accounts found:   " + $UnderUsedAccounts.Count + "</p>" +
-             "<p>Percent underused user accounts:           " + $PercentUnderusedAccounts + "</p>" +
+             "<p>Percent underused user accounts:           " + $PercentUnderusedAccounts + "</p>" 
+
+            If ($PricingInfoAvailable) {
+                $HTMLTail = $HTMLTail + `
+              "<p>Total licensing cost for tenant:            " + $TotalLicenseCosts + "</p>"
+            }
+            $HTMLTail = $HTMLTail + `
              "<p>Accounts detected with duplicate licenses: " + $DuplicateSKUsAccounts + "</p>" +
              "<p>Count of duplicate licenses:               " + $DuplicateSKULicenses + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
