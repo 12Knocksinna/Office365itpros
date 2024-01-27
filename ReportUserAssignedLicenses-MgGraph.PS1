@@ -36,6 +36,8 @@ $Version = "1.5"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
 $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
+# Default currency - can be overwritten by a value read into the $ImportSkus array
+[string]$Currency = "USD"
 
 # Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
 Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog.Read.All" -NoWelcome
@@ -68,6 +70,9 @@ If ($ImportSkus[0].Price) {
     ForEach ($Line in $ImportSkus) { 
       $PricingHashTable.Add([string]$Line.SkuId, [string]$Line.Price) 
     }
+    If ($ImportSkus[0].Currency) {
+      [string]$Currency = ($ImportSkus[0].Currency)
+    }
 }
 
 # Find tenant accounts - but filtered so that we only fetch those with licenses
@@ -88,7 +93,8 @@ $OrgName  = (Get-MgOrganization).DisplayName
 $DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 $i = 0
-[float]$TotalLicenseCosts = 0
+[float]$TotalUserLicenseCosts = 0
+[float]$TotalBoughtLicenseCosts = 0
 
 ForEach ($User in $Users) {
   $UnusedAccountWarning = "OK"; $i++; $UserCosts = 0
@@ -185,7 +191,7 @@ ForEach ($User in $Users) {
     $DaysSinceLastSignIn = ($RunNow - $LastSignInDate).Days
     $LastAccess = Get-Date($User.SignInActivity.LastSignInDateTime) -format 'dd-MMM-yyyy HH:mm'
     If ($DaysSinceLastSignIn -gt 60) { 
-        $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn)
+      $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn)
     } 
   } Else {
     $DaysSinceLastSignIn = "Unknown"
@@ -203,9 +209,9 @@ ForEach ($User in $Users) {
   [string]$LicenseInfo = $LicenseInfo -join (", ")
 
   If ($PricingInfoAvailable) { 
-    # Output report line iwth pricing info
+    # Output report line with pricing info
     [float]$UserCosts =  Get-LicenseCosts -Licenses $UserLicenses.SkuId
-    $TotalLicenseCosts = $TotalLicenseCosts + $UserCosts
+    $TotalUserLicenseCosts = $TotalUserLicenseCosts + $UserCosts
     $ReportLine = [PSCustomObject][Ordered]@{  
       User                       = $User.DisplayName
       UPN                        = $User.UserPrincipalName
@@ -215,7 +221,7 @@ ForEach ($User in $Users) {
       "Direct assigned licenses" = $LicenseInfo
       "Disabled Plans"           = $DisabledPlans 
       "Group based licenses"     = $GroupLicensingAssignments
-      "License Costs"            = $UserCosts.toString('F2')
+      "Annual License Costs"     = ("{0} {1}" -f $Currency, ($UserCosts.toString('F2')))
       "Account created"          = $AccountCreatedDate
       "Last Signin"              = $LastAccess
       "Days since last signin"   = $DaysSinceLastSignIn
@@ -249,17 +255,35 @@ $PercentUnderusedAccounts = ($UnderUsedAccounts.Count/$Report.Count).toString("P
 
 # This code grabs the SKU summary for the tenant and uses the data to create a SKU summary usage segment for the HTML report
 $SkuReport = [System.Collections.Generic.List[Object]]::new()
-[array]$SkuSummary = Get-MgSubscribedSku | Select-Object SkuId, ConsumedUnits
+[array]$SkuSummary = Get-MgSubscribedSku | Select-Object SkuId, ConsumedUnits, PrepaidUnits
 $SkuSummary = $SkuSummary | Where-Object {$_.ConsumedUnits -ne 0 }
 ForEach ($S in $SkuSummary) {
-   $SkuDisplayName = $SkuHashtable[$S.SkuId]
-   $SkuReportLine = [PSCustomObject][Ordered]@{  
-     "SKU Id"      = $S.SkuId
-     "SKU Name"    = $SkuDisplayName 
-     "Units Used"  = $S.ConsumedUnits }
+  $SKUCost = Get-LicenseCosts -Licenses $S.SkuId
+  $SkuDisplayName = $SkuHashtable[$S.SkuId]
+  If ($S.PrepaidUnits.Enabled -le $S.ConsumedUnits ) {
+    $BoughtUnits = $S.ConsumedUnits 
+  } Else {
+    $BoughtUnits = $S.PrepaidUnits.Enabled
+  }
+  $SKUTotalCost = ($SKUCost * $BoughtUnits)
+  $SkuReportLine = [PSCustomObject][Ordered]@{  
+     "SKU Id"                 = $S.SkuId
+     "SKU Name"               = $SkuDisplayName 
+     "Units Used"             = $S.ConsumedUnits 
+     "Units Purchased"        = $BoughtUnits
+     "Annual license costs"   = $SKUTotalCost
+     "Annual licensing cost"  = ("{0} {1}" -f $Currency, ('{0:N2}' -f $SKUTotalCost))
+    }
   $SkuReport.Add($SkuReportLine) 
+  $TotalBoughtLicenseCosts = $TotalBoughtLicenseCosts + $SKUTotalCost
 }
-$SkuReport = $SkuReport | Sort-Object "Units Used" -Descending
+
+$AverageCostPerUser = ($TotalUserLicenseCosts/$Users.Count)
+$AverageCostPerUserOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $AverageCostPerUser))
+$TotalUserLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalUserLicenseCosts))
+$TotalBoughtLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalBoughtLicenseCosts))
+$PercentBoughtLicensesUsed = ($TotalUserLicenseCosts/$TotalBoughtLicenseCosts).toString('P')
+$SkuReport = $SkuReport | Sort-Object "Annual license costs" -Descending
 
 # Create the HTML report
 $htmlhead="<html>
@@ -283,8 +307,8 @@ $htmlhead="<html>
            <p><h3>Generated: " + $RunDate + "</h3></p></div>"
 
 $Htmlbody1 = $Report | ConvertTo-Html -Fragment
-$Htmlbody2 = $SkuReport | ConvertTo-Html -Fragment
-$HtmlSkuSeparator = "<p><h2>Product License Distribution</h2></p>"
+$Htmlbody2 = $SkuReport | Select-Object "SKU Id", "SKU Name", "Units used", "Units purchased", "Annual licensing cost" | ConvertTo-Html -Fragment
+$HtmlSkuSeparator = "<p><h2>Product License Distribution and Costs</h2></p>"
 $Htmltail = "<p>Report created for: " + $OrgName + "</p>" +
              "<p>Created: " + $RunDate + "<p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
@@ -294,7 +318,10 @@ $Htmltail = "<p>Report created for: " + $OrgName + "</p>" +
 
             If ($PricingInfoAvailable) {
                 $HTMLTail = $HTMLTail + `
-              "<p>Total licensing cost for tenant:            " + $TotalLicenseCosts + "</p>"
+              "<p>Total licensing cost for tenant:            " + $TotalBoughtLicenseCostsOutput + "</p>" +
+              "<p>Total cost for assigned licenses:           " + $TotalUserLicenseCostsOutput + "</p>" +
+              "<p>Percemt bought licenses assigned to users:  " + $PercentBoughtLicensesUsed + "</p>" +
+              "<p>Average licensing cost per user:            " + $AverageCostPerUserOutput + "</p>"
             }
             $HTMLTail = $HTMLTail + `
              "<p>Accounts detected with duplicate licenses: " + $DuplicateSKUsAccounts + "</p>" +
