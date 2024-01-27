@@ -43,6 +43,7 @@ ForEach ($User in $Users) {
     $i++
     Write-Host ("Processing user {0} ({1}/{2})... " -f $User.displayName, $i, $Users.count)
     $TeamsMeetingPolicy = $TenantDefaultString
+    $TeamsCallingPolicy = $TenantDefaultString
     $TeamsMessagingPolicy = $TenantDefaultString
     $TeamsAppSetupPolicy = $TenantDefaultString
     $TeamsAppPermissionPolicy = $TenantDefaultString
@@ -74,6 +75,30 @@ ForEach ($User in $Users) {
             }
         }
     }
+
+    # Calling policy
+    $CurrentAssignment = $null
+    If ($User.TeamsCallingPolicy) {
+        $TeamsCallingPolicy = $User.TeamsCallingPolicy.Name
+    } Else {
+        [array]$PolicyAssignments = Get-CsUserPolicyAssignment -Identity $User.UserPrincipalName `
+          -PolicyType TeamsCallingPolicy | Select-Object -ExpandProperty PolicySource
+        If ($PolicyAssignments) {
+            $CurrentAssignment = $PolicyAssignments[0]
+        }
+        If ($CurrentAssignment) {
+            Switch ($CurrentAssignment.AssignmentType) {
+                "Direct" {
+                    $TeamsCallingPolicy = ("{0} (Direct)" -f $CurrentAssignment.PolicyName)
+                }
+                "Group" {
+                    $GroupName = (Get-GroupNameByRef -GroupId $CurrentAssignment.Reference).DisplayName
+                    $TeamsMeetingPolicy = ("{0} (Group: {1})" -f $CurrentAssignment.PolicyName, $GroupName)
+                }
+            }
+        }
+    }
+
     # Messaging policy
     $CurrentAssignment = $null
     If ($User.TeamsMessagingPolicy) {
@@ -257,6 +282,7 @@ ForEach ($User in $Users) {
         UPN                          = $User.UserPrincipalName
         "Messaging Policy"           = $TeamsMessagingPolicy
         "Meeting Policy"             = $TeamsMeetingPolicy
+        "Calling Policy"             = $TeamsCallingPolicy
         "Audio conferencing policy"  = $TeamsAudioConferencingPolicy
         "App Setup Policy"           = $TeamsAppSetupPolicy
         "App Permissions Policy"     = $TeamsAppPermissionPolicy
