@@ -2,6 +2,8 @@
 # Generate a report about major Teams policies assigned to user accounts
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportTeamsPolicyAssignments.PS1
 # V1.1 27-Jan-2024 Add support for group assigned policies
+# Only a selected set of Teams policies are included in this report. It's easy to add more by duplicating the code for another
+# policy (changing the name etc.)
 
 function Get-GroupNameByRef {   
     Param(
