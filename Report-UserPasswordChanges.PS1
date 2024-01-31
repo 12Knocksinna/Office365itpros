@@ -1,6 +1,7 @@
 # Report-UserPasswordChanges
-# A script tp show how to report details of user password settings including dates for last password changes and 
-# information about account MFA enablement
+# A script to show how to report details of user password settings including dates for last password changes and 
+# information about account MFA enablement and uses the sign in information for user accounts to figure out if 
+# an account is active.
 # V1.0 5-Jan-2024
 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-UserPasswordChanges.PS1
