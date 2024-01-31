@@ -34,7 +34,7 @@ If (Test-Path $UserSignInDataFile) {
 
 Write-Host "Retrieving user details"
 # We use a Graph API request here instead of an SDK cmdlet because the Last successful interactive sign in data is
-# unavailable in SDK V2.11
+# unavailable in SDK V2.12
 
 $Headers = @{ConsistencyLevel="Eventual"}  
 $Uri = "https://graph.microsoft.com/beta/users?`$count=true&`$filter=(assignedLicenses/`$count ne 0 and userType eq 'Member')&$`top=999&`$select=id, displayName, usertype, signInActivity, SignInSessionsValidFromDateTime, LastPasswordChangeDateTime, passwordPolicies"
