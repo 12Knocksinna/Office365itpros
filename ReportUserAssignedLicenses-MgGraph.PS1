@@ -320,7 +320,7 @@ $Htmltail = "<p>Report created for: " + $OrgName + "</p>" +
                 $HTMLTail = $HTMLTail + `
               "<p>Total licensing cost for tenant:            " + $TotalBoughtLicenseCostsOutput + "</p>" +
               "<p>Total cost for assigned licenses:           " + $TotalUserLicenseCostsOutput + "</p>" +
-              "<p>Percemt bought licenses assigned to users:  " + $PercentBoughtLicensesUsed + "</p>" +
+              "<p>Percent bought licenses assigned to users:  " + $PercentBoughtLicensesUsed + "</p>" +
               "<p>Average licensing cost per user:            " + $AverageCostPerUserOutput + "</p>"
             }
             $HTMLTail = $HTMLTail + `
