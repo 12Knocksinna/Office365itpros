@@ -62,8 +62,8 @@ Write-Output ("Found {0} user accounts to process..." -f $users.Count)
 $ChatReport = [System.Collections.Generic.List[Object]]::new()
 
 ForEach ($User in $Users) {
-    Write-Output ("Lookimng for chats for user {0}..." -f $User.DisplayName)
-    # Find the onOnOne chats for this user
+    Write-Output ("Looking for chats for user {0}..." -f $User.DisplayName)
+    # Find the OneOnOne chats for this user
     [array]$Chats = Get-MgBetaUserChat -Userid $User.Id -All -Filter "ChatType eq 'oneOnOne'"
     If ($Chats) {
         Write-Output ("Found {0} one-on-one chats for {1}" -f $Chats.count, $User.DisplayName)
