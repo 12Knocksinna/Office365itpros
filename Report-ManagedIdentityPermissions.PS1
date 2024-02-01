@@ -46,10 +46,12 @@ ForEach ($AppRole in $SPOApp.AppRoles) {
 }
 
 # Find the set of managed identities in the tenant
-[array]$ManagedIdentities = Get-MgServicePrincipal -Filter "servicePrincipalType eq 'ManagedIdentity'"
+[array]$ManagedIdentities = Get-MgServicePrincipal -Filter "servicePrincipalType eq 'ManagedIdentity'" | Sort-Object DisplayName
+$Report = [System.Collections.Generic.List[Object]]::new()
 
+# Process each managed identity and find the set of application roles assigned to it
 ForEach ($ManagedIdentity in $ManagedIdentities) {
-    [array]$RoleNames = $null; [string]$RolesOutput = $null
+    [array]$RoleNames = $null
     [array]$AssignedRoles = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $ManagedIdentity.Id | `
         Select-Object -ExpandProperty AppRoleId
     ForEach ($Role in $AssignedRoles) {
@@ -57,9 +59,17 @@ ForEach ($ManagedIdentity in $ManagedIdentities) {
         $RoleNames += $GraphRoleName
     }
     $RoleNames = $RoleNames | Sort-Object 
-    [string]$RolesOutput = $RoleNames -join ", "
-    Write-Host ("Managed identity {0} has these permissions: {1}" -f $ManagedIdentity.DisplayName, $RolesOutput)
+   
+    $Reportline = [PsCustomObject]@{
+        ManagedIdentity = $ManagedIdentity.DisplayName
+        Id              = $ManagedIdentity.id
+        Created         = (Get-Date $ManagedIdentity.additionalProperties.createdDateTime -format 'dd-MMM-yyyy HH:mm')
+        Roles           = ($RoleNames -join ", ")
+    }
+    $Report.Add($ReportLine)
 }
+
+$Report | Out-GridView
 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
