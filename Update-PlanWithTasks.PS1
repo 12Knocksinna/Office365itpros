@@ -71,7 +71,6 @@ ForEach ($Announcement in $Announcements) {
     [array]$Services = $Announcement.Services
     $TaskTitle = ("[{0}] {1} [{2}]" -f ($Services -join ","), $Announcement.Title, $Announcement.Id)
     Write-Host ("Processing taskl {0}" -f $TaskTile)
-    $Body = $Announcement | Select-Object -ExpandProperty Body
 
     $AssignedUserId = $AdminAssignee.Id
     $TargetBucket = $GeneralBucket.Id
@@ -117,12 +116,22 @@ ForEach ($Announcement in $Announcements) {
     $TaskAssignments = @{}
     $TaskAssignments.Add($AssignedUserId, $GenericTaskData)
 
+    # Create a text only version of the notes
+    $Body = $Announcement | Select-Object -ExpandProperty Body
     $HTML = New-Object -Com "HTMLFile"
     $HTML.write([ref]$body.content)
     $TextOnly = $HTML.body.innerText
+    
+    # Add announcement properties to the top of the notes
+    $AnnouncementStartDate = Get-Date $Announcement.StartDateTime -format "dd-MMM-yyyy"
+    $AnnouncementLastModifiedDate = Get-Date $Announcement.LastmodifiedDateTime -format "dd-MMM-yyyy"
+    $TextHeading = ("Message ID: {0} `nPublished date: {1} `nLast updated date: {2} `nCategory: {3} `n" -f `
+        $Announcement.Id, $AnnouncementStartDate, $AnnouncementLastModifiedDate, $Announcement.Category)
+    [array]$Tags = $Announcement.Tags | Sort-Object
+    $TextBody = ("{0}Tags: {1} `n`n{2}" -f $TextHeading, ($Tags -join ", "), $TextOnly)
 
     $TaskDescription = @{}
-    $TaskDescription.Add('description', $TextOnly)
+    $TaskDescription.Add('description', $TextBody)
 
     $TaskParameters = @{}
     $TaskParameters.Add('planId',$TargetPlan.Id)
