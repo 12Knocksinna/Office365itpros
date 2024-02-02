@@ -78,7 +78,8 @@ While ($Null -ne $Data.'@odata.nextLink') {
         [datetime]$LastSignIn = $User.signInActivity.lastSignInDateTime
         $DaysSinceLastSignIn = (New-TimeSpan $LastSignIn).Days
     }    
-    If (!([string]::IsNullOrWhiteSpace($LastPasswordChange))) {
+    If (!([string]::IsNullOrWhiteSpace($User.LastPasswordChangeDateTime))) {
+        $LastPasswordChange = $User.LastPasswordChangeDateTime
         $DaysSincePasswordChange = (New-TimeSpan $LastPasswordChange).Days 
     }
 
