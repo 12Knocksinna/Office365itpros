@@ -62,6 +62,7 @@ $PowerBucket = $Buckets | Where-Object Name -match 'Power Platform'
 $AdminBucket = $Buckets | Where-Object Name -match 'Administration'
 $EntraBucket = $Buckets | Where-Object Name -match 'Entra'
 $OfficeAppsBucket = $Buckets | Where-Object Name -match 'Office Apps'
+$PurviewBucket = $Buckets | Where-Object Name -match 'Purview'
 
 Write-Host "Finding plan members and creating assignee details..."
 [array]$PlanMembers = Get-MgGroupMember -GroupId $GroupId
@@ -76,6 +77,7 @@ $PlannerAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 
 $EntraAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 'brian.weakliam@office365itpros.com'
 $OfficeAppsAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 'hans.geering@office365itpros.com'
 $GeneralAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 'kim.Akers@office365itpros.com'
+$PurviewAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 'James.A.Abrahams@office365itpros.com'
 
 # Planner likes to assign people via user id, so we make sure that we have it
 $PowerAssignee = (Get-MgUser -UserId $PowerAssignee.userPrincipalName)
@@ -87,6 +89,7 @@ $PlannerAssignee = (Get-MgUser -UserId $PlannerAssignee.userPrincipalName)
 $EntraAssignee = (Get-MgUser -UserId $EntraAssignee.userPrincipalName)
 $OfficeAppsAssignee = (Get-MgUser -UserId $OfficeAppsAssignee.userPrincipalName)
 $GeneralAssignee = (Get-MgUser -UserId $GeneralAssignee.userPrincipalName)
+$PurviewAssignee = (Get-MgUser -UserId $PurviewAssignee.userPrincipalName)
 
 # Some generic settings needed for an assignment
 $GenericTaskData = @{}
@@ -163,6 +166,13 @@ ForEach ($Announcement in $Announcements) {
             $BucketName   = "Office Apps"
             $Category = "category6"
         }
+        "*Purview*" {
+            $AssignedUserId = $PurviewAssignee.Id
+            $AssignedName = $PurviewAssignee.DisplayName
+            $TargetBucket = $PurviewBucket.Id
+            $BucketName   = "Purview"
+            $Category = "category11"
+        }
         default {
             $AssignedUserId = $GeneralAssignee.Id
             $AssignedName = $GeneralAssignee.DisplayName
@@ -192,9 +202,11 @@ ForEach ($Announcement in $Announcements) {
     $TaskDescription = @{}
     $TaskDescription.Add('description', $TextBody)
 
-    $TaskCategories = @{}
-    $TaskCategories.Add("appliedCategories", $GenericCategoryData)
-    $TaskCategories.Add($Category, 'true') 
+    $TaskCategoryParams = @{
+        AppliedCategories = @{
+            ($Category) = $true
+        }
+    }
 
     $TaskParameters = @{}
     $TaskParameters.Add('planId',$TargetPlan.Id)
@@ -207,11 +219,9 @@ ForEach ($Announcement in $Announcements) {
     $NewTask = New-MgPlannerTask -BodyParameter $TaskParameters
     If ($NewTask) {
         $TaskDetails = Get-MgPlannerTaskDetail -PlannerTaskId $NewTask.Id
-        Update-MgPlannerTask -PlannerTaskId $NewTask.Id -BodyParameter $TaskCategories -IfMatch $NewTask.additionalProperties.'@odata.etag'
+        Update-MgPlannerTask -PlannerTaskId $NewTask.Id -BodyParameter $TaskCategoryParams -IfMatch $NewTask.additionalProperties.'@odata.etag'
         Update-MgPlannerTaskDetail -PlannerTaskId $TaskDetails.Id -BodyParameter $TaskDescription -IfMatch $TaskDetails.additionalProperties.'@odata.etag'
         Write-Host ("Task {0} assigned to {1}" -f $TaskTitle, $AssignedName)
-    }
-    If ($NewTask) {
         $DataLine = [PSCustomObject][Ordered]@{
             TaskId          = $Announcement.ID
             Title           = $TaskTitle
