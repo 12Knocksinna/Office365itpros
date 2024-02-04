@@ -226,7 +226,7 @@ ForEach ($Announcement in $Announcements) {
             TaskId          = $Announcement.ID
             Title           = $TaskTitle
             Assignedto      = $AssignedName
-            Bucketid        = $BucketName
+            Bucket          = $BucketName
         }
         $Report.Add($DataLine)
     }
