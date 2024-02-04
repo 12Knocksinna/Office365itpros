@@ -241,7 +241,20 @@ ForEach ($Task in $CurrentTasks) {
     $MCId = $Task.Title.SubString($Start,8)
     $OnlineTask = $AllAnnouncements | Where-Object Id -match $MCId
     If ($Task.StartDateTime -lt $onlineTask.lastmodifiedDateTime) { 
-        write-host $MCId
+        Write-Host "Updating" $MCId
+        # Update task 
+        $UpdateParams = @{}
+        $UpdateParams.Add('startdatetime', $Task.LastModifiedDateTime)
+        Update-MgPlannerTask -PlannerTaskId $Task.Id -BodyParameter $UpdateParams -IfMatch $Task.additionalProperties.'@odata.etag'
+        # Update task details
+        $TaskDetails = Get-MgPlannerTaskDetail -PlannerTaskId $Task.Id
+        $Body = $Task | Select-Object -ExpandProperty Body
+        $HTML = New-Object -Com "HTMLFile"
+        $HTML.write([ref]$body.content)
+        $TextOnly = $HTML.body.innerText
+        $TaskDescription = @{}
+        $TaskDescription.Add('description', $TextOnly)
+        Update-MgPlannerTaskDetail -PlannerTaskId $TaskDetails.Id -BodyParameter $TaskDescription -IfMatch $TaskDetails.additionalProperties.'@odata.etag'
     }
     
 }
