@@ -10,6 +10,7 @@ $GroupId = '78b47932-b35f-4b26-94c2-3228cb234b07'
 $TargetPlanName = 'Admin Task Assignment'
 $CheckDate = (Get-Date).AddDays(-7)
 $Now = Get-Date
+Write-Host ("Staring synchronization run at {0}" -f $Now)
 
 # Attempt to import the file of previously processed data. If we have a file, set the window to query for new 
 # announcements to 7 days. If not, use 60 days
@@ -214,7 +215,7 @@ ForEach ($Announcement in $Announcements) {
     $TaskParameters.Add('title', $TaskTitle)
     $TaskParameters.Add('assignments', $TaskAssignments)
     $TaskParameters.Add('priority', '5')
-    $TaskParameters.Add('startDateTime', $Now)
+    $TaskParameters.Add('startDateTime', $Announcement.LastModifiedDateTime)
     
     $NewTask = New-MgPlannerTask -BodyParameter $TaskParameters
     If ($NewTask) {
@@ -232,10 +233,23 @@ ForEach ($Announcement in $Announcements) {
     }
 }
 
-$Report | Out-GridView
-$AllAnnouncements | Export-CSV -NoTypeInformation $ProcessedDataFile
+# Now we need to check if any changes have happened to tasks in our plan
+# Get the set of tasks
+[array]$CurrentTasks = Get-MgPlannerPlanTask -PlannerPlanId $TargetPlan.Id
+ForEach ($Task in $CurrentTasks) {
+    $Start = $Task.Title.IndexOf("MC")
+    $MCId = $Task.Title.SubString($Start,8)
+    $OnlineTask = $AllAnnouncements | Where-Object Id -match $MCId
+    If ($Task.StartDateTime -lt $onlineTask.lastmodifiedDateTime) { 
+        write-host $MCId
+    }
+    
+}
 
-# Export the data that we have processed
+$Report | Out-GridView
+# Export the data that we've processed so it doesn't get processed again
+$AllAnnouncements | Export-CSV -NoTypeInformation $ProcessedDataFile
+Write-Host ("All done. {0} tasks assigned" -f $Report.count)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
