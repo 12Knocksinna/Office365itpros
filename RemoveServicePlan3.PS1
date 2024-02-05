@@ -25,16 +25,16 @@ $CSVOutputFile = "c:\temp\ServicePlanRemovals.csv"
 # Find the set of SKUs used in the tenant
 [array]$Skus = (Get-MgSubscribedSku)
 Write-Host " "
-Write-Host "Which Office 365 product do you want to remove a service plan from?"; [int]$i=0
+Write-Host "Which subscription do you want to remove a service plan from?"; [int]$i=0
    ForEach ($Sku in $Skus) {
       $i++
       Write-Host $i ":" $Sku.SkuPartNumber }
-   [Int]$Answer = Get-Response -Prompt  "Enter the number of the product to edit" -NumberPossibleAnswers $i
+   [Int]$Answer = Get-Response -Prompt  "Enter the number of the subscription to edit" -NumberPossibleAnswers $i
    If (($Answer -gt 0) -and ($Answer -le $i)) {
        $i = ($Answer-1)
        [string]$SelectedSku = $Skus[$i].SkuPartNumber
        [string]$SelectedSkuId = $Skus[$i].SkuId
-       Write-Host "OK. Selected product is" $SelectedSku
+       Write-Host "OK. Selected subscription is" $SelectedSku
        $ServicePlans = $Skus[$i].ServicePlans | Select-Object ServicePlanName, ServicePlanId | Sort-Object ServicePlanName
     }  Elseif ($Answer -eq 0) { #Abort
        Write-Host "Script stopping..." ; break 
