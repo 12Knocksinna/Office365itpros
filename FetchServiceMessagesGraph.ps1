@@ -25,6 +25,7 @@ ForEach ($M in $MCPosts) {
    }
    # Get age of update
    $Age = New-TimeSpan($M.LastModifiedDateTime)
+   $AgeSinceStart = New-TimeSpan($M.StartDateTime)
    # Trim the message text
 
    $Body = $M | Select-Object -ExpandProperty Body
@@ -45,7 +46,8 @@ ForEach ($M in $MCPosts) {
       Age                   = ("{0} days {1} hours" -f $Age.Days.ToString(), $Age.Hours.ToString())
       IsRead                = $M.ViewPoint.IsRead
       IsDismissed           = $M.ViewPoint.IsDismissed
-      MinutesOld            = $Age.Minutes
+      MinutesSinceUpdate    = $Age.TotalMinutes
+      MinutesSinceStart     = $AgeSinceStart.TotalMinutes
    }
    $Report.Add($ReportLine) } 
 
