@@ -228,25 +228,28 @@ ForEach ($Announcement in $Announcements) {
             Title           = $TaskTitle
             Assignedto      = $AssignedName
             Bucket          = $BucketName
+            Type            = "New assignment"
         }
         $Report.Add($DataLine)
     }
 }
 
 # Now we need to check if any changes have happened to tasks in our plan
-# Get the set of tasks
+# Start off by getting the set of known tasks in the plan
 [array]$CurrentTasks = Get-MgPlannerPlanTask -PlannerPlanId $TargetPlan.Id
 ForEach ($Task in $CurrentTasks) {
+    # For each task, get its MC identifier
     $Start = $Task.Title.IndexOf("MC")
     $MCId = $Task.Title.SubString($Start,8)
     $OnlineTask = $AllAnnouncements | Where-Object Id -match $MCId
-    If ($Task.StartDateTime -lt $onlineTask.lastmodifiedDateTime) { 
+    # If the Last modified date for the online task has changed, update our task
+    If ($Task.StartDateTime -lt $OnlineTask.LastModifiedDateTime) { 
         Write-Host "Updating" $MCId
         # Update task 
         $UpdateParams = @{}
         $UpdateParams.Add('startdatetime', $Task.LastModifiedDateTime)
         Update-MgPlannerTask -PlannerTaskId $Task.Id -BodyParameter $UpdateParams -IfMatch $Task.additionalProperties.'@odata.etag'
-        # Update task details
+        # Update task details with whatever the body now is (normally has some details about a rescheduled date)
         $TaskDetails = Get-MgPlannerTaskDetail -PlannerTaskId $Task.Id
         $Body = $Task | Select-Object -ExpandProperty Body
         $HTML = New-Object -Com "HTMLFile"
@@ -255,14 +258,34 @@ ForEach ($Task in $CurrentTasks) {
         $TaskDescription = @{}
         $TaskDescription.Add('description', $TextOnly)
         Update-MgPlannerTaskDetail -PlannerTaskId $TaskDetails.Id -BodyParameter $TaskDescription -IfMatch $TaskDetails.additionalProperties.'@odata.etag'
-    }
-    
+        # Get current assignments
+        $Uri = ("https://graph.microsoft.com/v1.0/planner/tasks/{0}" -f $Task.Id)
+        $Data = Invoke-MgGraphRequest -Uri $Uri -Method GET
+        [hashtable]$Assignments = $Data.Assignments
+        [array]$AssignmentNames = $null
+        ForEach ($Assignment in $Assignments.GetEnumerator()) { 
+            $Name = (Get-MgUser -UserId $Assignment.Name).DisplayName
+            $AssignmentNames += $Name
+        }
+        # Report what we've done
+        $DataLine = [PSCustomObject][Ordered]@{
+            TaskId          = $Task.ID
+            Title           = $Task.Title
+            Assignedto      = ($AssignmentNames -join ",")
+            Bucket          = (($Buckets | Where-Object Id -match $Task.BucketId).Name)
+            Type            = "Updated task"
+        }
+        $Report.Add($DataLine)
+    }  
 }
 
 $Report | Out-GridView
+[array]$ReportNewAssignments = $Report | Where-Object Type -match 'New assignment'
+[array]$ReportUpdatedTasks = $Report | Where-Object Type -match 'Updated task'
+
 # Export the data that we've processed so it doesn't get processed again
 $AllAnnouncements | Export-CSV -NoTypeInformation $ProcessedDataFile
-Write-Host ("All done. {0} tasks assigned" -f $Report.count)
+Write-Host ("All done. {0} tasks assigned and {1} updated tasks" -f $ReportNewAssignments.count, $ReportUpdatedTasks.count)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
