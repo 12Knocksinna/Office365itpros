@@ -53,6 +53,55 @@ $Report | Sort-Object {$_.'Last Update' -as [DateTime]} -Descending | `
    Select-Object MessageId, Title, Category, 'Last Update', 'Action Required By', Age | Out-GridView
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
 
+Clear-Host
+# Figure out how many MC posts are for each workload
+[int]$TeamsMC = 0; [int]$ExchangeMC = 0; [int]$SharePointMC = 0; [int]$OtherMC = 0
+[int]$StreamMC = 0; [int]$PlannerDelays = 0; [int]$IntuneMC = 0; [int]$OneDriveMC = 0; [int]$WebAppsMC = 0
+[int]$VivaMC = 0; [int]$M365AppsMC = 0; [int]$M365SuiteMC = 0; [int]$DefenderMC = 0
+ForEach ($R in $Report) {
+   Switch -wildcard ($R.Workloads) {
+      "*Teams*" {
+         $TeamsMC++
+      }
+      "Exchange*" {
+         $ExchangeMC++
+      }
+      "SharePoint*" {
+         $SharePointMC++
+      }
+      "*Viva*" {
+         $VivaMC++
+      }
+      "Microsoft 365 apps" {
+         $M365AppsMC++
+      }
+      "*Stream*" {
+         $StreamMC++
+      }
+      "*Defender*" {
+         $DefenderMC++
+      }
+      "*Planner*" {
+         $PlannerMC++
+      }
+      "*OneDrive*" {
+         $OneDriveMC++
+      }
+      "Microsoft 365 suite" {
+         $M365SuiteMC++
+      }
+      "*Intune*" {
+         $IntuneMC++
+      }
+      "*web*" {
+         $WebAppsMC++
+      }
+      Default {
+         $OtherMC++
+      }
+   }
+}
+
 # Figure out delays
 $DelayedPosts = $Report | Where-Object {$_.Title -like "*(Updated)*"}
 [int]$TeamsDelays = 0; [int]$ExchangeDelays = 0; [int]$SharePointDelays = 0; [int]$OtherDelays = 0
@@ -104,7 +153,22 @@ ForEach ($Delay in $DelayedPosts) {
 }
 
 $PercentDelayed = ($DelayedPosts.count/$Report.count).toString('P')
-Write-Host ("{0} message center posts analyzed - output is in {1}." -f $MCPosts.count, $CSVOutputFile)
+$PercentExchange = ($ExchangeDelays/$ExchangeMC).toString('P')
+$PercentIntune = ($IntuneDelays/$IntuneMC).toString('P')
+$PercentM365Apps = ($M365AppsDelays/$M365AppsMC).toString('P')
+$PercentM365Suite = ($M365SuiteDelays/$M365SuiteMC).toString('P')
+$PercentWebApps = ($WebAppsDelays/$WebAppsMC).toString('P')
+$PercentDefender = ($DefenderDelays/$DefenderMC).toString('P')
+$PercentOneDrive = ($OneDriveDelays/$OneDriveMC).toString('P')
+$PercentPlanner = ($PlannerDelays/$PlannerMC).toString('P')
+$PercentSharePoint = ($SharePointDelays/$SharePointMC).toString('P')
+$PercentStream = ($StreamDelays/$StreamMC).toString('P')
+$PercentTeams = ($TeamsDelays/$TeamsMC).toString('P')
+$PercentViva = ($VivaDelays/$VivaMC).toString('P')
+$PercentOther = ($OtherDelays/$OtherMC).toString('P')
+
+Write-Host ""
+Write-Host ("{0} message center posts analyzed - report data is available in {1}." -f $MCPosts.count, $CSVOutputFile)
 Write-Host ""
 Write-Host ("Number of delayed posts: {0} ({1})" -f $DelayedPosts.count, $PercentDelayed)
 Write-Host ""
@@ -112,20 +176,19 @@ Write-Host "Delayed Posts by Workload"
 Write-Host "-------------------------"
 Write-Host ""
 
-Write-Host ("Exchange Online           {0}" -f $ExchangeDelays)
-Write-Host ("Intune                    {0}" -f $IntuneDelays)
-Write-Host ("Microsoft 365 apps        {0}" -f $M365AppsDelays)
-Write-Host ("Microsoft 365 suite       {0}" -f $M365SuiteDelays)
-Write-Host ("Microsoft 365 for the web {0}" -f $WebAppsDelays)
-Write-Host ("Microsoft Defender        {0}" -f $DefenderDelays)
-Write-Host ("OneDrive for Business     {0}" -f $OneDriveDelays)
-Write-Host ("Planner                   {0}" -f $PlannerDelays)
-Write-Host ("SharePoint Online         {0}" -f $SharePointDelays)
-Write-Host ("Stream                    {0}" -f $StreamDelays)
-Write-Host ("Teams                     {0}" -f $TeamsDelays)
-Write-Host ("Viva                      {0}" -f $VivaDelays)
-Write-Host ("Other workloads           {0}" -f $OtherDelays)
-
+Write-Host ("Exchange Online           {0} ({1})" -f $ExchangeDelays, $PercentExchange)
+Write-Host ("Intune                    {0} ({1})" -f $IntuneDelays, $PercentIntune)
+Write-Host ("Microsoft 365 apps        {0} ({1})" -f $M365AppsDelays, $PercentM365Apps)
+Write-Host ("Microsoft 365 suite       {0} ({1})" -f $M365SuiteDelays, $PercentM365Suite)
+Write-Host ("Microsoft 365 for the web {0} ({1})" -f $WebAppsDelays, $PercentWebApps)
+Write-Host ("Microsoft Defender        {0} ({1})" -f $DefenderDelays, $PercentDefender)
+Write-Host ("OneDrive for Business     {0} ({1})" -f $OneDriveDelays, $PercentOneDrive)
+Write-Host ("Planner                   {0} ({1})" -f $PlannerDelays, $PercentPlanner)
+Write-Host ("SharePoint Online         {0} ({1})" -f $SharePointDelays, $PercentSharePoint)
+Write-Host ("Stream                    {0} ({1})" -f $StreamDelays, $PercentStream)
+Write-Host ("Teams                     {0} ({1})" -f $TeamsDelays, $PercentTeams)
+Write-Host ("Viva                      {0} ({1})" -f $VivaDelays, $PercentViva)
+Write-Host ("Other workloads           {0} ({1})" -f $OtherDelays, $PercentOther)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
