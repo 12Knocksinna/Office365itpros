@@ -1,6 +1,7 @@
 # Update-MicrosoftIRMCAPolicies.PS1
 # Update conditional access policies to make sure that they exclude the Microsoft Rights Management Services app
 # V1.0 6-Feb-2024
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Update-MicrosoftIRMCAPolicies.PS1
 
 Connect-MgGraph -NoWelcome -Scopes Policy.ReadWrite.ConditionalAccess
 
