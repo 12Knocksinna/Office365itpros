@@ -19,20 +19,31 @@ $Parameters = @{
     }
 }
 
-[array]$Policies = Get-MgIdentityConditionalAccessPolicy | Sort-Object DisplayName
+[array]$Policies = Get-MgIdentityConditionalAccessPolicy -Filter "State eq 'enabled'" | Sort-Object DisplayName
 ForEach ($Policy in $Policies) {
     Write-Host ("Checking conditional access policy {0}" -f $Policy.displayName)
-    [array]$ExcludedApps = $Policy.conditions.applications.excludeapplications
-    If ($MSFTIRMServices -notin $ExcludedApps) {
-           Write-Host ("Exclusion for Microsoft Rights Management Services app not present in CA policy {0}" -f, $Policy.DisplayName)
-           If (($Policy.State -eq 'enabled') -and ($Policy.grantcontrols.builtincontrols -eq 'mfa')) {
-              Write-Host "Updating policy to exclude Microsoft Rights Management Services app" -ForegroundColor Red
-              Update-MgIdentityConditionalAccessPolicy -BodyParameter $Parameters -ConditionalAccessPolicyId $Policy.Id
-           } Else {
-              Write-Host "Policy not enabled or doesn't use MFA - ignoring" -ForegroundColor Yellow
-           }
-       } Else {
-         Write-Host "Exclusion for Microsoft Rights Management Services app present" -ForegroundColor DarkGray
+    If ($Policy.conditions.applications.IncludeAuthenticationContextClassReferences) {
+        Write-Host ("Policy {0} uses an authentication context. Can't apply an app exclusion" -f $Policy.displayName)
+    } Else {
+        [array]$ExcludedApps = $Policy.conditions.applications.excludeapplications
+        If ($MSFTIRMServices -notin $ExcludedApps) {
+            Write-Host ("Exclusion for Microsoft Rights Management Services app not present in CA policy {0}" -f, $Policy.DisplayName)
+            [array]$AuthenticationStrength = $Policy.grantcontrols | Select-Object -ExpandProperty AuthenticationStrength
+            If (($Policy.grantcontrols.builtincontrols -eq 'mfa') -or ($AuthenticationStrength.AllowedCombinations)) {
+                Write-Host "Checking policy to see if exclusion for Microsoft Rights Management Services app is possible" -ForegroundColor Red
+                If ($Policy.grantcontrols.builtincontrols -eq 'passwordchange') {
+                    Write-Host "Forced password change control means app exclusion is not possible"
+                } Else {
+                    Write-Host "Updating policy with exclusion" -ForegroundColor DarkRed
+                    Update-MgIdentityConditionalAccessPolicy -BodyParameter $Parameters -ConditionalAccessPolicyId $Policy.Id
+                }
+            } Else {
+                Write-Host "Policy doesn't use MFA - ignoring" -ForegroundColor Yellow
+            }
+
+        } Else {
+            Write-Host "Exclusion for Microsoft Rights Management Services app present" -ForegroundColor DarkGray
+        }
     }
 }
 
