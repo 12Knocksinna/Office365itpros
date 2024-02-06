@@ -30,8 +30,16 @@ Write-Host "Looking for User Mailboxes..."
     $LastFile = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastFileTimeCurrentValue"}).Value
     $LastLogonTime = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastLogonTime"}).Value 
     $LastActive = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastUserActionWorkloadAggregateTime"}).Value 
-    If (![string]::IsNullOrEmpty($LastActive)) {
-        $DaysSinceActive = (New-TimeSpan -Start ([datetime]$LastActive) -End $Now).Days 
+    
+    # This massaging of dates is to accommodate the different U.S. date format returned by Export-MailboxDiagnosticsData
+    [datetime]$LastActiveDateTime | Out-Null
+    If (($LastActive.IndexOf("AM") -gt -0) -or ($LastActive.IndexOf("PM") -gt -0)) { # U.S. format date
+        $LastActiveDateTime = [datetime]$LastActive
+    } Elseif (![string]::IsNullOrEmpty($LastActive)) {
+        $LastActiveDateTime = (Get-Date $LastActive)
+    }  
+    If ($LastActiveDateTime) {
+        $DaysSinceActive = (New-TimeSpan -Start $LastActiveDateTime -End $Now).Days 
     } Else {
         $DaysSinceActive = "N/A" 
     }
