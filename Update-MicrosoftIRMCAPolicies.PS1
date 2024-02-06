@@ -40,7 +40,6 @@ ForEach ($Policy in $Policies) {
             } Else {
                 Write-Host "Policy doesn't use MFA - ignoring" -ForegroundColor Yellow
             }
-
         } Else {
             Write-Host "Exclusion for Microsoft Rights Management Services app present" -ForegroundColor DarkGray
         }
