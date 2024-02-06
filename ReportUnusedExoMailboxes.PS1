@@ -31,8 +31,7 @@ Write-Host "Looking for User Mailboxes..."
     $LastLogonTime = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastLogonTime"}).Value 
     $LastActive = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastUserActionWorkloadAggregateTime"}).Value 
     If (![string]::IsNullOrEmpty($LastActive)) {
-        [datetime]$LastActiveDateTime = Get-Date $LastActive
-        $DaysSinceActive = (New-TimeSpan -Start $LastActiveDateTime -End $Now).Days 
+        $DaysSinceActive = (New-TimeSpan -Start ([datetime]$LastActive) -End $Now).Days 
     } Else {
         $DaysSinceActive = "N/A" 
     }
