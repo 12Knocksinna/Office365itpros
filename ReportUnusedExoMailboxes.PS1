@@ -11,7 +11,7 @@ If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please con
 Connect-MgGraph -Scopes User.Read.All, AuditLog.Read.All -NoWelcome
 
 # Find mailboxes and check if they are unused
-$Now = Get-Date; [int]$i = 0
+$Now = Get-Date -format s; [int]$i = 0
 Write-Host "Looking for User Mailboxes..."
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | `
     Select-Object DisplayName, DistinguishedName, UserPrincipalName, ExternalDirectoryObjectId | Sort-Object DisplayName
@@ -30,10 +30,11 @@ Write-Host "Looking for User Mailboxes..."
     $LastFile = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastFileTimeCurrentValue"}).Value
     $LastLogonTime = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastLogonTime"}).Value 
     $LastActive = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastUserActionWorkloadAggregateTime"}).Value 
-    If ($LastActive) {
-      $DaysSinceActive = (New-TimeSpan -Start $LastActive -End $Now).Days 
+    If (![string]::IsNullOrEmpty($LastActive)) {
+        [datetime]$LastActiveDateTime = Get-Date $LastActive
+        $DaysSinceActive = (New-TimeSpan -Start $LastActiveDateTime -End $Now).Days 
     } Else {
-      $DaysSinceActive = "N/A" 
+        $DaysSinceActive = "N/A" 
     }
   
     # Get Mailbox statistics
