@@ -33,15 +33,16 @@ Write-Host "Looking for User Mailboxes..."
     
     # This massaging of dates is to accommodate the different U.S. date format returned by Export-MailboxDiagnosticsData
     [datetime]$LastActiveDateTime | Out-Null
-    If (($LastActive.IndexOf("AM") -gt -0) -or ($LastActive.IndexOf("PM") -gt -0)) { # U.S. format date
+    If ([string]::IsNullOrEmpty($LastActive)) {
+        $DaysSinceActive = "N/A"
+    }
+    If (($LastActive.IndexOf("M") -gt -0)) { # U.S. format date with AM or PM in it
         $LastActiveDateTime = [datetime]$LastActive
-    } Elseif (![string]::IsNullOrEmpty($LastActive)) {
-        $LastActiveDateTime = (Get-Date $LastActive)
-    }  
+    } Else {
+        $LastActiveDateTime = Get-Date ($LastActive) 
+    }
     If ($LastActiveDateTime) {
         $DaysSinceActive = (New-TimeSpan -Start $LastActiveDateTime -End $Now).Days 
-    } Else {
-        $DaysSinceActive = "N/A" 
     }
   
     # Get Mailbox statistics
@@ -118,6 +119,9 @@ $Body = ConvertTo-Json -Depth 8 @{
 # Post to the channel
 Write-Host "Posting unused mailbox information to Teams" -ForegroundColor Yellow
 $Status = Invoke-RestMethod -uri $WebHookUri -Method Post -body $body -ContentType 'application/json' 
+If ($Status) {
+  Write-Host "Message posted to channel successfully"
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
