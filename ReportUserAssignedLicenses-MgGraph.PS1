@@ -8,6 +8,7 @@
 # V1.3 29-Sep-2023 Added support for group-based licensing
 # V1.4 13-Oct-2023 Fixed some bugs
 # V1.5 26-Jan-2024 Added license pricing computation
+# V1.5 8-Feb-2024  Added cost analysis for departments and countries
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
@@ -32,7 +33,7 @@ Function Get-LicenseCosts {
 
 [string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
 [datetime]$RunNow = Get-Date
-$Version = "1.5"
+$Version = "1.6"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
 $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
@@ -89,6 +90,8 @@ If (!($Users)) {
     Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) 
 }
 
+[array]$Departments = $Users.Department | Sort-Object -Unique
+[array]$Countries = $Users.Country | Sort-Object -Unique
 $OrgName  = (Get-MgOrganization).DisplayName
 $DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
@@ -227,6 +230,7 @@ ForEach ($User in $Users) {
       "Days since last signin"   = $DaysSinceLastSignIn
       "Duplicates detected"      = $DuplicateWarningReport
       Status                     = $UnusedAccountWarning
+      UserCosts                  = $UserCosts  
     }
   } Else { 
     # No pricing information
@@ -245,8 +249,7 @@ ForEach ($User in $Users) {
        "Duplicates detected"      = $DuplicateWarningReport
        Status                     = $UnusedAccountWarning
       }
-    }
-  
+    }  
   $Report.Add($ReportLine)
 } # End ForEach Users
 
@@ -265,28 +268,77 @@ ForEach ($S in $SkuSummary) {
   } Else {
     $BoughtUnits = $S.PrepaidUnits.Enabled
   }
-  $SKUTotalCost = ($SKUCost * $BoughtUnits)
-  $SkuReportLine = [PSCustomObject][Ordered]@{  
-     "SKU Id"                 = $S.SkuId
-     "SKU Name"               = $SkuDisplayName 
-     "Units Used"             = $S.ConsumedUnits 
-     "Units Purchased"        = $BoughtUnits
-     "Annual license costs"   = $SKUTotalCost
-     "Annual licensing cost"  = ("{0} {1}" -f $Currency, ('{0:N2}' -f $SKUTotalCost))
+  If ($PricingInfoAvailable) {
+      $SKUTotalCost = ($SKUCost * $BoughtUnits)
+      $SkuReportLine = [PSCustomObject][Ordered]@{  
+        "SKU Id"                 = $S.SkuId
+        "SKU Name"               = $SkuDisplayName 
+        "Units Used"             = $S.ConsumedUnits 
+        "Units Purchased"        = $BoughtUnits
+        "Annual license costs"   = $SKUTotalCost
+        "Annual licensing cost"  = ("{0} {1}" -f $Currency, ('{0:N2}' -f $SKUTotalCost))
+      }
+    } Else {
+      $SkuReportLine = [PSCustomObject][Ordered]@{  
+        "SKU Id"                 = $S.SkuId
+        "SKU Name"               = $SkuDisplayName 
+        "Units Used"             = $S.ConsumedUnits 
+        "Units Purchased"        = $BoughtUnits
+      }
     }
   $SkuReport.Add($SkuReportLine) 
   $TotalBoughtLicenseCosts = $TotalBoughtLicenseCosts + $SKUTotalCost
 }
 
-$AverageCostPerUser = ($TotalUserLicenseCosts/$Users.Count)
-$AverageCostPerUserOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $AverageCostPerUser))
-$TotalUserLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalUserLicenseCosts))
-$TotalBoughtLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalBoughtLicenseCosts))
-$PercentBoughtLicensesUsed = ($TotalUserLicenseCosts/$TotalBoughtLicenseCosts).toString('P')
-$SkuReport = $SkuReport | Sort-Object "Annual license costs" -Descending
+If ($PricingInfoAvailable) {
+    $AverageCostPerUser = ($TotalUserLicenseCosts/$Users.Count)
+    $AverageCostPerUserOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $AverageCostPerUser))
+    $TotalUserLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalUserLicenseCosts))
+    $TotalBoughtLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalBoughtLicenseCosts))
+    $PercentBoughtLicensesUsed = ($TotalUserLicenseCosts/$TotalBoughtLicenseCosts).toString('P')
+    $SkuReport = $SkuReport | Sort-Object "Annual license costs" -Descending
+} Else {
+    $SkuReport = $SkuReport | Sort-Object "SKU Name" -Descending
+}
+
+If ($PricingInfoAvailable) { 
+# Generate the department analysis
+  $DepartmentReport = [System.Collections.Generic.List[Object]]::new()
+  ForEach ($Department in $Departments) {
+    $DepartmentRecords = $Report | Where-Object Department -match $Department
+    $DepartmentReportLine = [PSCustomObject][Ordered]@{
+      Department =  $Department
+      Accounts    = $DepartmentRecords.count
+      Costs       = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DepartmentRecords | Measure-Object UserCosts -Sum).Sum))
+      AverageCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DepartmentRecords | Measure-Object UserCosts -Average).Average))
+    } 
+    $DepartmentReport.Add($DepartmentReportLine)
+  }
+  $DepartmentHTML = $DepartmentReport | ConvertTo-HTML -Fragment
+  # Anyone without a department?
+  [array]$NoDepartments = $Report | Where-Object {$null -eq $_.Department}
+  $NoDepartmentCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoDepartments | Measure-Object UserCosts -Sum).Sum))
+
+# Generate the country analysis
+  $CountryReport = [System.Collections.Generic.List[Object]]::new()
+  ForEach ($Country in $Countries) {
+    $CountryRecords = $Report | Where-Object Country -match $Country
+    $CountryReportLine = [PSCustomObject][Ordered]@{
+      Country     = $Country
+      Accounts    = $CountryRecords.count
+      Costs       = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CountryRecords | Measure-Object UserCosts -Sum).Sum))
+      AverageCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CountryRecords | Measure-Object UserCosts -Average).Average))
+    } 
+    $CountryReport.Add($CountryReportLine)
+  }
+  $CountryHTML = $CountryReport | ConvertTo-HTML -Fragment
+    # Anyone without a country?
+    [array]$NoCountry = $Report | Where-Object {$null -eq $_.Country}
+    $NoCountryCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoCountry | Measure-Object UserCosts -Sum).Sum))
+}
 
 # Create the HTML report
-$htmlhead="<html>
+$HtmlHead="<html>
 	   <style>
 	   BODY{font-family: Arial; font-size: 8pt;}
 	   H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
@@ -306,31 +358,40 @@ $htmlhead="<html>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
            <p><h3>Generated: " + $RunDate + "</h3></p></div>"
 
-$Htmlbody1 = $Report | ConvertTo-Html -Fragment
-$Htmlbody2 = $SkuReport | Select-Object "SKU Id", "SKU Name", "Units used", "Units purchased", "Annual licensing cost" | ConvertTo-Html -Fragment
-$HtmlSkuSeparator = "<p><h2>Product License Distribution and Costs</h2></p>"
-$Htmltail = "<p>Report created for: " + $OrgName + "</p>" +
-             "<p>Created: " + $RunDate + "<p>" +
-             "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
+$HtmlBody1 = $Report | ConvertTo-Html -Fragment
+$HtmlBody1 = $HTMLBody1 + "<p>Report created for: " + $OrgName + "</p>" +
+                          "<p>Created: " + $RunDate + "<p>" +
+            "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
              "<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
              "<p>Number of underused user accounts found:   " + $UnderUsedAccounts.Count + "</p>" +
-             "<p>Percent underused user accounts:           " + $PercentUnderusedAccounts + "</p>" 
-
-            If ($PricingInfoAvailable) {
-                $HTMLTail = $HTMLTail + `
-              "<p>Total licensing cost for tenant:            " + $TotalBoughtLicenseCostsOutput + "</p>" +
-              "<p>Total cost for assigned licenses:           " + $TotalUserLicenseCostsOutput + "</p>" +
-              "<p>Percent bought licenses assigned to users:  " + $PercentBoughtLicensesUsed + "</p>" +
-              "<p>Average licensing cost per user:            " + $AverageCostPerUserOutput + "</p>"
-            }
-            $HTMLTail = $HTMLTail + `
+             "<p>Percent underused user accounts:           " + $PercentUnderusedAccounts + "</p>" +
              "<p>Accounts detected with duplicate licenses: " + $DuplicateSKUsAccounts + "</p>" +
              "<p>Count of duplicate licenses:               " + $DuplicateSKULicenses + "</p>" +
-             "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
-             "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b>"	
+             "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"
 
-$htmlreport = $Htmlhead + $Htmlbody1 + $HtmlSkuSeparator + $HtmlBody2 + $Htmltail
-$htmlreport | Out-File $ReportFile  -Encoding UTF8
+
+$HtmlBody2 = $SkuReport | Select-Object "SKU Id", "SKU Name", "Units used", "Units purchased", "Annual licensing cost" | ConvertTo-Html -Fragment
+$HtmlSkuSeparator = "<p><h2>Product License Distribution</h2></p>"
+
+$HtmlTail = "<p></p>"
+# Add Cost analysis if pricing information is available
+
+If ($PricingInfoAvailable) {
+   $HTMLTail = $HTMLTail + "<h2>Licensing Cost Analysis</h2>" +
+      "<p>Total licensing cost for tenant:             " + $TotalBoughtLicenseCostsOutput + "</p>" +
+      "<p>Total cost for assigned licenses:            " + $TotalUserLicenseCostsOutput + "</p>" +
+      "<p>Percent bought licenses assigned to users:   " + $PercentBoughtLicensesUsed + "</p>" +
+      "<p>Average licensing cost per user:             " + $AverageCostPerUserOutput + "</p>" +
+      "<p><h2>License Costs by Country</h2></p>" + $CountryHTML +
+      "<p>License costs for users without a country:   " + $NoCountryCosts +
+      "<p><h2>License Costs by Department</h2></p>" + $DepartmentHTML +
+      "<p>License costs for users without a department: " + $NoDepartmentCosts
+}
+          
+$HTMLTail = $HTMLTail + "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b></p>"	
+
+$HtmlReport = $Htmlhead + $Htmlbody1 + $HtmlSkuSeparator + $HtmlBody2 + $Htmltail
+$HtmlReport | Out-File $ReportFile  -Encoding UTF8
 
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
 Write-Host ""
