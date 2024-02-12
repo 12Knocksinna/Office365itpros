@@ -2,6 +2,7 @@
 # An example of using the Microsoft Graph PowerShell SDK to read message center notifications
 # and use that data to update tasks in a Planner Plan
 # V1.0 31-Jan-2024
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Update-PlanWithTasks.PS1
 
 Connect-MgGraph -NoWelcome -Scopes Group.Read.All, Tasks.ReadWrite
 

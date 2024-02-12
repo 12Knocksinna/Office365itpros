@@ -1,7 +1,8 @@
 # Remove-PostsTeamChannel.PS1
 # A script to demonstrate how to clean out all messages from a channel
 # V1.0 9-Feb-2024
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-PostsTeamChannel.PS1
+
 Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
     # Helper function to prompt a question and get a response
        $OKtoProceed = $False
