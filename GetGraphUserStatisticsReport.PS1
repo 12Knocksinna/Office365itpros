@@ -79,7 +79,7 @@ function Get-GraphData {
     }
 }
 
-CLS
+Clear-Host
 # Define the values applicable for the application used to connect to the Graph (change these for your tenant)
 $AppId = "d816b32c-0edb-48be-9385-30a9cfd96155"
 $TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478"
@@ -141,7 +141,7 @@ $UserSignIns = @{}
 $DataTable = @{}
 # Get User sign in data
 Write-Host "Fetching user sign-in data from the Graph..."
-$Uri = "https://graph.microsoft.com/beta/users?`$select=displayName,userPrincipalName, mail,id, CreatedDateTime,signInActivity,UserType&`$top=999"
+$Uri = "https://graph.microsoft.com/V1.0/users?`$select=displayName,userPrincipalName, mail, id, CreatedDateTime,signInActivity,UserType&`$top=999"
 [array]$SignInData = Get-GraphData -Uri $Uri -AccessToken $Token
 # Filter out guest member sign-in records
 [array]$UserSignInData = $SignInData | Where-Object {$_.UserType -eq "Member"} | Sort-Object UserPrincipalName -Unique
@@ -286,7 +286,7 @@ ForEach ($Y in $YammerUsage) {
    [Array]$NewData = $ExistingData + $ReportLine
    $DataTable[$Y."User Principal Name"] = $NewData }
 
-CLS
+Clear-Host
 # Create set of users that we've collected data for - each of these users will be in the $DataTable with some information.
 [System.Collections.ArrayList]$Users = @()
 ForEach ($UserPrincipalName in $DataTable.Keys) { 
@@ -307,8 +307,7 @@ ForEach ($UserPrincipalName in $Users) {
   $CurrentStatus = $U + " ["+ $UserNumber +"/" + $Users.Count + "]"
   Write-Progress -Activity "Extracting information for user" -Status $CurrentStatus -PercentComplete $PercentComplete
   $PercentComplete += $ProgressDelta
-  $ExoData = $Null; $ExoActiveData = $Null; $TeamsData = $Null; $ODData = $Null; $SPOData = $Null; $YammerData = $Null
-  
+   
   $UserData = $DataTable[$U]  # Extract data for the user - everything is in a single keyed access to the hash table
 
 # Process Exchange Data
@@ -316,27 +315,29 @@ ForEach ($UserPrincipalName in $Users) {
   [string]$ExoLastActive = (Out-String -InputObject $UserData.ExoLastActive).Trim()
   If ([string]::IsNullOrEmpty($ExoUPN) -or $ExoLastActive -eq "No Activity") {
      $ExoDaysSinceActive  = "N/A"
-     $EXoLastActive = "No Activity" }
-  Else {
+     $ExoLastActive = "No Activity" 
+   } Else {
      [string]$ExoLastActive = (Out-String -InputObject $UserData.ExoLastActive).Trim()
-     [string]$ExoDaysSinceActive = (Out-String -InputObject $UserData.ExoDaysSinceActive).Trim() }
+     [string]$ExoDaysSinceActive = (Out-String -InputObject $UserData.ExoDaysSinceActive).Trim() 
+   }
  
 # Parse OneDrive for Business usage data 
   [string]$ODUPN = (Out-String -InputObject $UserData.ODUPN).Trim()
   [string]$ODLastActive = (Out-String -InputObject $UserData.ODLastActive).Trim()  # Possibility of a second OneDrive account for some users.
   If (($ODLastActive -Like "*No Activity*") -or ([string]::IsNullOrEmpty($ODLastActive))) {$ODLastActive = "No Activity"} # this is a hack until I figure out a better way to handle the situation
-  If ([string]::IsNullOrEmpty($ODUPN)-eq $Null -or $ODLastActive -eq "No Activity") {
+  If ($null -eq [string]::IsNullOrEmpty($ODUPN) -or $ODLastActive -eq "No Activity") {
      [string]$ODDaysSinceActive  = "N/A"
      [string]$ODLastActive = "No Activity"
      $ODFiles            = 0
      $ODStorage          = 0
-     $ODQuota            = 1024 }
- Else {
+     $ODQuota            = 1024 
+   } Else {
      [string]$ODDaysSinceActive = (Out-String -InputObject $UserData.ODDaysSinceActive).Trim()
      [string]$ODLastActive = (Out-String -InputObject $UserData.ODLastActive).Trim()
      [string]$ODFiles = (Out-String -InputObject $UserData.ODFileCount).Trim()
      [string]$ODStorage = (Out-String -InputObject $UserData.ODStorageUsed).Trim()
-     [string]$ODQuota = (Out-String -InputObject $UserData.ODQuota).Trim()  }
+     [string]$ODQuota = (Out-String -InputObject $UserData.ODQuota).Trim()  
+   }
 
 # Parse Yammer usage data; Yammer isn't used everywhere, so make sure that we record zero data 
   [string]$YUPN = (Out-String -InputObject $UserData.YUPN).Trim()
@@ -346,32 +347,38 @@ ForEach ($UserPrincipalName in $Users) {
      [string]$YammerDaysSinceActive  = "N/A" 
      $YammerPosts             = 0
      $YammerReads             = 0
-     $YammerLikes             = 0 }
- Else {
+     $YammerLikes             = 0 
+   } Else {
      $YammerDaysSinceActive = (Out-String -InputObject $UserData.YDaysSinceActive).Trim()
      $YammerPosts = (Out-String -InputObject $UserData.YPostedCount).Trim()
      $YammerReads = (Out-String -InputObject $UserData.YReadCount).Trim()
-     $YammerLikes = (Out-String -InputObject $UserData.YLikedCount).Trim() }
+     $YammerLikes = (Out-String -InputObject $UserData.YLikedCount).Trim() 
+   }
   
  If ($UserData.TeamsDaysSinceActive -gt 0) {
      [string]$TeamsDaysSinceActive = (Out-String -InputObject $UserData.TeamsDaysSinceActive).Trim()
-     [string]$TeamsLastActive = (Out-String -InputObject $UserData.TeamsLastActive).Trim() }
- Else { 
+     [string]$TeamsLastActive = (Out-String -InputObject $UserData.TeamsLastActive).Trim() 
+ } Else { 
      [string]$TeamsDaysSinceActive = "N/A"
-     [string]$TeamsLastActive = "No Activity" }
+     [string]$TeamsLastActive = "No Activity" 
+ }
  
  If ($UserData.SPODaysSinceActive -gt 0) {
      [string]$SPODaysSinceActive = (Out-String -InputObject $UserData.SPODaysSinceActive).Trim()
-     [string]$SPOLastActive = (Out-String -InputObject $UserData.SPOLastActive).Trim() }
- Else { 
+     [string]$SPOLastActive = (Out-String -InputObject $UserData.SPOLastActive).Trim() 
+ } Else { 
      [string]$SPODaysSinceActive = "N/A"
-     [string]$SPOLastActive = "No Activity" }
+     [string]$SPOLastActive = "No Activity" 
+ }
  
 # Fetch the sign in data if available
 $LastAccountSignIn = $Null; $DaysSinceSignIn = 0
 $LastAccountSignIn = $UserSignIns.Item($U)
-If ($LastAccountSignIn -eq $Null) { $LastAccountSignIn = "No sign in data found"; $DaysSinceSignIn = "N/A"}
-  Else { $DaysSinceSignIn = (New-TimeSpan($LastAccountSignIn)).Days }
+If ($null -eq $LastAccountSignIn) { 
+   $LastAccountSignIn = "No sign in data found"; $DaysSinceSignIn = "N/A"
+} Else { 
+   $DaysSinceSignIn = (New-TimeSpan($LastAccountSignIn)).Days 
+}
    
 # Figure out if the account is used
 [int]$ExoDays = 365; [int]$TeamsDays = 365; [int]$SPODays = 365; [int]$ODDays = 365; [int]$YammerDays = 365
@@ -446,7 +453,7 @@ If ((![string]::IsNullOrEmpty($ExoUPN))) {
    $OutData.Add($OutLine)   } 
  } #End processing user data
 
-CLS
+Clear-Host
 $StartTime4 = Get-Date
 $GraphTime = $StartTime2 - $StartTime1
 $PrepTime = $StartTime3 - $StartTime2
@@ -470,8 +477,8 @@ Write-Host "Accounts processsed per minute:         " $AccountsPerMinute
 Write-Host " "
 Write-Host "Output CSV file available in " $OutputCSV
 
-$OutData | Sort {$_.ExoLastActive -as [DateTime]} -Descending | Out-GridView  
-$OutData | Sort $AccountStatus | Export-CSV $OutputCSV -NoTypeInformation
+$OutData | Sort-Object {$_.ExoLastActive -as [DateTime]} -Descending | Out-GridView  
+$OutData | Sort-Object $AccountStatus | Export-CSV $OutputCSV -NoTypeInformation
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
