@@ -115,8 +115,9 @@ Write-Host ("Number of mailboxes with no State     {0} ({1})" -f $NoState.Count,
 Write-Host ("Number of mailboxes with no Manager   {0} ({1})" -f $NoManager.Count, $PercentNoManager)
 Write-Host ("Number of mailboxes with no Title     {0} ({1})" -f $NoTitle.Count, $PercentNoTitle)
 Write-Host ("Number of mailboxes with no Phone     {0} ({1})" -f $NoPhone.Count, $PercentNoPhone)
-Write-Host ("Number of mailboxes with no Address   {0} ({1})" -f $NoStreet.Count, $PercentNoPhone)
+Write-Host ("Number of mailboxes with no Address   {0} ({1})" -f $NoStreet.Count, $PercentNoStreet)
 Write-Host ("Number of mailboxes with no Post Code {0} ({1})" -f $NoZip.Count, $PercentNoZip)
+
 
 $Report | Sort User | Export-CSV c:\temp\DirectoryIssues.csv -NoTypeInformation
 Write-Host " "
