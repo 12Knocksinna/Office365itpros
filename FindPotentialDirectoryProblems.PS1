@@ -10,7 +10,9 @@ If ($Null -eq (Get-ConnectionInformation)) {
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 Write-Host "Finding User mailboxes..."
 [array]$Directory = Get-User -RecipientTypeDetails UserMailbox -ResultSize Unlimited
-If (!($Directory)) { Write-Host "Unable to find user accounts - exiting" ; break }
+If (!($Directory)) { 
+    Write-Host "Unable to find user accounts - exiting" ; break 
+}
 
 # Find people without an office and other potential directory problems
 [array]$NoOffice = $Directory | Where-Object {([string]::IsNullOrEmpty($_.Office))}
@@ -103,8 +105,6 @@ ForEach ($C in $NoDepartment) {
        Issue       = "No Department" }               
     $Report.Add($ReportLine) 
 }
-
-
 
 # Calculate percentages
 $PercentNoOffice = ($NoOffice.Count/$Directory.Count).ToString("P")
