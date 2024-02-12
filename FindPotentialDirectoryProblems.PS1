@@ -3,13 +3,17 @@
 # Quick and dirty script to highlight potential issues which might exist in an Office 365 tenant directory
 # 
 # Get list of user mailboxes in the directory
+
+If ($Null -eq (Get-ConnectionInformation)) {
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp
+}
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 Write-Host "Finding User mailboxes..."
 [array]$Directory = Get-User -RecipientTypeDetails UserMailbox -ResultSize Unlimited
 If (!($Directory)) { Write-Host "Unable to find user accounts - exiting" ; break }
 
 # Find people without an office and other potential directory problems
-$NoOffice = $Directory | Where-Object {([string]::IsNullOrEmpty($_.Office))}
+[array]$NoOffice = $Directory | Where-Object {([string]::IsNullOrEmpty($_.Office))}
 ForEach ($C in $NoOffice) {
    $ReportLine = [PSCustomObject] @{
        User        = $C.UserPrincipalName
@@ -18,7 +22,7 @@ ForEach ($C in $NoOffice) {
     $Report.Add($ReportLine) 
 }
 
-$NoPhone = $Directory | Where-Object {([string]::IsNullOrEmpty($_.Phone))}
+[array]$NoPhone = $Directory | Where-Object {([string]::IsNullOrEmpty($_.Phone))}
 ForEach ($C in $NoPhone) {
    $ReportLine = [PSCustomObject] @{
        User        = $C.UserPrincipalName
@@ -27,7 +31,7 @@ ForEach ($C in $NoPhone) {
     $Report.Add($ReportLine) 
 }
 
-$NoCity = $Directory | Where-Object {([string]::IsNullOrEmpty($_.City))}
+[array]$NoCity = $Directory | Where-Object {([string]::IsNullOrEmpty($_.City))}
 ForEach ($C in $NoCity) {
    $ReportLine = [PSCustomObject] @{
        User        = $C.UserPrincipalName
@@ -45,7 +49,7 @@ ForEach ($C in $NoCompany) {
     $Report.Add($ReportLine) 
 }
 
-$NoState = $Directory | Where-Obbject {([string]::IsNullOrEmpty($_.StateOrProvince))}
+[array]$NoState = $Directory | Where-Obbject {([string]::IsNullOrEmpty($_.StateOrProvince))}
 ForEach ($C in $NoState) {
    $ReportLine = [PSCustomObject] @{
        User        = $C.UserPrincipalName
@@ -54,7 +58,7 @@ ForEach ($C in $NoState) {
     $Report.Add($ReportLine) 
 }
 
-$NoManager = $Directory | Where-Object {([string]::IsNullOrEmpty($_.Manager))}
+[array]$NoManager = $Directory | Where-Object {([string]::IsNullOrEmpty($_.Manager))}
 ForEach ($C in $NoManager) {
    $ReportLine = [PSCustomObject] @{
        User        = $C.UserPrincipalName
@@ -72,7 +76,7 @@ ForEach ($C in $NoZip) {
     $Report.Add($ReportLine) 
 }
 
-$NoTitle = $Directory | Where-Object {([string]::IsNullOrEmpty($_.Title))}
+[array]$NoTitle = $Directory | Where-Object {([string]::IsNullOrEmpty($_.Title))}
 ForEach ($C in $NoTitle) {
    $ReportLine = [PSCustomObject] @{
        User        = $C.UserPrincipalName
@@ -81,7 +85,7 @@ ForEach ($C in $NoTitle) {
     $Report.Add($ReportLine) 
 }
 
-$NoStreet = $Directory | Where-Object {([string]::IsNullOrEmpty($_.StreetAddress))}
+[array]$NoStreet = $Directory | Where-Object {([string]::IsNullOrEmpty($_.StreetAddress))}
 ForEach ($C in $NoStreet) {
    $ReportLine = [PSCustomObject] @{
        User        = $C.UserPrincipalName
@@ -89,6 +93,18 @@ ForEach ($C in $NoStreet) {
        Issue       = "No Street Address" }               
     $Report.Add($ReportLine) 
 }
+
+# No department
+[array]$NoDepartment = $Directory | Where-Object {([string]::IsNullOrEmpty($_.Department))}
+ForEach ($C in $NoDepartment) {
+   $ReportLine = [PSCustomObject] @{
+       User        = $C.UserPrincipalName
+       Name        = $C.DisplayName
+       Issue       = "No Department" }               
+    $Report.Add($ReportLine) 
+}
+
+
 
 # Calculate percentages
 $PercentNoOffice = ($NoOffice.Count/$Directory.Count).ToString("P")
@@ -100,26 +116,27 @@ $PercentNoZip  = ($NoZip.Count/$Directory.Count).ToString("P")
 $PercentNoTitle = ($NoTitle.Count/$Directory.Count).ToString("P")
 $PercentNoPhone = ($NoPhone.Count/$Directory.Count).ToString("P")
 $PercentNoStreet = ($NoStreet.Count/$Directory.Count).ToString("P")
+$PercentNoDepartment = ($NoDepartment.count/$Directory.count).toString("P")
 
-CLS
+Clear-Host
 Write-Host " "
 Write-Host ("Number of user mailboxes {0}" -f $Directory.Count)
 Write-Host   "---------------------------"
 Write-Host " "
 Write-Host "Analysis of potential directory problems"
 Write-Host "----------------------------------------"
-Write-Host ("Number of mailboxes with no Office    {0} ({1})" -f $NoOffice.Count, $PercentNoOffice)
-Write-Host ("Number of mailboxes with no City      {0} ({1})" -f $NoCity.Count, $PercentNoCity)
-Write-Host ("Number of mailboxes with no Company   {0} ({1})" -f $NoCompany.Count, $PercentNoCompany)
-Write-Host ("Number of mailboxes with no State     {0} ({1})" -f $NoState.Count, $PercentNoState)
-Write-Host ("Number of mailboxes with no Manager   {0} ({1})" -f $NoManager.Count, $PercentNoManager)
-Write-Host ("Number of mailboxes with no Title     {0} ({1})" -f $NoTitle.Count, $PercentNoTitle)
-Write-Host ("Number of mailboxes with no Phone     {0} ({1})" -f $NoPhone.Count, $PercentNoPhone)
-Write-Host ("Number of mailboxes with no Address   {0} ({1})" -f $NoStreet.Count, $PercentNoStreet)
-Write-Host ("Number of mailboxes with no Post Code {0} ({1})" -f $NoZip.Count, $PercentNoZip)
+Write-Host ("Number of mailboxes with no Office     {0} ({1})" -f $NoOffice.Count, $PercentNoOffice)
+Write-Host ("Number of mailboxes with no City       {0} ({1})" -f $NoCity.Count, $PercentNoCity)
+Write-Host ("Number of mailboxes with no Company    {0} ({1})" -f $NoCompany.Count, $PercentNoCompany)
+Write-Host ("Number of mailboxes with no Department {0} ({1})" -f $NoDepartment.count, $PercentNoDepartment)
+Write-Host ("Number of mailboxes with no State      {0} ({1})" -f $NoState.Count, $PercentNoState)
+Write-Host ("Number of mailboxes with no Manager    {0} ({1})" -f $NoManager.Count, $PercentNoManager)
+Write-Host ("Number of mailboxes with no Title      {0} ({1})" -f $NoTitle.Count, $PercentNoTitle)
+Write-Host ("Number of mailboxes with no Phone      {0} ({1})" -f $NoPhone.Count, $PercentNoPhone)
+Write-Host ("Number of mailboxes with no Address    {0} ({1})" -f $NoStreet.Count, $PercentNoStreet)
+Write-Host ("Number of mailboxes with no Post Code  {0} ({1})" -f $NoZip.Count, $PercentNoZip)
 
-
-$Report | Sort User | Export-CSV c:\temp\DirectoryIssues.csv -NoTypeInformation
+$Report | Sort-Object User | Export-CSV c:\temp\DirectoryIssues.csv -NoTypeInformation
 Write-Host " "
 Write-Host "An output file containing details of missing directory properties is available in c:\temp\DirectoryIssues.csv"
 
