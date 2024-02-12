@@ -1,7 +1,9 @@
 # ReportUserAssignedLicenses-MgGraph.PS1
 # Create a report of licenses assigned to Azure AD user accounts using the Microsoft Graph PowerShell SDK cmdlets
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUserAssignedLicenses-MgGraph.PS1
-# See https://practical365.com/create-licensing-report-microsoft365-tenant/ for an article describing how to run the report
+# See https://practical365.com/create-licensing-report-microsoft365-tenant/ for an article describing how to run the report and 
+# https://practical365.com/report-user-license-costs/ for information about how to include licensing cost information
+# in the output
 
 # V1.1 27-Sep-2022 Add sign in data for users and calculate how long it's been since they signed in and used a license.
 # V1.2 23-Nov-2022 Added SKU usage summary to HTML report
@@ -9,6 +11,7 @@
 # V1.4 13-Oct-2023 Fixed some bugs
 # V1.5 26-Jan-2024 Added license pricing computation
 # V1.5 8-Feb-2024  Added cost analysis for departments and countries
+# V1.6 12-Feb-2024 Added info to report when license costs can't be attributed to countries or departments because of missing user account properties
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
