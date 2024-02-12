@@ -123,7 +123,7 @@ Write-Host " "
 Write-Host ("Number of user mailboxes {0}" -f $Directory.Count)
 Write-Host   "---------------------------"
 Write-Host " "
-Write-Host "Analysis of potential directory problems"
+Write-Host "Analysis of missing directory properties"
 Write-Host "----------------------------------------"
 Write-Host ("Number of mailboxes with no Office     {0} ({1})" -f $NoOffice.Count, $PercentNoOffice)
 Write-Host ("Number of mailboxes with no City       {0} ({1})" -f $NoCity.Count, $PercentNoCity)
