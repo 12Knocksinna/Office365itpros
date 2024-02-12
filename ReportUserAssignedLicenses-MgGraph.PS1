@@ -16,17 +16,21 @@ Function Get-LicenseCosts {
       Param( [array]$Licenses )
       [int]$Costs = 0
       ForEach ($License in $Licenses) {
-          [string]$LicenseCost = $PricingHashTable[$License]
-          # Monthly cost in cents (because some licenses cost sums like 16.40)
-          [float]$LicenseCostCents = [float]$LicenseCost * 100
-          If ($LicenseCostCents -gt 0) {
+          Try {
+            [string]$LicenseCost = $PricingHashTable[$License]
+            # Monthly cost in cents (because some licenses cost sums like 16.40)
+            [float]$LicenseCostCents = [float]$LicenseCost * 100
+            If ($LicenseCostCents -gt 0) {
               # Compute annual cost for the license
               [float]$AnnualCost = $LicenseCostCents * 12
               # Add to the cumulative license costs
               $Costs = $Costs + ($AnnualCost)
               # Write-Host ("License {0} Cost {1} running total {2}" -f $License, $LicenseCost, $Costs)
+            }
+          } Catch {
+              Write-Host ("Error finding license {0} in pricing table - please check" -f $License)
           }
-      }
+        }
     # Return 
     Return ($Costs/100)
 } 
@@ -213,7 +217,7 @@ ForEach ($User in $Users) {
 
   If ($PricingInfoAvailable) { 
     # Output report line with pricing info
-    [float]$UserCosts =  Get-LicenseCosts -Licenses $UserLicenses.SkuId
+    [float]$UserCosts = Get-LicenseCosts -Licenses $UserLicenses.SkuId
     $TotalUserLicenseCosts = $TotalUserLicenseCosts + $UserCosts
     $ReportLine = [PSCustomObject][Ordered]@{  
       User                       = $User.DisplayName
