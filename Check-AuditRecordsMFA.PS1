@@ -1,6 +1,7 @@
 # Check-AuditRecordsMFA.PS1
 # A script to demonstrate how to use Entra ID sign-in audit records to check MFA usage by user accounts
 # V1.0 13-Feb-2024
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Check-AuditRecordsMFA.PS1
 
 Connect-MgGraph -Scopes Directory.Read.All, AuditLog.Read.All
 
