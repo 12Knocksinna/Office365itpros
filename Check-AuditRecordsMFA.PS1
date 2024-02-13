@@ -75,7 +75,7 @@ ForEach ($User in $Users) {
 }
 
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
-
+$PercentMFAUsers = ($MFAUsers/$Users.Count).toString('P')
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
