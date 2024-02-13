@@ -2,19 +2,18 @@
 # A script using Azure Automation and a managed identity to scan for apps assigned high-priority permissions and report them
 # for administrator review
 
-Connect-AzAccount -Identity
-$AccessToken = Get-AzAccessToken -ResourceUrl "https://graph.microsoft.com"
-Connect-MgGraph -AccessToken $AccessToken.Token
-# From SDK 2.0 on, this can simply be Connect-MgGraph -Identity
+Connect-MgGraph -Identity -NoWelcome
 
 # Get tenant information
 $Tenant = (Get-MgOrganization)
 $TenantId = $Tenant.Id
 $TenantName = $Tenant.DisplayName
-# Define the set of high-priority permissions we're interested in
+# Define the set of high-priority app roles (permissions) we're interested in
 [array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", `
   "Files.ReadWrite.All", "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", `
-  "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All"
+  "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All", "Application.ReadWrite.All", `
+  "Group.ReadWrite.All", "ServicePrincipalEndPoint.ReadWrite.All", "GroupMember.ReadWrite.All", `
+  "RoleManagement.ReadWrite.Directory", "AppRoleAssignment.ReadWrite.All"
 
 # Define check period for new service principals
 [datetime]$CheckforRecent = (Get-Date).AddDays(-360)
@@ -229,7 +228,6 @@ $PnpConnection = Connect-PnPOnline $SiteURL -Credentials $UserCredentials -Retur
 # Post message to Teams
   Submit-PnPTeamsChannelMessage -Team $TargetTeamId -Channel $TargetTeamChannel -Message $Body -ContentType Html -Important -Connection $PnpConnection
 }
-
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
