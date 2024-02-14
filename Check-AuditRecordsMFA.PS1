@@ -30,7 +30,7 @@ Write-Host ("Checking {0} sign-in audit records for {1} user accounts..." -f $Au
 [int]$MFAUsers = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
-    $Authentication = "No signin records found"
+    $Authentication = "No sign-in records found"
     $Status = $null; $MFARecordDateTime = $null; $MFAMethodsUsed = $null; $MFAStatus = $null
     $UserLastSignInDate = $null
     [array]$UserAuditRecords = $AuditRecords | Where-Object {$_.UserId -eq $User.Id} | `
