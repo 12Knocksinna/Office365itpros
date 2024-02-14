@@ -46,10 +46,12 @@ ForEach ($User in $Users) {
                 $Status = $Record.Status.AdditionalDetails
                 $MFARecordDateTime = $Record.CreatedDateTIme 
                 If ($Status -eq 'MFA completed in Azure AD') {
+                    # Found a record that specifies the methods used, so capture that for the report
                     $MFAStatus = "MFA Performed"
                     $MFAMethodsUsed =  $Record.AuthenticationDetails.AuthenticationMethod -join ", "
                     $MFAFlag = $true
                 } ElseIf ($MFAFlag -eq $false) {
+                    # Otherwise capture details for use of an existing claim
                     $MFAStatus = "Existing claim in the token used"
                     $MFAMethodsUsed = 'Existing claim'                  
                 }
