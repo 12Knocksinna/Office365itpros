@@ -3,18 +3,18 @@
 # V1.0 13-Feb-2024
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Check-AuditRecordsMFA.PS1
 
-Connect-MgGraph -Scopes Directory.Read.All, AuditLog.Read.All
+Connect-MgGraph -Scopes Directory.Read.All, AuditLog.Read.All -NoWelcome
 
 $CSVOutputFile = "c:\temp\CheckAuditRecordsMFA.csv"
 $TenantId = (Get-MgOrganization).Id
-$StartDate = (Get-Date).AddDays(-60)
+$StartDate = (Get-Date).AddDays(-15)
 $StartDateS = (Get-Date $StartDate -Format s) + "Z"
 
-Write-Host "Looking for audit sign-in records..."
+Write-Host "Looking for sign-in records..."
 [array]$AuditRecords = Get-MgBetaAuditLogSignIn -Top 5000 `
   -Filter "(CreatedDateTime ge $StartDateS) and (signInEventTypes/any(t:t eq 'interactiveuser')) and (usertype eq 'Member')"
 If (!$AuditRecords) {
-    Write-Host "No audit records found - exiting"
+    Write-Host "No sign-in records found - exiting"
     Break
 }
 
@@ -39,44 +39,51 @@ ForEach ($User in $Users) {
     If ($UserAuditRecords) {
         $MFAFlag = $false
         If ("multifactorauthentication" -in $UserAuditRecords.AuthenticationRequirement) {
+            # The set of sign-in records contain at least one MFA record, so we extract details
             $MFAUsers++
             $Authentication = "MFA"
+            ForEach ($Record in $UserAuditRecords) {
+                $Status = $Record.Status.AdditionalDetails
+                $MFARecordDateTime = $Record.CreatedDateTIme 
+                If ($Status -eq 'MFA completed in Azure AD') {
+                    $MFAStatus = "MFA Performed"
+                    $MFAMethodsUsed =  $Record.AuthenticationDetails.AuthenticationMethod -join ", "
+                    $MFAFlag = $true
+                } ElseIf ($MFAFlag -eq $false) {
+                    $MFAStatus = "Existing claim in the token used"
+                    $MFAMethodsUsed = 'Existing claim'                  
+                }
+            }
         } Else {
+            # No MFA sign-in records exist for the user, so they use single-factor
             $Authentication = "Single factor"
         }
-        ForEach ($Record in $UserAuditRecords) {
-            $Status = $Record.Status.AdditionalDetails
-            If ($Record.AuthenticationRequirement -eq "multifactorauthentication") {
-                $MFARecordDateTime = $Record.CreatedDateTIme 
-                If ($MFAFlag -eq $false) {
-                    $MFAStatus = "Existing claim in the token used"
-                    $MFAMethodsUsed = 'Existing claim'
-                }       
-            }
-            If ($Status -eq 'MFA completed in Azure AD') {
-                $MFAStatus = "MFA Performed"
-                $MFAMethodsUsed =  $Record.AuthenticationDetails.AuthenticationMethod -join ", "
-                $MFAFlag = $true
-            }
-        }
     }
-
-        $UserLastSignInDate = $User.SignInActivity.LastSignInDateTime
-        $ReportLine = [PSCustomObject][Ordered]@{ 
-            User            = $User.Id
-            Name            = $User.DisplayName
-            UPN             = $User.UserPrincipalName
-            LastSignIn      = $UserLastSignInDate
-            Authentication  = $Authentication
-            'MFA timestamp' = $MFARecordDateTime
-            'MFA status'    = $MFAStatus
-            'MFA methods'   = $MFAMethodsUsed
-        }
-        $Report.Add($ReportLine)
+    $UserLastSignInDate = $User.SignInActivity.LastSignInDateTime
+    $ReportLine = [PSCustomObject][Ordered]@{ 
+        User            = $User.Id
+        Name            = $User.DisplayName
+        UPN             = $User.UserPrincipalName
+        LastSignIn      = $UserLastSignInDate
+        Authentication  = $Authentication
+        'MFA timestamp' = $MFARecordDateTime
+        'MFA status'    = $MFAStatus
+        'MFA methods'   = $MFAMethodsUsed
+    }
+    $Report.Add($ReportLine)
 }
 
+$Report | Out-GridView
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
+[float]$MFACheck = ($MFAUsers/$Users.Count)*100
 $PercentMFAUsers = ($MFAUsers/$Users.Count).toString('P')
+Write-Host ("{0} users of {1} found to use MFA" -f $MFAUsers, $Users.count)
+If ($MFACheck -gt 38) {
+    Write-Host ("Congratulations - Tenant MFA usage percentage {0} is better than the 38% rate for Entra ID" -f $PercentMFAUsers)
+} Else {
+    Write-Host ("Oh dear! Tenant MFA usage percentage {0} is worse than Entra ID norm (38%)" -f $PercentMFAUsers)
+}
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
