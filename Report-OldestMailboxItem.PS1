@@ -128,7 +128,72 @@ ForEach ($Mbx in $Mailboxes) {
 $FolderReport | Out-GridView
 $MbxReport | Out-GridView
 
-# Now generate a report
+$OrgName = Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName
+$RunDate = Get-date -format 'dd-MMM-yyyy HH:mm'
+$Version = "V1.0"
+$HtmlReportFile = "c:\temp\MailboxFolderReport.html"
+$HtmlPrimarySeparator = "<p></h3>Folders in the primary mailbox</h4></p>"
+$HtmlArchiveSeparator = "<p></h3>Folders in the archive mailbox</h4></p>"
+$HtmlRecoverableItemsSeparator = "<p></h3>Recoverable Items folders</h4></p>"
+
+# Create the HTML report
+$HtmlHead="<html>
+	   <style>
+	   BODY{font-family: Arial; font-size: 8pt;}
+	   H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
+	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
+	   TD{border: 1px solid #969595; padding: 5px; }
+	   td.warn{background: #FFF275;}
+	   td.fail{background: #FF2626; color: #ffffff;}
+	   td.info{background: #85D4FF;}
+	   </style>
+	   <body>
+           <div align=center>
+           <p><h1>Exchange Online Mailbox Folders Report</h1></p>
+           <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
+           <p><h3>Generated: " + $RunDate + "</h3></p></div>"
+
+$HtmlBody = $null
+ForEach ($Mbx in $Mailboxes) {
+    # Find the folders etc. for each user that we will report
+    $UserFolders = $null
+    [array]$UserFolders = $FolderReport | Where-Object {$_.UPN -eq $Mbx.UserPrincipalName}
+    [array]$PrimaryFolders = $UserFolders | Where-Object Mailbox -match 'Primary'
+    [array]$ArchiveFolders = $UserFolders | Where-Object Mailbox -match 'Archive'
+
+    $PrimaryFolderHTML = $PrimaryFolders | Where-Object {$_.Type -notin $RIFolders} | `
+        Select-Object Folder, Size, Items, 'Newest item', 'Oldest item', Path | ConvertTo-Html -Fragment
+    $PrimaryFolderHTML = $HtmlPrimarySeparator + $PrimaryFolderHTML
+    $PrimaryFolderRIHTML = $PrimaryFolders | Where-Object {$_.Type -in $RIFolders} | `
+        Select-Object Folder, Size, Items, 'Newest item', 'Oldest item', Path | ConvertTo-Html -Fragment
+    $PrimaryFolderRIHTML = $HtmlRecoverableItemsSeparator + $PrimaryFolderRIHTML
+
+    If ($ArchiveFolders) {
+        $ArchiveFolderHTML = $ArchiveFolders | Where-Object {$_.Type -notin $RIFolders} | `
+            Select-Object Folder, Size, Items, 'Newest item', 'Oldest item', Path | ConvertTo-Html -Fragment
+        $ArchiveFolderHTML = $HtmlArchiveSeparator + $ArchiveFolderHTML
+        $ArchiveFolderRIHTML = $ArchiveFolders | Where-Object {$_.Type -in $RIFolders} | `
+            Select-Object Folder, Size, Items, 'Newest item', 'Oldest item', Path | ConvertTo-Html -Fragment
+        $ArchiveFolderRIHTML = $HtmlRecoverableItemsSeparator + $ArchiveFolderRIHTML
+    }
+    $MailboxHTMLHeader = ("<h3>Mailbox: {0}</h3>" -f $Mbx.DisplayName)
+    $MailboxHTML = $MailboxHTMLHeader + "<p>" + $PrimaryFolderHTML + "</p><p>" + $PrimaryFolderRIHTML + "</p>"
+    If ($ArchiveFolders) {
+        $MailboxHTML = $MailboxHTML + "<p>" + $ArchiveFolderHTML + "</p><p>" + $ArchiveFolderRIHTML + "</p>"
+    }
+    $HtmlBody = $HtmlBody + $MailboxHTML
+}
+
+$HtmlBody = $HtmlBody + "<p>Report created for: " + $OrgName + "</p>" +
+                        "<p>Created: " + $RunDate + "<p>" 
+                                  
+$HtmlTail = "<p>Exchange Online Mailbox Folder Report<b> " + $Version + "</b></p>"	
+
+$HtmlReport = $Htmlhead + $Htmlbody + $Htmltail
+$HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
