@@ -123,11 +123,6 @@ $tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "applicati
 $Token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 
 Write-Host ("Retrieved new access token at {0}" -f (Get-Date)) -foregroundcolor red
-
-$Global:Headers = @{
-            'Content-Type'  = "application\json"
-            'Authorization' = "Bearer $Token" 
-            'ConsistencyLevel' = "eventual" }
 Return $Token
 }
 
@@ -200,7 +195,7 @@ If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please con
 # OK, we seem to be fully connected to Exchange Online.     
 
 # Setup some stuff we use
-$WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
+$WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
 $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
@@ -235,7 +230,6 @@ $htmlhead="<html>
 $Global:Token = GetAccessToken
 If (!($Token)) {Write-Host "Can't get a valid Azure AD access token - exiting" ; break }
 # Set the creation date of the initial access token (59min and 59sec life long) and add 57 minutes to renew the token later in the main loop
-$Global:TokenCreationDate = (Get-Date)
 $Global:TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
     
 # Get tenant name and other details
@@ -428,8 +422,7 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
        $LastConversation = Get-Date($LastDateConversation) -format g
        [string]$NumberConversations = $Data.ItemsInfolder[0].toString()
        $Error.Clear()
-        }
-     Catch {
+        } Catch {
       Write-Host "Error converting date values"
      }
    }
@@ -439,7 +432,7 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
 
    If ($LastConversation -le $WarningEmailDate) {
       # Write-Host "Last conversation item created in" $G.DisplayName "was" $LastConversation "-> Obsolete?"
-      $ObsoleteReportLine = "Last Outlook conversation dated: " + $LastConversation + "."
+      $ObsoleteReportLine = ("Last Outlook conversation dated {0}." -f $LastConversation)
       $MailboxStatus = "Group Inbox Not Recently Used"
       $ObsoleteEmailGroups++
       $NumberWarnings++ }
@@ -499,8 +492,11 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
     # Write-Host "Reading from Teams Hash Table for" $ThisTeamData.DisplayName
         $ThisTeamData = $TeamsUsageHash[$G.ObjectId]
         $NumberOfChats = [int]$ThisTeamData.Posts + [int]$ThisTeamData.Replies
-        $LastItemAddedToTeams = Get-Date ($ThisTeamData.LastActivity) -Format g
-        $DaysSinceTeamsActivity = (New-TimeSpan $LastItemAddedtoTeams).Days
+        [int]$DaysSinceTeamsActivity = 0
+        If ($ThisTeamData.LastActivity) {
+            $LastItemAddedToTeams = Get-Date ($ThisTeamData.LastActivity) -Format g
+            [int]$DaysSinceTeamsActivity = (New-TimeSpan $LastItemAddedtoTeams).Days
+        }
     } #End Else
 } # End if
     

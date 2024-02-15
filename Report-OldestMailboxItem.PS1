@@ -26,8 +26,12 @@ function Format-FolderSize {
 
 Connect-ExchangeOnline -SkipLoadingCmdletHelp
 
+# Define folders that we don't want to include in the report
 [array]$UnwantedFolders = "Top of Information Store", "Quick Step Settings", "Recipient Cache", "Team Chat", "Conversation History", `
    "LinkedIn", "PersonMetadata", "Suggested Contacts", "Snoozed", "Conflicts", "Calendar Logging", "Audits"
+# Define Recoverable Items folders that the report shows in a separate section
+[array]$RIFolders = "RecoverableItemsVersions", "RecoverableItemsPurges", "RecoverableItemsDeletions", `
+    "RecoverableItemsDiscoveryHolds", "RecoverableItemsSubstrateHolds"
 
 Write-Host "Searching for mailboxes..."
 [array]$Mailboxes = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited -PropertySets Archive -Properties DisplayName | Sort-Object DisplayName
@@ -45,7 +49,7 @@ ForEach ($Mbx in $Mailboxes) {
     # Process primary mailbox
     [array]$Stats = Get-ExoMailboxStatistics -Identity $Mbx.ExternalDirectoryObjectId 
     [float]$MbxSizeGB = [math]::Round(($Stats.TotalItemSize.value.ToString().Split("(")[1].Split(" ")[0].Replace(",","")/1024MB),2)
-        $FolderStats = Get-MailboxFolderStatistics -Identity $Mbx.ExternalDirectoryObjectId -IncludeOldestAndNewestItems | `
+        $FolderStats = Get-ExoMailboxFolderStatistics -Identity $Mbx.ExternalDirectoryObjectId -IncludeOldestAndNewestItems | `
           Where-Object {$_.ItemsInFolder -gt 0 -and $_.Name -notin $UnwantedFolders} | Sort-Object Name
         ForEach ($Folder in $FolderStats) {
             [float]$FolderSize = [math]::Round($Folder.FolderSize.ToString().Split("(")[1].Split(" ")[0].Replace(",",""),2)
@@ -60,7 +64,7 @@ ForEach ($Mbx in $Mailboxes) {
                     $NewestItemDate = Get-Date $Folder.NewestItemReceivedDate -format 'dd-MMM-yyy HH:mm'
                 }
                 $FolderReportLine = [PSCustomObject][Ordered]@{ 
-                    Mailbox         = $Mbx.displayName
+                    User            = $Mbx.displayName
                     UPN             = $Mbx.UserPrincipalName
                     Folder          = $Folder.Name
                     Size            = $FolderSizeReport
@@ -69,6 +73,7 @@ ForEach ($Mbx in $Mailboxes) {
                     'Newest item'   = $NewestItemDate
                     Path            = $Folder.FolderPath
                     Type            = $Folder.FolderType
+                    Mailbox         = "Primary"
                 }  
                 $FolderReport.Add($FolderReportLine)       
             }      
@@ -76,8 +81,37 @@ ForEach ($Mbx in $Mailboxes) {
     If ($Mbx.ArchiveStatus -eq 'Active') {
         [array]$ArchiveStats = Get-ExoMailboxStatistics -Identity $Mbx.ExternalDirectoryObjectId -Archive | Sort-Object Name
         [float]$ArchiveMbxSizeGB = [math]::Round(($ArchiveStats.TotalItemSize.value.ToString().Split("(")[1].Split(" ")[0].Replace(",","")/1024MB),2)
+        $ArchiveFolderStats = Get-ExoMailboxFolderStatistics -Identity $Mbx.ExternalDirectoryObjectId -Archive -IncludeOldestAndNewestItems | `
+            Where-Object {$_.ItemsInFolder -gt 0 -and $_.Name -notin $UnwantedFolders} | Sort-Object Name
+        ForEach ($Folder in $ArchiveFolderStats) {
+            [float]$FolderSize = [math]::Round($Folder.FolderSize.ToString().Split("(")[1].Split(" ")[0].Replace(",",""),2)
+            $FolderSizeReport = Format-FolderSize -InFolderSize $FolderSize
+            If (($Folder.Name.Substring(0,1) -ne "{")) {
+                $OldestItemDate = $null; $NewestItemDate = $null
+                If ($Folder.OldestItemReceivedDate) {
+                  $OldestItemDate = Get-Date $Folder.OldestItemReceivedDate -format 'dd-MMM-yyy HH:mm'
+                }
+                If ( $Folder.NewestItemReceivedDate) {
+                    $NewestItemDate = Get-Date $Folder.NewestItemReceivedDate -format 'dd-MMM-yyy HH:mm'
+                }
+            $FolderReportLine = [PSCustomObject][Ordered]@{ 
+                User            = $Mbx.displayName
+                UPN             = $Mbx.UserPrincipalName
+                Folder          = $Folder.Name
+                Size            = $FolderSizeReport
+                Items           = $Folder.ItemsInFolder
+                'Oldest item'   = $OldestItemDate
+                'Newest item'   = $NewestItemDate
+                Path            = $Folder.FolderPath
+                Type            = $Folder.FolderType
+                Mailbox         = "Archive"
+              }  
+            $FolderReport.Add($FolderReportLine)       
+          } 
+        }     
     } Else {
         $ArchiveStats = $null
+        $ArchiveMbxSizeGB = $null
     }
 
     $MbxReportLine = [PSCustomObject][Ordered]@{ 
@@ -89,10 +123,12 @@ ForEach ($Mbx in $Mailboxes) {
         'Archive mailbox total items'   = $ArchiveStats.ItemCount
     }  
     $MbxReport.Add($MbxReportLine)  
-  }
+} # End processing mailboxes
 
+$FolderReport | Out-GridView
+$MbxReport | Out-GridView
 
- $MbxReport | Out-GridView
+# Now generate a report
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
