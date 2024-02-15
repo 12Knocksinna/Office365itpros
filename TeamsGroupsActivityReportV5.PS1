@@ -246,7 +246,7 @@ $OrgName = $OrgData.DisplayName
 $S1 = Get-Date #Start of processing
 
 # Get a list of Groups in the tenant
-[Int]$GroupsCount = 0; [int]$TeamsCount = 0; $UsedGroups = $False
+[Int]$GroupsCount = 0; [int]$TeamsCount = 0
 
 # Retrieve Teams usage data
 $TeamsUsageHash = GetTeamsStats
@@ -316,7 +316,7 @@ ForEach ($Group in $Groups) {
    $Description = $GroupData.Description
    $GroupLabel  = $GroupData.AssignedLabels.DisplayName
    # Get SharePoint site URL
-   $SPOUrl = $Null; $SPODocLib = $Null; $SPOQuotaUsed = 0; $SPOLastDateActivity = $Null
+   $SPOUrl = $Null; $SPODocLib = $Null; $SPOLastDateActivity = $Null
    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/drive"
    [array]$SPOData = Get-GraphData -AccessToken $Token -Uri $uri
    [int]$LLVValue = $SPOData.WebUrl.IndexOf($SharedDocFolder) # Can we find a local-language value for the document library in the data returned?
@@ -395,7 +395,6 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
    $GroupStatus = $DisplayName + " ["+ $GroupNumber +"/" + $GroupsCount + "]"
    Write-Progress -Activity "Analyzing and reporting group" -Status $GroupStatus -PercentComplete $CheckCount
    $CheckCount += $ProgDelta;  $ObsoleteReportLine = $DisplayName
-   $SPOActivity = "Document library in use"
    $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $ObsoleteReportLine = $Null
 
    # Check for expired access token and renew if necessary
@@ -483,7 +482,7 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
 # Write-Host "Processing" $G.DisplayName
 # If the group is team-enabled, find the date of the last Teams conversation compliance record
 If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
-    $TeamsEnabled = $True; $CountOldTeamsData = $False; $NumberOfChats = 0; $LastItemAddedToTeams = $Null
+    $TeamsEnabled = $True; $NumberOfChats = 0; $LastItemAddedToTeams = $Null
     If (-not $TeamsUsageHash.ContainsKey($G.ObjectId)) { # Check do we have Teams usage data stored in a hash table 
     # Nope, so we have to get the data from Exchange Online by looking in the TeamsMessagesData file in the non-IPM root
        Write-Host "Checking Exchange Online for Teams activity data..."
@@ -495,19 +494,25 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
          Write-Host ("Error fetching Team message data for {0} - continuing" -f $G.DisplayName) 
              }    
        If ($TeamsChatData.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($TeamsChatData.NewestItemReceivedDate) -Format g}
-       $NumberOfChats = $TeamsChatData.ItemsInFolder }
-   Else { # Read the data from the Teams usage data
+       $NumberOfChats = $TeamsChatData.ItemsInFolder 
+    } Else { # Read the data from the Teams usage data
     # Write-Host "Reading from Teams Hash Table for" $ThisTeamData.DisplayName
-    $ThisTeamData = $TeamsUsageHash[$G.ObjectId]
-    $NumberOfChats = [int]$ThisTeamData.Posts + [int]$ThisTeamData.Replies
-    $LastItemAddedToTeams = Get-Date ($ThisTeamData.LastActivity) -Format g
-   } #End Else
+        $ThisTeamData = $TeamsUsageHash[$G.ObjectId]
+        $NumberOfChats = [int]$ThisTeamData.Posts + [int]$ThisTeamData.Replies
+        $LastItemAddedToTeams = Get-Date ($ThisTeamData.LastActivity) -Format g
+        $DaysSinceTeamsActivity = (New-TimeSpan $LastItemAddedtoTeams).Days
+    } #End Else
 } # End if
     
 #  Increase warnings if Teams activity is low
    If ($NumberOfChats -lt 20) { 
-      $NumberWarnings++
-      $TeamsStatus = "Low number of Teams conversations" }
+        $NumberWarnings++
+        $TeamsStatus = "Low number of Teams conversations" 
+    }
+    If ($DaysSinceTeamsActivity -gt 90) {
+        $NumberWarnings++
+        $TeamsStatus = ("{0} last item added {1} days ago" -f $TeamsStatus, $DaysSinceTeamsActivity)
+    }
 
   # If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" }    
    # Discover if team is archived
