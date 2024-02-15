@@ -29,6 +29,7 @@
 # V5.9 05-Jan-2023 Increased access token lifetime from 50 to 57 minutes and created new CheckAccessToken function.
 # V5.10 23-Jan-2023 Include code to handle bad data returned by Exchange Online for mailbox inbox statistics
 # V5.11 01-Nov-2023 
+# V5.12 15-Feb-2024 Add check for Teams that haven't had a channel message for more than 90 days
 #
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 #
@@ -199,7 +200,7 @@ $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Toda
 $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
-$Version = "V5.11"
+$Version = "V5.12"
 $TimeToRefreshToken = "57" # Token lifetime
 Clear-Host
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
@@ -316,16 +317,15 @@ ForEach ($Group in $Groups) {
    [int]$LLVValue = $SPOData.WebUrl.IndexOf($SharedDocFolder) # Can we find a local-language value for the document library in the data returned?
    If (($SPOData.id) -and ($SPOData.DriveType -eq "documentLibrary")) { # Using language-specific values to identify the document library defined
        If ($LLVValue -gt 0) {  # If we have a local language value, parse it to extract the document library URL
-          $SPOUrl = $SPOData.WebUrl.SubString(0,$SPOData.WebUrl.IndexOf($SharedDocFolder))
-          $SPODocLib = $SPOUrl + $SharedDocFolder2 
-          $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
-          $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g 
-       } # End if
-       Else  { # Just report what we read from the Graph
-         $SPOUrl = $SPOData.WebUrl
-         $SPODocLib = $SPOUrl + $SharedDocFolder2 
-         $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
-         $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g 
+            $SPOUrl = $SPOData.WebUrl.SubString(0,$SPOData.WebUrl.IndexOf($SharedDocFolder))
+            $SPODocLib = $SPOUrl + $SharedDocFolder2 
+            # $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
+            $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g 
+       } Else  { # Just report what we read from the Graph
+            $SPOUrl = $SPOData.WebUrl
+            $SPODocLib = $SPOUrl + $SharedDocFolder2 
+            # $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
+            $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g 
        } # End Else
    } # End if against $SPOData
    Else { 
