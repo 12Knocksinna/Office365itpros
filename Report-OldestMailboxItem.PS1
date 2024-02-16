@@ -1,6 +1,7 @@
 # Feport-OldestMailboxItems.PS1
 # Find mailboxes larger than 50 GB and report the folder name where the oldest item is found
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-OldestMailboxItem.PS1
+# V1.0 16-Feb-2024
 
 function Format-FolderSize {
     # Format File Size nicely
@@ -24,7 +25,11 @@ function Format-FolderSize {
     Return $OutFolderSize
 } 
 
-Connect-ExchangeOnline -SkipLoadingCmdletHelp
+# Make sure that we're connected to Exchange Online
+[array]$Modules = Get-Module | Select-Object -ExpandProperty Name
+If ("ExchangeOnlineManagement" -notin $Modules) {
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp
+}
 
 # Define folders that we don't want to include in the report
 [array]$UnwantedFolders = "Top of Information Store", "Quick Step Settings", "Recipient Cache", "Team Chat", "Conversation History", `
