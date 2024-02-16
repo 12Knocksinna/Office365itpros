@@ -137,17 +137,17 @@ $OrgName = Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName
 $RunDate = Get-date -format 'dd-MMM-yyyy HH:mm'
 $Version = "V1.0"
 $HtmlReportFile = "c:\temp\MailboxFolderReport.html"
-$HtmlPrimarySeparator = "<p></h3>Folders in the primary mailbox</h4></p>"
-$HtmlArchiveSeparator = "<p></h3>Folders in the archive mailbox</h4></p>"
-$HtmlRecoverableItemsSeparator = "<p></h3>Recoverable Items folders</h4></p>"
+$HtmlPrimarySeparator = "<p></h3>Folders in the <b>primary mailbox</b></h3></p>"
+$HtmlArchiveSeparator = "<p></h3>Folders in the <b>archive mailbox</b></h3></p>"
+$HtmlRecoverableItemsSeparator = "<p></h3><b>Recoverable Items</b> folders</h3></p>"
 
 # Create the HTML report
 $HtmlHead="<html>
 	   <style>
-	   BODY{font-family: Arial; font-size: 8pt;}
-	   H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-	   H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-	   H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   BODY{font-family: Arial; font-size: 10pt;}
+	   H1{font-size: 28px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H2{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H3{font-size: 20px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
 	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
 	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
 	   TD{border: 1px solid #969595; padding: 5px; }
@@ -184,7 +184,7 @@ ForEach ($Mbx in $Mailboxes) {
             Select-Object Folder, Size, Items, 'Newest item', 'Oldest item', Path | ConvertTo-Html -Fragment
         $ArchiveFolderRIHTML = $HtmlRecoverableItemsSeparator + $ArchiveFolderRIHTML
     }
-    $MailboxHTMLHeader = ("<h3>Mailbox: {0}</h3>" -f $Mbx.DisplayName)
+    $MailboxHTMLHeader = ("<h3>Mailbox: <b>{0}</b></h3>" -f $Mbx.DisplayName)
     $MailboxHTML = $MailboxHTMLHeader + "<p>" + $PrimaryFolderHTML + "</p><p>" + $PrimaryFolderRIHTML + "</p>"
     If ($ArchiveFolders) {
         $MailboxHTML = $MailboxHTML + "<p>" + $ArchiveFolderHTML + "</p><p>" + $ArchiveFolderRIHTML + "</p>"
