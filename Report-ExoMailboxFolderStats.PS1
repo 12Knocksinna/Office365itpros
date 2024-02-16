@@ -1,6 +1,6 @@
 # Feport-OldestMailboxItems.PS1
-# Find mailboxes larger than 50 GB and report the folder name where the oldest item is found
-# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-OldestMailboxItem.PS1
+# Report user mailboxes (including archives) with statistics for each folder
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ExoMailboxFolderStats.PS1
 # V1.0 16-Feb-2024
 
 function Format-FolderSize {
