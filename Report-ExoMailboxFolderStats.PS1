@@ -62,8 +62,10 @@ ForEach ($Mbx in $Mailboxes) {
     Write-Host ("Processing mailbox {0} ({1}/{2})..." -f $Mbx.DisplayName, $i, $Mailboxes.count)
     # Process primary mailbox
     [array]$Stats = Get-ExoMailboxStatistics -Identity $Mbx.ExternalDirectoryObjectId 
-    [float]$MbxSizeGB = [math]::Round(($Stats.TotalItemSize.value.ToString().Split("(")[1].Split(" ")[0].Replace(",","")/1024MB),2)
-        $FolderStats = Get-ExoMailboxFolderStatistics -Identity $Mbx.ExternalDirectoryObjectId -IncludeOldestAndNewestItems | `
+    # Get the mailbox size in bytes and in as a formatted version in GB
+    $MbxBytes = ($Stats.TotalItemSize.value.ToString().Split("(")[1].Split(" ")[0].Replace(",",""))  
+    [float]$MbxSizeGB = [math]::Round($MbxBytes/1024MB,2) 
+    $FolderStats = Get-ExoMailboxFolderStatistics -Identity $Mbx.ExternalDirectoryObjectId -IncludeOldestAndNewestItems | `
           Where-Object {$_.ItemsInFolder -gt 0 -and $_.Name -notin $UnwantedFolders} | Sort-Object Name
         ForEach ($Folder in $FolderStats) {
             [float]$FolderSize = [math]::Round($Folder.FolderSize.ToString().Split("(")[1].Split(" ")[0].Replace(",",""),2)
@@ -95,7 +97,8 @@ ForEach ($Mbx in $Mailboxes) {
         }
     If ($Mbx.ArchiveStatus -eq 'Active') {
         [array]$ArchiveStats = Get-ExoMailboxStatistics -Identity $Mbx.ExternalDirectoryObjectId -Archive | Sort-Object Name
-        [float]$ArchiveMbxSizeGB = [math]::Round(($ArchiveStats.TotalItemSize.value.ToString().Split("(")[1].Split(" ")[0].Replace(",","")/1024MB),2)
+        $ArchiveMbxBytes = ($ArchiveStats.TotalItemSize.value.ToString().Split("(")[1].Split(" ")[0].Replace(",",""))  
+        [float]$ArchiveMbxSizeGB = [math]::Round($MbxBytes/1024MB,2) 
         $ArchiveFolderStats = Get-ExoMailboxFolderStatistics -Identity $Mbx.ExternalDirectoryObjectId -Archive -IncludeOldestAndNewestItems | `
             Where-Object {$_.ItemsInFolder -gt 0 -and $_.Name -notin $UnwantedFolders} | Sort-Object Name
         ForEach ($Folder in $ArchiveFolderStats) {
@@ -132,9 +135,11 @@ ForEach ($Mbx in $Mailboxes) {
     $MbxReportLine = [PSCustomObject][Ordered]@{ 
         Mailbox                         = $Mbx.displayName
         'Primary mailbox size GB'       = ("{0} GB" -f $MbxSizeGB.toString())
+        'Primary mailbox size bytes'    = $MbxBytes
         'Primary mailbox total items'   = $Stats.ItemCount
         'Archive status'                = $Mbx.ArchiveStatus
         'Archive mailbox size GB'       = ("{0} GB" -f $ArchiveMbxSizeGB.toString())
+        'Archive mailbox size bytes'    = $ArchiveMbxBytes
         'Archive mailbox total items'   = $ArchiveStats.ItemCount
     }  
     $MbxReport.Add($MbxReportLine)  
