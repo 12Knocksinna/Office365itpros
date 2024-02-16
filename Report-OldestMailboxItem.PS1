@@ -145,8 +145,8 @@ $HtmlRecoverableItemsSeparator = "<p></h3><b>Recoverable Items</b> folders</h3><
 $HtmlHead="<html>
 	   <style>
 	   BODY{font-family: Arial; font-size: 10pt;}
-	   H1{font-size: 28px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-	   H2{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H1{font-size: 32px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H2{font-size: 24px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
 	   H3{font-size: 20px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
 	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
 	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
@@ -158,8 +158,7 @@ $HtmlHead="<html>
 	   <body>
            <div align=center>
            <p><h1>Exchange Online Mailbox Folders Report</h1></p>
-           <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
-           <p><h3>Generated: " + $RunDate + "</h3></p></div>"
+           <p><h2><b>For the <b>" + $Orgname + "</b> tenant</b></h2></p>"
 
 $HtmlBody = $null
 ForEach ($Mbx in $Mailboxes) {

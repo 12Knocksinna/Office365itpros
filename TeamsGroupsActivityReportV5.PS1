@@ -493,7 +493,7 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
         $ThisTeamData = $TeamsUsageHash[$G.ObjectId]
         $NumberOfChats = [int]$ThisTeamData.Posts + [int]$ThisTeamData.Replies
         [int]$DaysSinceTeamsActivity = 0
-        If ($ThisTeamData.LastActivity) {
+        If (!([string]::IsNullOrWhitespace($ThisTeamData.LastActivity))) {
             $LastItemAddedToTeams = Get-Date ($ThisTeamData.LastActivity) -Format g
             [int]$DaysSinceTeamsActivity = (New-TimeSpan $LastItemAddedtoTeams).Days
         }
