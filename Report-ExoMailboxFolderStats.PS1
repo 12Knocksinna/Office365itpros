@@ -46,7 +46,8 @@ $MailboxStatsCSV = "c:\temp\MailboxStats.Csv"
     "RecoverableItemsDiscoveryHolds", "RecoverableItemsSubstrateHolds"
 
 Write-Host "Searching for mailboxes..."
-[array]$Mailboxes = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited -PropertySets Archive -Properties DisplayName | Sort-Object DisplayName
+[array]$Mailboxes = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited `
+    -PropertySets Archive -Properties DisplayName, RecipientTypeDetails | Sort-Object DisplayName
 If (!$Mailboxes) {
     Write-Host "Can't find any mailboxes to process - exiting"
     Break
@@ -132,6 +133,8 @@ ForEach ($Mbx in $Mailboxes) {
         $ArchiveMbxSizeGB = $null
     }
 
+    # Get some other details for the user account
+    $UserDetails = Get-User -Identity $Mbx.ExternalDirectoryObjectId
     $MbxReportLine = [PSCustomObject][Ordered]@{ 
         Mailbox                         = $Mbx.displayName
         UPN                             = $Mbx.UserPrincipalName
@@ -142,12 +145,19 @@ ForEach ($Mbx in $Mailboxes) {
         'Archive mailbox size GB'       = ("{0} GB" -f $ArchiveMbxSizeGB.toString())
         'Archive mailbox size bytes'    = $ArchiveMbxBytes
         'Archive mailbox total items'   = $ArchiveStats.ItemCount
+        'Mailbox type'                  = $Mbx.RecipientTypeDetails
+        City                            = $UserDetails.City
+        Country                         = $UserDetails.CountryOrRegion
+        Department                      = $UserDetails.Department
+        Office                          = $UserDetails.Office
+        Title                           = $UserDetails.Title
     }  
     $MbxReport.Add($MbxReportLine)  
 } # End processing mailboxes
 
-$FolderReport | Out-GridView
-$MbxReport | Out-GridView
+# Uncomment these lines if you want to see the data captured for folders and mailboxes
+# $FolderReport | Out-GridView
+# $MbxReport | Out-GridView
 
 $HtmlPrimarySeparator = "<p></h3>Folders in the <b>primary mailbox</b></h3></p>"
 $HtmlArchiveSeparator = "<p></h3>Folders in the <b>archive mailbox</b></h3></p>"
@@ -205,7 +215,7 @@ ForEach ($Mbx in $Mailboxes) {
         'Archive status' | ConvertTo-Html -Fragment
     }
 
-    $MailboxHTMLHeader = ("<h3>Mailbox: <b>{0}</b></h3>" -f $Mbx.DisplayName)
+    $MailboxHTMLHeader = ("<h3>Mailbox: <b>{0}</b>  ({1})</h3>" -f $Mbx.DisplayName, $Mbx.UserPrincipalName)
     $MailboxHTMLHeader = "<p>" + $MailboxHTMLHeader + $MailboxStatsHTML + "<p></p>"
     $MailboxHTML = $MailboxHTMLHeader + "<p>" + $PrimaryFolderHTML + "</p><p>" + $PrimaryFolderRIHTML + "</p>"
     If ($ArchiveFolders) {
