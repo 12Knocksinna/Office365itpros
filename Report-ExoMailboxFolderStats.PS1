@@ -36,7 +36,7 @@ $OrgName = Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName
 $RunDate = Get-date -format 'dd-MMM-yyyy HH:mm'
 $Version = "V1.0"
 $HtmlReportFile = "c:\temp\MailboxFolderReport.html"
-$CSVOutputFile = "c:\temp\MailboxStats.Csv"
+$MailboxStatsCSV = "c:\temp\MailboxStats.Csv"
 
 # Define folders that we don't want to include in the report
 [array]$UnwantedFolders = "Top of Information Store", "Quick Step Settings", "Recipient Cache", "Team Chat", "Conversation History", `
@@ -134,6 +134,7 @@ ForEach ($Mbx in $Mailboxes) {
 
     $MbxReportLine = [PSCustomObject][Ordered]@{ 
         Mailbox                         = $Mbx.displayName
+        UPN                             = $Mbx.UserPrincipalName
         'Primary mailbox size GB'       = ("{0} GB" -f $MbxSizeGB.toString())
         'Primary mailbox size bytes'    = $MbxBytes
         'Primary mailbox total items'   = $Stats.ItemCount
@@ -221,8 +222,8 @@ $HtmlTail = "<p>Exchange Online Mailbox Folder Report<b> " + $Version + "</b></p
 $HtmlReport = $Htmlhead + $Htmlbody + $Htmltail
 $HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
 Write-Host ("Report generated and available at {0}" -f $HtmlReportFile)
-$MailboxStats | Export-CSV -NoTypeInformation $CSVOutputFile
-
+$MbxReport | Export-CSV -NoTypeInformation $MailboxStatsCSV
+Write-Host ("A CSV file with mailbox statistics is available in {0}" -f $MailboxStatsCSV)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
