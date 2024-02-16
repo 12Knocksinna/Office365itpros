@@ -9,7 +9,7 @@ function Format-FolderSize {
             [parameter(Mandatory = $true)]
             $InFolderSize
         ) 
-    
+    # Format a size in bytes into KB, MB, or GB
     If ($InFolderSize -lt 1KB) { # Format the size of a folder
         $OutFolderSize = $InFolderSize.ToString() + " B" 
     } ElseIf ($InFolderSize -lt 1MB) {
@@ -31,6 +31,13 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
     Connect-ExchangeOnline -SkipLoadingCmdletHelp
 }
 
+# Variables used in the report
+$OrgName = Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName
+$RunDate = Get-date -format 'dd-MMM-yyyy HH:mm'
+$Version = "V1.0"
+$HtmlReportFile = "c:\temp\MailboxFolderReport.html"
+$CSVOutputFile = "c:\temp\MailboxStats.Csv"
+
 # Define folders that we don't want to include in the report
 [array]$UnwantedFolders = "Top of Information Store", "Quick Step Settings", "Recipient Cache", "Team Chat", "Conversation History", `
    "LinkedIn", "PersonMetadata", "Suggested Contacts", "Snoozed", "Conflicts", "Calendar Logging", "Audits"
@@ -49,8 +56,10 @@ If (!$Mailboxes) {
 
 $MbxReport = [System.Collections.Generic.List[Object]]::new()
 $FolderReport = [System.Collections.Generic.List[Object]]::new()
+[int]$i=0
 ForEach ($Mbx in $Mailboxes) {
-    Write-Host ("Processing mailbox {0}..." -f $Mbx.DisplayName)
+    $i++
+    Write-Host ("Processing mailbox {0} ({1}/{2})..." -f $Mbx.DisplayName, $i, $Mailboxes.count)
     # Process primary mailbox
     [array]$Stats = Get-ExoMailboxStatistics -Identity $Mbx.ExternalDirectoryObjectId 
     [float]$MbxSizeGB = [math]::Round(($Stats.TotalItemSize.value.ToString().Split("(")[1].Split(" ")[0].Replace(",","")/1024MB),2)
@@ -58,6 +67,7 @@ ForEach ($Mbx in $Mailboxes) {
           Where-Object {$_.ItemsInFolder -gt 0 -and $_.Name -notin $UnwantedFolders} | Sort-Object Name
         ForEach ($Folder in $FolderStats) {
             [float]$FolderSize = [math]::Round($Folder.FolderSize.ToString().Split("(")[1].Split(" ")[0].Replace(",",""),2)
+            # Format the folder size (in bytes) in KB, MB, or GB
             $FolderSizeReport = Format-FolderSize -InFolderSize $FolderSize
             #[float]$FolderSize = [math]::Round(($Folder.FolderSize.ToString().Split("(")[1].Split(" ")[0].Replace(",","")/1024),2)
             If (($Folder.Name.Substring(0,1) -ne "{")) {
@@ -133,10 +143,6 @@ ForEach ($Mbx in $Mailboxes) {
 $FolderReport | Out-GridView
 $MbxReport | Out-GridView
 
-$OrgName = Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName
-$RunDate = Get-date -format 'dd-MMM-yyyy HH:mm'
-$Version = "V1.0"
-$HtmlReportFile = "c:\temp\MailboxFolderReport.html"
 $HtmlPrimarySeparator = "<p></h3>Folders in the <b>primary mailbox</b></h3></p>"
 $HtmlArchiveSeparator = "<p></h3>Folders in the <b>archive mailbox</b></h3></p>"
 $HtmlRecoverableItemsSeparator = "<p></h3><b>Recoverable Items</b> folders</h3></p>"
@@ -167,6 +173,7 @@ ForEach ($Mbx in $Mailboxes) {
     [array]$UserFolders = $FolderReport | Where-Object {$_.UPN -eq $Mbx.UserPrincipalName}
     [array]$PrimaryFolders = $UserFolders | Where-Object Mailbox -match 'Primary'
     [array]$ArchiveFolders = $UserFolders | Where-Object Mailbox -match 'Archive'
+    [array]$MailboxStats = $MbxReport | Where-Object {$_.Mailbox -eq $Mbx.DisplayName}
 
     $PrimaryFolderHTML = $PrimaryFolders | Where-Object {$_.Type -notin $RIFolders} | `
         Select-Object Folder, Size, Items, 'Newest item', 'Oldest item', Path | ConvertTo-Html -Fragment
@@ -183,7 +190,17 @@ ForEach ($Mbx in $Mailboxes) {
             Select-Object Folder, Size, Items, 'Newest item', 'Oldest item', Path | ConvertTo-Html -Fragment
         $ArchiveFolderRIHTML = $HtmlRecoverableItemsSeparator + $ArchiveFolderRIHTML
     }
+    # Add mailbox statistics to the output
+    If ($ArchiveFolders) {
+        $MailboxStatsHTML = $MailboxStats | Select-Object 'Primary mailbox size GB', 'Primary mailbox total items', `
+        'Archive status',  'Archive mailbox size GB', 'Archive mailbox total items' | ConvertTo-Html -Fragment
+    } Else {
+        $MailboxStatsHTML = $MailboxStats | Select-Object 'Primary mailbox size GB', 'Primary mailbox total items', `
+        'Archive status' | ConvertTo-Html -Fragment
+    }
+
     $MailboxHTMLHeader = ("<h3>Mailbox: <b>{0}</b></h3>" -f $Mbx.DisplayName)
+    $MailboxHTMLHeader = "<p>" + $MailboxHTMLHeader + $MailboxStatsHTML + "<p></p>"
     $MailboxHTML = $MailboxHTMLHeader + "<p>" + $PrimaryFolderHTML + "</p><p>" + $PrimaryFolderRIHTML + "</p>"
     If ($ArchiveFolders) {
         $MailboxHTML = $MailboxHTML + "<p>" + $ArchiveFolderHTML + "</p><p>" + $ArchiveFolderRIHTML + "</p>"
@@ -198,6 +215,9 @@ $HtmlTail = "<p>Exchange Online Mailbox Folder Report<b> " + $Version + "</b></p
 
 $HtmlReport = $Htmlhead + $Htmlbody + $Htmltail
 $HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
+Write-Host ("Report generated and available at {0}" -f $HtmlReportFile)
+$MailboxStats | Export-CSV -NoTypeInformation $CSVOutputFile
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
