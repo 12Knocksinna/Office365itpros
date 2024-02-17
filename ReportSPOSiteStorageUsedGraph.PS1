@@ -2,55 +2,56 @@
 # A Graph-based script to report SharePoint Online Site Storage usage data
 #
 # V1.0 27-Mar-2020
+# V2.0 17-Feb-2024 Updated for the Graph SDK
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSPOSiteStorageUsedGraph.PS1
-CLS
-# Define the values applicable for the application used to connect to the Graph - You must change these values to match your app id,
-# tenant id, and secret...
-$AppId = "e716b32c-0edb-48be-9385-30a9cfd96155"
-$TenantId = "c662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = 's_rkvIn1oZ1cNceUBvJ2or1lrrIsb*:='
 
-# Build the request to get the OAuth 2.0 access token
-$Uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
-$Body = @{
-    client_id     = $AppId
-    scope         = "https://graph.microsoft.com/.default"
-    client_secret = $AppSecret
-    grant_type    = "client_credentials"}
+Clear-Host
 
-# Request token
-$TokenRequest = Invoke-WebRequest -Method Post -Uri $Uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
-# Unpack Access Token
-$Token = ($tokenRequest.Content | ConvertFrom-Json).access_token
-$Headers = @{Authorization = "Bearer $token"}
+Connect-MgGraph -NoWelcome -Scopes Reports.Read.All, Directory.Read.All
+$ObscureFlag = $false
+$TempDownloadFile = "c:\temp\x.csv"
+
+# Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
+$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri 'https://graph.microsoft.com/beta/admin/reportSettings'
+If ($DisplaySettings['displayConcealedNames'] -eq $true) { # data is obscured, so let's reset it to allow the report to run
+   $ObscureFlag = $true
+   Write-Host "Setting tenant data concealment for reports to False" -foregroundcolor red
+   Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/beta/admin/reportSettings' `
+    -Body (@{"displayConcealedNames"= $false} | ConvertTo-Json) 
+}
+
+$CSVOutputFile = "c:\temp\SPOSiteConsumption.CSV"
+[array]$SiteTypesToReport = "Group", "Team Channel", "Team Site"
 
 Write-Host "Fetching SharePoint Online site data from the Graph..."
 # Get SharePoint files usage data - includes redirects, so we will have to remove them
-$URI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D7')"
-$Sites = (Invoke-RestMethod -Uri $URI -Headers $Headers -Method Get -ContentType "application/json") -replace "ï»¿", "" | ConvertFrom-Csv
+$URI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='D180')"
+Invoke-MgGraphRequest -Uri $Uri -Method GET -OutputFilePath $TempDownloadFile
+[array]$Sites = Import-CSV $TempDownloadFile
 
 $TotalSPOStorageUsed = [Math]::Round(($Sites."Storage Used (Byte)" | Measure-Object -Sum).Sum /1GB,2)
 $Report = [System.Collections.Generic.List[Object]]::new() 
 ForEach ($Site in $Sites) {
   $DoNotProcessSite = $False
   If ([string]::IsNullOrEmpty($Site."Last Activity Date")) {
-    $LastActiveDate = "No Activity" }
-  Else  {
-    $LastActiveDate = Get-Date ($Site."Last Activity Date") -Format dd-MMM-yyyy }
+    $LastActiveDate = "No Activity" 
+  } Else  {
+    $LastActiveDate = Get-Date ($Site."Last Activity Date") -Format dd-MMM-yyyy 
+  }
   
 # Check for redirect sites returned by the Graph so we don't process them
 If (($Site."Owner Display Name" -eq "System Account") -and ([string]::IsNullOrEmpty($Site."Owner Principal Name")))  {
-   $DoNotProcessSite = $True }
-# Check for the fundamental site because we don't want to process it eiteher
-If ($Site."Root Web Template" -eq "SharePoint Online Tenant Fundamental Site") {
-   $DoNotProcessSite = $True }
+    $DoNotProcessSite = $True 
+}
+# Check for the fundamental site because we don't want to process it either
+If ($Site."Root Web Template" -notin $SiteTypesToReport) {
+    $DoNotProcessSite = $True 
+  }
   If ($DoNotProcessSite -eq $False) {
-  $UsedGB = [Math]::Round($Site."Storage Used (Byte)"/1GB,2) 
-  $PercentTenant = ([Math]::Round($Site.StorageUsageCurrent/1024,4)/$TotalSPOStorageUsed).tostring("P")  
-  $SitesProcessed++
-  $ReportLine = [PSCustomObject]@{
+    $UsedGB = [Math]::Round($Site."Storage Used (Byte)"/1GB,2) 
+    $PercentTenant = ([Math]::Round($Site.StorageUsageCurrent/1024,4)/$TotalSPOStorageUsed).tostring("P")  
+    $ReportLine = [PSCustomObject]@{
          URL            = $Site."Site URL"
- #       SiteName       = $Site.Title
          Owner          = $Site."Owner Display Name"
          OwnerUPN       = $Site."Owner Principal Name"
          Files          = $Site."File Count"
@@ -60,16 +61,24 @@ If ($Site."Root Web Template" -eq "SharePoint Online Tenant Fundamental Site") {
          QuotaGB        = [Math]::Round($Site."Storage Allocated (Byte)"/1GB,0) 
          UsedGB         = $UsedGB
          PercentUsed    = ([Math]::Round(($Site."Storage Used (Byte)"/$Site."Storage Allocated (Byte)"),4).ToString("P"))
-         PercentTenant = $PercentTenant }
-  $Report.Add($ReportLine) }
+         PercentTenant = $PercentTenant 
+    }
+    $Report.Add($ReportLine) }
 }
 
-$Report | Export-CSV -NoTypeInformation c:\temp\SPOSiteConsumption.CSV
-$Report | Sort {$_.UsedGB -as [decimal]}, url -Descending | Out-gridview
-Write-Host $SitesProcessed "sites processed. Current SharePoint Online storage consumption is" $TotalSPOStorageUsed "GB. Report is in C:\temp\SPOSiteConsumption.CSV"
+# Switch the tenant report obscure data setting back if necessary
+If ($ObscureFlag -eq $True) {
+  Write-Host "Resetting tenant data concealment for reports to True" -foregroundcolor red
+  Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/beta/admin/reportSettings' `
+   -Body (@{"displayConcealedNames"= $true} | ConvertTo-Json) 
+}
+
+$Report | Export-CSV -NoTypeInformation $CSVOutputFile
+$Report | Sort-Object {$_.UsedGB -as [decimal]}, url -Descending | Out-GridView
+Write-Host ("{0} sites processed. Current SharePoint Online storage consumption is {1} GB. Report file available in {2}" -f $Report.count, $TotalSPOStorageUsed, $CSVOutputReport)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
