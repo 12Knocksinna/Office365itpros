@@ -23,25 +23,30 @@ Write-Host "Finding user accounts to check..."
     -Property Id, displayName, signInActivity, userPrincipalName
 
 Write-Host "Fetching usage data for Teams, Exchange, and OneDrive for Business..."
-# Get Teams user activity detail for the last 180 days
-$Uri = "https://graph.microsoft.com/v1.0/reports/getEmailActivityUserDetail(period='D180')"
+# Get Teams user activity detail for the last 30 days
+$Uri = "https://graph.microsoft.com/v1.0/reports/getTeamsUserActivityUserDetail(period='D30')"
 Invoke-MgGraphRequest -Uri $Uri -Method GET -OutputFilePath $TempDownloadFile
 [array]$TeamsUserData = Import-CSV $TempDownloadFile
 # Get Email activity data
-$Uri = "https://graph.microsoft.com/v1.0/reports/getEmailActivityUserDetail(period='D180')"
+$Uri = "https://graph.microsoft.com/v1.0/reports/getEmailActivityUserDetail(period='D30')"
 Invoke-MgGraphRequest -Uri $Uri -Method GET -OutputFilePath $TempDownloadFile
 [array]$EmailUserData = Import-CSV $TempDownloadFile
 # Get OneDrive data 
-$Uri = "https://graph.microsoft.com/v1.0/reports/getOneDriveActivityUserDetail(period='D180')"
+$Uri = "https://graph.microsoft.com/v1.0/reports/getOneDriveActivityUserDetail(period='D30')"
 Invoke-MgGraphRequest -Uri $Uri -Method GET -OutputFilePath $TempDownloadFile
 [array]$OneDriveUserData = Import-CSV $TempDownloadFile
+# Get Apps detail
+$Uri = "https://graph.microsoft.com/v1.0/reports/getM365AppUserDetail(period='D30')"
+Invoke-mgGraphRequest -Uri $Uri -Method GET -OutputFilePath $TempDownloadFile
+[array]$AppsUserData = Import-CSV $TempDownloadFile
 
 $CopilotReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
     Write-Host ("Checking activity for {0}..." -f $User.displayName)
-    $UserTeamData = $TeamsUserData | Where-Object 'User Principal Name' -match $User.UserPrincipalName
+    $UserTeamsData = $TeamsUserData | Where-Object 'User Principal Name' -match $User.UserPrincipalName
     $UserOneDriveData = $OneDriveUserData | Where-Object 'User Principal Name' -match $User.UserPrincipalName
     $UserEmailData = $EmailUserData | Where-Object 'User Principal Name' -match $User.UserPrincipalName
+    $UserAppsData = $AppsUserData | Where-Object 'User Principal Name' -match $User.UserPrincipalName
 
     $LastSignInDate = $null
     $DaysSinceLastSignIn = $null
@@ -49,17 +54,69 @@ ForEach ($User in $Users) {
         $LastSignInDate = Get-Date $User.signInActivity.LastSignInDateTime -format 'dd-MMM-yyyy'
         $DaysSinceLastSignIn = (New-TimeSpan $User.signInActivity.LastSignInDateTime).Days
     }
+    [int]$Fails = 0; [int]$Points = 0
+    # Test 1 - Has the user signed in withim the last 15 days
+    If ($DaysSinceLastSignIn -le 15) {
+        $Test1 = "Pass"
+        $Points = 25
+    } Else {
+        $Test1 = "Fail"
+        $Fails++
+    }
+    # Test 2 - 20 or more Teams chat and attending at least 5 Teams meetings
+    If (([int]$UserTeamsData.'Team Chat Message Count' -ge 20) -and ([int]$UserTeamsData.'Meetings Attended Count' -ge 5)) {
+        $Test2 = "Pass"
+        $Points = $Points + 20
+    } Else {
+        $Test2 = "Fail"
+        $Fails++
+    }
+    # Test 3 Sends at least 3 messages daily (22 work days over 30) and receives 6 messages daily
+    If (([int]$UserEmailData.'Send Count' -ge 66) -and ([int]$UserEmailData.'Receive Count' -ge 132)) {
+        $Test3 = "Pass" 
+        $Points = $Points + 20
+    } Else {
+        $Test3 = "Fail"
+        $Fails++
+    }
+    # Test 4 - OneDrive - views or edits at least 10 files
+    If ([int]$UserOneDriveData.'Viewed Or Edited File Count' -ge 10) {
+        $Test4 = "Pass"
+        $Points = $Points + 20
+    } Else {
+        $Test4 = "Fail"
+        $Fails++
+    }
+    # Test 5 - Apps - user must use Outlook, Word, and Excel
+    If ($UserAppsData.Outlook -eq "Yes" -and $UserAppsData.Word -eq "Yes" -and $UserAppsData.Excel -eq "Yes") {
+        $Test5 = "Pass"
+        $Points = $Points + 15
+    } Else {
+        $Test5 = "Fail"
+        $Fails++
+    }
+
+    If ($Points -ge 85) {
+        $CopilotApproved = "Approved"
+    } Else {
+        $CopilotApproved = "Not eligible"
+    }
 
     $ReportLine = [PSCustomObject][Ordered]@{ 
         User                = $User.displayName
         UPN                 = $User.UserPrincipalName
         'Last Signin'       = $LastSignInDate
         'Days since signin' = $DaysSinceLastSignIn
-
+        Points              = $Points
+        'Test 1: Sign in'   = $Test1
+        'Test 2: Teams'     = $Test2
+        'Test 3: Email'     = $Test3
+        'Test 4: OneDrive'  = $Test4
+        'Test 5: Apps'      = $Test5
+        'Copilot approved'  = $CopilotApproved
     }
     $CopilotReport.Add($ReportLine)
 }
-
 
 # Switch the tenant report obscure data setting back if necessary
 If ($ObscureFlag -eq $True) {

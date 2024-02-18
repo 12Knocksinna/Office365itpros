@@ -2,9 +2,9 @@
 # Extracts audit events from the Office 365 audit log to generate a report
 # https://github.com/12Knocksinna/Office365itpros/edit/master/ReportSensitivityLabelsAuditRecords.ps1
 # Needs connections to Exchange Online and the compliance endpoints
-CLS
+Clear-Host
 # Check that we are connected to Exchange Online
-$ModulesLoaded = Get-Module | Select Name
+$ModulesLoaded = Get-Module | Select-Object -ExpandProperty Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 # Now check for connection to compliance endpoint
 $TenantLabels = @{}
@@ -34,8 +34,7 @@ Else {
     ForEach ($Rec in $Records) {
       $Document = $Null; $Site = $Null; $OldLabelId = "None"; $SiteLabelId = $Null; $SiteLabel = $Null; $OldLabel = "None"; $Device = $Null; $Application = $Null
       $AuditData = ConvertFrom-Json $Rec.Auditdata
-      $User        = $AuditData.UserId
-      $Target      = $ObjectId = [System.Web.HttpUtility]::UrlDecode($AuditData.ObjectId)
+      $Target = [System.Web.HttpUtility]::UrlDecode($AuditData.ObjectId)
       Switch ($AuditData.Operation)            {
             "SensitivityLabelApplied" { # Apply sensitivity label to a site, group, or team
                  If ($Rec.RecordType -eq "SharePoint") { # It's an application of a label to a site rather than a file
@@ -121,7 +120,7 @@ Else {
             
 # Resolve Label identifiers to display name
          If (([String]::IsNUllOrWhiteSpace($LabelId) -eq $False )) { $Label = $TenantLabels.Item($LabelId) }
-         If ($SiteLabelId -ne $Null) { $SiteLabel = $TenantLabels.Item($SiteLabelId) }
+         If ($null -ne $SiteLabelId) { $SiteLabel = $TenantLabels.Item($SiteLabelId) }
          If ($OldLabelId -ne "None") { $OldLabel = $TenantLabels.Item($OldLabelId) }
          $ReportLine = [PSCustomObject] @{
            TimeStamp   = Get-Date($AuditData.CreationTime) -format g
@@ -141,7 +140,7 @@ Else {
            Action      = $AuditData.Operation }        
       $Report.Add($ReportLine) }
 }
-Cls
+Clear-Host
 Write-Host "Job complete." $Records.Count "Sensitivity Label audit records found for the last 90 days"
 Write-Host " "
 Write-Host "Labels applied to SharePoint sites   :   " $GroupLabels
@@ -155,7 +154,7 @@ Write-Host "----------------------"
 Write-Host " "
 Write-Host "Report file written to" $OutputCSVFile
 
-$Report = $Report | Sort {$_.TimeStamp -as [datetime]} 
+$Report = $Report | Sort-Object {$_.TimeStamp -as [datetime]} 
 $Report | Export-CSV -NoTypeInformation $OutputCSVFile
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
