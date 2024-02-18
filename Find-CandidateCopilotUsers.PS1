@@ -2,11 +2,13 @@
 # A script showing how to use the Microsoft Graph PowerShell SDK to identify users who might be suitable to 
 # receive Copilot for Microsoft 365 licenses
 # V1.0 15-Feb-2024
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Find-CandidateCopilotUsers.PS1
 
 Connect-MgGraph -NoWelcome -Scopes Reports.Read.All, Directory.Read.All
 
 $TempDownloadFile = "c:\temp\x.csv"
 $ObscureFlag = $false
+$CSVOutputFile = "C:\temp\CopilotUserAnalysis.CSV"
 
 # Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
 $DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri 'https://graph.microsoft.com/beta/admin/reportSettings'
@@ -40,6 +42,7 @@ $Uri = "https://graph.microsoft.com/v1.0/reports/getM365AppUserDetail(period='D3
 Invoke-mgGraphRequest -Uri $Uri -Method GET -OutputFilePath $TempDownloadFile
 [array]$AppsUserData = Import-CSV $TempDownloadFile
 
+Write-Host "Analyzing information..."
 $CopilotReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
     Write-Host ("Checking activity for {0}..." -f $User.displayName)
@@ -117,6 +120,15 @@ ForEach ($User in $Users) {
     }
     $CopilotReport.Add($ReportLine)
 }
+
+[array]$CopilotRecommendations = $CopilotReport | Where-Object {$_.'Copilot Approved' -eq 'Approved'} | Select-Object User, UPN
+$CopilotReport | Export-CSV -NoTypeInformation $CSVOutputFile
+Clear-Host
+Write-Host ""
+Write-Host ("Based on analysis of user activity and apps, there are {0} users recommended" -f $CopilotRecommendations.count)
+Write-Host ("to receive Copilot for Microsoft 365 licenses. Details are available in this file: {0}" -f $CSVOutputFile)
+Write-Host ""
+$CopilotRecommendations
 
 # Switch the tenant report obscure data setting back if necessary
 If ($ObscureFlag -eq $True) {
