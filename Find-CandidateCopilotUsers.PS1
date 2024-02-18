@@ -19,9 +19,15 @@ If ($DisplaySettings['displayConcealedNames'] -eq $true) { # data is obscured, s
     -Body (@{"displayConcealedNames"= $false} | ConvertTo-Json) 
 }
 
+# This command finds user accounts with an eligible Copilot base license. It specifies the SKU identifers for
+# Office 365 E3, Office 365 E5, Microsoft 365 E3, amd Microsoft 365 E5. There are other variants of these SKUs
+# for government and academic use, so it's important to pass the SKU identifiers in use within the tenant
 Write-Host "Finding user accounts to check..."
-[array]$Users = Get-MgUser -All -Sort 'displayName' `
-    -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -consistencyLevel eventual -CountVariable UsersFound `
+[array]$Users = Get-MgUser -Filter "assignedLicenses/any(s:s/skuId eq 6fd2c87f-b296-42f0-b197-1e91e994b900) `
+    or assignedLicenses/any(s:s/skuid eq c7df2760-2c81-4ef7-b578-5b5392b571df) `
+    or assignedLicenses/any(s:s/skuid eq 05e9a617-0261-4cee-bb44-138d3ef5d965) `
+    or assignedLicenses/any(s:s/skuid eq 06ebc4ee-1bb5-47dd-8120-11324bc54e06)" `
+    -ConsistencyLevel Eventual -CountVariable Licenses -All -Sort 'displayName' `
     -Property Id, displayName, signInActivity, userPrincipalName
 
 Write-Host "Fetching usage data for Teams, Exchange, and OneDrive for Business..."
