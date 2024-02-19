@@ -7,8 +7,14 @@
 Write-Host "Connecting to Azure Automation"
 # If your account uses MFA, as it should... you need to authenticate by passing the tenantid and subscriptionid 
 # see https://learn.microsoft.com/en-us/powershell/module/az.accounts/connect-azaccount?view=azps-11.3.0 for more info
+# e.g. 
+# $SubscriptionId = "35429342-a1a5-4427-9e2d-551840f2ad25"
+# $TenantId = (Get-MgOrganization).Id
+# Connect-AzAccount -TenantId $TenantId -SubscriptionId 
 $Status = Connect-AzAccount
-If (!($Status)) { Write-Host "Account not authenticated - exiting" ; break }
+If (!($Status)) { 
+  Write-Host "Account not authenticated - exiting" ; break 
+}
 
 # Find Latest version from PowerShell Gallery
 $DesiredVersion = (Find-Module -Name Microsoft.Graph | Select-Object -ExpandProperty Version)
@@ -40,7 +46,7 @@ ForEach ($AzAccount in $AzAccounts) {
     $GraphPSModules | Format-Table Name, Version, LastModifiedTime }
   
   $UpgradeNeeded = $True
-  $ModulesToUpdate = $GraphPSModules | ? {$_.Version -ne $DesiredVersion}
+  $ModulesToUpdate = $GraphPSModules | Where-Object {$_.Version -ne $DesiredVersion}
   $ModulesToUpdate = $ModulesToUpdate | Sort-Object Name
   If ($ModulesToUpdate.Count -eq 0) {
      Write-Host ("No modules need to be updated for account {0}" -f $AzName)
@@ -65,7 +71,7 @@ ForEach ($AzAccount in $AzAccounts) {
    $ModuleName = "Microsoft.Graph.Authentication"
    $Uri = "https://www.powershellgallery.com/api/v2/package/$ModuleName/$DesiredVersion"
    $Status = New-AzAutomationModule -AutomationAccountName $AzName -ResourceGroup $AzResourceGroup -Name $ModuleName -ContentLinkUri $Uri 
-   Sleep 180 
+   Start-Sleep -Seconds 180 
    # Remove authentication from the set of modules for update
    [array]$ModulesToUpdate = $ModulesToUpdate | Where-Object {$_.Name -ne "Microsoft.Graph.Authentication"}
  }
@@ -77,19 +83,22 @@ If ($ModulesToUpdate.Count -gt 0 -and $UpgradeNeeded -eq $True) {
     [string]$ModuleName = $Module.Name
     $Uri = "https://www.powershellgallery.com/api/v2/package/$ModuleName/$DesiredVersion"
     Write-Host ("Updating module {0} from {1}" -f $ModuleName, $Uri)
-    $Satus = (New-AzAutomationModule -AutomationAccountName $AzName -ResourceGroup $AzResourceGroup -Name $ModuleName -ContentLinkUri $Uri)
+    $Status = (New-AzAutomationModule -AutomationAccountName $AzName -ResourceGroup $AzResourceGroup -Name $ModuleName -ContentLinkUri $Uri)
   } #End ForEach
   Write-Host "Waiting for module import processing to complete..."
   # Wait for to let everything finish
-  $i = 0
+  [int]$x = 0
   Do  {
-   Sleep 60
-   # Check that all the modules we're interested in are fully provisioned with updated code
-   [array]$GraphPSModules = Get-AzAutomationModule -AutomationAccountName $AzName -ResourceGroup $AzResourceGroup | `
+    Start-Sleep -Seconds 60
+    # Check that all the modules we're interested in are fully provisioned with updated code
+    [array]$GraphPSModules = Get-AzAutomationModule -AutomationAccountName $AzName -ResourceGroup $AzResourceGroup | `
        Where-Object {$_.Name -match "Microsoft.Graph" -and $_.ProvisioningState -eq "Succeeded"}
-   [array]$ModulesToUpdate = $GraphPSModules | Where-Object {$_.Version -ne $DesiredVersion}
-   If ($ModulesToUpdate.Count -eq 0) {$x = 1}
-   Else {Write-Host "Still working..." }
+    [array]$ModulesToUpdate = $GraphPSModules | Where-Object {$_.Version -ne $DesiredVersion}
+    If ($ModulesToUpdate.Count -eq 0) {
+      $x = 1
+    } Else {
+      Write-Host "Still working..." 
+    }
   } While ($x = 0)
 
   Write-Host ""
