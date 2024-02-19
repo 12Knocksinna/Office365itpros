@@ -1,7 +1,7 @@
 # Update-PlanWithTasks.PS1
 # An example of using the Microsoft Graph PowerShell SDK to read message center notifications
 # and use that data to update tasks in a Planner Plan
-# V1.0 31-Jan-2024
+# V1.0 19-Feb-2024
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Update-PlanWithTasks.PS1
 
 Connect-MgGraph -NoWelcome -Scopes Group.Read.All, Tasks.ReadWrite
@@ -9,15 +9,14 @@ Connect-MgGraph -NoWelcome -Scopes Group.Read.All, Tasks.ReadWrite
 $ProcessedDataFile = "c:\temp\Announcements.csv"
 $GroupId = '78b47932-b35f-4b26-94c2-3228cb234b07'
 $TargetPlanName = 'Admin Task Assignment'
-$CheckDate = (Get-Date).AddDays(-7)
 $Now = Get-Date
 Write-Host ("Staring synchronization run at {0}" -f $Now)
 
 # Attempt to import the file of previously processed data. If we have a file, set the window to query for new 
 # announcements to 7 days. If not, use 60 days
-[array]$ProcessedData = Import-CSV $ProcessedDataFile
+[array]$ProcessedData = Import-CSV $ProcessedDataFile -ErrorAction SilentlyContinue
 If ($ProcessedData) {
-    $CheckDate = (Get-Date).AddDays(-7)
+    $CheckDate = (Get-Date).AddDays(-21)
 } Else {
     $CheckDate = (Get-Date).AddDays(-60)
 }
@@ -27,7 +26,7 @@ Write-Host "Finding message center announcement posts"
 # the data to find the announcements created in the window we want to process
 [array]$AllAnnouncements = Get-MgServiceAnnouncementMessage -Sort 'LastmodifiedDateTime desc' -All 
 [array]$AnnouncementsForPeriod = $AllAnnouncements | Where-Object {$_.StartDateTime -as [datetime] -gt $CheckDate} 
-If ($Announcements.Count -eq 0) {
+If ($AnnouncementsForPeriod.Count -eq 0) {
     Write-Host ("No new message center posts found since {0} - exiting" -f $CheckDate)
     Break
 } Else {
@@ -82,16 +81,17 @@ $GeneralAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 
 $PurviewAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 'James.A.Abrahams@office365itpros.com'
 
 # Planner likes to assign people via user id, so we make sure that we have it
-$PowerAssignee = (Get-MgUser -UserId $PowerAssignee.userPrincipalName)
-$TeamsAssignee = (Get-MgUser -UserId $TeamsAssignee.userPrincipalName)
-$SharePointAssignee = (Get-MgUser -UserId $SharePointAssignee.userPrincipalName)
-$AdminAssignee = (Get-MgUser -UserId $AdminAssignee.userPrincipalName)
-$ExchangeAssignee = (Get-MgUser -UserId $ExchangeAssignee.userPrincipalName)
-$PlannerAssignee = (Get-MgUser -UserId $PlannerAssignee.userPrincipalName)
-$EntraAssignee = (Get-MgUser -UserId $EntraAssignee.userPrincipalName)
-$OfficeAppsAssignee = (Get-MgUser -UserId $OfficeAppsAssignee.userPrincipalName)
-$GeneralAssignee = (Get-MgUser -UserId $GeneralAssignee.userPrincipalName)
-$PurviewAssignee = (Get-MgUser -UserId $PurviewAssignee.userPrincipalName)
+# The select statement is there because of the spurious output bug in SDK V2.13.1 and V2.14
+$PowerAssignee = (Get-MgUser -UserId $PowerAssignee.userPrincipalName) | Select-Object -First 1
+$TeamsAssignee = (Get-MgUser -UserId $TeamsAssignee.userPrincipalName) | Select-Object -First 1
+$SharePointAssignee = (Get-MgUser -UserId $SharePointAssignee.userPrincipalName) | Select-Object -First 1
+$AdminAssignee = (Get-MgUser -UserId $AdminAssignee.userPrincipalName) | Select-Object -First 1
+$ExchangeAssignee = (Get-MgUser -UserId $ExchangeAssignee.userPrincipalName) | Select-Object -First 1
+$PlannerAssignee = (Get-MgUser -UserId $PlannerAssignee.userPrincipalName) | Select-Object -First 1
+$EntraAssignee = (Get-MgUser -UserId $EntraAssignee.userPrincipalName) | Select-Object -First 1
+$OfficeAppsAssignee = (Get-MgUser -UserId $OfficeAppsAssignee.userPrincipalName) | Select-Object -First 1
+$GeneralAssignee = (Get-MgUser -UserId $GeneralAssignee.userPrincipalName) | Select-Object -First 1
+$PurviewAssignee = (Get-MgUser -UserId $PurviewAssignee.userPrincipalName) | Select-Object -First 1
 
 # Some generic settings needed for an assignment
 $GenericTaskData = @{}
