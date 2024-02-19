@@ -4,14 +4,14 @@
 # V1.0 15-Feb-2024
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Find-CandidateCopilotUsers.PS1
 
-Connect-MgGraph -NoWelcome -Scopes Reports.Read.All, Directory.Read.All
+Connect-MgGraph -NoWelcome -Scopes Reports.Read.All, ReportSettings.ReadWrite.All, User.Read.All
 
 $TempDownloadFile = "c:\temp\x.csv"
 $ObscureFlag = $false
 $CSVOutputFile = "C:\temp\CopilotUserAnalysis.CSV"
 
 # Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
-$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri 'https://graph.microsoft.com/beta/admin/reportSettings'
+$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri 
 If ($DisplaySettings['displayConcealedNames'] -eq $true) { # data is obscured, so let's reset it to allow the report to run
    $ObscureFlag = $true
    Write-Host "Setting tenant data concealment for reports to False" -foregroundcolor red
