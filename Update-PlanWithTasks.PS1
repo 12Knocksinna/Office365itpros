@@ -16,7 +16,7 @@ Write-Host ("Staring synchronization run at {0}" -f $Now)
 # announcements to 7 days. If not, use 60 days
 [array]$ProcessedData = Import-CSV $ProcessedDataFile -ErrorAction SilentlyContinue
 If ($ProcessedData) {
-    $CheckDate = (Get-Date).AddDays(-21)
+    $CheckDate = (Get-Date).AddDays(7)
 } Else {
     $CheckDate = (Get-Date).AddDays(-60)
 }
@@ -64,6 +64,7 @@ $AdminBucket = $Buckets | Where-Object Name -match 'Administration'
 $EntraBucket = $Buckets | Where-Object Name -match 'Entra'
 $OfficeAppsBucket = $Buckets | Where-Object Name -match 'Office Apps'
 $PurviewBucket = $Buckets | Where-Object Name -match 'Purview'
+$VivaBucket = $Buckets | Where-Object Name -match 'Viva'
 
 Write-Host "Finding plan members and creating assignee details..."
 [array]$PlanMembers = Get-MgGroupMember -GroupId $GroupId
@@ -79,6 +80,7 @@ $EntraAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 'b
 $OfficeAppsAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 'hans.geering@office365itpros.com'
 $GeneralAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 'kim.Akers@office365itpros.com'
 $PurviewAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 'James.A.Abrahams@office365itpros.com'
+$VivaAssignee = $PlanMembers.additionalProperties | Where-Object mail -match 'mimie@office365exchangebook.com'
 
 # Planner likes to assign people via user id, so we make sure that we have it
 # The select statement is there because of the spurious output bug in SDK V2.13.1 and V2.14
@@ -92,6 +94,7 @@ $EntraAssignee = (Get-MgUser -UserId $EntraAssignee.userPrincipalName) | Select-
 $OfficeAppsAssignee = (Get-MgUser -UserId $OfficeAppsAssignee.userPrincipalName) | Select-Object -First 1
 $GeneralAssignee = (Get-MgUser -UserId $GeneralAssignee.userPrincipalName) | Select-Object -First 1
 $PurviewAssignee = (Get-MgUser -UserId $PurviewAssignee.userPrincipalName) | Select-Object -First 1
+$VivaAssignee = (Get-MgUser -UserId $VivaAssignee.userPrincipalName) | Select-Object -First 1
 
 # Some generic settings needed for an assignment
 $GenericTaskData = @{}
@@ -112,7 +115,7 @@ ForEach ($Announcement in $Announcements) {
     
     # Figure out who should be assigned
     Switch -wildcard ($Services) {
-        "Microsoft Teams" {
+        "Microsoft Teams*" {
             $AssignedUserId = $TeamsAssignee.Id
             $AssignedName = $TeamsAssignee.DisplayName
             $TargetBucket = $TeamsBucket.Id
@@ -140,7 +143,7 @@ ForEach ($Announcement in $Announcements) {
             $BucketName = "SharePoint Online"
             $Category = "category7"
         }
-        "Plan*" {
+        "*Plan*" {
             $AssignedUserId = $PlannerAssignee.Id
             $AssignedName = $PlannerAssignee.DisplayName
             $TargetBucket = $PlannerBucket.Id
@@ -167,6 +170,13 @@ ForEach ($Announcement in $Announcements) {
             $TargetBucket = $OfficeAppsBucket.Id
             $BucketName   = "Office Apps"
             $Category = "category6"
+        }
+        "*Viva*" {
+            $AssignedUserId = $VivaAssignee.Id
+            $AssignedName = $VivaAssignee.DisplayName
+            $TargetBucket = $VivaBucket.Id
+            $BucketName   = "Viva"
+            $Category = "category9"
         }
         "*Purview*" {
             $AssignedUserId = $PurviewAssignee.Id
@@ -217,12 +227,16 @@ ForEach ($Announcement in $Announcements) {
     $TaskParameters.Add('assignments', $TaskAssignments)
     $TaskParameters.Add('priority', '5')
     $TaskParameters.Add('startDateTime', $Announcement.LastModifiedDateTime)
+    # If an end date is given, use it as the due date for the task
+    If ($Announcement.EndDateTime) {
+        $TaskParameters.Add('dueDateTime', $Announcement.EndDateTime)
+    }
     
     $NewTask = New-MgPlannerTask -BodyParameter $TaskParameters
     If ($NewTask) {
         $TaskDetails = Get-MgPlannerTaskDetail -PlannerTaskId $NewTask.Id
-        Update-MgPlannerTask -PlannerTaskId $NewTask.Id -BodyParameter $TaskCategoryParams -IfMatch $NewTask.additionalProperties.'@odata.etag'
-        Update-MgPlannerTaskDetail -PlannerTaskId $TaskDetails.Id -BodyParameter $TaskDescription -IfMatch $TaskDetails.additionalProperties.'@odata.etag'
+        $Status = Update-MgPlannerTask -PlannerTaskId $NewTask.Id -BodyParameter $TaskCategoryParams -IfMatch $NewTask.additionalProperties.'@odata.etag'
+        $Status = Update-MgPlannerTaskDetail -PlannerTaskId $TaskDetails.Id -BodyParameter $TaskDescription -IfMatch $TaskDetails.additionalProperties.'@odata.etag'
         Write-Host ("Task {0} assigned to {1}" -f $TaskTitle, $AssignedName)
         $DataLine = [PSCustomObject][Ordered]@{
             TaskId          = $Announcement.ID
@@ -237,7 +251,8 @@ ForEach ($Announcement in $Announcements) {
 
 # Now we need to check if any changes have happened to tasks in our plan
 # Start off by getting the set of known tasks in the plan
-[array]$CurrentTasks = Get-MgPlannerPlanTask -PlannerPlanId $TargetPlan.Id
+# We're only interested in incomplete tasks, so that's why we filter out any that are marked as complete
+[array]$CurrentTasks = Get-MgPlannerPlanTask -PlannerPlanId $TargetPlan.Id | Where-Object  {$_.null -eq $_.CompletedDateTime}
 ForEach ($Task in $CurrentTasks) {
     # For each task, get its MC identifier
     $Start = $Task.Title.IndexOf("MC")
