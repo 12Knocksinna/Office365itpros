@@ -4,7 +4,7 @@
 # V1.0 19-Feb-2024
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Update-PlanWithTasks.PS1
 
-Connect-MgGraph -NoWelcome -Scopes Group.Read.All, Tasks.ReadWrite
+Connect-MgGraph -NoWelcome -Scopes Group.Read.All, Tasks.ReadWrite, ServiceMessage.Read.All, User.Read.All
 
 $ProcessedDataFile = "c:\temp\Announcements.csv"
 $GroupId = '78b47932-b35f-4b26-94c2-3228cb234b07'

@@ -5,6 +5,8 @@
 # Requires the Az.Automation PowerShell module
 
 Write-Host "Connecting to Azure Automation"
+# If your account uses MFA, as it should... you need to authenticate by passing the tenantid and subscriptionid 
+# see https://learn.microsoft.com/en-us/powershell/module/az.accounts/connect-azaccount?view=azps-11.3.0 for more info
 $Status = Connect-AzAccount
 If (!($Status)) { Write-Host "Account not authenticated - exiting" ; break }
 
