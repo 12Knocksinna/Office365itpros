@@ -235,7 +235,9 @@ ForEach ($Announcement in $Announcements) {
     $NewTask = New-MgPlannerTask -BodyParameter $TaskParameters
     If ($NewTask) {
         $TaskDetails = Get-MgPlannerTaskDetail -PlannerTaskId $NewTask.Id
+        # Update the new task with a label
         $Status = Update-MgPlannerTask -PlannerTaskId $NewTask.Id -BodyParameter $TaskCategoryParams -IfMatch $NewTask.additionalProperties.'@odata.etag'
+        # Update the new task with the description
         $Status = Update-MgPlannerTaskDetail -PlannerTaskId $TaskDetails.Id -BodyParameter $TaskDescription -IfMatch $TaskDetails.additionalProperties.'@odata.etag'
         Write-Host ("Task {0} assigned to {1}" -f $TaskTitle, $AssignedName)
         $DataLine = [PSCustomObject][Ordered]@{
