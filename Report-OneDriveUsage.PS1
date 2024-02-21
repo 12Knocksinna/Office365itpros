@@ -5,10 +5,20 @@
 
 Connect-MgGraph -NoWelcome -Scopes User.Read.All, Reports.Read.All
 
+$ObscureFlag = $false
 $CSVOutputFile = "c:\temp\OneDriveSiteConsumption.CSV"
 $TempExportFile = "c:\temp\TempExportFile.CSV"
 If (Get-Item $TempExportFile -ErrorAction SilentlyContinue) {
     Remove-Item $TempExportFile
+}
+
+# Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
+$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri 
+If ($DisplaySettings['displayConcealedNames'] -eq $true) { # data is obscured, so let's reset it to allow the report to run
+   $ObscureFlag = $true
+   Write-Host "Setting tenant data concealment for reports to False" -foregroundcolor red
+   Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/beta/admin/reportSettings' `
+    -Body (@{"displayConcealedNames"= $false} | ConvertTo-Json) 
 }
 
 # Get user account information and load it into a hash table so that we can use it along with the OneDrive info
@@ -56,6 +66,13 @@ $Report | Export-CSV -NoTypeInformation $CSVOutputFile
 # You don't have to do this, but it's useful to view the data via Out-GridView
 $Report | Sort-Object UsedGB -Descending | Out-GridView
 Write-Host ("Current OneDrive for Business storage consumption is {0} GB. Report is in {1}" -f $TotalODFBGBUsed, $CSVOutputFile)
+
+# Switch the tenant report obscure data setting back if necessary
+If ($ObscureFlag -eq $True) {
+    Write-Host "Resetting tenant data concealment for reports to True" -foregroundcolor red
+    Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/beta/admin/reportSettings' `
+     -Body (@{"displayConcealedNames"= $true} | ConvertTo-Json) 
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
