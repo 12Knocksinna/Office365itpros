@@ -23,7 +23,7 @@ If ($DisplaySettings['displayConcealedNames'] -eq $true) { # data is obscured, s
 
 # Get user account information and load it into a hash table so that we can use it along with the OneDrive info
 
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
+[array]$Users = Get-MgUser -All -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
     -ConsistencyLevel Eventual -CountVariable UserCount -Sort 'displayName' `
     -Property Id, displayName, userPrincipalName, city, country, department, jobTitle, officeLocation
 
