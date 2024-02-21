@@ -9,7 +9,6 @@ ForEach ($Command in $InputCmdlets) {
         If ($Permission -notin $RequiredPermissions) {
             $RequiredPermissions += $Permission
         }
-
     }
 }
 Write-Host ("To use these {0} cmdlets, you need the following permissions: {1}" -f ($InputCmdlets -join ", "), ($RequiredPermissions -join ", "))
