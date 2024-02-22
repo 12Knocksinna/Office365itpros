@@ -51,6 +51,17 @@ $UnlicensedAccounts = 0
 # Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
 Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog.Read.All" -NoWelcome
 
+<#
+Alternative: Use Application ID and Secured Password for authentication
+$ApplicationId = "<applicationId>"
+$SecuredPassword = "<securedPassword>"
+$tenantID = "<tenantId>"
+
+$SecuredPasswordPassword = ConvertTo-SecureString -String $SecuredPassword -AsPlainText -Force
+$ClientSecretCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ApplicationId, $SecuredPasswordPassword
+Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential
+#>
+
 # This step depends on the availability of some CSV files generated to hold information about the product licenses used in the tenant and 
 # the service plans in those licenses. See https://github.com/12Knocksinna/Office365itpros/blob/master/CreateCSVFilesForSKUsAndServicePlans.PS1 
 # for code to generate the CSVs. After the files are created, you need to edit them to add the display names for the SKUs and plans.
