@@ -102,10 +102,11 @@ If ($ImportSkus[0].Price) {
 
 # Find tenant accounts - but filtered so that we only fetch those with licenses
 Write-Host "Finding licensed user accounts..."
-[Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
+[Array]$Users = Get-MgUser -Filter "userType eq 'Member'" `
   -ConsistencyLevel eventual -CountVariable Records -All `
   -Property id, displayName, userPrincipalName, country, department, assignedlicenses, `
   LicenseAssignmentStates, createdDateTime, jobTitle, signInActivity | `
+  Where-Object { $_.LicenseAssignmentStates.Count -ne 0 } | `
   Sort-Object DisplayName
 
 If (!($Users)) { 
@@ -118,7 +119,7 @@ Else {
 [array]$Departments = $Users.Department | Sort-Object -Unique
 [array]$Countries = $Users.Country | Sort-Object -Unique
 $OrgName = (Get-MgOrganization).DisplayName
-$DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0
+$DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0; $LicenseErrorCount = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 $i = 0
 [float]$TotalUserLicenseCosts = 0
@@ -126,19 +127,34 @@ $i = 0
 
 ForEach ($User in $Users) {
   $UnusedAccountWarning = "OK"; $i++; $UserCosts = 0
+  $ErrorMsg = ""; $LastLicenseChange = ""
   Write-Host ("Processing account {0} {1}/{2}" -f $User.UserPrincipalName, $i, $Users.Count)
-  If ([string]::IsNullOrWhiteSpace($User.AssignedLicenses) -eq $False) {
+  If ([string]::IsNullOrWhiteSpace($User.licenseAssignmentStates) -eq $False) {
     # Only process account if it has some licenses
     [array]$LicenseInfo = $Null; [array]$DisabledPlans = $Null; 
     #  Find out if any of the user's licenses are assigned via group-based licensing
     [array]$GroupAssignments = $User.licenseAssignmentStates | `
       Where-Object { $null -ne $_.AssignedByGroup -and $_.State -eq "Active" }
+    #  Find out if any of the user's licenses are assigned via group-based licensing and having an error
+    [array]$GroupErrorAssignments = $User.licenseAssignmentStates | `
+      Where-Object { $Null -ne $_.AssignedByGroup -and $_.State -eq "Error" }
     [array]$GroupLicensing = $Null
+    # Find out when the last license change was made
+    if ([string]::IsNullOrWhiteSpace($User.licenseAssignmentStates.lastupdateddatetime) -eq $False) {
+      $LastLicenseChange = Get-Date(($user.LicenseAssignmentStates.lastupdateddatetime | Measure-Object -Maximum).Maximum) -format g
+    }
     # Figure out group-based licensing assignments if any exist
     ForEach ($G in $GroupAssignments) {
       $GroupName = (Get-MgGroup -GroupId $G.AssignedByGroup).DisplayName
       $GroupProductName = $SkuHashTable[$G.SkuId]
       $GroupLicensing += ("{0} assigned from {1}" -f $GroupProductName, $GroupName)
+    }
+    ForEach ($G in $GroupErrorAssignments) {
+      $GroupName = (Get-MgGroup -GroupId $G.AssignedByGroup).DisplayName
+      $GroupProductName = $SkuHashTable[$G.SkuId]
+      $ErrorMsg = $G.Error
+      $LicenseErrorCount++
+      $GroupLicensing += ("{0} assigned from {1} BUT ERROR {2}!" -f $GroupProductName, $GroupName, $ErrorMsg)
     }
     $GroupLicensingAssignments = $GroupLicensing -Join ", "
     [Array]$DirectAssignments = $Null
@@ -223,19 +239,38 @@ ForEach ($User in $Users) {
     $UnlicensedAccounts++
   }
 
-  # Calculate how long it's been since someone signed in
-  If ([string]::IsNullOrWhiteSpace($User.SignInActivity.LastSignInDateTime) -eq $False) {
-    [datetime]$LastSignInDate = $User.SignInActivity.LastSignInDateTime
-    $DaysSinceLastSignIn = ($RunNow - $LastSignInDate).Days
-    $LastAccess = Get-Date($User.SignInActivity.LastSignInDateTime) -format 'dd-MMM-yyyy HH:mm'
-    If ($DaysSinceLastSignIn -gt 60) { 
-      $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn)
-    } 
-  }
-  Else {
+  $LastSignIn = $User.SignInActivity.LastSignInDateTime
+  $LastNonInteractiveSignIn = $User.SignInActivity.LastNonInteractiveSignInDateTime
+
+  if (-not $LastSignIn -and -not $LastNonInteractiveSignIn) {
     $DaysSinceLastSignIn = "Unknown"
     $UnusedAccountWarning = ("Unknown last sign-in for account")
     $LastAccess = "Unknown"
+  }
+  else {
+    # Get the newest date, if both dates contain values
+    if ($LastSignIn -and $LastNonInteractiveSignIn) {
+      if ($LastSignIn -gt $LastNonInteractiveSignIn) {
+        $CompareDate = $LastSignIn
+      }
+      else {
+        $CompareDate = $LastNonInteractiveSignIn
+      }
+    }
+    elseif ($LastSignIn) {
+      # Only $LastSignIn has a value
+      $CompareDate = $LastSignIn
+    }
+    else {
+      # Only $LastNonInteractiveSignIn has a value
+      $CompareDate = $LastNonInteractiveSignIn
+    }
+
+    $DaysSinceLastSignIn = ($RunDate - $CompareDate).Days
+    $LastAccess = Get-Date($CompareDate) -format g
+    If ($DaysSinceLastSignIn -gt 60) { 
+      $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn) 
+    }
   }
 
   $AccountCreatedDate = $Null
@@ -261,6 +296,8 @@ ForEach ($User in $Users) {
       "Disabled Plans"           = $DisabledPlans 
       "Group based licenses"     = $GroupLicensingAssignments
       "Annual License Costs"     = ("{0} {1}" -f $Currency, ($UserCosts.toString('F2')))
+      "Error message"            = $ErrorMsg
+      "Last License Change"      = $LastLicenseChange
       "Account created"          = $AccountCreatedDate
       "Last Signin"              = $LastAccess
       "Days since last signin"   = $DaysSinceLastSignIn
@@ -280,6 +317,8 @@ ForEach ($User in $Users) {
       "Direct assigned licenses" = $LicenseInfo
       "Disabled Plans"           = $DisabledPlans 
       "Group based licenses"     = $GroupLicensingAssignments
+      "Error message"            = $ErrorMsg
+      "Last License Change"      = $LastLicenseChange
       "Account created"          = $AccountCreatedDate
       "Last Signin"              = $LastAccess
       "Days since last signin"   = $DaysSinceLastSignIn
@@ -407,6 +446,7 @@ $HtmlBody1 = $HTMLBody1 + "<p>Report created for: " + $OrgName + "</p>" +
 "<p>Percent underused user accounts:           " + $PercentUnderusedAccounts + "</p>" +
 "<p>Accounts detected with duplicate licenses: " + $DuplicateSKUsAccounts + "</p>" +
 "<p>Count of duplicate licenses:               " + $DuplicateSKULicenses + "</p>" +
+"<p>Count of errors:                           " + $LicenseErrorCount + "</p>" +
 "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"
 
 
