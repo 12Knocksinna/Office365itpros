@@ -39,7 +39,7 @@ Function Get-LicenseCosts {
   Return ($Costs / 100)
 } 
 
-[string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
+[datetime]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
 [datetime]$RunNow = Get-Date
 $Version = "1.6"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
@@ -57,15 +57,18 @@ Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog
 # Build Hash of Skus for lookup so that we report user-friendly display names - you need to create these CSV files from SKU and service plan
 # data in your tenant.
 
-If ((Test-Path c:\temp\SkuDataComplete.csv) -eq $False) {
-  Write-Host "Can't find the product data file (c:\temp\SkuDataComplete.csv). Exiting..." ; break 
+$skuDataPath = "C:\temp\SkuDataComplete.csv"
+$servicePlanPath = "C:\temp\ServicePlanDataComplete.csv"
+
+If ((Test-Path $skuDataPath) -eq $False) {
+  Write-Host ("Can't find the product data file ({0}). Exiting..." -f $skuDataPath) ; break 
 }
-If ((Test-Path c:\temp\ServicePlanDataComplete.csv) -eq $False) {
-  Write-Host "Can't find the serivice plan data file (c:\temp\ServicePlanDataComplete.csv). Exiting..." ; break 
+If ((Test-Path $servicePlanPath) -eq $False) {
+  Write-Host ("Can't find the serivice plan data file ({0}). Exiting..." -f $servicePlanPath) ; break 
 }
    
-$ImportSkus = Import-CSV c:\temp\SkuDataComplete.csv
-$ImportServicePlans = Import-CSV c:\temp\ServicePlanDataComplete.csv
+$ImportSkus = Import-CSV $skuDataPath
+$ImportServicePlans = Import-CSV $servicePlanPath
 $SkuHashTable = @{}
 ForEach ($Line in $ImportSkus) { $SkuHashTable.Add([string]$Line.SkuId, [string]$Line.DisplayName) }
 $ServicePlanHashTable = @{}
