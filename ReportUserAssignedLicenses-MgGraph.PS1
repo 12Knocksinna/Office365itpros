@@ -40,7 +40,6 @@ Function Get-LicenseCosts {
 } 
 
 [datetime]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
-[datetime]$RunNow = Get-Date
 $Version = "1.6"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
 $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
@@ -157,44 +156,38 @@ ForEach ($User in $Users) {
       $GroupLicensing += ("{0} assigned from {1} BUT ERROR {2}!" -f $GroupProductName, $GroupName, $ErrorMsg)
     }
     $GroupLicensingAssignments = $GroupLicensing -Join ", "
-    [Array]$DirectAssignments = $Null
-    [Array]$AllAssignments = $User.AssignedLicenses.SkuId
 
-    ForEach ($SkuId in $AllAssignments) {
-      If ($SkuId -notin $GroupAssignments.SkuId) {
-        $DirectAssignments += $SkuId
-      }
-    }
+    #  Find out if any of the user's licenses are assigned via direct licensing
+    [array]$DirectAssignments = $User.licenseAssignmentStates | `
+      Where-Object { $null -eq $_.AssignedByGroup -and $_.State -eq "Active" }
 
     # Figure out details of direct assigned licenses
     [array]$UserLicenses = $User.AssignedLicenses
     ForEach ($License in $DirectAssignments) {
-      If ($SkuHashTable.ContainsKey($License) -eq $True) {
+      If ($SkuHashTable.ContainsKey($License.SkuId) -eq $True) {
         # We found a match in the SKU hash table
-        $LicenseInfo += $SkuHashTable.Item($License) 
+        $LicenseInfo += $SkuHashTable.Item($License.SkuId) 
       }
       Else {
         # Nothing found in the SKU hash table, so output the SkuID
-        $LicenseInfo += $License 
+        $LicenseInfo += $License.SkuId
       }
     }
 
     # Report any disabled service plans in licenses
-    $License = $UserLicenses | Where-Object { $_.SkuId -eq $License }
-    If ([string]::IsNullOrWhiteSpace($License.DisabledPlans) -eq $False ) {
-      # Check if disabled service plans in a license
-      ForEach ($DisabledPlan in $License.DisabledPlans) {
-        # Try and find what service plan is disabled
-        If ($ServicePlanHashTable.ContainsKey($DisabledPlan) -eq $True) {
-          # We found a match in the Service Plans hash table
-          $DisabledPlans += $ServicePlanHashTable.Item($DisabledPlan) 
-        }
-        Else {
-          # Nothing doing, so output the Service Plan ID
-          $DisabledPlans += $DisabledPlan 
-        }
-      } # End ForEach disabled plans
-    } # End if check for disabled plans  
+    $License = $UserLicenses | Where-Object { -not [string]::IsNullOrWhiteSpace($_.DisabledPlans) }
+    # Check if disabled service plans in a license
+    ForEach ($DisabledPlan in $License.DisabledPlans) {
+      # Try and find what service plan is disabled
+      If ($ServicePlanHashTable.ContainsKey($DisabledPlan) -eq $True) {
+        # We found a match in the Service Plans hash table
+        $DisabledPlans += $ServicePlanHashTable.Item($DisabledPlan) 
+      }
+      Else {
+        # Nothing doing, so output the Service Plan ID
+        $DisabledPlans += $DisabledPlan 
+      }
+    } # End ForEach disabled plans
 
     # Detect if any duplicate licenses are assigned (direct and group-based)
     # Build a list of assigned SKUs
