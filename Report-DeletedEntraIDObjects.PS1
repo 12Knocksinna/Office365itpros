@@ -1,5 +1,8 @@
-# 
+# Report-DeletedEntraIDObjects
+# Example of how to report the soft-deleted objects in the Entra ID recycle bin
+# V1.0 23-Feb-2024
 # Ref https://techcommunity.microsoft.com/t5/microsoft-entra-blog/keeping-track-of-object-deletions-in-microsoft-entra-id/ba-p/4053415
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-DeletedEntraIDObjects.PS1
 
 # Tested with SDK V2.15
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All
