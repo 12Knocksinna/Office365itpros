@@ -4,24 +4,13 @@
 # Needs version 1.7.0 or later of the Microsoft.Graph.Mail and Microsoft.Graph.Users.Actions modules
 
 # Check that we are connected to Exchange Online
-$ModulesLoaded = Get-Module | Select Name
+$ModulesLoaded = Get-Module | Select-Object -ExpandProperty Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 # Now connect to the Microsoft Graph SDK for PowerShell
-Connect-MgGraph -Scope "Mail.Send, Mail.ReadWrite"
-$Details = Get-MgContext
-$Scopes = $Details | Select -ExpandProperty Scopes
-$Scopes = $Scopes -Join ", "
-$ProfileName = (Get-MgProfile).Name
+Connect-MgGraph -NoWelcome -Scopes "Mail.Send, Mail.ReadWrite"
+
 $TenantName = (Get-MgOrganization).DisplayName
-CLS
-Write-Host "Microsoft Graph Connection Information"
-Write-Host "--------------------------------------"
-Write-Host " "
-Write-Host ("Connected to Tenant {0} ({1}) as account {2}" -f $Details.TenantId, $TenantName, $Details.Account)
-Write-Host "+-------------------------------------------------------------------------------------------------------------------+"
-Write-Host ("Profile set as {0}. The following permission scope is defined: {1}" -f $ProfileName, $Scopes)
-Write-Host ""
-Write-Host "Also successfully connected to the Exchange Online management PowerShell module"
+Clear-Host
 
 # Make sure that we have valid credentials
 If (-not $O365Cred) { #Make sure we have credentials
@@ -53,8 +42,11 @@ $MsgSubject = "A warm welcome to $($TenantName)"
 # Date to Check for new accounts - we use the last 7 days here, but that's easily changable.
 [string]$CheckDate = (Get-Date).AddDays(-7)
 # Find all mailboxes created in the target period
-[array]$Users = (Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$CheckDate'" -RecipientTypeDetails UserMailbox -ResultSize Unlimited -Properties WhenMailboxCreated | Select WhenMailboxCreated, DisplayName, UserPrincipalName, PrimarySmtpAddress)
-If ($Users -eq $Null) { Write-Host ("No mailboxes found that were created before {0}. Exiting!" -f $CheckDate) }
+[array]$Users = (Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$CheckDate'" -RecipientTypeDetails UserMailbox `
+ -ResultSize Unlimited -Properties WhenMailboxCreated | Select-Object WhenMailboxCreated, DisplayName, UserPrincipalName, PrimarySmtpAddress)
+If (!($Users)) { 
+     Write-Host ("No mailboxes found that were created before {0}. Exiting!" -f $CheckDate) 
+}
 
 # Define attachment - I use a document on a web site here, but you could use a local file
 $WebAttachmentFile = "https://office365itpros.com/wp-content/uploads/2022/02/WelcomeToOffice365ITPros.docx"
@@ -80,7 +72,6 @@ ForEach ($User in $Users) {
       Write-Host "Sending welcome email to" $User.DisplayName
       # Customize the message 
       $htmlHeaderUser = "<h2>New User " + $User.DisplayName + "</h2>"    
-      $HtmlMsg = "</body></html>" + $HtmlHead + $htmlheaderuser + $htmlbody + "<p>"
       # Construct the message body
       $MessageBody = @{
            content = "$($HtmlBody)"
