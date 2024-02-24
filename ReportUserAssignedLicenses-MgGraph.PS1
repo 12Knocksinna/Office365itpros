@@ -51,7 +51,7 @@ $UnlicensedAccounts = 0
 Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog.Read.All" -NoWelcome
 
 <#
-Alternative: Use Application ID and Secured Password for authentication
+Alternative: Use Application ID and Secured Password for authentication (you could also pass a certificate thumbnail)
 $ApplicationId = "<applicationId>"
 $SecuredPassword = "<securedPassword>"
 $tenantID = "<tenantId>"
@@ -139,7 +139,7 @@ ForEach ($User in $Users) {
       Where-Object { $Null -ne $_.AssignedByGroup -and $_.State -eq "Error" }
     [array]$GroupLicensing = $Null
     # Find out when the last license change was made
-    if ([string]::IsNullOrWhiteSpace($User.licenseAssignmentStates.lastupdateddatetime) -eq $False) {
+    If ([string]::IsNullOrWhiteSpace($User.licenseAssignmentStates.lastupdateddatetime) -eq $False) {
       $LastLicenseChange = Get-Date(($user.LicenseAssignmentStates.lastupdateddatetime | Measure-Object -Maximum).Maximum) -format g
     }
     # Figure out group-based licensing assignments if any exist
@@ -167,8 +167,7 @@ ForEach ($User in $Users) {
       If ($SkuHashTable.ContainsKey($License.SkuId) -eq $True) {
         # We found a match in the SKU hash table
         $LicenseInfo += $SkuHashTable.Item($License.SkuId) 
-      }
-      Else {
+      } Else {
         # Nothing found in the SKU hash table, so output the SkuID
         $LicenseInfo += $License.SkuId
       }
@@ -227,8 +226,7 @@ ForEach ($User in $Users) {
       }
       $DuplicateWarningReport = ("Warning: Duplicate licenses detected for: {0}" -f ($DuplicateSkuNames -join ", "))
     }
-  }
-  Else { 
+  } Else { 
     $UnlicensedAccounts++
   }
 
@@ -290,7 +288,7 @@ ForEach ($User in $Users) {
       "Group based licenses"     = $GroupLicensingAssignments
       "Annual License Costs"     = ("{0} {1}" -f $Currency, ($UserCosts.toString('F2')))
       "Error message"            = $ErrorMsg
-      "Last License Change"      = $LastLicenseChange
+      "Last license change"      = $LastLicenseChange
       "Account created"          = $AccountCreatedDate
       "Last Signin"              = $LastAccess
       "Days since last signin"   = $DaysSinceLastSignIn
@@ -311,7 +309,7 @@ ForEach ($User in $Users) {
       "Disabled Plans"           = $DisabledPlans 
       "Group based licenses"     = $GroupLicensingAssignments
       "Error message"            = $ErrorMsg
-      "Last License Change"      = $LastLicenseChange
+      "Last license change"      = $LastLicenseChange
       "Account created"          = $AccountCreatedDate
       "Last Signin"              = $LastAccess
       "Days since last signin"   = $DaysSinceLastSignIn
@@ -368,8 +366,7 @@ If ($PricingInfoAvailable) {
   $TotalBoughtLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalBoughtLicenseCosts))
   $PercentBoughtLicensesUsed = ($TotalUserLicenseCosts / $TotalBoughtLicenseCosts).toString('P')
   $SkuReport = $SkuReport | Sort-Object "Annual license costs" -Descending
-}
-Else {
+} Else {
   $SkuReport = $SkuReport | Sort-Object "SKU Name" -Descending
 }
 
