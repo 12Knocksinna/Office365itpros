@@ -15,12 +15,13 @@ If (Get-Item $TempExportFile -ErrorAction SilentlyContinue) {
 # Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
 If ((Get-MgBetaAdminReportSetting).DisplayConcealedNames -eq $true) {
    $Parameters = @{ displayConcealedNames = $False }
+   Write-Host "Unhiding obscured report data for the script to run..."
    Update-MgBetaAdminReportSetting -BodyParameter $Parameters
-   $ObscuredFlag = $true
+   $ObscureFlag = $true
 }
 
 # Get user account information and load it into a hash table so that we can use it along with the OneDrive info
-
+Write-Host "Finding user account information..."
 [array]$Users = Get-MgUser -All -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
     -ConsistencyLevel Eventual -CountVariable UserCount -Sort 'displayName' `
     -Property Id, displayName, userPrincipalName, city, country, department, jobTitle, officeLocation
