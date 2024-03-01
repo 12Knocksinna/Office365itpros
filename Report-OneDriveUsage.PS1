@@ -3,7 +3,7 @@
 # V1.0 21-Feb-2024
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-OneDriveUsage.PS1
 
-Connect-MgGraph -NoWelcome -Scopes User.Read.All, Reports.Read.All
+Connect-MgGraph -NoWelcome -Scopes User.Read.All, Reports.Read.All, ReportSettings.ReadWrite.All
 
 $ObscureFlag = $false
 $CSVOutputFile = "c:\temp\OneDriveSiteConsumption.CSV"
@@ -13,12 +13,10 @@ If (Get-Item $TempExportFile -ErrorAction SilentlyContinue) {
 }
 
 # Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
-$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri 
-If ($DisplaySettings['displayConcealedNames'] -eq $true) { # data is obscured, so let's reset it to allow the report to run
-   $ObscureFlag = $true
-   Write-Host "Setting tenant data concealment for reports to False" -foregroundcolor red
-   Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/beta/admin/reportSettings' `
-    -Body (@{"displayConcealedNames"= $false} | ConvertTo-Json) 
+If ((Get-MgBetaAdminReportSetting).DisplayConcealedNames -eq $true) {
+   $Parameters = @{ displayConcealedNames = $False }
+   Update-MgBetaAdminReportSetting -BodyParameter $Parameters
+   $ObscuredFlag = $true
 }
 
 # Get user account information and load it into a hash table so that we can use it along with the OneDrive info
@@ -68,10 +66,10 @@ $Report | Sort-Object UsedGB -Descending | Out-GridView
 Write-Host ("Current OneDrive for Business storage consumption is {0} GB. Report is in {1}" -f $TotalODFBGBUsed, $CSVOutputFile)
 
 # Switch the tenant report obscure data setting back if necessary
-If ($ObscureFlag -eq $True) {
+If ($ObscureFlag -eq $true) {
     Write-Host "Resetting tenant data concealment for reports to True" -foregroundcolor red
-    Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/beta/admin/reportSettings' `
-     -Body (@{"displayConcealedNames"= $true} | ConvertTo-Json) 
+    $Parameters = @{ displayConcealedNames = $True }
+    Update-MgBetaAdminReportSetting -BodyParameter $Parameters
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
