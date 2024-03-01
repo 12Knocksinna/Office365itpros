@@ -128,13 +128,14 @@ $Level3 = $Null; $Level4 = $Null; $Level2 = $Null; $NFF2 = $Null; $NFF3 = $Null
 
 # End Functions
 
-CLS
+Clear-Host
 # Check that we have the necessary Exchange Online module loaded
-$ModulesLoaded = Get-Module | Select Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+$ModulesLoaded = Get-Module | Select-Object Name
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {
+    Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break
+}
 
 # Set these values to those appropriate in your tenant (these values won't work)
-
 $AppId = "d48578ac-7cb4-4b5a-a296-f19218a03f11"
 $TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3487"
 $AppSecret = "bzS8Q~9EDXMUrUOJUbZXTTiJp7lTFdkWskETObRU"
@@ -168,7 +169,9 @@ $YearAgo = (Get-Date).AddDays(-365)
 $YearAgo = (Get-Date -Date $YearAgo -Format s) + "Z"
 
 [array]$Mbx = Get-ExoMailbox -Identity $Mailbox -ErrorAction SilentlyContinue
-If (!($Mbx)) { Write-Host ("A mailbox called {0} cannot be found - exiting" -f $Mailbox); break }
+If (!($Mbx)) { 
+   Write-Host ("A mailbox called {0} cannot be found - exiting" -f $Mailbox); break 
+}
 If ($Mbx.RecipientTypeDetails -ne 'UserMailbox') { Write-Host "This script can only process user mailboxes - exiting"; break }
 
 [datetime]$StartTime = Get-Date
