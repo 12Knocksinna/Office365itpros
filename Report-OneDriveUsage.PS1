@@ -33,6 +33,7 @@ ForEach ($User in $Users) {
 
 # Get a list of OneDrive for Business sites in the tenant sorted by the biggest consumer of quota
 Write-Host "Finding OneDrive sites..."
+# This could also be done with Get-MgReportOneDriveUsageAccountDetail -Period D7 -Outfile $TempExportFile
 $Uri = "https://graph.microsoft.com/v1.0/reports/getOneDriveUsageAccountDetail(period='D7')"
 Invoke-MgGraphRequest -Uri $Uri -Method GET -OutputFilePath $TempExportFile
 [array]$ODFBSites = Import-CSV $TempExportFile | Sort-Object 'User display name'
