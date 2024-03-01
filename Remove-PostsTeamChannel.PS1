@@ -88,7 +88,7 @@ if ($Decision -eq 0) {
             }
         }
         # Now remove the message
-        $Status =    -TeamId $Team.Id -ChannelId $SelectedChannel.Id `
+        $Status = Invoke-MgSoftTeamChannelMessageDelete -TeamId $Team.Id -ChannelId $SelectedChannel.Id `
             -ChatMessageId $Message.Id -ErrorAction SilentlyContinue
         $MessagesRemoved++
         # Brief sleep to prevent throttling
