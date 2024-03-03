@@ -8,22 +8,24 @@ Connect-MgGraph -Scopes AuditLogsQuery.Read.All -NoWelcome
 $SearchId = $null
 
 # Construct basic search parameters
+# For multiple operations, use "operationFilters" = @("fileaccessed","filedeleted")
+# For record type filters, use "recordTypeFilters" = @("sharePointFileOperation","threatIntelligence")
 $Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
 $SearchName = ("Audit Search {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
 $SearchParameters = @{}
 $SearchParameters.Add("operationsFilters","FileUploaded")
 $SearchParameters.Add("displayname", $SearchName)
-$SearchParameters.Add("filterStartDateTime", "2024-02-21T00:00:00.000Z")
-$SearchParameters.Add("filterEndDateTime", "2024-02-28T00:00:00.000Z")
+$SearchParameters.Add("filterStartDateTime", "2024-03-01T00:00:00.000Z")
+$SearchParameters.Add("filterEndDateTime", "2024-03-02T00:00:00.000Z")
 
-$Data = Invoke-MgGraphRequest -Method Post -Uri $Uri -Body $SearchParameters
+$Data = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $SearchParameters
 $SearchId = $Data.Id
 If ($null -eq $SearchId) {
     Write-Host "Search not created"
     Break
 } Else {
     $SearchId = $Data.Id
-    Write-Host ("Search created {0}" -f $SearchId)
+    Write-Host ("Audit log search created with id: {0} and name {1}" -f $SearchId, $Data.displayname)
 }
 
 $int = 0
@@ -32,17 +34,34 @@ $Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}" -f $Sea
 While ($SearchFinished -eq $false) {
    $int++
    Write-Host ("Waiting for search to complete check {0} after {1} seconds" -f $int, $SecondsElapsed)
-   $SearchStatus = Invoke-MgGraphRequest -Uri $Uri
+   $SearchStatus = Invoke-MgGraphRequest -Uri $Uri -Method GET
    If ($SearchStatus.status -eq 'succeeded') {
       $SearchFinished = $true
    }
-   Start-Sleep -Seconds 15
+   Start-Sleep -Seconds 20
    $SecondsElapsed = $SecondsElapsed + 15
 }
 
-Write-Host "Fetching search records..."
+Write-Host "Fetching audit records found by the search..."
+$SearchContinues = $false
 $Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records" -f $SearchId)
-[array]$SearchRecords = Invoke-MgGraphRequest -Uri $Uri
+[array]$SearchRecords = Invoke-MgGraphRequest -Uri $Uri -Method GET
+
+[array]$AuditRecords = $SearchRecords.value
+If ($null -ne $SearchRecords.'@odata.nextLink') {
+    $SearchContinues = $true
+    While ($SearchContinues -eq $true) {
+        $Uri = $SearchRecords.'@odata.nextLink'
+        Write-Host "Fetching next page..."
+        $SearchRecords = $null
+        [array]$SearchRecords = Invoke-MgGraphRequest -Uri $Uri -Method GET
+        $AuditRecords += $SearchRecords.value
+        If ($null -eq $SearchRecords.'@odata.nextLink') {
+            $SearchContinues = $false
+        }
+    }
+}
+
 
 Write-Host ("Found {0} audit records" -f $SearchRecords.value.count)
 
