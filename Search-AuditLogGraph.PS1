@@ -45,7 +45,7 @@ $SearchParameters = @{
     "operationFilters"      = $Operations
 }
 
-Write-Host "Creating a search query..."
+Write-Host "Creating an audit search query..."
 $SearchQuery = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $SearchParameters
 $SearchId = $SearchQuery.Id
 If ($null -eq $SearchId) {
@@ -63,7 +63,7 @@ $Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}" -f $Sea
 $SearchStatus = Invoke-MgGraphRequest -Uri $Uri -Method GET
 While ($SearchFinished -eq $false) {
     $int++
-    Write-Host ("Waiting for search to complete. Check {0} after {1} seconds. Current state {2}" -f $int, $SecondsElapsed, $SearchStatus.status)
+    Write-Host ("Waiting for audit search to complete. Check {0} after {1} seconds. Current state {2}" -f $int, $SecondsElapsed, $SearchStatus.status)
     If ($SearchStatus.status -eq 'succeeded') {
         $SearchFinished = $true
     } Else {
@@ -74,26 +74,21 @@ While ($SearchFinished -eq $false) {
 }
 
 Write-Host "Fetching audit records found by the search..."
-$SearchContinues = $false
 $Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records" -f $SearchId)
 [array]$SearchRecords = Invoke-MgGraphRequest -Uri $Uri -Method GET
 
 [array]$AuditRecords = $SearchRecords.value
-If ($null -ne $SearchRecords.'@odata.nextLink') {
-    $SearchContinues = $true
-    While ($SearchContinues -eq $true) {
-        $Uri = $SearchRecords.'@odata.nextLink'
-        Write-Host "Fetching next page..."
-        $SearchRecords = $null
-        [array]$SearchRecords = Invoke-MgGraphRequest -Uri $Uri -Method GET
-        $AuditRecords += $SearchRecords.value
-        If ($null -eq $SearchRecords.'@odata.nextLink') {
-            $SearchContinues = $false
-        }
-    }
+# Paginate to fetch all available audit records
+$NextLink = $SearchRecords.'@Odata.NextLink'
+While ($null -ne $NextLink) {
+    $SearchRecords = $null
+    [array]$SearchRecords = Invoke-MgGraphRequest -Uri $NextLink -Method GET 
+    $AuditRecords += $SearchRecords.value
+    Write-Host ("{0} audit records fetched so far..." -f $AuditRecords.count)
+    $NextLink = $SearchRecords.'@odata.NextLink' 
 }
 
-Write-Host ("Found {0} audit records" -f $SearchRecords.value.count)
+Write-Host ("Total of {0} audit records found" -f $AuditRecords.count) -ForegroundColor Red
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Record in $AuditRecords) {
     $ReportLine = [PSCustomObject][Ordered]@{
