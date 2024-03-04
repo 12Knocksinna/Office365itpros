@@ -14,7 +14,7 @@ $StartDate = $null; $EndDate = $null; $Operations = $null
 $StartDate = Read-Host "Start Date for audit search"
 $EndDate = Read-Host "End Date for audit search"
 [array]$UserOperations = Read-Host "Enter the audit operations to search for (separated by commas)"
-[array]$Operations = $UserOperations.split(",").trim(" ")
+[array]$Operations = $UserOperations.split(",").trim(" ").tolower()
 Try {
     $StartDateSearch = (Get-Date $StartDate -format s) + "Z"
     }
@@ -37,11 +37,13 @@ If (!($Operations)) {
 
 $Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
 $SearchName = ("Audit Search {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
-$SearchParameters = @{}
-$SearchParameters.Add("operationsFilters",$Operations)
-$SearchParameters.Add("displayname", $SearchName)
-$SearchParameters.Add("filterStartDateTime", $StartDateSearch)
-$SearchParameters.Add("filterEndDateTime", $EndDateSearch)
+
+$SearchParameters = @{
+    "displayName"           = $SearchName
+    "filterStartDateTime"   = $StartDateSearch
+    "filterEndDateTime"     = $EndDateSearch
+    "operationFilters"      = $Operations
+}
 
 $SearchQuery = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $SearchParameters
 $SearchId = $SearchQuery.Id
@@ -58,7 +60,7 @@ $SearchFinished = $false; [int]$SecondsElapsed = 0
 $Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}" -f $SearchId)
 While ($SearchFinished -eq $false) {
    $int++
-   Write-Host ("Waiting for search to complete check {0} after {1} seconds" -f $int, $SecondsElapsed)
+   Write-Host ("Waiting for search to complete. Check {0} after {1} seconds. Current state {2}" -f $int, $SecondsElapsed, $SearchStatus.status)
    $SearchStatus = Invoke-MgGraphRequest -Uri $Uri -Method GET
    If ($SearchStatus.status -eq 'succeeded') {
       $SearchFinished = $true
@@ -86,7 +88,6 @@ If ($null -ne $SearchRecords.'@odata.nextLink') {
         }
     }
 }
-
 
 Write-Host ("Found {0} audit records" -f $SearchRecords.value.count)
 
