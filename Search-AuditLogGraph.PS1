@@ -2,7 +2,7 @@
 # Example of how to search the Microsoft 365 unified audit log using the Graph API
 # In this case, we use the Microsoft Graph PowerShell SDK to do the magic. Tested with SDK V2.15
 # V1.0 29-Feb-2024
-#
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Search-AuditLogGraph.PS1
 
 Connect-MgGraph -Scopes AuditLogsQuery.Read.All -NoWelcome
 $SearchId = $null
