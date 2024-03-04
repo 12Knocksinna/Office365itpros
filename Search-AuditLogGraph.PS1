@@ -90,6 +90,19 @@ If ($null -ne $SearchRecords.'@odata.nextLink') {
 }
 
 Write-Host ("Found {0} audit records" -f $SearchRecords.value.count)
+$Report = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Record in $AuditRecords) {
+    $ReportLine = [PSCustomObject][Ordered]@{
+        Service          = $Record.Service
+        Timestamp        = $Record.CreatedDateTime 
+        UPN              = $Record.userPrincipalName
+        Operation        = $Record.operation
+    } 
+    $Report.Add($ReportLine)
+}
+
+$Report | Sort-Object {$_.Timestamp -as [datetime]} | Out-GridView
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
