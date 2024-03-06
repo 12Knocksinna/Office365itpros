@@ -9,7 +9,7 @@ $SearchId = $null
 
 # Construct basic search parameters
 # For multiple operations, use "operationFilters" = @("fileaccessed","filedeleted")
-# For record type filters, use "recordTypeFilter" = @("sharePointFileOperation","threatIntelligence")
+# For record type filters, use "recordTypeFilters" = @("sharePointFileOperation","threatIntelligence")
 $StartDate = $null; $EndDate = $null; $Operations = $null
 $StartDate = Read-Host "Start Date for audit search"
 $EndDate = Read-Host "End Date for audit search"
