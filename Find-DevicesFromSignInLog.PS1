@@ -1,4 +1,4 @@
-# Find-DevicesFromAuditLog.PS1
+# Find-DevicesFromSignInLog.PS1
 # Use the Entra ID sign in logs to find what registered devices are being used.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Find-DevicesFromSignInLog.PS1
 # V1.0 7-Mar-2024
