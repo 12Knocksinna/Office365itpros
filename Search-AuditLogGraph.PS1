@@ -35,7 +35,6 @@ If (!($Operations)) {
     Break
 }
 
-$Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
 $SearchName = ("Audit Search {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
 
 $SearchParameters = @{
@@ -46,6 +45,7 @@ $SearchParameters = @{
 }
 
 Write-Host "Creating an audit search query..."
+$Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
 $SearchQuery = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $SearchParameters
 $SearchId = $SearchQuery.Id
 If ($null -eq $SearchId) {
