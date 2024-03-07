@@ -104,7 +104,7 @@ Write-Host "Finding licensed user accounts..."
 [Array]$Users = Get-MgUser -Filter "userType eq 'Member'" `
   -ConsistencyLevel eventual -CountVariable Records -All `
   -Property id, displayName, userPrincipalName, country, department, assignedlicenses, `
-  LicenseAssignmentStates, createdDateTime, jobTitle, signInActivity | `
+  LicenseAssignmentStates, createdDateTime, jobTitle, signInActivity, companyName | `
   Where-Object { $_.LicenseAssignmentStates.Count -ne 0 } | `
   Sort-Object DisplayName
 
