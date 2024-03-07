@@ -46,6 +46,14 @@ ForEach ($Device in $FoundDevices) {
 
 $Report | Out-GridView
 
+[array]$UnusedDevices = $KnownDevices | Where-Object {$_.Id -notin $FoundDevices} | Sort-Object DisplayName
+
+Write-Host ""
+Write-Host "The following devices cannot be found in a sign-in log"
+Write-Host "------------------------------------------------------"
+
+$UnusedDevices | Format-Table Id, DisplayName, OperatingSystem, RegistrationDateTime
+
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
