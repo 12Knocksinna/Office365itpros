@@ -1,0 +1,51 @@
+# Find-DevicesFromAuditLog.PS1
+# Use the Entra ID sign in logs to find what registered devices are being used.
+
+# Connect to the Graph is needed to fetch registered device information
+Connect-MgGraph -NoWelcome -Scopes 	Device.Read.All
+
+# File downloaded from Entra admin center with non-interactive sign ins 
+# needs to be edited to remove the incoming token type column first
+$InputDataFile = "c:\users\tonyr\downloads\SignInData.csv"
+
+Write-Host "Loading data"
+[array]$Data =  Import-Csv $InputDataFile | Sort-Object {$_.'Date (UTC)' -as [datetime]} -Descending
+# Retrieve devices found in sign in logs
+[array]$FoundDevices = $Data | Sort-Object 'Device ID' -Unique 
+$FoundDevices = $FoundDevices | Where-Object {($_.'Device ID' -ne "{PII Removed}")}  | Select-Object -ExpandProperty 'Device ID'
+# Retrieve known devices
+[array]$KnownDevices = Get-MgDevice -All
+
+Write-Host "Generating report"
+$Report = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Device in $FoundDevices) {
+    If (!([string]::IsNullOrWhiteSpace($Device))) {
+        $DeviceDetails = $KnownDevices | Where-Object {$_.DeviceId -eq $Device}
+        $DataDetails = $Data | Where-Object {$_.'Device ID' -eq $Device} | Select-Object -First 1
+        $SignInDate = Get-Date $DataDetails.'Date (UTC)' -format 'dd-MMM-yyyy HH:mm'
+        $RegisteredDate = Get-Date $DeviceDetails.RegistrationDateTime -format 'dd-MMM-yyyy HH:mm'
+        $ReportLine = [PSCustomObject][Ordered]@{
+            SignIn          = $SignInDate
+            Device          = $Device
+            'Device name'   = $DeviceDetails.displayName
+            Id              = $DeviceDetails.Id
+            OS              = $DeviceDetails.OperatingSystem
+            Version         = $DeviceDetails.OperatingSystemVersion
+            Registered      = $RegisteredDate
+            'User agent'    = $DataDetails.'User agent'
+            User            = $DataDetails.User
+            UPN             = $DataDetails.userName
+            Resource        = $DataDetails.Resource
+            ClientApp       = $DataDetails.'Client App'
+            }
+        $Report.Add($ReportLine)
+        }
+}
+
+$Report | Out-GridView
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# first validating the code in a non-production environment.

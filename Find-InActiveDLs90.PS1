@@ -96,7 +96,7 @@ ForEach ($DL in $DLs) {
 }
 
 $OutputReport | Sort-Object TimeStamp | Out-GridView
-$OutputReport | Export-CSV -NoTypeInformation $CSVFile
+$OutputReport | Export-CSV -NoTypeInformation $CSVFile -Encoding utf8
 $PercentOK = ($TotalDLOK/$DLs.Count).ToString("P")
 
 Write-Host ""
