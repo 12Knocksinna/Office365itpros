@@ -283,6 +283,7 @@ ForEach ($User in $Users) {
       Country                    = $User.Country
       Department                 = $User.Department
       Title                      = $User.JobTitle
+      Company                    = $User.companyName
       "Direct assigned licenses" = $LicenseInfo
       "Disabled Plans"           = $DisabledPlans 
       "Group based licenses"     = $GroupLicensingAssignments
@@ -305,6 +306,7 @@ ForEach ($User in $Users) {
       Country                    = $User.Country
       Department                 = $User.Department
       Title                      = $User.JobTitle
+      Company                    = $User.companyName
       "Direct assigned licenses" = $LicenseInfo
       "Disabled Plans"           = $DisabledPlans 
       "Group based licenses"     = $GroupLicensingAssignments
