@@ -12,6 +12,7 @@
 # V1.5 26-Jan-2024 Added license pricing computation
 # V1.5 8-Feb-2024  Added cost analysis for departments and countries
 # V1.6 12-Feb-2024 Added info to report when license costs can't be attributed to countries or departments because of missing user account properties
+# V1.7 7-Mar-2024  Added company name to the set of properties output by report
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
@@ -40,7 +41,7 @@ Function Get-LicenseCosts {
 } 
 
 [datetime]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
-$Version = "1.6"
+$Version = "1.7"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
 $ReportFile = "c:\temp\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
