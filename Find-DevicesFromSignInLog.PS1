@@ -3,8 +3,8 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Find-DevicesFromSignInLog.PS1
 # V1.0 7-Mar-2024
 
-# Connect to the Graph is needed to fetch registered device information
-Connect-MgGraph -NoWelcome -Scopes 	Device.Read.All
+# Connect to the Graph is needed to fetch information about devices and users
+Connect-MgGraph -NoWelcome -Scopes 	Directory.Read.All
 
 # File downloaded from Entra admin center with non-interactive sign ins 
 # needs to be edited to remove the incoming token type column first
