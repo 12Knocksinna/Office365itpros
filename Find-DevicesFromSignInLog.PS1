@@ -24,21 +24,25 @@ ForEach ($Device in $FoundDevices) {
     If (!([string]::IsNullOrWhiteSpace($Device))) {
         $DeviceDetails = $KnownDevices | Where-Object {$_.DeviceId -eq $Device}
         $DataDetails = $Data | Where-Object {$_.'Device ID' -eq $Device} | Select-Object -First 1
+        $RegisteredOwnerId = $null; $RegisteredOwner = $null
+        $RegisteredOwnerId = Get-MgDeviceRegisteredOwner -DeviceId $DeviceDetails.Id | Select-Object -ExpandProperty Id
+        $RegisteredOwner = Get-MgUser -UserId $RegisteredOwnerId -ErrorAction SilentlyContinue
         $SignInDate = Get-Date $DataDetails.'Date (UTC)' -format 'dd-MMM-yyyy HH:mm'
         $RegisteredDate = Get-Date $DeviceDetails.RegistrationDateTime -format 'dd-MMM-yyyy HH:mm'
         $ReportLine = [PSCustomObject][Ordered]@{
-            SignIn          = $SignInDate
-            Device          = $Device
-            'Device name'   = $DeviceDetails.displayName
-            Id              = $DeviceDetails.Id
-            OS              = $DeviceDetails.OperatingSystem
-            Version         = $DeviceDetails.OperatingSystemVersion
-            Registered      = $RegisteredDate
-            'User agent'    = $DataDetails.'User agent'
-            User            = $DataDetails.User
-            UPN             = $DataDetails.userName
-            Resource        = $DataDetails.Resource
-            ClientApp       = $DataDetails.'Client App'
+            SignIn              = $SignInDate
+            Device              = $Device
+            'Device name'       = $DeviceDetails.displayName
+            Id                  = $DeviceDetails.Id
+            OS                  = $DeviceDetails.OperatingSystem
+            Version             = $DeviceDetails.OperatingSystemVersion
+            Registered          = $RegisteredDate
+            'Registered owner'  = $RegisteredOwner.UserPrincipalName
+            'User agent'        = $DataDetails.'User agent'
+            'User signing in'   = $DataDetails.User
+            'User sign in UPN'  = $DataDetails.userName
+            Resource            = $DataDetails.Resource
+            ClientApp           = $DataDetails.'Client App'
             }
         $Report.Add($ReportLine)
         }
