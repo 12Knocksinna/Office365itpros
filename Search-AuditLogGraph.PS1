@@ -56,9 +56,10 @@ If ($null -eq $SearchId) {
     Write-Host ("Audit log search created with id: {0} and name {1}" -f $SearchId, $SearchQuery.displayname)
 }
 
-$int = 0
+$int = 20
 $SearchFinished = $false; [int]$SecondsElapsed = 0
 Write-Host "Checking audit query status..."
+Start-Sleep -Seconds 20
 $Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}" -f $SearchId)
 $SearchStatus = Invoke-MgGraphRequest -Uri $Uri -Method GET
 While ($SearchFinished -eq $false) {
@@ -74,12 +75,12 @@ While ($SearchFinished -eq $false) {
 }
 
 Write-Host "Fetching audit records found by the search..."
-$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records" -f $SearchId)
+$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records?`$Top=999" -f $SearchId)
 [array]$SearchRecords = Invoke-MgGraphRequest -Uri $Uri -Method GET
 
 [array]$AuditRecords = $SearchRecords.value
 # Paginate to fetch all available audit records
-$NextLink = $SearchRecords.'@Odata.NextLink'
+$NextLink = $SearchRecords.'@odata.NextLink'
 While ($null -ne $NextLink) {
     $SearchRecords = $null
     [array]$SearchRecords = Invoke-MgGraphRequest -Uri $NextLink -Method GET 
