@@ -2,6 +2,7 @@
 # A simple PowerShell script to show how to use Graph queries to clean up mailbox items
 # 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/CleanUpMailbox-Graph.PS1
+# See https://practical365.com/mailbox-contents-report/ for an article describing how to use the script
 #
 # Parameters to tell the script what to do. 
 # Folder is the name of a specific folder to check. Set this to All to search all mailbox folders. 
