@@ -2,6 +2,7 @@
 # A script to demonstrate how to use Graph API queries to read the folders and folder items from an Exchange Online mailbox.
 # By default, the script looks for items more than a year old (easily changed) in a single mailbox.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMailboxItems-Graph.PS1
+# See https://practical365.com/mailbox-contents-report/ for an article describing the use of the script.
 #+-------------------------- Functions etc. -------------------------
 
 function FormatFileSize {
@@ -104,19 +105,19 @@ $Level3 = $Null; $Level4 = $Null; $Level2 = $Null; $NFF2 = $Null; $NFF3 = $Null
    $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $FolderId)
    [array]$Level1 = Get-GraphData -Uri $Uri -AccessToken $Token
    $Output = $Level1
-   $Level2 = $Level1 | ? {$_.ChildFolderCount -gt 0}
+   $Level2 = $Level1 | Where-Object {$_.ChildFolderCount -gt 0}
    If ($Level2) {
       ForEach ($NF2 in $Level2) {
        $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF2.Id)
        [array]$NFF2 = Get-GraphData -Uri $Uri -AccessToken $Token
        $Output = $Output + $NFF2 }}
-   $Level3 = $NFF2 | ? {$_.ChildFolderCount -gt 0}
+   $Level3 = $NFF2 | Where-Object {$_.ChildFolderCount -gt 0}
    If ($Level3) {
      ForEach ($NF3 in $Level3) {
       $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF3.Id)
        [array]$NFF3 = Get-GraphData -Uri $Uri -AccessToken $Token
      $Output = $Output + $NFF3 }}
-   $Level4 = $NFF3 | ? {$_.ChildFolderCount -gt 0}
+   $Level4 = $NFF3 | Where-Object {$_.ChildFolderCount -gt 0}
    If ($Level4) {
      ForEach ($NF4 in $Level4) {
       $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF4.Id)
@@ -139,6 +140,8 @@ If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {
 $AppId = "d48578ac-7cb4-4b5a-a296-f19218a03f11"
 $TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3487"
 $AppSecret = "bzS8Q~9EDXMUrUOJUbZXTTiJp7lTFdkWskETObRU"
+
+# Make sure that the app has the Mail.Read.All application permission
 
 # Construct URI and body needed for authentication
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -175,7 +178,6 @@ If (!($Mbx)) {
 If ($Mbx.RecipientTypeDetails -ne 'UserMailbox') { Write-Host "This script can only process user mailboxes - exiting"; break }
 
 [datetime]$StartTime = Get-Date
-[int]$Counter=0
 $FolderList = [System.Collections.Generic.List[Object]]::new()
 Write-Host ("Checking mailbox information for mailbox {0} ({1})" -f $Mbx.DisplayName, $Mbx.UserPrincipalName)   
 # Get list of folders in the mailbox
@@ -191,7 +193,7 @@ ForEach ($F in $AllFolders) {
    $FolderList.Add($FolderLine)
 } 
 # Find folders with child folders
-[array]$FoldersWithChildFolders = $AllFolders | ? {$_.ChildFolderCount -gt 0}
+[array]$FoldersWithChildFolders = $AllFolders | Where-Object {$_.ChildFolderCount -gt 0}
 
 ForEach ($ChildFolder in $FoldersWithChildFolders) {
   [array]$ChildFolders = UnpackFolders -FolderId $ChildFolder.Id -UserId $Mbx.ExternalDirectoryObjectId 
@@ -205,7 +207,7 @@ ForEach ($ChildFolder in $FoldersWithChildFolders) {
    
 # Remove any blank folders that might have been returned by the Graph
 $FolderList = $FolderList | Where-Object {$_.DisplayName -ne $Null }| Sort-Object DisplayName
-CLS
+Clear-Host
 
 If (!($FolderList)) { Write-Host ("Can't find any folders in the {0} mailbox - script exiting..." -f $Mbx.displayname); break }
 $ReportList = [System.Collections.Generic.List[Object]]::new()
@@ -257,7 +259,8 @@ ForEach ($Folder in $FolderList) {
 
 [datetime]$EndTime = Get-Date
 $Elapsed = $EndTime - $StartTime
-
+Write-Host ("Elapsed time {0}" -f $Elapsed)
+Write-Host ""
 Write-Host ("{0} messages found" -f $ReportList.Count)
 $ExcelFileName = "c:\temp\MailboxData_" + $Mbx.ExternalDirectoryObjectId + ".xlsx"
 $ExcelTitle = "Mailbox Data for " + $Mbx.DisplayName
