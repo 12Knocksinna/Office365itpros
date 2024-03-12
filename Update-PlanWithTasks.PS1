@@ -3,6 +3,7 @@
 # and use that data to update tasks in a Planner Plan
 # V1.0 19-Feb-2024
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Update-PlanWithTasks.PS1
+# See https://practical365.com/create-planner-tasks-powershell for an article showing how to use the script
 
 Connect-MgGraph -NoWelcome -Scopes Group.Read.All, Tasks.ReadWrite, ServiceMessage.Read.All, User.Read.All
 
@@ -16,7 +17,7 @@ Write-Host ("Staring synchronization run at {0}" -f $Now)
 # announcements to 7 days. If not, use 60 days
 [array]$ProcessedData = Import-CSV $ProcessedDataFile -ErrorAction SilentlyContinue
 If ($ProcessedData) {
-    $CheckDate = (Get-Date).AddDays(7)
+    $CheckDate = (Get-Date).AddDays(-7)
 } Else {
     $CheckDate = (Get-Date).AddDays(-60)
 }
@@ -104,6 +105,7 @@ $GenericTaskData.Add("orderHint"," !")
 $GenericCategoryData = @{}
 $GenericCategoryData.Add("@odata.type", "#microsoft.graph.plannerAppliedCategories")
 
+Write-Host "Examining message center posts..."
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Announcement in $Announcements) {
 
