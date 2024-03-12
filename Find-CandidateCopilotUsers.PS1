@@ -3,6 +3,8 @@
 # receive Copilot for Microsoft 365 licenses
 # V1.0 15-Feb-2024
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Find-CandidateCopilotUsers.PS1
+# See https://practical365.com/copilot-for-microsoft-365-licenses-decision/ for an article explaining how to use
+# this script.
 
 Connect-MgGraph -NoWelcome -Scopes Reports.Read.All, ReportSettings.ReadWrite.All, User.Read.All
 
