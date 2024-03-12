@@ -243,7 +243,7 @@ ForEach ($Announcement in $Announcements) {
         # Update the new task with the description - don't need to do this any longer because I figured out 
         # how to include the details in the Task creation parameter hash table
         # $Status = Update-MgPlannerTaskDetail -PlannerTaskId $TaskDetails.Id -BodyParameter $TaskDescription -IfMatch $TaskDetails.additionalProperties.'@odata.etag'
-        Write-Host ("Task {0} assigned to {1}" -f $TaskTitle, $AssignedName)
+        Write-Host ("Task {0} assigned to {1}" -f $TaskTitle, $AssignedName) -ForegroundColor Red
         $DataLine = [PSCustomObject][Ordered]@{
             TaskId          = $Announcement.ID
             Title           = $TaskTitle
