@@ -216,11 +216,9 @@ ForEach ($Announcement in $Announcements) {
     $TaskDescription = @{}
     $TaskDescription.Add('description', $TextBody)
 
-    $TaskCategoryParams = @{
-        AppliedCategories = @{
-            ($Category) = $true
-        }
-    }
+    $TaskLabels = @{}
+    $TaskLabels.Add($Category,$true)
+    $TaskLabels
 
     $TaskParameters = @{}
     $TaskParameters.Add('planId',$TargetPlan.Id)
@@ -230,6 +228,7 @@ ForEach ($Announcement in $Announcements) {
     $TaskParameters.Add('priority', '5')
     $TaskParameters.Add('startDateTime', $Announcement.LastModifiedDateTime)
     $TaskParameters.Add('details',$TaskDescription)
+    $TaskParameters.Add('appliedCategories', $TaskLabels)
     # If an end date is given, use it as the due date for the task
     If ($Announcement.EndDateTime) {
         $TaskParameters.Add('dueDateTime', $Announcement.EndDateTime)
@@ -237,12 +236,6 @@ ForEach ($Announcement in $Announcements) {
     
     $NewTask = New-MgPlannerTask -BodyParameter $TaskParameters
     If ($NewTask) {
-        $TaskDetails = Get-MgPlannerTaskDetail -PlannerTaskId $NewTask.Id
-        # Update the new task with a label (category)
-        $Status = Update-MgPlannerTask -PlannerTaskId $NewTask.Id -BodyParameter $TaskCategoryParams -IfMatch $NewTask.additionalProperties.'@odata.etag'
-        # Update the new task with the description - don't need to do this any longer because I figured out 
-        # how to include the details in the Task creation parameter hash table
-        # $Status = Update-MgPlannerTaskDetail -PlannerTaskId $TaskDetails.Id -BodyParameter $TaskDescription -IfMatch $TaskDetails.additionalProperties.'@odata.etag'
         Write-Host ("Task {0} assigned to {1}" -f $TaskTitle, $AssignedName) -ForegroundColor Red
         $DataLine = [PSCustomObject][Ordered]@{
             TaskId          = $Announcement.ID
@@ -314,3 +307,12 @@ Write-Host ("All done. {0} tasks assigned and {1} updated tasks" -f $ReportNewAs
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
+
+# Unused code - this is how I used to update the task labels and description before I worked out how
+# New-MgPlannerTask works.
+# $TaskDetails = Get-MgPlannerTaskDetail -PlannerTaskId $NewTask.Id
+# Update the new task with a label (category)
+# $Status = Update-MgPlannerTask -PlannerTaskId $NewTask.Id -BodyParameter $TaskCategoryParams -IfMatch $NewTask.additionalProperties.'@odata.etag'
+# Update the new task with the description - don't need to do this any longer because I figured out 
+# how to include the details in the Task creation parameter hash table
+# $Status = Update-MgPlannerTaskDetail -PlannerTaskId $TaskDetails.Id -BodyParameter $TaskDescription -IfMatch $TaskDetails.additionalProperties.'@odata.etag'
