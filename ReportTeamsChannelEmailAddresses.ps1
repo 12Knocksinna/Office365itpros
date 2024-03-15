@@ -90,3 +90,35 @@ Write-Host $EmailAddresses "mail-enabled channels found. Details are in C:\Temp\
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
+
+
+# Graph SDK version
+
+[array]$Teams = Get-MgGroup -Filter "resourceProvisioningOptions/Any(x:x eq 'Team')" -All
+If (!($Teams)) {Write-Host "Can't find any teams - exiting"; break} 
+$Teams = $Teams | Sort-Object DisplayName
+$ChannelsList = [System.Collections.Generic.List[Object]]::new()
+[int]$i = 0
+ForEach ($Team in $Teams) {
+   $i++
+   $ProgressBar = "Processing Team " + $Team.DisplayName + " (" + $i + " of " + $Teams.Count + ")"
+   Write-Progress -Activity "Checking Teams Information" -Status $ProgressBar -PercentComplete ($i/$Teams.Count*100)
+   Try {
+      [array]$Channels = Get-MgTeamChannel -Teamid $Team.Id -ErrorAction SilentlyContinue
+      ForEach ($Channel in $Channels) {
+      If ($Channel.Email) {
+         $ChannelLine = [PSCustomObject][Ordered]@{  # Write out details of the private channel and its members
+            Team           = $Team.DisplayName
+            Channel        = $Channel.DisplayName
+            Description    = $Channel.Description
+            EMail          = $Channel.Email
+            Id             = $Channel.Id }
+          $ChannelsList.Add($ChannelLine) } 
+      }  #End Foreach Channel
+   } Catch {
+      Write-Output ("Whoops - had a problem processing the {0} team" -f $Team.displayName)
+   }
+} # End ForEach Team
+# Elminate the General channel
+$TeamsEmailAddresses = $ChannelsList | Where-Object {$_.Email -Like "*.teams.ms"}
+$TeamsEmailAddresses | Out-GridView
