@@ -117,8 +117,10 @@ While ($Null -ne $Data.'@odata.nextLink') {
         }
 
         $DataLine = [PSCustomObject][Ordered]@{
-            User = $User.displayName
-            UserId = $User.Id
+            User                               = $User.displayName
+            UserId                             = $User.Id
+            UPN                                = $User.userPrincipalName
+            UserType                           = $User.userType
             'Last password change'             = $LastPasswordChangeOutput
             'Days since password change'       = $DaysSincePasswordChange
             'Last successful sign in'          = $LastSuccessfulSignInOutput
@@ -137,8 +139,10 @@ While ($Null -ne $Data.'@odata.nextLink') {
         }
     } Else {
         $DataLine = [PSCustomObject][Ordered]@{
-            User = $User.displayName
-            UserId = $User.Id
+            User                               = $User.displayName
+            UserId                             = $User.Id
+            UPN                                = $User.userPrincipalName
+            UserType                           = $User.userType
             'Last password change'             = $LastPasswordChangeOutput
             'Days since password change'       = $DaysSincePasswordChange
             'Last successful sign in'          = $LastSuccessfulSignInOutput
