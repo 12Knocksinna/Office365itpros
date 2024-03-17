@@ -42,9 +42,7 @@ Function Get-LicenseCosts {
 
 [datetime]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
 $Version = "1.7"
-$CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
-$ReportFile = "c:\temp\Microsoft365LicensesReport.html"
-$UnlicensedAccounts = 0
+
 # Default currency - can be overwritten by a value read into the $ImportSkus array
 [string]$Currency = "USD"
 
@@ -68,8 +66,11 @@ Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredent
 # Build Hash of Skus for lookup so that we report user-friendly display names - you need to create these CSV files from SKU and service plan
 # data in your tenant.
 
-$skuDataPath = "C:\temp\SkuDataComplete.csv"
-$servicePlanPath = "C:\temp\ServicePlanDataComplete.csv"
+$SkuDataPath = "C:\temp\SkuDataComplete.csv"
+$ServicePlanPath = "C:\temp\ServicePlanDataComplete.csv"
+$CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
+$HtmlReport = "c:\temp\Microsoft365LicensesReport.html"
+$UnlicensedAccounts = 0
 
 If ((Test-Path $skuDataPath) -eq $False) {
   Write-Host ("Can't find the product data file ({0}). Exiting..." -f $skuDataPath) ; break 
