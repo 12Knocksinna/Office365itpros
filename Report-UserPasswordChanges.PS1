@@ -37,9 +37,10 @@ Write-Host "Retrieving user details"
 # We use a Graph API request here instead of an SDK cmdlet because the Last successful interactive sign in data is
 # unavailable in SDK V2.12
 
+$ContentType = "application/json"
 $Headers = @{ConsistencyLevel="Eventual"}  
 $Uri = "https://graph.microsoft.com/beta/users?`$count=true&`$filter=(assignedLicenses/`$count ne 0 and userType eq 'Member')&$`top=999&`$select=id, displayName, usertype, signInActivity, SignInSessionsValidFromDateTime, LastPasswordChangeDateTime, passwordPolicies"
-[array]$Data = Invoke-MgGraphRequest -Uri $Uri -Headers $Headers
+[array]$Data = Invoke-MgGraphRequest -Uri $Uri -Headers $Headers -ContentType $ContentType
 [array]$Users = $Data.Value
 
 If (!($Users)) {
@@ -47,13 +48,14 @@ If (!($Users)) {
 }
 
 # Paginate until we have all the user accounts
-While ($Null -ne $Data.'@odata.nextLink') {
+$Nextlink = $Data.'@odata.nextLink'
+While ($null -ne $Nextlink) {
     Write-Host ("Fetching more user accounts - currently at {0}" -f $Users.count)
-    $Uri = $Data.'@odata.nextLink'
-    [array]$Data = Invoke-MgGraphRequest -Uri $Uri -Headers $Headers
+    [array]$Data = Invoke-MgGraphRequest -Uri $Nextlink -Headers $Headers -ContentType $ContentType
     $Users = $Users + $Data.Value
+    $Nextlink = $Data.'@odata.nextLink'
  }
- Write-Host ("All available user accounts fetched ({0}) - now processing report" -f $Users.count)
+ Write-Host ("All available user accounts fetched ({0}) - now processing report" -f $Users.count) -ForegroundColor Yellow
 
  $Users = $Users | Sort-Object displayName
  # Get MFA data
