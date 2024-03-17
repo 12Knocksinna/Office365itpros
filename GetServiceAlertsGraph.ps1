@@ -23,8 +23,6 @@ $token = ($tokenRequest.Content | ConvertFrom-Json).access_token
 # Base URL
 $uri = "https://graph.microsoft.com/beta/Security/Alerts"
 $headers = @{Authorization = "Bearer $token"}
-$ctype = "application/json"
-
 
 $Alerts = (Invoke-RestMethod -Uri $Uri -Headers $Headers -Method Get -ContentType "application/json").Value
 $Report = [System.Collections.Generic.List[Object]]::new()
