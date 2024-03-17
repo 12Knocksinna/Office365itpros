@@ -38,6 +38,10 @@ If ($LoopLicensedUsers.count -eq 0) {
 
 Write-Host ("{0} user accounts have eligible licenses to use the Loop app out of {1} licensed accounts" -f $LoopLicensedUsers.count, $Users.count)
 
+# Figure out licensed user accounts that can't use the Loop app (but might)
+[array]$UsersNotLicensedForLoop = $Users | Where-Object {$_.id -notin $LoopLicensedUsers.id}
+
+# Set parameters for the unified audit log search
 $StartDate = (Get-Date).AddDays(-15)
 $EndDate = (Get-Date).AddDays(1)
 # Define the set of SharePoint file audit records we are interested in
@@ -71,34 +75,34 @@ ForEach ($Rec in $Records) {
 $LoopRecords = $LoopRecords | Sort-Object {$_.Timestamp -as [datetime]} -Descending
 $LoopActiveUsers = $LoopRecords | Sort-Object UserPrincipalName -Unique
 
+# First run through identifies user accounts who have a license that allows them to use the Loop app
+# and are either active or not
 $LicensedLoopUsersActivity = [System.Collections.Generic.List[Object]]::new()
-
 ForEach ($User in $LoopLicensedUsers) {
     $AuditRecord = $null
 # Fetch user information from the data we have already retrieved
-   $UserDetails = $Users | Where-Object userPrincipalName -match $User.userPrincipalName
-   $AuditRecord = $LoopActiveUsers | Where-Object userPrincipalName -match $User.userPrincipalName
-   If ($null -eq $AuditRecord) {
-        Write-Host ("Can't find usage of the Loop app by {0}" -f $UserDetails.displayname)
+    $AuditRecord = $LoopActiveUsers | Where-Object userPrincipalName -match $User.userPrincipalName
+    If ($null -eq $AuditRecord) {
+        Write-Host ("Can't find usage of the Loop app by {0}" -f $User.displayname)
         $LoopReportLine = [PSCustomObject][Ordered]@{
             User            = $User.UserPrincipalName
-            Name            = $UserDetails.displayName
-            'Job title'     = $UserDetails.jobTitle
-            Department      = $UserDetails.department
-            Country         = $UserDetails.country
+            Name            = $User.displayName
+            'Job title'     = $User.jobTitle
+            Department      = $User.department
+            Country         = $User.country
             Licensed        = "True"
             Active          = "False"
-            LastActive      = "N/A"
+            'Last Active'   = "N/A"
         }
         $LicensedLoopUsersActivity.Add($LoopReportLine)
-   } Else {
-        Write-Host ("User {0} last used the Loop app on {1}" -f $UserDetails.displayName, $AuditRecord.TimeStamp)
+    } Else {
+        Write-Host ("User {0} last used the Loop app on {1}" -f $User.displayName, $AuditRecord.TimeStamp)
         $LoopReportLine = [PSCustomObject][Ordered]@{
             User            = $User.UserPrincipalName
-            Name            = $UserDetails.displayName
-            'Job title'     = $UserDetails.jobTitle
-            Department      = $UserDetails.department
-            Country         = $UserDetails.country
+            Name            = $User.displayName
+            'Job title'     = $User.jobTitle
+            Department      = $User.department
+            Country         = $User.country
             Licensed        = "True"
             Active          = "True"
             'Last Active'   = $AuditRecord.TimeStamp
@@ -106,6 +110,29 @@ ForEach ($User in $LoopLicensedUsers) {
         $LicensedLoopUsersActivity.Add($LoopReportLine)
    }
 }
+
+# Now check for unlicensed use of the Loop app
+ForEach ($User in $UsersNotLicensedForLoop) {
+    $AuditRecord = $null
+    # Fetch user information from the data we have already retrieved
+        $AuditRecord = $LoopActiveUsers | Where-Object userPrincipalName -match $User.userPrincipalName
+        If ($AuditRecord) {
+            Write-Host ("Unlicensed user {0} last used the Loop app on {1}" -f $User.displayName, $AuditRecord.TimeStamp) -ForegroundColor Red
+            $LoopReportLine = [PSCustomObject][Ordered]@{
+                User            = $User.UserPrincipalName
+                Name            = $User.displayName
+                'Job title'     = $User.jobTitle
+                Department      = $User.department
+                Country         = $User.country
+                Licensed        = "False"
+                Active          = "True"
+                'Last Active'   = $AuditRecord.TimeStamp
+            }
+            $LicensedLoopUsersActivity.Add($LoopReportLine)
+       }
+}
+
+$LicensedLoopUsersActivity | Out-GridView
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
