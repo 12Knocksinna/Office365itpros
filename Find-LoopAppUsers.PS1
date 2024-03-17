@@ -1,5 +1,7 @@
 # Find-LoopAppUsers.PS1
 # Example script to show how to find which licensed users are using the Loop App
+# V1.0 17-Mar-2024
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Find-LoopAppUsers.PS1
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -notin $Modules) {
