@@ -3,13 +3,14 @@
 # information about account MFA enablement and uses the sign in information for user accounts to figure out if 
 # an account is active.
 # V1.0 5-Jan-2024
+# V1.1 17-Mar-2024
 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-UserPasswordChanges.PS1
 
 Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All, UserAuthenticationMethod.Read.All
 
 [string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
-$Version = "1.0"
+$Version = "1.1"
 $CSVOutputFile = "c:\temp\UserAuthenticationReport.CSV"
 $ReportFile = "c:\temp\UserAuthenticationReport.html"
 
