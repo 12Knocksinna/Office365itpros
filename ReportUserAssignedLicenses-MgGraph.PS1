@@ -13,6 +13,7 @@
 # V1.5 8-Feb-2024  Added cost analysis for departments and countries
 # V1.6 12-Feb-2024 Added info to report when license costs can't be attributed to countries or departments because of missing user account properties
 # V1.7 7-Mar-2024  Added company name to the set of properties output by report
+# V1.8 17-Mar-2024 Tidy up
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
@@ -41,7 +42,7 @@ Function Get-LicenseCosts {
 } 
 
 [datetime]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
-$Version = "1.7"
+$Version = "1.8"
 
 # Default currency - can be overwritten by a value read into the $ImportSkus array
 [string]$Currency = "USD"
@@ -228,34 +229,30 @@ ForEach ($User in $Users) {
       $DuplicateWarningReport = ("Warning: Duplicate licenses detected for: {0}" -f ($DuplicateSkuNames -join ", "))
     }
   } Else { 
-    $UnlicensedAccounts++
+      $UnlicensedAccounts++
   }
 
   $LastSignIn = $User.SignInActivity.LastSignInDateTime
   $LastNonInteractiveSignIn = $User.SignInActivity.LastNonInteractiveSignInDateTime
 
-  if (-not $LastSignIn -and -not $LastNonInteractiveSignIn) {
-    $DaysSinceLastSignIn = "Unknown"
-    $UnusedAccountWarning = ("Unknown last sign-in for account")
-    $LastAccess = "Unknown"
-  }
-  else {
+  If (-not $LastSignIn -and -not $LastNonInteractiveSignIn) {
+      $DaysSinceLastSignIn = "Unknown"
+      $UnusedAccountWarning = ("Unknown last sign-in for account")
+      $LastAccess = "Unknown"
+  } Else {
     # Get the newest date, if both dates contain values
-    if ($LastSignIn -and $LastNonInteractiveSignIn) {
-      if ($LastSignIn -gt $LastNonInteractiveSignIn) {
+    If ($LastSignIn -and $LastNonInteractiveSignIn) {
+      If ($LastSignIn -gt $LastNonInteractiveSignIn) {
+          $CompareDate = $LastSignIn
+      } Else {
+          $CompareDate = $LastNonInteractiveSignIn
+      }
+    } Elseif ($LastSignIn) {
+        # Only $LastSignIn has a value
         $CompareDate = $LastSignIn
-      }
-      else {
+    } Else {
+        # Only $LastNonInteractiveSignIn has a value
         $CompareDate = $LastNonInteractiveSignIn
-      }
-    }
-    elseif ($LastSignIn) {
-      # Only $LastSignIn has a value
-      $CompareDate = $LastSignIn
-    }
-    else {
-      # Only $LastNonInteractiveSignIn has a value
-      $CompareDate = $LastNonInteractiveSignIn
     }
 
     $DaysSinceLastSignIn = ($RunDate - $CompareDate).Days
@@ -265,7 +262,7 @@ ForEach ($User in $Users) {
     }
   }
 
-  $AccountCreatedDate = $Null
+  $AccountCreatedDate = $null
   If ($User.CreatedDateTime) {
     $AccountCreatedDate = Get-Date($User.CreatedDateTime) -format 'dd-MMM-yyyy HH:mm' 
   }
@@ -289,7 +286,6 @@ ForEach ($User in $Users) {
       "Disabled Plans"           = $DisabledPlans 
       "Group based licenses"     = $GroupLicensingAssignments
       "Annual License Costs"     = ("{0} {1}" -f $Currency, ($UserCosts.toString('F2')))
-      "Error message"            = $ErrorMsg
       "Last license change"      = $LastLicenseChange
       "Account created"          = $AccountCreatedDate
       "Last Signin"              = $LastAccess
@@ -298,8 +294,7 @@ ForEach ($User in $Users) {
       Status                     = $UnusedAccountWarning
       UserCosts                  = $UserCosts  
     }
-  }
-  Else { 
+  } Else { 
     # No pricing information
     $ReportLine = [PSCustomObject][Ordered]@{  
       User                       = $User.DisplayName
@@ -311,7 +306,6 @@ ForEach ($User in $Users) {
       "Direct assigned licenses" = $LicenseInfo
       "Disabled Plans"           = $DisabledPlans 
       "Group based licenses"     = $GroupLicensingAssignments
-      "Error message"            = $ErrorMsg
       "Last license change"      = $LastLicenseChange
       "Account created"          = $AccountCreatedDate
       "Last Signin"              = $LastAccess
@@ -335,8 +329,7 @@ ForEach ($S in $SkuSummary) {
   $SkuDisplayName = $SkuHashtable[$S.SkuId]
   If ($S.PrepaidUnits.Enabled -le $S.ConsumedUnits ) {
     $BoughtUnits = $S.ConsumedUnits 
-  }
-  Else {
+  } Else {
     $BoughtUnits = $S.PrepaidUnits.Enabled
   }
   If ($PricingInfoAvailable) {
@@ -349,8 +342,7 @@ ForEach ($S in $SkuSummary) {
       "Annual license costs"  = $SKUTotalCost
       "Annual licensing cost" = ("{0} {1}" -f $Currency, ('{0:N2}' -f $SKUTotalCost))
     }
-  }
-  Else {
+  } Else {
     $SkuReportLine = [PSCustomObject][Ordered]@{  
       "SKU Id"          = $S.SkuId
       "SKU Name"        = $SkuDisplayName 
