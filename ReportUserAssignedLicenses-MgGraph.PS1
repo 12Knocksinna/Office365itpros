@@ -69,7 +69,7 @@ Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredent
 $SkuDataPath = "C:\temp\SkuDataComplete.csv"
 $ServicePlanPath = "C:\temp\ServicePlanDataComplete.csv"
 $CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
-$HtmlReport = "c:\temp\Microsoft365LicensesReport.html"
+$HtmlReportFile = "c:\temp\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
 
 If ((Test-Path $skuDataPath) -eq $False) {
@@ -464,7 +464,7 @@ If ($PricingInfoAvailable) {
 $HTMLTail = $HTMLTail + "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b></p>"	
 
 $HtmlReport = $Htmlhead + $Htmlbody1 + $HtmlSkuSeparator + $HtmlBody2 + $Htmltail
-$HtmlReport | Out-File $ReportFile  -Encoding UTF8
+$HtmlReport | Out-File $HtmlReportFile -Encoding UTF8
 
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
 Write-Host ""
