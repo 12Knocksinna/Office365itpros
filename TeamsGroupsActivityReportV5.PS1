@@ -52,7 +52,7 @@ function Get-GraphData {
 
     # Check if authentication was successful.
     if ($AccessToken) {
-    $Headers = @{
+    $Global:Headers = @{
          'Content-Type'  = "application\json"
          'Authorization' = "Bearer $AccessToken" 
          'ConsistencyLevel' = "eventual"  }

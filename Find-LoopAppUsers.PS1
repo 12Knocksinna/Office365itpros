@@ -57,7 +57,7 @@ If (!($Records)) {
 
 Write-Host ("Analyzing {0} audit records to identify users of the Loop app..." -f $Records.count)
 $LoopRecords = [System.Collections.Generic.List[Object]]::new()
-$Records = $Records | Sort-Object {$_.CreationDate -as [datetime]}
+$Records = $Records | Sort-Object {$_.CreationDate -as [datetime]} -Descending
 ForEach ($Rec in $Records) {
    $AuditData = $Rec.AuditData | ConvertFrom-JSON
    If ($Auditdata.Applicationid -eq 'a187e399-0c36-4b98-8f04-1edc167a0996' -and $AuditData.Operation -ne 'UserLoggedIn') {
