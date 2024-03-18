@@ -11,6 +11,8 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
 # To read user information from Entra ID
 Connect-MgGraph -NoWelcome -Scopes User.Read.All
 
+$CSVOutPutFile = "c:\temp\LoopUserInformation.csv"
+
 # This command finds user accounts with a license containing the Loop app. It specifies the SKU identifers for
 # Microsoft 365 Business Standard, Microsoft 365 Business Premium, Microsoft 365 E3, amd Microsoft 365 E5. 
 # There are other variants of these SKUs # for government and academic use, so it's important to pass the SKU 
@@ -133,6 +135,8 @@ ForEach ($User in $UsersNotLicensedForLoop) {
 }
 
 $LicensedLoopUsersActivity | Out-GridView
+$LicensedLoopUsersActivity | Export-CSV -Path $CSVOutPutFile -NoTypeInformation -Encoding utf8
+Write-Host ("Loop user activity information is available in {0}" -f $CSVOutPutFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
