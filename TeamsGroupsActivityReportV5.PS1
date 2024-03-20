@@ -204,7 +204,7 @@ $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $Archi
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 $Version = "V5.13"
-$TimeToRefreshToken = "58" # Token lifetime
+$TimeToRefreshToken = "55" # Token lifetime
 
 Clear-Host
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
@@ -322,7 +322,9 @@ $i = 0
 $GroupsList = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Group in $Groups) { 
     $i++
-    Write-Host ("Processing group {0} {1}/{2}" -f $Group.DisplayName, $i, $Groups.Count)
+    Write-Host ("Processing group {0} {1}/{2}" -f $Group.DisplayName, $i, $Groups.Count)  
+    # Check for expired access token and renew if necessary
+    $Global:Token = CheckAccessToken
     $GroupOwnerEmail = $Null; $OwnerNames = $Null 
     # Get Group Owners
     $Uri = ("https://graph.microsoft.com/v1.0/groups/{0}/owners?`$select=id,displayName,mail" -f $Group.Id)
@@ -387,9 +389,7 @@ ForEach ($Group in $Groups) {
        Description      = $Description
        Label            = $GroupLabel }
   $GroupsList.Add($ReportLine) 
-  
-  # Check for expired access token and renew if necessary
-  $Global:Token = CheckAccessToken
+
 } 
 $GroupsList = $GroupsList | Sort-Object DisplayName
 
