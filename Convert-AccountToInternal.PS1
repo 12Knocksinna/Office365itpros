@@ -1,7 +1,7 @@
 # Convert-AccountToInternal.PS1
 # Example of how to convert an Entra ID account with an external identity to have an identity in the local
 # tenant
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Convert-AccountToInternal.PS1
 
 # Connect to the Microsoft Graph (tested with SDK V2.15)
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All, User.ReadWrite
@@ -54,6 +54,7 @@ $NewAccountParameters = @{}
 $NewAccountParameters.Add('userPrincipalName', $NewUserPrincipalName)
 $NewAccountParameters.Add('passwordProfile', $PasswordProfile)
 
+Write-Host "Switching the account to be internal..."
 # Switch the account to make it internal
 $Uri = ("https://graph.microsoft.com/Beta/users/{0}/convertExternalToInternalMemberUser" -f $SourceUser.Id)
 $NewAccount = Invoke-MgGraphRequest -Uri $Uri -Body $NewAccountParameters -Method POST -ContentType "application/json"
