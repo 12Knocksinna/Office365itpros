@@ -4,7 +4,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Convert-AccountToInternal.PS1
 
 # Connect to the Microsoft Graph (tested with SDK V2.15)
-Connect-MgGraph -NoWelcome -Scopes Directory.Read.All, User.ReadWrite
+Connect-MgGraph -NoWelcome -Scopes Directory.Read.All, User-ConvertToInternal.ReadWrite.All
 $SourceUser = $null; $NewAccount = $null
 
 # Find the domains registered for the tenant
@@ -64,6 +64,7 @@ If ($NewAccount) {
     $CheckNewAccount = Get-MgUser -UserId $SourceUser.Id -Property id, displayName, userPrincipalName, UserType
     If ($CheckNewAccount.usertype -eq 'Member' -and $CheckNewAccount.UserPrincipalName -eq $NewUserPrincipalName) {
         Update-MgUser -UserId $CheckNewAccount.Id -Mail $NewUserPrincipalName
+        $RevokeStatus = Revoke-MgUserSignInSession -UserId $CheckNewAccount.Id
         Write-Host ("{0} is now a {1} account" -f $CheckNewAccount.UserPrincipalName, $CheckNewAccount.userType)
         Write-Host ("The temporary password for the account is {0}" -f $NewPassword)
         Write-Host ("Remember to assign some licenses to the converted account and to remove it from the previous source.")

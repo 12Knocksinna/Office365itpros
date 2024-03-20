@@ -328,12 +328,14 @@ ForEach ($Group in $Groups) {
     $Uri = ("https://graph.microsoft.com/v1.0/groups/{0}/owners?`$select=id,displayName,mail" -f $Group.Id)
     [array]$GroupData = Invoke-RestMethod -uri $Uri -Headers $Headers -Method Get
     [array]$GroupOwners = $GroupData.Value
-    If ($GroupOwners[0].'@odata.type' -eq '#microsoft.graph.user') { # Found a group owner, so extract names
-        $OwnerNames = $GroupOwners.displayName -join ", " 
-        $GroupOwnerEmail = $GroupOwners[0].Mail 
+    If ($GroupOwners) {
+        If ($GroupOwners[0].'@odata.type' -eq '#microsoft.graph.user') { # Found a group owner, so extract names
+            $OwnerNames = $GroupOwners.displayName -join ", " 
+            $GroupOwnerEmail = $GroupOwners[0].Mail 
+        } 
     } Else { # ownerless group
-        $OwnerNames = "No owners found"
-        $GroupOwnerEMail = $null 
+            $OwnerNames = "No owners found"
+            $GroupOwnerEMail = $null 
     }
     # Get extended group properties 
     $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
