@@ -131,13 +131,13 @@ Return $Token
 
 Function CheckAccessToken {
 # Function to check if the access token needs to be refreshed. If it does, request a new token
-# This often needs to happen when the script processes more than a few thousands groups
+# This often needs to happen when the script processes more than a few thousand groups
 
 [datetime]$TimeNow = (Get-Date)
 If ($TimeNow -ge $TokenExpiredDate) {
     $Global:Token = GetAccessToken
     $Global:TokenExpiredDate = (Get-Date).AddMinutes($TimeToRefreshToken) 
-    Write-Host ("The new access token will expire at {0}" -f ($TokenExpiredDate.toString())) 
+    Write-Host ("The next time to renew the access token is {0}" -f ($TokenExpiredDate.toString())) 
 }
 
 Return $Token
@@ -205,7 +205,7 @@ $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $Archi
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 $Version = "V5.13"
-$TimeToRefreshToken = "55" # Token lifetime
+[int]$TimeToRefreshToken = 53 # Token lifetime
 $RunDate = Get-Date -format 'dd-MMM-yyyy'
 # Get tenant name and other details
 $Uri = "https://graph.microsoft.com/v1.0/organization"
