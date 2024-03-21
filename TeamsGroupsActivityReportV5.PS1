@@ -33,6 +33,7 @@
 # V5.13 18-Mar-2024 Include workaround because of problems with the SharePoint usage API
 # 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
+# See https://office365itpros.com/2022/03/14/microsoft-365-groups-teams-activity-report/ for more information
 #
 =======
 # Needs the following Graph application permissions:
@@ -529,7 +530,8 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
         $ThisTeamData = $TeamsUsageHash[$G.ObjectId]
         $NumberOfChats = [int]$ThisTeamData.Posts + [int]$ThisTeamData.Replies
         [int]$DaysSinceTeamsActivity = 0; [string]$LastItemAddedToTeams = $null
-        If (!([string]::IsNullOrWhitespace($ThisTeamData.LastActivity)) -and $ThisTeamData.LastActivity -ne 'More than 90 days ago') {
+        If (!([string]::IsNullOrWhitespace($ThisTeamData.LastActivity)) -and ($ThisTeamData.LastActivity -ne 'More than 90 days ago')) {
+           # $LastItemAddedToTeams = [datetime]::ParseExact($ThisTeamData.LastActivity, "dd-MMM-yyyy", $null)
             [datetime]$LastItemAddedToTeams = $ThisTeamData.LastActivity
             $LastItemAddedToTeams = Get-Date ($LastItemAddedtoTeams) -Format 'dd-MMM-yyyy HH:mm'
             [int]$DaysSinceTeamsActivity = (New-TimeSpan $LastItemAddedtoTeams).Days
