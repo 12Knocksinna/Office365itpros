@@ -12,13 +12,13 @@ $TempDownloadFile = "c:\temp\x.csv"
 $ObscureFlag = $false
 $CSVOutputFile = "C:\temp\CopilotUserAnalysis.CSV"
 
+$Uri = "https://graph.microsoft.com/beta/admin/reportSettings"
 # Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
-$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri "https://graph.microsoft.com/beta/admin/reportSettings"
+$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri $Uri
 If ($DisplaySettings['displayConcealedNames'] -eq $true) { # data is obscured, so let's reset it to allow the report to run
    $ObscureFlag = $true
    Write-Host "Setting tenant data concealment for reports to False" -foregroundcolor red
-   Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/beta/admin/reportSettings' `
-    -Body (@{"displayConcealedNames"= $false} | ConvertTo-Json) 
+   Invoke-MgGraphRequest -Method PATCH -Uri $Uri -Body (@{"displayConcealedNames"= $false} | ConvertTo-Json) 
 }
 
 # This command finds user accounts with an eligible Copilot base license. It specifies the SKU identifers for
