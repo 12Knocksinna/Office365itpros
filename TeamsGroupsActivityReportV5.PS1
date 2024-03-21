@@ -206,6 +206,7 @@ $SharedDocFolder = "/Shared%20Documents" # These values are to allow internation
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 $Version = "V5.13"
 $TimeToRefreshToken = "55" # Token lifetime
+$RunDate = Get-Date -format 'dd-MMM-yyyy'
 
 Clear-Host
 Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
@@ -228,7 +229,7 @@ $htmlhead="<html>
 	   <body>
            <div align=center>
            <p><h1>Microsoft 365 Groups and Teams Activity Report</h1></p>
-           <p><h3>Generated: " + $date + "</h3></p></div>"
+           <p><h3>Generated: " + $RunDate + "</h3></p></div>"
 		
 $Global:Token = GetAccessToken
 If (!($Token)) {
