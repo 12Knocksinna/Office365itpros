@@ -133,12 +133,12 @@ Function CheckAccessToken {
 # Function to check if the access token needs to be refreshed. If it does, request a new token
 # This often needs to happen when the script processes more than a few thousands groups
 
-$TimeNow = (Get-Date)
-if($TimeNow -ge $TokenExpiredDate) {
-  $Global:Token = GetAccessToken
-  $Global:TokenExpiredDate = (Get-Date).AddMinutes($TimeToRefreshToken) 
-  #Write-Host "Requested new access token - expiration at" $TokenExpiredDate 
- }
+[datetime]$TimeNow = (Get-Date)
+If ($TimeNow -ge $TokenExpiredDate) {
+    $Global:Token = GetAccessToken
+    $Global:TokenExpiredDate = (Get-Date).AddMinutes($TimeToRefreshToken) 
+    Write-Host ("The new access token will expire at {0}" -f ($TokenExpiredDate.toString())) 
+}
 
 Return $Token
 }
@@ -200,21 +200,18 @@ If ("ExchangeOnlineManagement" -notin $ModulesLoaded) {
 }     
 
 # Setup some stuff we use
-$WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
+$WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date)
 $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0; $ArchivedTeams = 0
 $SharedDocFolder = "/Shared%20Documents" # These values are to allow internationalization of the SPO document library URL. For French, this would be "/Documents%20partages" 
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 $Version = "V5.13"
 $TimeToRefreshToken = "55" # Token lifetime
 $RunDate = Get-Date -format 'dd-MMM-yyyy'
-
-Clear-Host
-Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
-# Comment these lines out if you don't want the script to create a temp directory to store its output files
-$path = "C:\Temp"
-If(!(test-path $path)) {
-    New-Item -ItemType Directory -Force -Path $path | Out-Null 
-}
+# Get tenant name and other details
+$Uri = "https://graph.microsoft.com/v1.0/organization"
+$OrgData = Get-GraphData -Uri $Uri -AccessToken $Token
+$OrgName = $OrgData.DisplayName
+$HeaderInfo = ("Generated for the {0} tenant on {1}" -f $OrgName, $RunDate)
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
 $htmlhead="<html>
 	   <style>
@@ -229,8 +226,17 @@ $htmlhead="<html>
 	   <body>
            <div align=center>
            <p><h1>Microsoft 365 Groups and Teams Activity Report</h1></p>
-           <p><h3>Generated: " + $RunDate + "</h3></p></div>"
+           <p><h3>Generated for " + $HeaderInfo + "</h3></p></div>"
 		
+
+Clear-Host
+Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
+# Comment these lines out if you don't want the script to create a temp directory to store its output files
+$path = "C:\Temp"
+If(!(test-path $path)) {
+    New-Item -ItemType Directory -Force -Path $path | Out-Null 
+}
+
 $Global:Token = GetAccessToken
 If (!($Token)) {
     Write-Host "Can't get a valid access token from Entra ID - exiting"
@@ -244,11 +250,6 @@ $Global:Headers = @{
 
 # Set the creation date of the initial access token (59min and 59sec life long) and add 57 minutes to renew the token later in the main loop
 $Global:TokenExpiredDate = (Get-date).AddMinutes($TimeToRefreshToken) 
-    
-# Get tenant name and other details
-$Uri = "https://graph.microsoft.com/v1.0/organization"
-$OrgData = Get-GraphData -Uri $Uri -AccessToken $Token
-$OrgName = $OrgData.DisplayName
 
 $S1 = Get-Date #Start of processing
 
