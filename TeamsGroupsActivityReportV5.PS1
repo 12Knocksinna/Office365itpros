@@ -531,8 +531,8 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
         $NumberOfChats = [int]$ThisTeamData.Posts + [int]$ThisTeamData.Replies
         [int]$DaysSinceTeamsActivity = 0; [string]$LastItemAddedToTeams = $null
         If (!([string]::IsNullOrWhitespace($ThisTeamData.LastActivity)) -and ($ThisTeamData.LastActivity -ne 'More than 90 days ago')) {
-           # $LastItemAddedToTeams = [datetime]::ParseExact($ThisTeamData.LastActivity, "dd-MMM-yyyy", $null)
-            [datetime]$LastItemAddedToTeams = $ThisTeamData.LastActivity
+            $LastItemAddedToTeams = [datetime]::ParseExact($ThisTeamData.LastActivity, "dd-MMM-yyyy", $null)
+            # [datetime]$LastItemAddedToTeams = $ThisTeamData.LastActivity
             $LastItemAddedToTeams = Get-Date ($LastItemAddedtoTeams) -Format 'dd-MMM-yyyy HH:mm'
             [int]$DaysSinceTeamsActivity = (New-TimeSpan $LastItemAddedtoTeams).Days
         }
