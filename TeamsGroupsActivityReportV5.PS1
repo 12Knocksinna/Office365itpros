@@ -410,7 +410,7 @@ If (!$TeamsCount) {Write-Host "No Microsoft Teams found in the tenant - continui
 
 $S2 = Get-Date # End of fetching
 Clear-Host
-Write-Host "Fetching data for" $GroupsCount "Microsoft 365 Groups took" ($S2 - $S1).TotalSeconds "seconds"
+Write-Host ("Fetching data for {0} Microsoft 365 Groups took {1} seconds" -f $GroupsCount, (($S2 - $S1).TotalSeconds))
 
 # Set up progress bar and create output list
 $ProgDelta = 100/($GroupsCount); $CheckCount = 0; $GroupNumber = 0
@@ -447,17 +447,17 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
        $NumberConversations = 0
    } Else {
      Try {
-       $LastConversation = (Get-Date ($Data.NewestItemReceivedDate) -Format g )
-       $NumberConversations = $Data.ItemsInFolder }
+        $LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format 'dd-MMM-yyyy HH:mm'
+        $NumberConversations = $Data.ItemsInFolder }
      Catch [System.Management.Automation.ParameterBindingException] {
        # Caused by the Exo cmdlets returning bad dates, so we need to do this...
-       [string]$LastDate = $Data.NewestItemReceivedDate[0]
-       [datetime]$LastDateConversation = $LastDate
-       $LastConversation = Get-Date($LastDateConversation) -format g
-       [string]$NumberConversations = $Data.ItemsInfolder[0].toString()
-       $Error.Clear()
+        [string]$LastDate = $Data.NewestItemReceivedDate[0]
+        [datetime]$LastDateConversation = $LastDate
+        $LastConversation = Get-Date($LastDateConversation) -format 'dd-MMM-yyyy HH:mm'
+        [string]$NumberConversations = $Data.ItemsInfolder[0].toString()
+            $Error.Clear()
         } Catch {
-      Write-Host "Error converting date values"
+            Write-Host "Error converting date values"
      }
    }
 
@@ -531,7 +531,7 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
         $NumberOfChats = [int]$ThisTeamData.Posts + [int]$ThisTeamData.Replies
         [int]$DaysSinceTeamsActivity = 0; [string]$LastItemAddedToTeams = $null
         If (!([string]::IsNullOrWhitespace($ThisTeamData.LastActivity)) -and ($ThisTeamData.LastActivity -ne 'More than 90 days ago')) {
-            $LastItemAddedToTeams = [datetime]::ParseExact($ThisTeamData.LastActivity, "dd-MMM-yyyy", $null)
+            [datetime]$LastItemAddedToTeams = [datetime]::ParseExact($ThisTeamData.LastActivity, "dd-MMM-yyyy", $null)
             # [datetime]$LastItemAddedToTeams = $ThisTeamData.LastActivity
             $LastItemAddedToTeams = Get-Date ($LastItemAddedtoTeams) -Format 'dd-MMM-yyyy HH:mm'
             [int]$DaysSinceTeamsActivity = (New-TimeSpan $LastItemAddedtoTeams).Days
@@ -585,7 +585,7 @@ If ($NumberWarnings -gt 2) { $OverallStatus = "Fail" }
     $ReportLine = [PSCustomObject][Ordered]@{
           GroupName               = $DisplayName
           ManagedBy               = $G.ManagedBy
-	  ContactEmail            = $G.GroupContact
+	      ContactEmail            = $G.GroupContact
           Visibility              = $G.Visibility
           Members                 = $G.GroupMembers
           "External Guests"       = $G.GuestMembers
@@ -599,7 +599,7 @@ If ($NumberWarnings -gt 2) { $OverallStatus = "Fail" }
           "Last SPO Activity"     = $SPOLastActivityDate
           "SPO Storage Used (GB)" = $SPOStorageUsed
           "Number SPO Files"      = $SPOFileCount
-	  "SPO Site URL"          = $G.SharePointURL
+	      "SPO Site URL"          = $G.SharePointURL
           "Date Created"          = $G.WhenCreated
           "Days Old"              = $GroupAge       
            NumberWarnings         = $NumberWarnings
