@@ -13,7 +13,7 @@ $ObscureFlag = $false
 $CSVOutputFile = "C:\temp\CopilotUserAnalysis.CSV"
 
 # Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
-$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri 
+$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri "https://graph.microsoft.com/beta/admin/reportSettings"
 If ($DisplaySettings['displayConcealedNames'] -eq $true) { # data is obscured, so let's reset it to allow the report to run
    $ObscureFlag = $true
    Write-Host "Setting tenant data concealment for reports to False" -foregroundcolor red
