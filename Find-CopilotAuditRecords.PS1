@@ -25,30 +25,45 @@ If (!($Records)) {
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Rec in $Records) {
     $AuditData = $Rec.AuditData | ConvertFrom-Json
-    $CopilotApp = $null;  $Context = $null
+    $CopilotApp = $null;  $Context = $null; $CopilotLocation = $null
    
+    Switch ($Auditdata.copiloteventdata.contexts.type) {
+        "xlsx" {
+            $CopilotApp = "Excel"
+        }
+        "docx" {
+            $CopilotApp = "Word"
+        }
+        "pptx" {
+            $CopilotApp = "PowerPoint"
+        }
+    }
+
+    If ($Auditdata.copiloteventdata.contexts.id -like "*https://teams.microsoft.com/*") {
+        $CopilotApp = "Teams"
+    } ElseIf ($AuditData.CopiloteventData.AppHost -eq "bizchat") {
+        $CopilotApp = "Copilot for Microsoft 365 Chat"
+    }
+
     If ($Auditdata.copiloteventdata.contexts.id) {
         $Context = $Auditdata.copiloteventdata.contexts.id
-    } ElseIf ($Auditdata.copiloteventdata.threadid ) {
+    } ElseIf ($Auditdata.copiloteventdata.threadid) {
         $Context = $Auditdata.copiloteventdata.threadid
         $CopilotApp = "Teams"
     }
 
     If ($Auditdata.copiloteventdata.contexts.id -like "*-my.sharepoint.com*") {
-        $CopilotApp = "OneDrive for Business"
+        $CopilotLocation = "OneDrive for Business"
     } ElseIf ($Auditdata.copiloteventdata.contexts.id -like "*https://teams.microsoft.com/*") {
-        $CopilotApp = "Teams"
-    } ElseIf ($AuditData.CopiloteventData.AppHost -eq "bizchat") {
-        $CopilotApp = "Copilot for Microsoft 365 Chat"
+        $CopilotLocation = "Teams"
     } 
 
     $ReportLine = [PSCustomObject][Ordered]@{
         TimeStamp       = (Get-Date $Rec.CreationDate -format "dd-MMM-yyyy HH:mm")
         User            = $Rec.UserIds
         App             = $CopilotApp
-        Context         = $Context
-        Id              = $Rec.Identity
-    
+        Location        = $CopilotLocation
+        Context         = $Context   
     }
     $Report.Add($ReportLine)
 }
