@@ -55,11 +55,15 @@ Write-Host "Searching the unified audit log for file operations performed using 
 If (!($Records)) {
     Write-Host "No audit records can be found - exiting"
     Break
+} Else {
+    # Remove any duplicate records and make sure that everything is sorted in date order
+    $Records = $Records | Sort-Object Identity -Unique 
+    $Records = $Records | Sort-Object {$_.CreationDate -as [datetime]}
 }
 
 Write-Host ("Analyzing {0} audit records to identify users of the Loop app..." -f $Records.count)
 $LoopRecords = [System.Collections.Generic.List[Object]]::new()
-$Records = $Records | Sort-Object {$_.CreationDate -as [datetime]} -Descending
+
 ForEach ($Rec in $Records) {
    $AuditData = $Rec.AuditData | ConvertFrom-JSON
    If ($Auditdata.Applicationid -eq 'a187e399-0c36-4b98-8f04-1edc167a0996' -and $AuditData.Operation -ne 'UserLoggedIn') {
@@ -74,7 +78,6 @@ ForEach ($Rec in $Records) {
    }
 }
 
-$LoopRecords = $LoopRecords | Sort-Object {$_.Timestamp -as [datetime]} -Descending
 $LoopActiveUsers = $LoopRecords | Sort-Object UserPrincipalName -Unique
 
 # First run through identifies user accounts who have a license that allows them to use the Loop app
