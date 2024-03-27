@@ -73,7 +73,7 @@ ForEach ($Rec in $Records) {
     $AccessedResourceLocations = $AuditData.copiloteventdata.accessedResources.id -join ", "
 
     $ReportLine = [PSCustomObject][Ordered]@{
-        TimeStamp                       = (Get-Date $Rec.CreationDate -format "dd-MMM-yyyy HH:mm")
+        TimeStamp                       = (Get-Date $Rec.CreationDate -format "dd-MMM-yyyy HH:mm:ss")
         User                            = $Rec.UserIds
         App                             = $CopilotApp
         Location                        = $CopilotLocation
