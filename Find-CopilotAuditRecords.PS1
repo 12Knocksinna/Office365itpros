@@ -10,7 +10,7 @@ If ("ExchangeOnlineManagement" -notin $ModulesLoaded) {
 } 
 
 Write-Host "Searching for Copilot audit records..."
-[array]$Records = search-UnifiedAuditLog -StartDate (Get-Date).Adddays(-90) -EndDate (Get-Date).AddDays(1) -Formatted `
+[array]$Records = Search-UnifiedAuditLog -StartDate (Get-Date).Adddays(-90) -EndDate (Get-Date).AddDays(1) -Formatted `
     -ResultSize 5000 -SessionCommand ReturnLargeSet -Operations CopilotInteraction
 If (!($Records)) {
     Write-Host "No Copilot audit records found - exiting"
@@ -25,7 +25,7 @@ If (!($Records)) {
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Rec in $Records) {
     $AuditData = $Rec.AuditData | ConvertFrom-Json
-    $CopilotApp = $null;  $Context = $null; $CopilotLocation = $null
+    $CopilotApp = 'Copilot for Microsoft 365'; $Context = $null; $CopilotLocation = $null
    
     Switch ($Auditdata.copiloteventdata.contexts.type) {
         "xlsx" {
@@ -36,6 +36,10 @@ ForEach ($Rec in $Records) {
         }
         "pptx" {
             $CopilotApp = "PowerPoint"
+        }
+        "TeamsMeeting" {
+            $CopilotApp = "Teams"
+            $CopilotLocation = "Teams meeting"
         }
     }
 
@@ -49,21 +53,33 @@ ForEach ($Rec in $Records) {
         $Context = $Auditdata.copiloteventdata.contexts.id
     } ElseIf ($Auditdata.copiloteventdata.threadid) {
         $Context = $Auditdata.copiloteventdata.threadid
-        $CopilotApp = "Teams"
+       # $CopilotApp = "Teams"
     }
 
-    If ($Auditdata.copiloteventdata.contexts.id -like "*-my.sharepoint.com*") {
-        $CopilotLocation = "OneDrive for Business"
+    If ($Auditdata.copiloteventdata.contexts.id -like "*/sites/*") {
+        $CopilotLocation = "SharePoint Online"
     } ElseIf ($Auditdata.copiloteventdata.contexts.id -like "*https://teams.microsoft.com/*") {
         $CopilotLocation = "Teams"
+        If ($Auditdata.copiloteventdata.contexts.id -like "*ctx=channel*") {
+            $CopilotLocation = "Teams Channel"
+        } Else {
+            $CopilotLocation = "Teams Chat"
+        }
+    } ElseIf ($Auditdata.copiloteventdata.contexts.id -like "*/personal/*") {
+        $CopilotLocation = "OneDrive for Business"
     } 
 
+    $AccessedResources = $AuditData.copiloteventdata.accessedResources.name -join ", "
+    $AccessedResourceLocations = $AuditData.copiloteventdata.accessedResources.id -join ", "
+
     $ReportLine = [PSCustomObject][Ordered]@{
-        TimeStamp       = (Get-Date $Rec.CreationDate -format "dd-MMM-yyyy HH:mm")
-        User            = $Rec.UserIds
-        App             = $CopilotApp
-        Location        = $CopilotLocation
-        Context         = $Context   
+        TimeStamp                       = (Get-Date $Rec.CreationDate -format "dd-MMM-yyyy HH:mm")
+        User                            = $Rec.UserIds
+        App                             = $CopilotApp
+        Location                        = $CopilotLocation
+        'App context'                   = $Context   
+        'Accessed Resources'            = $AccessedResources
+        'Accessed Resource Locations'   = $AccessedResourceLocations
     }
     $Report.Add($ReportLine)
 }
