@@ -1,6 +1,8 @@
 # Find-CopilotAuditRecords.PS1
 # An example of how to find and report audit records generated for Copilot for Microsoft 365 interactions
 # (not from mobile devices)
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Find-CopilotAuditRecords.PS1
+# V1.0 28-Mar-2024
 
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select-Object -ExpandProperty Name
@@ -68,7 +70,7 @@ ForEach ($Rec in $Records) {
     } ElseIf ($Auditdata.copiloteventdata.contexts.id -like "*/personal/*") {
         $CopilotLocation = "OneDrive for Business"
     } 
-
+    # Make sure that we report the resources used by Copilot
     $AccessedResources = $AuditData.copiloteventdata.accessedResources.name -join ", "
     $AccessedResourceLocations = $AuditData.copiloteventdata.accessedResources.id -join ", "
 
