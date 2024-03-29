@@ -34,7 +34,7 @@ While ($Token) {
     } Else {
         $Token = $Null
         If (($NextSetofWorkSpaces[$NextSetofWorkspaces.count -1]) -eq "End of containers view.") {  
-            # Remove the last item in the array because it's contains the message "End of containers view."
+            # Remove the last item in the array because it contains the message "End of containers view."
             $NextSetofWorkspaces = $NextSetofWorkspaces[0..($NextSetofWorkspaces.count -2)]
         }             
     }
