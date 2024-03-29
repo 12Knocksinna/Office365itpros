@@ -54,7 +54,7 @@ $LoopValidLicenses.Add("05e9a617-0261-4cee-bb44-138d3ef5d965", "Microosft 365 E3
 $LoopValidLicenses.Add("0c21030a-7e60-4ec7-9a0f-0042e0e0211a", "Microsoft 365 E3 Hub Min 500")
 $LoopValidLicenses.Add("06ebc4ee-1bb5-47dd-8120-11324bc54e06", "Microsoft 365 E5")
 
-$LookWorkspaces = $LoopWorkspaces | Sort-Object ContainerName
+$LoopWorkspaces = $LoopWorkspaces | Sort-Object ContainerName
 
 $Report = [System.Collections.Generic.List[Object]]::new()
 $TotalBytes = 0; $LicenseOK = 0; $i = 0
