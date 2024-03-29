@@ -1,6 +1,6 @@
 # Script to find guest accounts that are inactive - used in https://petri.com/guest-account-obsolete-activity
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindObsoleteGuestsByActivity.ps1
-$Guests = (Get-AzureADUser -Filter "UserType eq 'Guest'" -All $True| Select Displayname, UserPrincipalName, Mail, RefreshTokensValidFromDateTime)
+$Guests = (Get-AzADUser -Filter "UserType eq 'Guest'" | Select Displayname, UserPrincipalName, Mail, RefreshTokensValidFromDateTime)
 Write-Host $Guests.Count "guest accounts found. Checking their recent activity..."
 $StartDate = (Get-Date).AddDays(-90) #For audit log
 $StartDate2 = (Get-Date).AddDays(-10) #For message trace
