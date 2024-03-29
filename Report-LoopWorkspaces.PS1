@@ -1,7 +1,7 @@
-# Report-LoopWorkspaces.PS1
-# Script to report the usage of Loop workspaces in a tenant
-# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-LoopWorkspaces.PS1
-# 6-Nov-2023
+# Report-LoopWorkSpacesPaged.PS1
+# Example script to show how to report Loop workspaces when there are more than 200 workspaces in the tenant
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-LoopWorkSpaces.PS1 
+# V1.0 29-March-2024
 
 # Connect to SharePoint Online
 Import-Module Microsoft.Online.Sharepoint.PowerShell
@@ -10,10 +10,37 @@ Connect-SPOService -url https://office365itpros-admin.sharepoint.com -Credential
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All
 
 Write-Host "Looking for Loop workspaces..."
-[array]$LoopWorkspaces = Get-SPOContainer -OwningApplicationID a187e399-0c36-4b98-8f04-1edc167a0996
+[array]$LoopWorkspaces = Get-SPOContainer -OwningApplicationID a187e399-0c36-4b98-8f04-1edc167a0996 -Paged
 If (!($LoopWorkspaces)) {
     Write-Host "Can't get Loop workspaces - exiting"; break
 }
+
+# Figure out if there are more than 200 workspaces.
+$Token = $null
+If ($LoopWorkspaces[200]) {
+    # Extract the token for the next page of workspace information
+    $Token = $LoopWorkSpaces[200].split(":")[1].Trim()
+    # Remove the last item in the array because it's the one that contains the token
+    $LoopWorkspaces = $LoopWorkspaces[0..199]
+}
+Write-Host "Token for next page found - retrieving more workspaces..."
+While ($Token) {
+    # Loop while we can get a token for the next page of workspaces
+    [array]$NextSetofWorkSpaces = Get-SPOContainer -OwningApplicationID a187e399-0c36-4b98-8f04-1edc167a0996 `
+      -PagingToken $Token -Paged
+    If ($NextSetofWorkSpaces[200]) {
+        $Token = $NextSetofWorkSpaces[200].split(":")[1].Trim()
+        $NextSetofWorkspaces = $NextSetofWorkspaces[0..199]
+    } Else {
+        $Token = $Null
+        If (($NextSetofWorkSpaces[$NextSetofWorkspaces.count -1]) -eq "End of containers view.") {  
+            # Remove the last item in the array because it contains the message "End of containers view."
+            $NextSetofWorkspaces = $NextSetofWorkspaces[0..($NextSetofWorkspaces.count -2)]
+        }             
+    }
+    $LoopWorkspaces += $NextSetofWorkspaces
+} 
+Write-Host ("{0} Loop workspaces found" -f $LoopWorkspaces.count)
 
 $CSVOutputFile = "C:\temp\LoopWorkSpaces.CSV"
 $LoopServicePlan = 'c4b8c31a-fb44-4c65-9837-a21f55fcabda'
@@ -27,11 +54,13 @@ $LoopValidLicenses.Add("05e9a617-0261-4cee-bb44-138d3ef5d965", "Microosft 365 E3
 $LoopValidLicenses.Add("0c21030a-7e60-4ec7-9a0f-0042e0e0211a", "Microsoft 365 E3 Hub Min 500")
 $LoopValidLicenses.Add("06ebc4ee-1bb5-47dd-8120-11324bc54e06", "Microsoft 365 E5")
 
+$LoopWorkspaces = $LoopWorkspaces | Sort-Object ContainerName
+
 $Report = [System.Collections.Generic.List[Object]]::new()
 $TotalBytes = 0; $LicenseOK = 0; $i = 0
 ForEach ($LoopSpace in $LoopWorkspaces) {
     $i++
-    Write-Output ("Analyzing workspace {0} {1}/{2}" -f $LoopSpace.ContainerId, $i, $LoopWorkspaces.count)
+    Write-Output ("Analyzing workspace {0} {1}/{2}" -f $LoopSpace.ContainerName, $i, $LoopWorkspaces.count)
     # Get detail of the workspace
     $LoopSpaceDetails =  Get-SPOContainer -OwningApplicationID a187e399-0c36-4b98-8f04-1edc167a0996 `
       -Identity $LoopSpace.ContainerId
@@ -68,24 +97,24 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
     $TotalBytes = $TotalBytes + $LoopSpaceDetails.StorageUsedInBytes
 
     $ReportLine = [PSCustomObject]@{
-        ContainerId    = $LoopSpace.ContainerId
-        App            = $LoopSpaceDetails.OwningApplicationName
-        Name           = $LoopSpace.ContainerName
-        Description    = $LoopSpace.Description
-        Owner          = $User.DisplayName
-        UPN            = $User.UserPrincipalName
-        Department     = $User.Department
-        License        = $LoopLicenseStatus
-        Product        = $LicenseName
-        Members        = ($Members -Join ", ")
-        Created        = $LoopSpaceDetails.CreatedOn
-        SiteURL        = $LoopSpaceDetails.ContainerSiteUrl
-        "Storage (MB)" = $StorageUsed
+        ContainerId         = $LoopSpace.ContainerId
+        App                 = $LoopSpaceDetails.OwningApplicationName
+        'Workspace Name'    = $LoopSpace.ContainerName
+        Description         = $LoopSpace.Description
+        Owner               = $User.DisplayName
+        UPN                 = $User.UserPrincipalName
+        Department          = $User.Department
+        License             = $LoopLicenseStatus
+        Product             = $LicenseName
+        Members             = ($Members -Join ", ")
+        Created             = $LoopSpaceDetails.CreatedOn
+        SiteURL             = $LoopSpaceDetails.ContainerSiteUrl
+        "Storage (MB)"      = $StorageUsed
     }
     $Report.Add($ReportLine)
 }
 
-$Report | Out-GridView
+$Report | Out-GridView -Title "Details of Loop Workspaces" -OutputMode Multiple
 $Users = $Report | Select-Object Owner, License | Sort-Object Owner -Unique
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
 
