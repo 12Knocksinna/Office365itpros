@@ -97,24 +97,24 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
     $TotalBytes = $TotalBytes + $LoopSpaceDetails.StorageUsedInBytes
 
     $ReportLine = [PSCustomObject]@{
-        ContainerId    = $LoopSpace.ContainerId
-        App            = $LoopSpaceDetails.OwningApplicationName
-        Name           = $LoopSpace.ContainerName
-        Description    = $LoopSpace.Description
-        Owner          = $User.DisplayName
-        UPN            = $User.UserPrincipalName
-        Department     = $User.Department
-        License        = $LoopLicenseStatus
-        Product        = $LicenseName
-        Members        = ($Members -Join ", ")
-        Created        = $LoopSpaceDetails.CreatedOn
-        SiteURL        = $LoopSpaceDetails.ContainerSiteUrl
-        "Storage (MB)" = $StorageUsed
+        ContainerId         = $LoopSpace.ContainerId
+        App                 = $LoopSpaceDetails.OwningApplicationName
+        'Workspace Name'    = $LoopSpace.ContainerName
+        Description         = $LoopSpace.Description
+        Owner               = $User.DisplayName
+        UPN                 = $User.UserPrincipalName
+        Department          = $User.Department
+        License             = $LoopLicenseStatus
+        Product             = $LicenseName
+        Members             = ($Members -Join ", ")
+        Created             = $LoopSpaceDetails.CreatedOn
+        SiteURL             = $LoopSpaceDetails.ContainerSiteUrl
+        "Storage (MB)"      = $StorageUsed
     }
     $Report.Add($ReportLine)
 }
 
-$Report | Out-GridView
+$Report | Out-GridView -Title "Details of Loop Workspaces" -OutputMode Multiple
 $Users = $Report | Select-Object Owner, License | Sort-Object Owner -Unique
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
 
