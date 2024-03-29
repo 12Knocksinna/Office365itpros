@@ -1,6 +1,6 @@
 # Report-LoopWorkSpacesPaged.PS1
 # Example script to show how to report Loop workspaces when there are more than 200 workspaces in the tenant
-# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-LoopWorkSpaces.PS1 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-LoopWorkspaces.PS1 
 # V1.0 23-Nov-2023
 # V1.1 29-March-2024
 
