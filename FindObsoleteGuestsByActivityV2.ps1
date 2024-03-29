@@ -29,42 +29,50 @@ ForEach ($G in $Guests) {
     # Search for audit records for this user
     [array]$Recs = (Search-UnifiedAuditLog -UserIds $G.Mail, $G.UserPrincipalName -Operations UserLoggedIn, SecureLinkUsed, TeamsSessionStarted -StartDate $StartDate -EndDate $EndDate -ResultSize 1)
     If ($Recs) { # We found some audit records
-       $LastAuditRecord = $Recs[0].CreationDate; $LastAuditAction = $Recs[0].Operations; $AuditRec++}
-    Else {
-       $LastAuditRecord = "None found"; $LastAuditAction = "N/A" }
+       $LastAuditRecord = $Recs[0].CreationDate; $LastAuditAction = $Recs[0].Operations; $AuditRec++
+   } Else {
+       $LastAuditRecord = "None found"; $LastAuditAction = "N/A" 
+   }
     # Check email tracking logs because guests might receive email through membership of Outlook Groups. Email address must be valid for the check to work
-    If ($null -ne $G.Mail) {$EmailRecs = (Get-MessageTrace -StartDate $StartDate2 -EndDate $EndDate -Recipient $G.Mail)}           
-    If ($EmailRecs.Count -gt 0) {$EmailActive++}
+   If ($null -ne $G.Mail) {
+      $EmailRecs = (Get-MessageTrace -StartDate $StartDate2 -EndDate $EndDate -Recipient $G.Mail)
+   }           
+   If ($EmailRecs.Count -gt 0) {
+      $EmailActive++
+   }
  
    # Find what Microsoft 365 Groups the guest belongs to
-    $GroupNames = $Null
-    $Dn = (Get-ExoRecipient -Identity $G.UserPrincipalName).DistinguishedName
-    If ($Dn -like "*'*")  {
+   $GroupNames = $Null
+   $Dn = (Get-ExoRecipient -Identity $G.UserPrincipalName).DistinguishedName
+   If ($Dn -like "*'*")  {
        $DNNew = "'" + "$($dn.Replace("'","''''"))" + "'"
        $Cmd = "Get-Recipient -Filter 'Members -eq '$DNnew'' -RecipientTypeDetails GroupMailbox | Select DisplayName, ExternalDirectoryObjectId"
        $GuestGroups = Invoke-Expression $Cmd 
-   } Else {
+      } Else {
        $GuestGroups = (Get-Recipient -Filter "Members -eq '$Dn'" -RecipientTypeDetails GroupMailbox | Select-Object DisplayName, ExternalDirectoryObjectId) }
      If ($null -ne $GuestGroups) {
        $GroupNames = $GuestGroups.DisplayName -join ", " }
 
      # Figure out the domain the guest is from so that we can report this information
-     $Domain = $G.Mail.Split("@")[1]
+      $Domain = $G.Mail.Split("@")[1]
      # Figure out age of guest account in days using the creation date in the extension properties of the guest account
-     $CreationDate = (Get-AzureADUserExtension -ObjectId $G.ObjectId).get_item("createdDateTime") 
-     $AccountAge = ($CreationDate | New-TimeSpan).Days
+      $CreationDate = (Get-AzureADUserExtension -ObjectId $G.ObjectId).get_item("createdDateTime") 
+      $AccountAge = ($CreationDate | New-TimeSpan).Days
      # Find if there's been any recent sign on activity
-     $UserLastLogonDate = $Null
-     $UserObjectId = $G.ObjectId
-     $UserLastLogonDate = (Get-AzureADAuditSignInLogs -Top 1  -Filter "userid eq '$UserObjectId' and status/errorCode eq 0").CreatedDateTime 
-     If ($UserLastLogonDate -ne $Null) {
-        $UserLastLogonDate = Get-Date ($UserLastLogonDate) -format g }
-     Else {
-        $UserLastLogonDate = "No recent sign in records found" }
-     # Flag the account for potential deletion if it is more than a year old and isn't a member of any Office 365 Groups.
-     If (($AccountAge -gt 365) -and ($GroupNames -eq $Null))  {$ReviewFlag = $True} 
+      $UserLastLogonDate = $Null
+      $UserObjectId = $G.ObjectId
+      $UserLastLogonDate = (Get-AzureADAuditSignInLogs -Top 1  -Filter "userid eq '$UserObjectId' and status/errorCode eq 0").CreatedDateTime 
+      If ($null -ne $UserLastLogonDate) {
+         $UserLastLogonDate = Get-Date ($UserLastLogonDate) -format g 
+      } Else {
+        $UserLastLogonDate = "No recent sign in records found" 
+      }
+      # Flag the account for potential deletion if it is more than a year old and isn't a member of any Office 365 Groups.
+      If (($AccountAge -gt 365) -and ($null -eq $GroupNames))  {
+         $ReviewFlag = $True
+      } 
      # Write out report line     
-     $ReportLine = [PSCustomObject]@{ 
+      $ReportLine = [PSCustomObject]@{ 
           Guest                = $G.Mail
           Name                 = $G.DisplayName
           Domain               = $Domain
@@ -78,12 +86,14 @@ ForEach ($G in $Guests) {
           "Member of"          = $GroupNames 
           UPN                  = $G.UserPrincipalName
           ObjectId             = $G.ObjectId } 
-       $Report.Add($ReportLine) 
-   # Update Azure AD with details.
-   $ActiveText = "Active"
-   If ($ReviewFlag -eq $True) { $ActiveText = "inactive" }
-   $Text = "Guest account reviewed on " + (Get-Date -format g) + " when account was deemed " + $ActiveText
-   Set-MailUser -Identity $G.Mail -CustomAttribute1 $Text
+      $Report.Add($ReportLine) 
+   # Update Entra ID with details.
+      $ActiveText = "Active"
+      If ($ReviewFlag -eq $True) { 
+         $ActiveText = "inactive" 
+      }
+      $Text = "Guest account reviewed on " + (Get-Date -format g) + " when account was deemed " + $ActiveText
+      Set-MailUser -Identity $G.Mail -CustomAttribute1 $Text
 } 
 # Generate the output files
 $Report | Sort-Object Name | Export-CSV -NoTypeInformation c:\temp\GuestActivity.csv   
