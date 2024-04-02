@@ -56,20 +56,21 @@ If ($null -eq $SearchId) {
     Write-Host ("Audit log search created with id: {0} and name {1}" -f $SearchId, $SearchQuery.displayname)
 }
 
-$int = 20
+[int]$i = 1
+[int]$SleepSeconds = 20
 $SearchFinished = $false; [int]$SecondsElapsed = 0
 Write-Host "Checking audit query status..."
 Start-Sleep -Seconds 20
 $Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}" -f $SearchId)
 $SearchStatus = Invoke-MgGraphRequest -Uri $Uri -Method GET
 While ($SearchFinished -eq $false) {
-    $int++
-    Write-Host ("Waiting for audit search to complete. Check {0} after {1} seconds. Current state {2}" -f $int, $SecondsElapsed, $SearchStatus.status)
+    $i++
+    Write-Host ("Waiting for audit search to complete. Check {0} after {1} seconds. Current state {2}" -f $i, $SecondsElapsed, $SearchStatus.status)
     If ($SearchStatus.status -eq 'succeeded') {
         $SearchFinished = $true
     } Else {
-        Start-Sleep -Seconds 20
-        $SecondsElapsed = $SecondsElapsed + 20
+        Start-Sleep -Seconds $SleepSeconds
+        $SecondsElapsed = $SecondsElapsed + $SleepSeconds
         $SearchStatus = Invoke-MgGraphRequest -Uri $Uri -Method GET
     }
 }
