@@ -6,7 +6,8 @@
 
 # Connect to SharePoint Online
 Import-Module Microsoft.Online.Sharepoint.PowerShell
-Connect-SPOService -url https://office365itpros-admin.sharepoint.com -Credential (Get-Credential)
+# Add the admin endpoint for your SharePoint Online tenant here
+Connect-SPOService -url https://office365itpros-admin.sharepoint.com
 # Connect to the Graph
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All
 
