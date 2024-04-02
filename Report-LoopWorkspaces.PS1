@@ -6,9 +6,10 @@
 
 # Connect to SharePoint Online
 Import-Module Microsoft.Online.Sharepoint.PowerShell
-Connect-SPOService -url https://office365itpros-admin.sharepoint.com -Credential (Get-Credential)
+# Change the URL to point to the SharePoint Online admin endpoint for your tenant
+Connect-SPOService -url https://office365itpros-admin.sharepoint.com 
 # Connect to the Graph
-Connect-MgGraph -NoWelcome -Scopes Directory.Read.All
+Connect-MgGraph -Scopes Directory.Read.All
 
 Write-Host "Looking for Loop workspaces..."
 [array]$LoopWorkspaces = Get-SPOContainer -OwningApplicationID a187e399-0c36-4b98-8f04-1edc167a0996 -Paged
