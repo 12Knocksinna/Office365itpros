@@ -139,16 +139,18 @@ $End = Get-Date($EndDate) -format s
 $ReportingPeriodDays = (($EndDate - $StartDate).Days)-1
 
 # Find room mailboxes - this ignores room mailboxes marked as workspaces
-$Uri = "https://graph.microsoft.com/beta/places/microsoft.graph.room"
+$Uri = "https://graph.microsoft.com/V1.0/places/microsoft.graph.room"
 [Array]$RoomMailboxes = Get-GraphData -Uri $Uri -AccessToken $Token
 If (!($RoomMailboxes)) {Write-Host "No room mailboxes found - exiting" ; break}
 
 # Find workspaces
-$Uri = "https://graph.microsoft.com/beta/places/microsoft.graph.workspace"
+$Uri = "https://graph.microsoft.com/V1.0/places/microsoft.graph.workspace"
 [array]$WorkSpaces = Get-GraphData -Uri $Uri -AccessToken $Token
 
 # Combine workspaces with room mailboxes if any are found
-If ($WorkSpaces) { $RoomMailboxes = $RoomMailboxes + $WorkSpaces }
+If ($WorkSpaces) { 
+    $RoomMailboxes = $RoomMailboxes + $WorkSpaces 
+}
 
 $RoomMailboxes = $RoomMailboxes | Where-Object {$_.EmailAddress -ne $Null}
 
