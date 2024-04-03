@@ -90,19 +90,7 @@ function GetAccessToken {
     $Global:Token = ($tokenRequest.Content | ConvertFrom-Json).access_token
     
     Return $Token
-}
-
-Function Add-MessageRecipients {
-    # Function to build an addressee list to send email   
-     [cmdletbinding()]
-         Param(
-         [array]$ListOfAddresses )
-          ForEach ($SMTPAddress in $ListOfAddresses) {
-               @{
-                  emailAddress = @{address = $SMTPAddress}
-               }    
-            }
-    }  
+} 
     
 Write-Host "Starting to check room mailbox calendars..."
 $Token = GetAccessToken
@@ -229,6 +217,7 @@ $HtmlHead="<html>
 # Loop through the records found for room mailboxes and create a section for each room
 ForEach ($Room in $RoomMailboxes) {
     [string]$EmailAddress = $null
+    [array]$Attributes = $null
     Write-Host ("Processing calendar report for the {0} room" -f $Room.DisplayName)
     [array]$CalendarEvents = $CalendarInfo | Where-Object {$_.Room -eq $Room.DisplayName}
     If ($CalendarEvents) {
@@ -239,22 +228,25 @@ ForEach ($Room in $RoomMailboxes) {
         # Do we need to email the details - the filter here is because room mailboxes often have 
         # email addresses that are different to their UPNs
         $Uri = ("https://graph.microsoft.com/v1.0/users?`$filter=mail eq '{0}'&`$select=displayName,id,onPremisesExtensionAttributes" -f $Room.emailaddress)
-        $Data = Get-GraphData -Uri $Uri -AccessToken $Token
-        $Attributes = $Data | Select-Object -ExpandProperty OnPremisesExtensionAttributes
-        # Fetch email address from custom attribute 13
-        $EmailAddress = $Attributes.extensionAttribute13
+        [array]$Data = Get-GraphData -Uri $Uri -AccessToken $Token
+        If ($Data) {
+            [array]$Attributes = $Data | Select-Object -ExpandProperty OnPremisesExtensionAttributes
+            # Extract email address from custom attribute 13
+            $EmailAddress = $Attributes.extensionAttribute13
+        }
         If ($EmailAddress) {
-            $HtmlMsgBody = $HtmlRoomSeparator + $HtmlRoomData
+            $HtmlMsgBody = $HtmlRoomSeparator + ("<p><h4>From <b>{0}</b> to <b>{1}</b></h4></p>" -f $StartDate, $EndDate) + $HtmlRoomData
             Write-Host ("Sending email to {0} with the weekly schedule for the {1} room" -f $EmailAddress, $Room.DisplayName)
-            $ToRecipientList   = @( $EmailAddress )
-            [array]$MsgToRecipients = Add-MessageRecipients -ListOfAddresses $ToRecipientList
             $MsgSubject = ("Weekly Schedule for the {0} room from {1} to {2}" -f $Room.DisplayName, $StartDate, $EndDate)
             $MsgBody = @{
                 Content = "$($HtmlMsgBody)"
                 ContentType = 'html'  
             }
+            [array]$Recipient = @{
+                emailAddress = @{address = $EmailAddress}
+            }  
             $Message =  @{subject           = $MsgSubject}
-            $Message += @{toRecipients      = $MsgToRecipients}  
+            $Message += @{toRecipients      = $Recipient } 
             $Message += @{body              = $MsgBody}
             $Params   = @{'message'         = $Message}
             $Params  += @{'saveToSentItems' = $True}
@@ -262,7 +254,6 @@ ForEach ($Room in $RoomMailboxes) {
             $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/sendMail" -f $msgfrom)
             $BodyParams = $Params | ConvertTo-Json -Depth 10
             Invoke-RestMethod -Uri $Uri -Method POST -Body $BodyParams -Headers $Headers -ContentType 'application/JSON' -UseBasicParsing
-            # Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
         }
     }
 }
