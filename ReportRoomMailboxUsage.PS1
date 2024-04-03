@@ -118,12 +118,13 @@ Function Generate-DayString {
 Return $OutputString
 }
 
-
 # End functions - start doing some real work
 #
 
 $Token = GetAccessToken
-If (!($Token)) {Write-Host "Can't get a valid Azure AD access token - exiting" ; break }
+If (!($Token)) {
+    Write-Host "Can't get a valid Entra ID access token - exiting" ; break 
+}
 
 $Headers = @{
             'Content-Type'  = "application\json"
@@ -154,13 +155,18 @@ $RoomMailboxes = $RoomMailboxes | Where-Object {$_.EmailAddress -ne $Null}
 Write-Host ("Scanning room mailboxes for calendar events from {0} to {1}" -f $StartDate, $EndDate)
 $CalendarInfo = [System.Collections.Generic.List[Object]]::new() 
 ForEach ($Room in $RoomMailboxes) {
-    $Uri = "https://graph.microsoft.com/V1.0/users/" + $Room.emailAddress + "/calendar/calendarView?startDateTime=" + $Start + "&endDateTime=" + $End
+    $Data = $false # Assume no data in the targeted range
+    $Uri = ("https://graph.microsoft.com/V1.0/users/{0}/calendar/calendarView?startDateTime={1}&endDateTime={2}" -f $Room.emailAddress, $Start, $End)
     [array]$CalendarData = Get-GraphData -Uri $Uri -AccessToken $Token
     # Drop cancelled events - if you want to exclude private events from the set, use Where-Object {$_.isCancelled -eq $False -and $_.sensitivity -ne "private"}
     $CalendarData = $CalendarData | Where-Object {$_.isCancelled -eq $False}
-    
-   If ($CalendarData) { # Found some events  
-  
+    # This code makes sure that we only attempg to report data when the Graph returns some calendar data for the room
+    If (!($CalendarData) -or $CalendarData[0].'@odata.context') { 
+        $Data = $false 
+    } Else {
+        $Data = $true
+    }
+    If ($Data) {
      Write-Host ("Found {0} calendar events for the {1} room" -f $CalendarData.Count, $Room.DisplayName)
      ForEach ($Event in $CalendarData) {
         [datetime]$MeetingStart =  Get-Date($Event.start.datetime) 

@@ -3,7 +3,7 @@
 # V1.0 20-Nov-2023
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-MailboxSizes.PS1
 
-Connect-ExchangeOnline#
+Connect-ExchangeOnline
 Connect-MgGraph -NoWelcome -Scopes Reports.Read.All
 
 # Before doing anything, we need to make sure that the Graph returns non-obfuscated user data
