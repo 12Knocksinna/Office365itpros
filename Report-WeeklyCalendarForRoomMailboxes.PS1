@@ -69,10 +69,11 @@ function Get-GraphData {
 function GetAccessToken {
 # function to return an Oauth access token
     
-    # Define the values applicable for the application used to connect to the Graph
-    #$AppId = "66a7d55c-a847-443d-b7b9-f24b67ec4709"
-    #$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
-    #$AppSecret = 'B7h8Q~pzvflr5pPb.4mgzOWS_hLuK5l4qbkRMcqv'
+    # Define the values applicable for the application used to connect to the Graph. These values will be
+    # different to those shown here and are specific to the app and your tenant.
+    $AppId = "66a7d55c-a847-443d-b7b9-f24b67ec4709"
+    $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+    $AppSecret = 'B7h8Q~pzvflr5pPb.4mgzOWS_hLuK5l4qbkRMcqv'
     
     # Construct URI and body needed for authentication
     $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -91,6 +92,7 @@ function GetAccessToken {
     Return $Token
 }
     
+Write-Host "Starting to check room mailbox calendars..."
 $Token = GetAccessToken
 If (!($Token)) {
     Write-Host "Can't get a valid Entra ID access token - exiting" ; break
@@ -102,14 +104,21 @@ $Headers = @{
 
 $HtmlReportFile = "C:\Temp\RoomMailboxReport.html"
 $CSVOutputFile = "C:\Temp\RoomMailboxReport.CSV"
-[datetime]$Today = (Get-Date).Date
-[datetime]$NextMonday =  Get-Date($Today.AddDays(2 + $Today.DayOfWeek.value__)) -format 'dd-MMM-yyyy'
-[datetime]$NextSunday = Get-Date($NextMonday).AddDays(7) -format 'dd-MMM-yyyy'
-# Sortable dates that can be used with the Graph request to find calendar data
-$StartDate = Get-Date($NextMonday) -format s
-$EndDate = Get-Date($NextSunday) -format s
+[datetime]$Today = (Get-Date).date
+# If today is Monday, we report on the current week. Otherwise, we report on the next week
+If ($Today.DayOfWeek.value__ -eq 1) {
+    [datetime]$NextMonday =  Get-Date($Today) -format 'dd-MMM-yyyy'
+} Else {
+    [datetime]$NextMonday =  Get-Date($Today.AddDays(2 + $Today.DayOfWeek.value__)) -format 'dd-MMM-yyyy'
+}
+# Calculate the following Monday after the start date
+[datetime]$NextMondayAfter = Get-Date($NextMonday).AddDays(7) -format 'dd-MMM-yyyy'
 
-Write-Host ("Searching for events scheduled in room mailboxes between {0} and {1}" -f $NextMonday, $NextSunday) -ForegroundColor Red
+# Create sortable dates that can be used with the Graph request to find calendar data
+$StartDate = Get-Date($NextMonday) -format s
+$EndDate = Get-Date($NextMondayAfter) -format s
+
+Write-Host ("Searching for events scheduled in room mailboxes between {0} and {1}" -f $NextMonday, $NextMondayAfter) -ForegroundColor Red
 # Find room mailboxes - this ignores room mailboxes marked as workspaces
 $Uri = "https://graph.microsoft.com/V1.0/places/microsoft.graph.room"
 [Array]$RoomMailboxes = Get-GraphData -Uri $Uri -AccessToken $Token
