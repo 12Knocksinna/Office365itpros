@@ -1,6 +1,6 @@
 # Report-WeeklyCalendarForRoomMailboxes.PS1
 # Example script showing how to generate a weekly events report for room mailboxes
-# App requires Calendar.Read and Place.read.all permissions
+# App requires Calendar.Read, Place.read.all, User.Read.All, and Mail.Send.Shared permissions
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-WeeklyCalendarForRoomMailboxes.PS1
 # V1.0 3-Apr-2024
 
@@ -91,6 +91,18 @@ function GetAccessToken {
     
     Return $Token
 }
+
+Function Add-MessageRecipients {
+    # Function to build an addressee list to send email   
+     [cmdletbinding()]
+         Param(
+         [array]$ListOfAddresses )
+          ForEach ($SMTPAddress in $ListOfAddresses) {
+               @{
+                  emailAddress = @{address = $SMTPAddress}
+               }    
+            }
+    }  
     
 Write-Host "Starting to check room mailbox calendars..."
 $Token = GetAccessToken
@@ -98,12 +110,13 @@ If (!($Token)) {
     Write-Host "Can't get a valid Entra ID access token - exiting" ; break
 }
 $Headers = @{
-    'Content-Type'  = "application\json"
+    'Content-Type'  = "application/json"
     'Authorization' = "Bearer $Token" 
     'ConsistencyLevel' = "eventual" }
 
 $HtmlReportFile = "C:\Temp\RoomMailboxReport.html"
 $CSVOutputFile = "C:\Temp\RoomMailboxReport.CSV"
+$MsgFrom = "Customer.Services@Office365itpros.com"
 [datetime]$Today = (Get-Date).date
 # If today is Monday, we report on the current week. Otherwise, we report on the next week
 If ($Today.DayOfWeek.value__ -eq 1) {
@@ -215,12 +228,42 @@ $HtmlHead="<html>
 
 # Loop through the records found for room mailboxes and create a section for each room
 ForEach ($Room in $RoomMailboxes) {
+    [string]$EmailAddress = $null
+    Write-Host ("Processing calendar report for the {0} room" -f $Room.DisplayName)
     [array]$CalendarEvents = $CalendarInfo | Where-Object {$_.Room -eq $Room.DisplayName}
     If ($CalendarEvents) {
-        $HtmlRoomSeparator = "<p><h2>Room: <b>" + $Room.DisplayName + "</b></h2></p>"   
+        $HtmlRoomSeparator = "<p><h2>Weekly Schedule for <b>" + $Room.DisplayName + "</b></h2></p>"   
         $HtmlRoomData = $CalendarEvents | Select-Object Organizer, Subject, Start, End, Duration, Online, TotalAttendees | `
             ConvertTo-Html -Fragment            
         $HtmlBody += $HtmlRoomSeparator + $HtmlRoomData
+        # Do we need to email the details - the filter here is because room mailboxes often have 
+        # email addresses that are different to their UPNs
+        $Uri = ("https://graph.microsoft.com/v1.0/users?`$filter=mail eq '{0}'&`$select=displayName,id,onPremisesExtensionAttributes" -f $Room.emailaddress)
+        $Data = Get-GraphData -Uri $Uri -AccessToken $Token
+        $Attributes = $Data | Select-Object -ExpandProperty OnPremisesExtensionAttributes
+        # Fetch email address from custom attribute 13
+        $EmailAddress = $Attributes.extensionAttribute13
+        If ($EmailAddress) {
+            $HtmlMsgBody = $HtmlRoomSeparator + $HtmlRoomData
+            Write-Host ("Sending email to {0} with the weekly schedule for the {1} room" -f $EmailAddress, $Room.DisplayName)
+            $ToRecipientList   = @( $EmailAddress )
+            [array]$MsgToRecipients = Add-MessageRecipients -ListOfAddresses $ToRecipientList
+            $MsgSubject = ("Weekly Schedule for the {0} room from {1} to {2}" -f $Room.DisplayName, $StartDate, $EndDate)
+            $MsgBody = @{
+                Content = "$($HtmlMsgBody)"
+                ContentType = 'html'  
+            }
+            $Message =  @{subject           = $MsgSubject}
+            $Message += @{toRecipients      = $MsgToRecipients}  
+            $Message += @{body              = $MsgBody}
+            $Params   = @{'message'         = $Message}
+            $Params  += @{'saveToSentItems' = $True}
+            $Params  += @{'isDeliveryReceiptRequested' = $True}
+            $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/sendMail" -f $msgfrom)
+            $BodyParams = $Params | ConvertTo-Json -Depth 10
+            Invoke-RestMethod -Uri $Uri -Method POST -Body $BodyParams -Headers $Headers -ContentType 'application/JSON' -UseBasicParsing
+            # Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
+        }
     }
 }
 
