@@ -1,6 +1,8 @@
 # Report-WeeklyCalendarForRoomMailboxes.PS1
 # Example script showing how to generate a weekly events report for room mailboxes
 # App requires Calendar.Read and Place.read.all permissions
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-WeeklyCalendarForRoomMailboxes.PS1
+# V1.0 3-Apr-2024
 
 function Get-GraphData {
     # Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
@@ -68,9 +70,9 @@ function GetAccessToken {
 # function to return an Oauth access token
     
     # Define the values applicable for the application used to connect to the Graph
-    $AppId = "66a7d55c-a847-443d-b7b9-f24b67ec4709"
-    $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
-    $AppSecret = 'B7h8Q~pzvflr5pPb.4mgzOWS_hLuK5l4qbkRMcqv'
+    #$AppId = "66a7d55c-a847-443d-b7b9-f24b67ec4709"
+    #$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+    #$AppSecret = 'B7h8Q~pzvflr5pPb.4mgzOWS_hLuK5l4qbkRMcqv'
     
     # Construct URI and body needed for authentication
     $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
