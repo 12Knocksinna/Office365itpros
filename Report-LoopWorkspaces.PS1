@@ -18,7 +18,7 @@ If (!($LoopWorkspaces)) {
 }
 
 # Figure out if there are more than 200 workspaces.
-$Token = $null
+[string]$Token = $null
 If ($LoopWorkspaces[200]) {
     # Extract the token for the next page of workspace information
     $Token = $LoopWorkSpaces[200].split(":")[1].Trim()
@@ -100,7 +100,7 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
 
     $ReportLine = [PSCustomObject]@{
         ContainerId         = $LoopSpace.ContainerId
-        App                 = $LoopSpaceDetails.OwningApplicationName
+       # App                 = $LoopSpaceDetails.OwningApplicationName
         'Workspace Name'    = $LoopSpace.ContainerName
         Description         = $LoopSpace.Description
         Owner               = $User.DisplayName
