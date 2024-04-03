@@ -41,9 +41,11 @@ ForEach ($User in $Users) {
 $StartDate = (Get-Date).AddDays(-7)
 $EndDate = (Get-Date).AddDays(1)
 [array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Formatted -ResultSize 5000 `
-   -RecordType MicrosoftTeams -Operations MemberAdded
+   -RecordType MicrosoftTeams -Operations MemberAdded -SessionCommand ReturnLargeSet
 If (!($Records)) {
     Throw "No records found"
+} Else {
+    $Records = $Records | Sort-Object Identity -Unique
 }
 $Report = [System.Collections.Generic.List[Object]]::new()  
 
