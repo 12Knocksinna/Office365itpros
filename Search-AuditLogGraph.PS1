@@ -58,7 +58,7 @@ If ($null -eq $SearchId) {
 
 [int]$i = 1
 [int]$SleepSeconds = 20
-$SearchFinished = $false; [int]$SecondsElapsed = 0
+$SearchFinished = $false; [int]$SecondsElapsed = 20
 Write-Host "Checking audit query status..."
 Start-Sleep -Seconds 20
 $Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}" -f $SearchId)
