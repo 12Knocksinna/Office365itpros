@@ -18,7 +18,7 @@ Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
    } #End while
 }
 
-Connect-MgGraph -Scopes Directory.ReadWrite.All
+Connect-MgGraph -Scopes Directory.ReadWrite.All -NoWelcome
 
 $CSVOutputFile = "c:\temp\ServicePlanRemovals.csv"
 
@@ -26,19 +26,21 @@ $CSVOutputFile = "c:\temp\ServicePlanRemovals.csv"
 [array]$Skus = (Get-MgSubscribedSku)
 Write-Host " "
 Write-Host "Which subscription do you want to remove a service plan from?"; [int]$i=0
-   ForEach ($Sku in $Skus) {
-      $i++
-      Write-Host $i ":" $Sku.SkuPartNumber }
-   [Int]$Answer = Get-Response -Prompt  "Enter the number of the subscription to edit" -NumberPossibleAnswers $i
-   If (($Answer -gt 0) -and ($Answer -le $i)) {
-       $i = ($Answer-1)
-       [string]$SelectedSku = $Skus[$i].SkuPartNumber
-       [string]$SelectedSkuId = $Skus[$i].SkuId
-       Write-Host "OK. Selected subscription is" $SelectedSku
-       $ServicePlans = $Skus[$i].ServicePlans | Select-Object ServicePlanName, ServicePlanId | Sort-Object ServicePlanName
-    }  Elseif ($Answer -eq 0) { #Abort
-       Write-Host "Script stopping..." ; break 
-    }
+ForEach ($Sku in $Skus) {
+   $i++
+   Write-Host $i ":" $Sku.SkuPartNumber 
+}
+[Int]$Answer = Get-Response -Prompt  "Enter the number of the subscription to edit" -NumberPossibleAnswers $i
+If (($Answer -gt 0) -and ($Answer -le $i)) {
+   $i = ($Answer-1)
+   [string]$SelectedSku = $Skus[$i].SkuPartNumber
+   [string]$SelectedSkuId = $Skus[$i].SkuId
+   Write-Host "OK. Selected subscription is" $SelectedSku
+   # Find the set of service plans in the selected SKU, excluding those that we can't remove because they are assigned by the tenant
+   $ServicePlans = $Skus[$i].ServicePlans | Where-Object {$_.AppliesTo -eq 'User'} | Select-Object ServicePlanName, ServicePlanId | Sort-Object ServicePlanName
+}  Elseif ($Answer -eq 0) { #Abort
+      Write-Host "Script stopping..." ; break 
+}
 
 # Select Service plan to remove
 Write-Host " "
@@ -55,58 +57,65 @@ Write-Host "Which Service plan do you want to remove from" $SelectedSku; [int]$i
       Write-Host ("Proceeding to remove service plan {0} from the {1} license for target users." -f $ServicePlanName, $SelectedSku)
     } #end If
        Elseif ($Answer -eq 0) { #Abort
-       Write-Host "Script stopping..." ; break }
+       Write-Host "Script stopping..." ; break 
+   }
 
 # 
-Write-Host "Searching for licensed user accounts"
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All `
-  -Property Id, userPrincipalName, displayName, assignedLicenses | Sort-Object DisplayName
+[guid]$TargetSku = $SelectedSkuId
+Write-Host ("Searching for accounts assigned the {0} license" -f $SelectedSku) -foregroundcolor yellow
+[array]$Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses -All `
+  -Sort 'displayName' -Property Id, displayName, userPrincipalName, assignedLicenses `
+  -Filter "assignedLicenses/any(s:s/skuId eq $TargetSku)" | Sort-Object DisplayName
 
 Write-Host ("Total of {0} licensed user accounts found" -f $Users.count) -Foregroundcolor red
 
 # Main loop through mailboxes to remove selected service plan from a SKU if the SKU is assigned to the account.
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
-     Write-Host "Checking licenses for" $User.DisplayName
-     If ($SelectedSkuId -in $User.AssignedLicenses.SkuId) { # User has selected SKU
-     # Fetch enabled service plans
-     [array]$AllLicenses = Get-MgUserLicenseDetail -UserId $User.Id | Select-Object -ExpandProperty ServicePlans | Sort-Object ServicePlanId -Unique
-     [array]$Licenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Success'}
-     [array]$DisabledLicenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Disabled'}
-     # Figure out if any service plans are already disabled and add to the set to update
-     [array]$DisabledSPs = $ServicePlanId
-     If ($DisabledLicenses) {
-        If ($DisabledLicenses.Count -eq 1) {
+   $DisabledSPs = $null
+   Write-Host ("Checking service plans for {0}" -f $User.DisplayName)
+   # Fetch the set of service plans for the selected SKU
+   [array]$AllLicenses = Get-MgUserLicenseDetail -UserId $User.Id | Where-Object {$_.SkuId -eq $SelectedSkuId} | `
+      Select-Object -ExpandProperty ServicePlans | Sort-Object ServicePlanId -Unique
+   # Find if any service plans are already disabled
+   [array]$DisabledLicenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Disabled'}
+   # Figure out if any service plans are already disabled and add to the set to update
+   [array]$DisabledSPs = $ServicePlanId
+   If ($DisabledLicenses) {
+      If ($DisabledLicenses.Count -eq 1) {
           $DisabledSPs += $DisabledLicenses.ServicePlanId 
       } Else {
-          ForEach ($SP in $DisabledLicenses) {
+         ForEach ($SP in $DisabledLicenses) {
             $DisabledSPs += $SP.ServicePlanId } 
-        }
-     } # End if
+      }
+   } # End if
      
-     If ($ServicePlanId -in $Licenses.ServicePlanId) {
-        Write-Host ("Removing service plan {0} from SKU {1} for account {2}" -f $ServicePlanName, $SelectedSKUId, $User.DisplayName) -foregroundcolor Red
-        $LicenseOptions = @{SkuId = $SelectedSkuId ; DisabledPlans = $DisabledSPs } 
-        Try {
-           $Status = Set-MgUserLicense -UserId $User.Id -AddLicenses $LicenseOptions -RemoveLicenses @() }
-        Catch {
-           Write-Output "Something bad happened:" $Status
-        }
-        $LicenseUpdateMsg = ("Service plan {0} removed from account {1} on {2} from {3}" -f  $ServicePlanName, $User.DisplayName, (Get-Date), $SelectedSKU)
+   If ($ServicePlanId -in $AllLicenses.ServicePlanId) {
+      Write-Host ("Removing service plan {0} from SKU {1} for account {2}" -f $ServicePlanName, $SelectedSKUId, $User.DisplayName) -foregroundcolor Red
+      $LicenseOptions = @{SkuId = $SelectedSkuId ; DisabledPlans = $DisabledSPs } 
+      Try {
+         $Status = Set-MgUserLicense -UserId $User.Id -AddLicenses $LicenseOptions -RemoveLicenses @() -ErrorAction Stop
+         $SPRemoved = $true
+      } Catch {
+         $SPRemoved = $false
+         Write-Output "Something bad happened:" $Status
+      }
+      If ($SPRemoved) {
+         $LicenseUpdateMsg = ("Service plan {0} removed from account {1} on {2} from {3}" -f  $ServicePlanName, $User.DisplayName, (Get-Date), $SelectedSKU)
          Write-Host ("Service plan {0} removed from SKU {1} for {2}" -f $ServicePlanName, $SelectedSku, $User.DisplayName)
-        $ReportLine = [PSCustomObject][Ordered]@{    
-           DisplayName     = $User.DisplayName    
-           UPN             = $User.UserPrincipalName
-           Info            = $LicenseUpdateMsg
-           SKU             = $SelectedSKUId
-           "Service Plan"  = $ServicePlanName
-           "ServicePlanId" = $ServicePlanId }
-        $Report.Add($ReportLine)
-        } # End if Service Plan
-   } # End if License
+         $ReportLine = [PSCustomObject][Ordered]@{    
+            DisplayName     = $User.DisplayName    
+            UPN             = $User.UserPrincipalName
+            Info            = $LicenseUpdateMsg
+            SKU             = $SelectedSKUId
+            "Service Plan"  = $ServicePlanName
+            "ServicePlanId" = $ServicePlanId }
+         $Report.Add($ReportLine)
+      } 
+   }
 } #End Foreach User
 
-Write-Host ("Total Licenses Removed: {0}. Output CSV file available in {1}" -f $Report.Count, $CSVOutputFile) 
+Write-Host ("Total service plans removed from user accounts: {0}. Output CSV file available in {1}" -f $Report.Count, $CSVOutputFile) 
 # Output the report
 $Report | Out-GridView
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
