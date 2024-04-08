@@ -1,8 +1,31 @@
 # Populate-TeamsExternalAccess.PS1
 # Finds the domains used by guest accounts and uses them to build an external access allow list
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Populate-TeamsExternalAccess.PS1
+# V1.1 8-Apr-2024 Updated to introduce check of domain to make sure that it's valid
+# Needs MicrosoftTeams 6.1.0 or later to block all subdomains
+
+function Get-DomainByCheck {
+# Check a domain name to make sure that it's active
+  param (
+      [parameter(Mandatory = $true)]
+      $Domain
+  )
+
+  $Uri = ("https://graph.microsoft.com/v1.0/tenantRelationships/findTenantInformationByDomainName(domainName='{0}')" -f $Domain) 
+  Try {	
+    [array]$Global:DomainData = Invoke-MgGraphRequest -Uri $Uri -Method Get -ErrorAction Stop
+    If ($DomainData.displayname -ne "MSA Realms") {
+      Return $True
+    } Else {
+      Return $False
+    }
+  } Catch {
+    Return $False
+  }
+}
 
 Connect-MgGraph -NoWelcome -Scopes User.Read.All
+Write-Host "Checking for guest accounts in the tenant..."
 [array]$Guests = Get-MgUser -All -Filter "usertype eq 'Guest'"
 Write-Host ("{0} guest accounts found" -f $Guests.Count)
 $GuestList = [System.Collections.Generic.List[Object]]::new()
@@ -29,22 +52,33 @@ $DomainConfiguration  = Get-CsTenantFederationConfiguration  | Select-Object -Ex
 # Check the set of domains that aren't in the current configuration
 [array]$DomainsToAdd = $Domains | Where-Object {$_ -notin $DomainConfiguration.AllowedDomain.Domain}
 
-$Prompt = "Do you want to add the following domains to the list allowed for Teams external access? " + $DomainsToAdd -join ", "
+Write-Host "Checking domains used by guest accounts to make sure that they are Microsoft 365 tenants..."
+[array]$Microsoft365Tenants = $null
+ForEach ($Domain in $DomainsToAdd) {
+	$Check = Get-DomainByCheck $Domain
+	If ($Check -eq $false) {
+      Write-Host ("Domain {0} is not a Microsoft 365 tenant" -f $Domain)
+  } Else {
+      $Microsoft365Tenants += $Domain
+  }
+}
+
+$Prompt = "Do you want to add the following domains to the list allowed for Teams external access? " + $Microsoft365Tenants -join ", "
 $Choice = Read-Host $Prompt
 
 If (($Choice.ToUpper()) -eq "Y") {
  $i = 0
- ForEach ($Domain in $DomainsToAdd) {
+ ForEach ($Domain in $Microsoft365Tenants) {
   $i++
   Write-Host ("Adding {0} to the allowed domains list... ({1}/{2})" -f $Domain, $i, $DomainsToAdd.Count)
-  Set-CsTenantFederationConfiguration -AllowedDomainsAsAList @{Add=$Domain} -ErrorAction SilentlyContinue
+  Set-CsTenantFederationConfiguration -AllowedDomainsAsAList @{Add=$Domain} -ErrorAction SilentlyContinue -BlockAllSubdomains $True
  }
   $DomainConfiguration  = Get-CsTenantFederationConfiguration  | Select-Object -ExpandProperty AllowedDomains
   Write-Host ("External access for Teams now includes {0} domains" -f $DomainConfiguration.AllowedDomain.Domain.count)
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
