@@ -66,14 +66,14 @@ ForEach ($Domain in $DomainsToAdd) {
   }
 }
 
-$Prompt = "Do you want to add the following domains to the list allowed for Teams external access? " + $Microsoft365Tenants -join ", "
+$Prompt = ("Do you want to add the following {0} domains to the list allowed for Teams external access? {1}" -f $Microsoft365Tenants.count, ($Microsoft365Tenants -join ", "))
 $Choice = Read-Host $Prompt
 
 If (($Choice.ToUpper()) -eq "Y") {
   $i = 0
   ForEach ($Domain in $Microsoft365Tenants) {
     $i++
-    Write-Host ("Adding {0} to the allowed domains list... ({1}/{2})" -f $Domain, $i, $DomainsToAdd.Count)
+    Write-Host ("Adding {0} to the allowed domains list... ({1}/{2})" -f $Domain, $i, $Microsoft365Tenants.Count)
     Set-CsTenantFederationConfiguration -AllowedDomainsAsAList @{Add=$Domain} -ErrorAction SilentlyContinue
   }
     $DomainConfiguration  = Get-CsTenantFederationConfiguration  | Select-Object -ExpandProperty AllowedDomains
