@@ -56,9 +56,9 @@ Write-Host "Checking domains used by guest accounts to make sure that they are M
 ForEach ($Domain in $DomainsToAdd) {
 	$Check = Get-DomainByCheck $Domain
 	If ($Check -eq $false) {
-      Write-Host ("Domain {0} is not a Microsoft 365 tenant" -f $Domain)
+    Write-Host ("Domain {0} is not a Microsoft 365 tenant" -f $Domain)
   } Else {
-      $Microsoft365Tenants += $Domain
+    $Microsoft365Tenants += $Domain
   }
 }
 
@@ -66,12 +66,12 @@ $Prompt = "Do you want to add the following domains to the list allowed for Team
 $Choice = Read-Host $Prompt
 
 If (($Choice.ToUpper()) -eq "Y") {
- $i = 0
- ForEach ($Domain in $Microsoft365Tenants) {
+  $i = 0
+  ForEach ($Domain in $Microsoft365Tenants) {
     $i++
     Write-Host ("Adding {0} to the allowed domains list... ({1}/{2})" -f $Domain, $i, $DomainsToAdd.Count)
     Set-CsTenantFederationConfiguration -AllowedDomainsAsAList @{Add=$Domain} -ErrorAction SilentlyContinue
- }
+  }
     $DomainConfiguration  = Get-CsTenantFederationConfiguration  | Select-Object -ExpandProperty AllowedDomains
     Write-Host ("External access for Teams now includes {0} domains" -f $DomainConfiguration.AllowedDomain.Domain.count)
 }
