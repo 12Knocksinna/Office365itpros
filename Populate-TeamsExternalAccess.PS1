@@ -2,7 +2,6 @@
 # Finds the domains used by guest accounts and uses them to build an external access allow list
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Populate-TeamsExternalAccess.PS1
 # V1.1 8-Apr-2024 Updated to introduce check of domain to make sure that it's valid
-# Needs MicrosoftTeams 6.1.0 or later to block all subdomains
 
 function Get-DomainByCheck {
 # Check a domain name to make sure that it's active
@@ -69,12 +68,12 @@ $Choice = Read-Host $Prompt
 If (($Choice.ToUpper()) -eq "Y") {
  $i = 0
  ForEach ($Domain in $Microsoft365Tenants) {
-  $i++
-  Write-Host ("Adding {0} to the allowed domains list... ({1}/{2})" -f $Domain, $i, $DomainsToAdd.Count)
-  Set-CsTenantFederationConfiguration -AllowedDomainsAsAList @{Add=$Domain} -ErrorAction SilentlyContinue -BlockAllSubdomains $True
+    $i++
+    Write-Host ("Adding {0} to the allowed domains list... ({1}/{2})" -f $Domain, $i, $DomainsToAdd.Count)
+    Set-CsTenantFederationConfiguration -AllowedDomainsAsAList @{Add=$Domain} -ErrorAction SilentlyContinue
  }
-  $DomainConfiguration  = Get-CsTenantFederationConfiguration  | Select-Object -ExpandProperty AllowedDomains
-  Write-Host ("External access for Teams now includes {0} domains" -f $DomainConfiguration.AllowedDomain.Domain.count)
+    $DomainConfiguration  = Get-CsTenantFederationConfiguration  | Select-Object -ExpandProperty AllowedDomains
+    Write-Host ("External access for Teams now includes {0} domains" -f $DomainConfiguration.AllowedDomain.Domain.count)
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
