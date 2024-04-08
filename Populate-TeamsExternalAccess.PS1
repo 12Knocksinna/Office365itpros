@@ -13,18 +13,24 @@ function Get-DomainByCheck {
   $Uri = ("https://graph.microsoft.com/v1.0/tenantRelationships/findTenantInformationByDomainName(domainName='{0}')" -f $Domain) 
   Try {	
     [array]$Global:DomainData = Invoke-MgGraphRequest -Uri $Uri -Method Get -ErrorAction Stop
-    If ($DomainData.displayname -ne "MSA Realms") {
-      Return $True
+    If ($DomainData.displayname -in $UnwantedRealms) {
+      Return $false
     } Else {
-      Return $False
+      Return $true
     }
   } Catch {
-    Return $False
+    Return $false
   }
 }
 
+# Define the display name values we don't want to accept as valid domains. MSA Realms is returned by domains like Yahoo.com. Test_Test_Microsoft
+# is returned by domains like amer.teams.ms used for inbound email to Teams channels
+$Global:UnwantedRealms = "MSA Realms", "Test_Test_Microsoft"
+Write-Host "Connecting to Microsoft Teams and the Microsoft Graph..."
+Connect-MicrosoftTeams
 Connect-MgGraph -NoWelcome -Scopes User.Read.All
 Write-Host "Checking for guest accounts in the tenant..."
+
 [array]$Guests = Get-MgUser -All -Filter "usertype eq 'Guest'"
 Write-Host ("{0} guest accounts found" -f $Guests.Count)
 $GuestList = [System.Collections.Generic.List[Object]]::new()
@@ -43,14 +49,12 @@ Write-Host "----------------------------------------------"
 $GuestList | Group-Object Domain | Sort-Object Name | Select-Object Name, Count
 $Domains = $GuestList | Sort-Object Domain -Unique | Select-Object -ExpandProperty Domain
 
-Write-Host "Connecting to Microsoft Teams to check current external access configuration"
-Connect-MicrosoftTeams
-
 # Get current set of domains configured for Teams extrenal access
 $DomainConfiguration  = Get-CsTenantFederationConfiguration  | Select-Object -ExpandProperty AllowedDomains
 # Check the set of domains that aren't in the current configuration
 [array]$DomainsToAdd = $Domains | Where-Object {$_ -notin $DomainConfiguration.AllowedDomain.Domain}
 
+Write-Host ""
 Write-Host "Checking domains used by guest accounts to make sure that they are Microsoft 365 tenants..."
 [array]$Microsoft365Tenants = $null
 ForEach ($Domain in $DomainsToAdd) {
