@@ -3,6 +3,10 @@
 # Version of https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan.PS1 using Microsoft Graph PowerShell SDK cmdlets instead of MSOL cmdlets 
 # to remove service plans from licenses.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan3.PS1
+# V1.1 8-Apr-2024 1. Made sure that you can only select a service plan that an admin can remove
+#                 2. Made the call to Get-MgUser much more efficient by filtering on the SKU assigned to the user
+#                 3. Added a check to see if the service plan is already disabled before trying to remove it
+#                 4. Made sure that we only report a removed service plan if it's actually removed  
 
 Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
 # Helper function to prompt a question and get a response
@@ -67,12 +71,18 @@ Write-Host ("Searching for accounts assigned the {0} license" -f $SelectedSku) -
   -Sort 'displayName' -Property Id, displayName, userPrincipalName, assignedLicenses `
   -Filter "assignedLicenses/any(s:s/skuId eq $TargetSku)" | Sort-Object DisplayName
 
-Write-Host ("Total of {0} licensed user accounts found" -f $Users.count) -Foregroundcolor red
+If ($Users.Count -eq 0) {
+   Write-Host ("No user accounts found with the {0} license" -f $SelectedSku) -foregroundcolor red
+   Break
+}  Else {
+   Write-Host ("Total of {0} licensed user accounts found" -f $Users.count) -Foregroundcolor red
+}
 
 # Main loop through mailboxes to remove selected service plan from a SKU if the SKU is assigned to the account.
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
    $DisabledSPs = $null
+   $OKtoProceed = $true
    Write-Host ("Checking service plans for {0}" -f $User.DisplayName)
    # Fetch the set of service plans for the selected SKU
    [array]$AllLicenses = Get-MgUserLicenseDetail -UserId $User.Id | Where-Object {$_.SkuId -eq $SelectedSkuId} | `
@@ -80,6 +90,12 @@ ForEach ($User in $Users) {
    # Find if any service plans are already disabled
    [array]$DisabledLicenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Disabled'}
    # Figure out if any service plans are already disabled and add to the set to update
+
+   If ($ServicePlanId -in $DisabledLicenses.ServicePlanId) {
+      Write-Host ("Service plan {0} is already disabled for account {1}" -f $ServicePlanName, $User.DisplayName) -foregroundcolor Yellow
+      $OKtoProceed = $false
+   }
+
    [array]$DisabledSPs = $ServicePlanId
    If ($DisabledLicenses) {
       If ($DisabledLicenses.Count -eq 1) {
@@ -90,7 +106,8 @@ ForEach ($User in $Users) {
       }
    } # End if
      
-   If ($ServicePlanId -in $AllLicenses.ServicePlanId) {
+   # Go ahead and remove the service plan from the account if it hasn't already been removed
+   If ($ServicePlanId -in $AllLicenses.ServicePlanId -and $OKtoProceed -eq $true) {
       Write-Host ("Removing service plan {0} from SKU {1} for account {2}" -f $ServicePlanName, $SelectedSKUId, $User.DisplayName) -foregroundcolor Red
       $LicenseOptions = @{SkuId = $SelectedSkuId ; DisabledPlans = $DisabledSPs } 
       Try {
@@ -117,7 +134,7 @@ ForEach ($User in $Users) {
 
 Write-Host ("Total service plans removed from user accounts: {0}. Output CSV file available in {1}" -f $Report.Count, $CSVOutputFile) 
 # Output the report
-$Report | Out-GridView
+$Report | Out-GridView -Title "Service Plan Removals from User Accounts"
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
