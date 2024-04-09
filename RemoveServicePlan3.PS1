@@ -74,7 +74,7 @@ Write-Host ("Searching for accounts assigned the {0} license" -f $SelectedSku) -
 If ($Users.Count -eq 0) {
    Write-Host ("No user accounts found with the {0} license" -f $SelectedSku) -foregroundcolor red
    Break
-}  Else {
+} Else {
    Write-Host ("Total of {0} licensed user accounts found" -f $Users.count) -Foregroundcolor red
 }
 
