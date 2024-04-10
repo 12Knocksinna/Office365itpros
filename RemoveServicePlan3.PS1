@@ -22,6 +22,7 @@ Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
    } #End while
 }
 
+# Directory.ReadWrite.All is used to fetch subscription information for the tenant, read user details, and update user licenses
 Connect-MgGraph -Scopes Directory.ReadWrite.All -NoWelcome
 
 $CSVOutputFile = "c:\temp\ServicePlanRemovals.csv"

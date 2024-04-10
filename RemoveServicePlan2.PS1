@@ -18,7 +18,7 @@ Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
 }
 
 # Check loaded modules
-$ModulesLoaded = Get-Module | Select Name
+$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 If (!($ModulesLoaded -like "*AzureAD*")) {Write-Host "Please connect to the Azure Active Directory module and then restart the script"; break}
 # We seem to be fully connected to the necessary modules so we can proceed
@@ -63,7 +63,8 @@ Write-Host "Which Service plan do you want to remove from" $SelectedSku; [int]$i
 # We need to know what target accounts to remove the service plan from. In this case, we use Get-ExoMailbox to find a bunch of user mailboxes, mostly because we can use a server-side
 # filter. You can use whatever other technique to find target accounts (like Get-AzureADUser). The important thing is to feed the object identifier for the account to Get-MsolUser to 
 # retrieve license information
-[array]$Mbx = (Get-ExoMailbox -RecipientTypeDetails UserMailbox -Filter {Office -eq "Dublin"} -ResultSize Unlimited | Select DisplayName, UserPrincipalName, Alias, ExternalDirectoryObjectId)
+[array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | `
+   Select-Object DisplayName, UserPrincipalName, Alias, ExternalDirectoryObjectId
 [int]$LicensesRemoved = 0
 Write-Host ("Total of {0} matching mailboxes found" -f $mbx.count) -Foregroundcolor red
 
