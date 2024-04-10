@@ -38,7 +38,7 @@ Write-Host "Which Office 365 product do you want to remove a service plan from?"
        [string]$SelectedSku = $Skus[$i].SkuPartNumber
        [string]$SelectedSkuId = $Skus[$i].SkuId
        Write-Host "OK. Selected product is" $SelectedSku
-       $ServicePlans = $Skus[$i].ServicePlans | Select ServicePlanName, ServicePlanId | Sort ServicePlanName
+       $ServicePlans = $Skus[$i].ServicePlans | Select-Object ServicePlanName, ServicePlanId | Sort-Object ServicePlanName
     } Elseif ($Answer -eq 0) { #Abort
        Write-Host "Script stopping..." ; break 
     }
@@ -79,7 +79,7 @@ ForEach ($M in $Mbx) {
           If ($License.SkuId -eq $SelectedSkuId)
           { # We match the service plan to remove
             # Set up license options to remove the selected service plan ($ServicePlanName) from the SKU ($SelectedSkuId)
-            $License.DisabledPlans = ($License.DisabledPlans + $ServicePlanId | Sort -Unique)
+            $License.DisabledPlans = ($License.DisabledPlans + $ServicePlanId | Sort-Object -Unique)
             $UserLicenses.AddLicenses += $License
             Write-Host ("Removing service plan {0} from SKU {1} for account {2}" -f $ServicePlanName, $SelectedSKUId, $M.DisplayName) -foregroundcolor Red
             Set-AzureADUserLicense -ObjectId $User.ObjectId -AssignedLicenses $userLicenses
