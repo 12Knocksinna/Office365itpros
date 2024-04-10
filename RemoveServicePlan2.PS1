@@ -2,6 +2,7 @@
 # Remove an individual service plan from a SKU assigned to Microsoft 365 accounts
 # Version of https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan.PS1 using the Azure AD cmdlets instead of MSOL cmdlets to remove service plans from licenses.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan2.PS1
+# Note: The AzureAD and MSOL modules were deprecated by Microsoft on 30-March-2024
 
 Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
 # Help function to prompt a question and get a response

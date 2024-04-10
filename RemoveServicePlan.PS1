@@ -1,9 +1,10 @@
 # RemoveServicePlan.PS1
 # A script to show how to remove a single service plan from the licenses assigned to a Microsoft 365 account.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/RemoveServicePlan.PS1
+# Note: The AzureAD and MSOL modules were deprecated by Microsoft on 30-March-2024
 
 # Check loaded modules
-$ModulesLoaded = Get-Module | Select Name
+$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 If (!($ModulesLoaded -match "MsOnline")) {Write-Host "Please connect to the Microsoft Online Services module and then restart the script"; break}
 If (!($ModulesLoaded -like "*AzureAD*")) {Write-Host "Please connect to the Azure Active Directory module and then restart the script"; break}
@@ -27,8 +28,8 @@ $CSVOutputFile = "c:\temp\ServicePlanRemovals.csv"
 Write-Host "Retrieving service domain for the tenant"
 [string]$TenantName = $Null
 $DomainInfo = Get-AzureADTenantDetail
-[array]$Domains = Get-AcceptedDomain | Select DomainName
-[array]$ServiceDomains = $Domains | ? {$_.DomainName -like "*onmicrosoft.com*"}
+[array]$Domains = Get-AcceptedDomain | Select-Object DomainName
+[array]$ServiceDomains = $Domains | Where-Object {$_.DomainName -like "*onmicrosoft.com*"}
 Switch ($ServiceDomains.Count) {
    0  { Write-Host "Can't locate the service domain" }
    1  { $TenantName = $ServiceDomains.DomainName.SubString(0,$ServiceDomains.DomainName.IndexOf(".")) + ":" }
@@ -63,7 +64,7 @@ Write-Host "Which Office 365 product do you want to remove a service plan from?"
        $i = ($Answer-1)
        [string]$SelectedSkuId = $Skus[$i].SkuPartNumber
        Write-Host "OK. Selected product is" $SelectedSkuId
-       $ServicePlans = $Skus[$i].ServicePlans | Select ServicePlanName, ServicePlanId | Sort ServicePlanName
+       $ServicePlans = $Skus[$i].ServicePlans | Select-Object ServicePlanName, ServicePlanId | Sort-Object ServicePlanName
     }  Elseif ($Answer -eq 0) { #Abort
        Write-Host "Script stopping..." ; break 
   }
@@ -88,7 +89,7 @@ Write-Host "Which Service plan do you want to remove from" $SkuId; [int]$i=0
 # We need  to know what target accounts to remove the service plan from. In this case, we use Get-ExoMailbox to find a bunch of user mailboxes, mostly because we can use a server-side
 # filter. You can use whatever other technique to find target accounts (like Get-AzureADUser). The important thing is to feed the object identifier for the account to Get-MsolUser to 
 # retrieve license information
-[array]$Mbx = (Get-ExoMailbox -RecipientTypeDetails UserMailbox -Filter {Office -eq "Dublin"} -ResultSize Unlimited | Select DisplayName, UserPrincipalName, Alias, ExternalDirectoryObjectId)
+[array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | Select-Object DisplayName, UserPrincipalName, Alias, ExternalDirectoryObjectId
 [int]$LicensesRemoved = 0
 Write-Host ("Total of {0} matching mailboxes found" -f $mbx.count) -Foregroundcolor red
 
