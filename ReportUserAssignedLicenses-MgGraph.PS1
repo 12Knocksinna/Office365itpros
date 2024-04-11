@@ -41,7 +41,8 @@ Function Get-LicenseCosts {
   Return ($Costs / 100)
 } 
 
-[datetime]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
+[datetime]$RunDate = Get-Date
+[string]$ReportRunDate = Get-Date ($RunDate) -format 'dd-MMM-yyyy HH:mm'
 $Version = "1.8"
 
 # Default currency - can be overwritten by a value read into the $ImportSkus array
@@ -420,7 +421,7 @@ $HtmlHead = "<html>
            <div align=center>
            <p><h1>Microsoft 365 License Report</h1></p>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
-           <p><h3>Generated: " + $RunDate + "</h3></p></div>"
+           <p><h3>Generated: " + $ReportRunDate + "</h3></p></div>"
 
 $HtmlBody1 = $Report | ConvertTo-Html -Fragment
 $HtmlBody1 = $HTMLBody1 + "<p>Report created for: " + $OrgName + "</p>" +
