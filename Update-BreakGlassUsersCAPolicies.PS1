@@ -6,7 +6,7 @@
 
 Connect-MgGraph -NoWelcome -Scopes Policy.ReadWrite.ConditionalAccess
 # These are the policy states that will be updated with break glass accounts if required. 
-[array]$PolicyStatesToProcess = "enabledForReportingButNotEnforced", "enabled"
+[array]$PolicyStatesToProcess = "enabledForReportingButNotEnforced", "enabled","disabled"
 [array]$BreakGlassUsers = "91813a30-f048-48f1-a0f2-fd7c72020515", "b7289bc7-7e4e-44e2-ae1b-7e13e94e3749"
 # Parameters needed to update a CA policy
 $Parameters = @{
@@ -22,6 +22,7 @@ $Parameters = @{
 # If you prefer using a group instead, change excludeUsers to excludeGroups 
 
 [int]$PoliciesUpdated = 0
+Write-Host "Finding conditional access policies... "
 [array]$Policies = Get-MgIdentityConditionalAccessPolicy | Sort-Object DisplayName
 ForEach ($Policy in $Policies) {
     Write-Host ("Checking settings for conditional access policy {0}" -f $Policy.displayName) -foregroundcolor Yellow
