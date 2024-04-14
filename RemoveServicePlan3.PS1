@@ -28,7 +28,9 @@ Connect-MgGraph -Scopes Directory.ReadWrite.All -NoWelcome
 $CSVOutputFile = "c:\temp\ServicePlanRemovals.csv"
 
 # Find the set of SKUs used in the tenant
+Write-Host "Checking subscriptions known to the tenant" -Foregroundcolor Yellow
 [array]$Skus = (Get-MgSubscribedSku)
+Clear-Host
 Write-Host " "
 Write-Host "Which subscription do you want to remove a service plan from?"; [int]$i=0
 ForEach ($Sku in $Skus) {
@@ -42,30 +44,36 @@ If (($Answer -gt 0) -and ($Answer -le $i)) {
    [string]$SelectedSkuId = $Skus[$i].SkuId
    Write-Host "OK. Selected subscription is" $SelectedSku
    # Find the set of service plans in the selected SKU, excluding those that we can't remove because they are assigned by the tenant
-   $ServicePlans = $Skus[$i].ServicePlans | Where-Object {$_.AppliesTo -eq 'User'} | Select-Object ServicePlanName, ServicePlanId | Sort-Object ServicePlanName
-}  Elseif ($Answer -eq 0) { #Abort
-      Write-Host "Script stopping..." ; break 
+   [array]$ServicePlans = $Skus[$i].ServicePlans | Where-Object {$_.AppliesTo -eq 'User'} | Select-Object ServicePlanName, ServicePlanId | Sort-Object ServicePlanName
+} Elseif ($Answer -eq 0) { #Abort
+   Write-Host "Script stopping..." ; break 
 }
+# Check if there are any service plans that can be removed from the SKU
+If ($ServicePlans.Count -eq 0) {
+   Write-Host "No service plans available to remove from" $SelectedSku
+   Break
+} 
 
 # Select Service plan to remove
 Write-Host " "
 Write-Host "Which Service plan do you want to remove from" $SelectedSku; [int]$i=0
-   ForEach ($ServicePlan in $ServicePlans) {
-      $i++
-      Write-Host $i ":" $ServicePlan.ServicePlanName }
-   [Int]$Answer = Get-Response -Prompt "Enter the number of the service plan to remove" -NumberPossibleAnswers $i
-   If (($Answer -gt 0) -and ($Answer -le $i)) {
-      [int]$i = ($Answer-1)
-      [string]$ServicePlanId = $ServicePlans[$i].ServicePlanId
-      [string]$ServicePlanName = $ServicePlans[$i].ServicePlanName
-      Write-Host " "
-      Write-Host ("Proceeding to remove service plan {0} from the {1} license for target users." -f $ServicePlanName, $SelectedSku)
-    } #end If
-       Elseif ($Answer -eq 0) { #Abort
-       Write-Host "Script stopping..." ; break 
-   }
+ForEach ($ServicePlan in $ServicePlans) {
+   $i++
+   Write-Host $i ":" $ServicePlan.ServicePlanName 
+}
+[Int]$Answer = Get-Response -Prompt "Enter the number of the service plan to remove" -NumberPossibleAnswers $i
+If (($Answer -gt 0) -and ($Answer -le $i)) {
+   [int]$i = ($Answer-1)
+   [string]$ServicePlanId = $ServicePlans[$i].ServicePlanId
+   [string]$ServicePlanName = $ServicePlans[$i].ServicePlanName
+   Write-Host " "
+   Write-Host ("Proceeding to remove service plan {0} from the {1} license for target users." -f $ServicePlanName, $SelectedSku)
+} Elseif ($Answer -eq 0) { #Abort
+   Write-Host "Script stopping..."  
+   break 
+}
 
-# 
+# Find the set of users assigned the selected SKU
 [guid]$TargetSku = $SelectedSkuId
 Write-Host ("Searching for accounts assigned the {0} license" -f $SelectedSku) -foregroundcolor yellow
 [array]$Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses -All `
