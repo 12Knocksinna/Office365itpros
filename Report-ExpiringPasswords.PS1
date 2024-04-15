@@ -1,6 +1,6 @@
 # Report-ExpiringPasswords.PS1
 # Example of how to use the Microsoft Graph PowerShell SDK to generate a password expiration report
-# V1.0 12-Apr-2024
+# V1.0 15-Apr-2024
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ExpiringPasswords.PS1
 
 [datetime]$RunDate = Get-Date
