@@ -230,7 +230,7 @@ ForEach ($User in $Users) {
       $DuplicateWarningReport = ("Warning: Duplicate licenses detected for: {0}" -f ($DuplicateSkuNames -join ", "))
     }
   } Else { 
-      $UnlicensedAccounts++
+    $UnlicensedAccounts++
   }
 
   $LastSignIn = $User.SignInActivity.LastSignInDateTime
@@ -412,10 +412,6 @@ $HtmlHead = "<html>
 	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
 	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
 	   TD{border: 1px solid #969595; padding: 5px; }
-	   td.pass{background: #B7EB83;}
-	   td.warn{background: #FFF275;}
-	   td.fail{background: #FF2626; color: #ffffff;}
-	   td.info{background: #85D4FF;}
 	   </style>
 	   <body>
            <div align=center>
@@ -424,8 +420,8 @@ $HtmlHead = "<html>
            <p><h3>Generated: " + $ReportRunDate + "</h3></p></div>"
 
 $HtmlBody1 = $Report | ConvertTo-Html -Fragment
-$HtmlBody1 = $HTMLBody1 + "<p>Report created for: " + $OrgName + "</p>" +
-"<p>Created: " + $RunDate + "<p>" +
+$HtmlBody1 = $HtmlBody1 + "<p>Report created for: " + $OrgName + "</p>" +
+"<p>Created: " + $ReportRunDate + "<p>" +
 "<p>-----------------------------------------------------------------------------------------------------------------------------</p>" +  
 "<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
 "<p>Number of underused user accounts found:   " + $UnderUsedAccounts.Count + "</p>" +
@@ -459,7 +455,7 @@ $HTMLTail = $HTMLTail + "<p>Microsoft 365 Licensing Report<b> " + $Version + "</
 $HtmlReport = $Htmlhead + $Htmlbody1 + $HtmlSkuSeparator + $HtmlBody2 + $Htmltail
 $HtmlReport | Out-File $HtmlReportFile -Encoding UTF8
 
-$Report | Export-CSV -NoTypeInformation $CSVOutputFile
+$Report | Export-CSV -NoTypeInformation $CSVOutputFile -Encoding UTF8
 Write-Host ""
 Write-Host "All done. Output files are" $CSVOutputFile "and" $ReportFile
 
