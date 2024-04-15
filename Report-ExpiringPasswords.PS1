@@ -18,7 +18,7 @@ Connect-MgGraph -Scopes Domain.Read.All, User.Read.All, Organization.Read.All -N
 $DefaultDomain = $Domains | Where-Object {$_.IsDefault -eq $true}
 $PasswordLifetime = $DefaultDomain.PasswordValidityPeriodInDays
 If ($PasswordLifetime -eq 2147483647) {
-    Write-Host "Password expiration is disabled for the tenant"
+    Write-Host "Password expiration is disabled for the tenant" -ForegroundColor Red
     $TenantPasswordExpirationDisabled = $true
     # adjust the value otherwise the date calculation will fail
     $PasswordLifetime = 20000
