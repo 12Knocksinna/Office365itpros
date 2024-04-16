@@ -1,11 +1,11 @@
 #
 # SearchAndRemoveItemsMailboxes.PS1
 # https://github.com/12Knocksinna/Office365itpros/blob/master/SearchAndRemoveItemsMailboxes.PS1
-# A script to use the Search-Mailbox cmdlet to remove calendar items from user mailboxes.
+# A script to use the Search-Mailbox cmdlet to remove calendar items from user mailboxes. 
 # Requires the Exchange Online management module
 
-CLS
-$ModulesLoaded = Get-Module | Select Name
+Clear-Host
+$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script" ; break}
 
 # Set up the search query - change these parameters to whatever you want to use to search for items to be removed
@@ -33,8 +33,8 @@ ForEach ($User in $Users)  {
 } # End For
 
 # Filter the users where we have found some items
-$ProcessUsers = $UserReport | ? {$_.ItemsFound -ne "0"}
-CLS
+$ProcessUsers = $UserReport | Where-Object {$_.ItemsFound -ne "0"}
+Clear-Host
 $ProcessUsers | Format-Table DisplayName, UserPrincipalName, ItemsFound, ItemsSize -AutoSize
 $PromptTitle = 'Remove items from mailboxes'
 $PromptMessage = 'Please confirm whether to proceed to remove found items from mailboxes'
