@@ -1,5 +1,5 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/AzureAutomationGroupsExpirationReport.PS1
-
+# See https://office365itpros.com/2022/04/08/post-teams-channels/ for more information
 #+-------------------------- Functions etc. -------------------------
 
 function Get-GraphData {
@@ -74,8 +74,8 @@ $Headers = @{
             'ConsistencyLevel' = "eventual" }
 
 $AzConnection = Connect-AzAccount -Tenant $Connection.TenantId -ApplicationId `
-   $Connection.ApplicationId -CertificateThumbPrint $Connection.CertificateThumbprint `
-  -ServicePrincipal
+    $Connection.ApplicationId -CertificateThumbPrint $Connection.CertificateThumbprint `
+    -ServicePrincipal
 # Get username and password from Key Vault - You need to set up your own Key Vault and populate 
 # it with secrets to make this work...
 $UserName = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -Name "ExoAccountName" -AsPlainText
@@ -97,7 +97,9 @@ Write-Output "Target team and channel" $TargetTeamId " " $TargetTeamChannel
 # Get set of groups with an expiration date set. Can't check for null as the ExpirationDateTime property doesn't support this
 $uri = "https://graph.microsoft.com/beta/groups?`$filter=ExpirationDateTime ge 2014-01-01T00:00:00Z AND groupTypes/any(a:a eq 'unified')&`$count=true"
 [array]$Groups = Get-GraphData -AccessToken $Token -Uri $uri
-If (!($Groups)) { Write-Output "No groups found subject to the expiration policy - exiting" ; break }
+If (!($Groups)) { 
+    Write-Output "No groups found subject to the expiration policy - exiting" ; break 
+}
 $Report = [System.Collections.Generic.List[Object]]::new(); $Today = (Get-Date)
 ForEach ($G in $Groups) {
         $Days = (New-TimeSpan -Start $G.CreatedDateTime -End $Today).Days  # Age of group
@@ -117,13 +119,15 @@ ForEach ($G in $Groups) {
 Write-Output "Total Groups covered by expiration policy:" $Groups.Count
 Write-Output ""
 # Write out details to show that the job works!
-$Report | Sort "Days before expiration" | Format-Table Group, "Last renewed", "Next renewal", "Days before expiration" -AutoSize
+$Report | Sort-Object "Days before expiration" | Format-Table Group, "Last renewed", "Next renewal", "Days before expiration" -AutoSize
 # Create data to store in SharePoint Online
 # First, the CSV file
 $SDate = Get-Date -format yyyyMMddHHmmss
 [string]$SourceDocument = "Microsoft 365 Groups Expiration Report " + $SDate + ".csv"
 [string]$HTMLDocument = "Microsoft 365 Groups Expiration Report " + $SDate + ".html"
-$Report | Sort "Days before expiration" | Export-CSV -NoTypeInformation $SourceDocument
+$Report | Sort-Object "Days before expiration" | Export-CSV -NoTypeInformation $SourceDocument
+
+# Connect to SharePoint Online using PnP 
 $PnpConnection = Connect-PnPOnline $SiteURL -Credentials $UserCredentials -ReturnConnection
 # Add a document title
 $Values = @{"Title" = 'Microsoft 365 Groups Expiration Report (CSV)'}
@@ -155,7 +159,7 @@ $Body += $cssString
 $Body += '</head><body><p><font face="Segoe UI"><h1>Microsoft 365 Groups Expiration Report</h1></font></p><p><font face="Segoe UI"><h2>Tenant: ' + ($TenantName) + '</h2></p><p><font face="Segoe UI"><h3>Generated: ' + $Today + '</h3></font></p>'
 $Body += '<table class="tftable">'
 $Body += "<colgroup><col/><col/><col/><col/><col/><col/></colgroup> <tr><th>Group</th><th>Created</th><th>Age in days</th><th>Last renewed</th><th>Next renewal</th><th>Days before expiration</th></tr>"
-$Report = $Report | Sort Group
+$Report = $Report | Sort-Object Group
 ForEach ($R in $Report) {
    $Body += "<tr><td>$($R.Group)</td><td>$($R.Created)</td><td>$($R.'Age in days')</td><td>$($R.'Last Renewed')</td><td>$($R.'Next Renewal')</td><td>$($R.'Days before expiration')</td></tr>"
 }
@@ -169,6 +173,7 @@ $Values = @{"Title" = 'New Microsoft 365 Groups Expiration Report (HTML)'}
 $FileAddStatus = (Add-PnPFile -Folder "Shared Documents/General" -Path $HTMLDocument -Connection $PnpConnection -Values $Values | Out-Null)
 # Post to a Teams channel using an incoming webhook connector
 $GroupWebHookData = 'The new report is available in <a href="' + $NewFileUri + '">' + 'Microsoft 365 Groups Expiration Report</a>'
+
 $DateNow = Get-Date -format g
 $Notification = @"
     {
