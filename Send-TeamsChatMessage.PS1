@@ -21,7 +21,7 @@ If (!(Get-Item -Path $ContentFile -ErrorAction SilentlyContinue)) {
 # Define the content of the chat message, starting with the imline image
 $Content = '<img height="200" src="../hostedContents/1/$value" width="100" style="vertical-align:bottom; width:200px; height:200px">
 <p><b>Emergency!</b></p>'
-$Content = $Content + '<p><b>Action Required Now</b><p> Please contact <at id="0">James Ryan</at> for more information'
+$Content = $Content + '<p><b>Action Required Now</b><p> Please contact situation coordinator <at id="0">James Ryan</at> for more information. Contact details are available in his profile card.'
 
 # Create a hash table to hold the image content that's used with the HostedContents parameter
 $ContentDataDetails = @{}
@@ -70,7 +70,7 @@ ForEach ($TeamUser in $TeamMembers) {
     }
     $User = Get-MgUser -UserId $TeamUser -Property id, displayName, userprincipalName
     # Can't handle MTO accounts - communicate should be with their real account
-    If ($User.UserPrincipalName -like "*#EXT") {
+    If ($User.UserPrincipalName -like "*#EXT*") {
         Write-Host ("Skipping MTO account {0}" -f $User.DisplayName)
         Continue
     }
@@ -107,7 +107,7 @@ ForEach ($TeamUser in $TeamMembers) {
         Write-Host ("Chat sent to {0}" -f $User.DisplayName)
         $ChatMessagesSent++
     } Else {
-        Write-Host "Failed to send chat message"
+        Write-Host ("Failed to send chat message to {0}" -f $User.DisplayName)
     }
 }
 Write-Host ("All done. {0} chat messages sent" -f $ChatMessagesSent)
