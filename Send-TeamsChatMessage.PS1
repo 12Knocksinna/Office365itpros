@@ -3,7 +3,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Send-TeamsChatMessage.PS1
 # V1.0 17-Apr-2024
 
-Connect-MgGraph -Scopes Chat.ReadWrite, User.ReadBasic.All -NoWelcome
+Connect-MgGraph -Scopes Chat.ReadWrite, User.Read.All -NoWelcome
 
 # Get details of the signed in user
 $SendingUser = (Get-MgContext).Account
@@ -68,9 +68,9 @@ ForEach ($TeamUser in $TeamMembers) {
         Write-Host "Skipping sending chat to self"
         Continue
     }
-    $User = Get-MgUser -UserId $TeamUser -Property id, displayName, userprincipalName
+    $User = Get-MgUser -UserId $TeamUser -Property id, displayName, userprincipalName, userType
     # Can't handle MTO accounts - communicate should be with their real account
-    If ($User.UserPrincipalName -like "*#EXT*") {
+    If ($User.UserPrincipalName -like "*#EXT*" -and $User.userType -eq "Member") {
         Write-Host ("Skipping MTO account {0}" -f $User.DisplayName)
         Continue
     }
@@ -104,10 +104,10 @@ ForEach ($TeamUser in $TeamMembers) {
     $ChatMessage = New-MgChatMessage -ChatId $NewChat.Id -Body $Body -Mentions $MentionIds `
         -HostedContents $ContentData -Importance Urgent
     If ($ChatMessage) {
-        Write-Host ("Chat sent to {0}" -f $User.DisplayName)
+        Write-Host ("Chat sent to {0}" -f $User.DisplayName) -ForegroundColor Yellow
         $ChatMessagesSent++
     } Else {
-        Write-Host ("Failed to send chat message to {0}" -f $User.DisplayName)
+        Write-Host ("Failed to send chat message to {0}" -f $User.DisplayName) -ForegroundColor Red
     }
 }
 Write-Host ("All done. {0} chat messages sent" -f $ChatMessagesSent)
