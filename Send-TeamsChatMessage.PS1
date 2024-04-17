@@ -68,7 +68,12 @@ ForEach ($TeamUser in $TeamMembers) {
         Write-Host "Skipping sending chat to self"
         Continue
     }
-    $User = Get-MgUser -UserId $TeamUser -Property id, displayName, userType, userprincipalName
+    $User = Get-MgUser -UserId $TeamUser -Property id, displayName, userprincipalName
+    # Can't handle MTO accounts - communicate should be with their real account
+    If ($User.UserPrincipalName -like "*#EXT") {
+        Write-Host ("Skipping MTO account {0}" -f $User.DisplayName)
+        Continue
+    }
     [array]$MemberstoAdd = $SendingUserId, $TeamUser
     [array]$Members = $null
     ForEach ($Member in $MemberstoAdd){
