@@ -1,6 +1,6 @@
 # Send-TeamsChatMessages.PS1
 # Demonstration of how to use the Microsoft Graph PowerShell SDK to send a message to a Teams chat
-# 
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Send-TeamsChatMessage.PS1
 # V1.0 17-Apr-2024
 
 Connect-MgGraph -Scopes Chat.ReadWrite, User.ReadBasic.All -NoWelcome
