@@ -9,17 +9,17 @@ Connect-MgGraph -Scopes Chat.ReadWrite, User.Read.All -NoWelcome
 $SendingUser = (Get-MgContext).Account
 $SendingUserId = (Get-MgUser -UserId $SendingUser).Id
 Write-Host ("Chats will be sent by {0}" -f $SendingUser)
-# Define the group that's used to find the set of users to send chats to
+# Define the group that's used to find the set of users to send chats to (make sure you change this for your tenant)
 $GroupName = "Information Quality and Accuracy"
 
-# Download the icon we want to use if it's not already available
+# Download the icon we want to use if it's not already available - use your own image if you want
 $ContentFile = "C:\Temp\Emergency.jpg"
 If (!(Get-Item -Path $ContentFile -ErrorAction SilentlyContinue)) {
   Invoke-WebRequest "https://i0.wp.com/office365itpros.com/wp-content/uploads/2024/04/Emergency.jpg" -OutFile $ContentFile
 }
 
 # Define the content of the chat message, starting with the imline image
-$Content = '<img height="200" src="../hostedContents/1/$value" width="100" style="vertical-align:bottom; width:200px; height:200px">
+$Content = '<img height="200" src="../hostedContents/1/$value" width="200" style="vertical-align:bottom; width:200px; height:200px">
 <p><b>Emergency!</b></p>'
 $Content = $Content + '<p><b>Action Required Now</b><p> Please contact situation coordinator <at id="0">James Ryan</at> for more information. Contact details are available in his profile card.'
 
