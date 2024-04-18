@@ -19,9 +19,9 @@ If (!(Get-Item -Path $ContentFile -ErrorAction SilentlyContinue)) {
 }
 
 # Define the content of the chat message, starting with the imline image
-$Content = '<img height="200" src="../hostedContents/1/$value" width="200" style="vertical-align:bottom; width:200px; height:200px">
-<p><b>Emergency!</b></p>'
-$Content = $Content + '<p><b>Action Required Now</b><p> Please contact situation coordinator <at id="0">James Ryan</at> for more information. Contact details are available in his profile card.'
+$Content = '<img height="200" src="../hostedContents/1/$value" width="200" style="vertical-align:bottom; width:200px; height:200px">'
+$Content - $Content + '<p><b>Emergency!</b></p>'
+$Content = $Content + '<p><b>Action Required Now</b><p> Please contact situation coordinator <at id="0">James Ryan</at> for more information. Contact details are available in his profile card.</p>'
 
 # Create a hash table to hold the image content that's used with the HostedContents parameter
 $ContentDataDetails = @{}
@@ -35,6 +35,7 @@ $Body = @{}
 $Body.add("content", $Content)
 $Body.add("contentType", 'html')
 
+# Fetch people to mention in the chat message
 # Define the details of the mentioned user in a hash table
 $MentionedUserDetails = @{}
 $MentionedUserDetails.add("userIdentityType", "aadUser")
