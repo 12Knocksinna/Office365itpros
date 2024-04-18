@@ -18,7 +18,8 @@ If ("ExchangeOnlineManagement -notin $Modules") {
 $GroupName = "Emergency Contacts"
 # Download the icon we want to use if it's not already available - use your own image if you want
 $WebImage = "https://i0.wp.com/office365itpros.com/wp-content/uploads/2024/04/Warning.jpg"
-$ContentFile = "C:\Temp\Warning.jpg"
+# Download target is in user download folder
+$ContentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Warning.jpg"
 If (!(Get-Item -Path $ContentFile -ErrorAction SilentlyContinue)) {
   Invoke-WebRequest $WebImage -OutFile $ContentFile
 }
@@ -95,7 +96,9 @@ ForEach ($Contact in $Contacts) {
 $Content = $Content + "<p>-------------------------------------------------------------------<p></p>"
 $Content = $Content + '<p><emoji alt="😎"></emoji>'
 
-# Create a hash table to hold the image content that's used with the HostedContents parameter
+# Create a hash table to hold the image content that's used with the HostedContents parameter. Hosted content
+# is stored by Teams in its store and includes images and code snippets. File attachments are in OneDrive
+# or SharePoint Online
 $ContentDataDetails = @{}
 $ContentDataDetails.Add("@microsoft.graph.temporaryId", "1")
 $ContentDataDetails.Add("contentBytes", [System.IO.File]::ReadAllBytes("$ContentFile"))
@@ -157,8 +160,6 @@ ForEach ($TeamUser in $TeamMembers) {
     }
 }
 Write-Host ("All done. {0} chat messages sent" -f $ChatMessagesSent)
-
-	
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.

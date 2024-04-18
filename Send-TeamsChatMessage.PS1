@@ -13,9 +13,9 @@ Write-Host ("Chats will be sent by {0}" -f $SendingUser)
 $GroupName = "Information Quality and Accuracy"
 
 # Download the icon we want to use if it's not already available - use your own image if you want
-$ContentFile = "C:\Temp\Emergency.jpg"
+$ContentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Emergency.jpg"
 If (!(Get-Item -Path $ContentFile -ErrorAction SilentlyContinue)) {
-  Invoke-WebRequest "https://i0.wp.com/office365itpros.com/wp-content/uploads/2024/04/Emergency.jpg" -OutFile $ContentFile
+  Invoke-WebRequest $WebImage -OutFile $ContentFile
 }
 
 # Define the content of the chat message, starting with the imline image
