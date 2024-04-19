@@ -1,7 +1,8 @@
 # Report-OneDriveFiles.PS1
 # A demo script to show how to generate a report of the files in a user's OneDrive account using 
-# Microsoft Graph APIs. Based on
-# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportFilesSPOSite.PS1
+# Microsoft Graph APIs. Based on the script to report files from a SharePoint Online document library 
+# described in the article https://practical365.com/sharepoint-site-files-report/
+# This script is https://github.com/12Knocksinna/Office365itpros/blob/master/Report-OneDriveFiles.PS1
 # V1.0 19-Apr-2024
 
 function UnpackFilesRecursively {
@@ -128,7 +129,7 @@ If ($Items.Value.Count -eq 0) {
 $StartPath = " "
 UnpackFilesRecursively -Items $Items -SiteUri $SiteUri -FolderPath $StartPath -SiteFiles $SiteFiles
 
-Write-Host ("Total files found {0}" -f $SiteFiles.Count)
+Write-Host ("Total files found in the OneDrive for Business account of {0}: {1}" -f $OneDriveInfo.owner.user.displayName, $SiteFiles.Count) -ForegroundColor Red
 $SiteFiles | Out-GridView -Title ("OneDrive for Business Files for {0}" -f $OneDriveInfo.owner.user.displayName) 
 
 
