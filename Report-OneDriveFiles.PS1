@@ -162,6 +162,7 @@ UnpackFilesRecursively -Items $Items -SiteUri $SiteUri -FolderPath $StartPath -S
 $SiteFiles | Select-Object FileName, Folder, Author, Created, Modified, Size, DaysOld | `
     Out-GridView -Title ("OneDrive for Business Files for {0}" -f $OneDriveInfo.owner.user.displayName) 
 
+Clear-Host
 # Generate some statistics
 [array]$FileTypeCount = $SiteFiles | Group-Object FileType -NoElement | Sort-Object Count -Descending | `
     Select-Object Name, Count
