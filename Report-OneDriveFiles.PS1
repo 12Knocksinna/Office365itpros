@@ -40,26 +40,58 @@ param (
     } Else {
         $FolderPathReport = $FolderPath
     }
+    [datetime]$FileCreated = $D.createdDateTime
+    $AgeInDays = (New-TimeSpan $FileCreated).Days
+    $FileExtension = ($D.Name.Split('.')[-1]).ToUpper()
+    Switch ($FileExtension) {
+        "DOCX"  { $FileType = "Word document" }
+        "DOC"   { $FileType = "Older Word document" }
+        "DOCM"  { $FileType = "Word macro-enabled document"}
+        "XLSX"  { $FileType = "Excel workbook" }
+        "XLS"   { $FileType = "Excel spreadsheet" }
+        "PPTX"  { $FileType = "PowerPoint presentation" }
+        "PDF"   { $FileType = "PDF cocument" }
+        "TXT"   { $FileType = "Text file" }
+        "MP4"   { $FileType = "Video file" }
+        "NOTE"  { $FileType = "OneNote notebook" }
+        "ONE"   { $FileType = "OneNote .ONE file" }
+        "ONETOC2" { $FileType = "OneNote notebook TOC" }    
+        "WBM"   { $FileType = "WebM video file" }
+        "FLUID" { $FileType = "Loop component" }
+        "CSV"   { $FileType = "CSV file" }
+        "PNG"   { $FileType = "PNG image" }
+        "JPG"   { $FileType = "JPEG image" }
+        "TEC"   { $FileType = "Camtasia file" }
+        "MSG"   { $FileType = "Outlook message" }
+        "PS1"   { $FileType = "PowerShell script" }
+        "PST"   { $FileType = "Outlook data file" }
+        "JSON"  { $FileType = "JSON file" }
+        "ZIP"   { $FileType = "ZIP archive" }
+        "SAZ"   { $FileType = "Trace file" }
+        Default { $FileExtension = "Unknown" }
+    }
     $ReportLine  = [PSCustomObject] @{   
-        FileName = $D.Name
-        Folder   = $FolderPathReport
-        Author   = $D.createdby.user.displayname
-        Created  = $D.createdDateTime
-        Modified = $D.lastModifiedDateTime
-        Size     = $FileSize
-        Uri      = $D.WebUrl 
+        FileName    = $D.Name
+        Folder      = $FolderPathReport
+        Author      = $D.createdby.user.displayname
+        Created     = $D.createdDateTime
+        Modified    = $D.lastModifiedDateTime
+        Size        = $FileSize
+        Uri         = $D.WebUrl 
+        Bytes       = $D.Size
+        DaysOld     = $AgeInDays
+        Extension   = $FileExtension
+        FileType    = $FileType
     }
     $SiteFiles.Add($ReportLine) 
   } # End If
 
   $NextLink = $Items."@odata.nextLink"
-  $Uri = $Items."@odata.nextLink"
   While ($NextLink) { 
-    $MoreData = Invoke-MgGraphRequest -Uri $Uri -Method Get
+    $MoreData = Invoke-MgGraphRequest -Uri $Nextlink -Method Get
     UnpackFilesRecursively -Items $MoreData -SiteUri $SiteUri -FolderPath $FolderPath -SiteFiles $SiteFiles -IsNextLink $true
   
     $NextLink = $MoreData."@odata.nextLink"
-    $Uri = $MoreData."@odata.nextLink" 
   } # End While
   
   $Count = $SiteFiles.count - $before
@@ -69,9 +101,7 @@ param (
   
   # Report the files in each sub-folder
   ForEach ($Folder in $Folders) {
-    Write-Host "Folderpath:" $FolderPath
 	$NewFolderPath = ("{0}/{1}" -f $FolderPath, $Folder.Name).TrimStart()
-    Write-Host "New folder path" $NewFolderPath
     $Uri =('https://graph.microsoft.com/V1.0/users/{0}/drive/root:{1}:/children' -f $Account, $NewFolderPath)    
 	$SubFolderData = Invoke-MgGraphRequest -Uri $Uri -Method Get
     UnpackFilesRecursively -Items $SubFolderData -SiteUri $SiteUri -FolderPath $NewFolderPath -SiteFiles $SiteFiles -IsNextLink $false
@@ -119,8 +149,8 @@ If (!($OneDriveInfo)) { # Nothing found
 # Create output list
 $SiteFiles = [System.Collections.Generic.List[Object]]::new()
 
-Write-Host "Reading from OneDrive account..."
-$Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/root/children" -f $DriveId)
+Write-Host "Reading from OneDrive account..." -ForegroundColor Yellow
+$Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/root/children" -f $DriveId) 
 [array]$Items = Invoke-MgGraphRequest -Uri $Uri -Method Get
 If ($Items.Value.Count -eq 0) {
     Write-Host "No files found in the OneDrive for Business account"
@@ -129,9 +159,63 @@ If ($Items.Value.Count -eq 0) {
 $StartPath = " "
 UnpackFilesRecursively -Items $Items -SiteUri $SiteUri -FolderPath $StartPath -SiteFiles $SiteFiles
 
-Write-Host ("Total files found in the OneDrive for Business account of {0}: {1}" -f $OneDriveInfo.owner.user.displayName, $SiteFiles.Count) -ForegroundColor Red
-$SiteFiles | Out-GridView -Title ("OneDrive for Business Files for {0}" -f $OneDriveInfo.owner.user.displayName) 
+$SiteFiles | Select-Object FileName, Folder, Author, Created, Modified, Size, DaysOld | `
+    Out-GridView -Title ("OneDrive for Business Files for {0}" -f $OneDriveInfo.owner.user.displayName) 
 
+# Generate some statistics
+[array]$FileTypeCount = $SiteFiles | Group-Object FileType -NoElement | Sort-Object Count -Descending | `
+    Select-Object Name, Count
+
+$ReportData = [System.Collections.Generic.List[Object]]::new()
+ForEach ($FT in $FileTypeCount.Name) {
+    Write-Host "Processing" $FT
+    $FTItems = $SiteFiles | Where-Object {$_.FileType -eq $FT}
+    $FileExtensionData = ($FTItems.Bytes | Measure-Object -AllStats)
+    $FileCount = $FileExtensionData.Count
+    $FileSize = FormatFileSize $FileExtensionData.Sum
+    $FileAverageSize = FormatFileSize $FileExtensionData.Average
+    $ReportLine = [PSCustomObject]@{
+        FileType    = $FT
+        Count       = $FileCount
+        Size        = $FileSize
+        AverageSize = $FileAverageSize
+    }
+    $ReportData.Add($ReportLine)
+}
+
+# Quota
+$QuotaTotal = FormatFileSize $OneDriveInfo.quota.total
+$QuotaUsed = FormatFileSize $OneDriveInfo.quota.used
+$QuotaAvailable = FormatFileSize $OneDriveInfo.quota.remaining
+$PercentUsed = ($OneDriveInfo.quota.used/$OneDriveInfo.quota.total).toString('P')
+
+# Oldest files
+[array]$OldestFiles = $SiteFiles | Sort-Object DaysOld -Descending | Select-Object -First 10 | `
+    Select-Object FileName, Folder, Author, Created, Modified, Size, Uri, DaysOld
+
+# Largest files
+[array]$TopFiles = $SiteFiles | Sort-Object Bytes -Descending | Select-Object -First 10 | `
+    Select-Object FileName, Folder, Author, Created, Modified, Size, Uri
+
+Write-Host "OneDrive for Business account statistics"
+Write-Host "----------------------------------------"
+Write-Host ("Total files found in the OneDrive for Business account of {0}: {1}" `
+    -f $OneDriveInfo.owner.user.displayName, $SiteFiles.Count) -ForegroundColor Red
+Write-Host ("Quota assigned {0}" -f $QuotaTotal)
+Write-Host ("Quota used: {0} ({1})" -f $QuotaUsed, $PercentUsed)
+Write-Host ("Quota remaining {0}" -f $QuotaAvailable)
+Write-Host ""
+$ReportData | Format-Table -AutoSize
+
+Write-Host "Largest ten files in the account"
+Write-Host "--------------------------------"
+$TopFiles | Format-Table FileName, Created, Modified, Size -AutoSize
+Write-Host ""
+
+Write-Host "Oldest ten files in the account"
+Write-Host "-------------------------------"
+$OldestFiles | Format-Table FileName, Created, Modified, DaysOld, Size -AutoSize
+Write-Host ""
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
