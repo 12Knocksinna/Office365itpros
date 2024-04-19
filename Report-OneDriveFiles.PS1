@@ -169,7 +169,6 @@ Clear-Host
 
 $ReportData = [System.Collections.Generic.List[Object]]::new()
 ForEach ($FT in $FileTypeCount.Name) {
-    Write-Host "Processing" $FT
     $FTItems = $SiteFiles | Where-Object {$_.FileType -eq $FT}
     $FileExtensionData = ($FTItems.Bytes | Measure-Object -AllStats)
     $FileCount = $FileExtensionData.Count
