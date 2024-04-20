@@ -45,7 +45,7 @@ function Get-DriveItem {
             FileName        = $DriveItem.Name
             Folder          = $CurrentFolderName
             WebURL          = $DriveItem.WebUrl
-            Size            = $DriveItem.Size
+            Size            = (FormatFileSize $DriveItem.Size)
             Created         = $DriveItem.CreatedDateTime
             LastModified    = $DriveItem.LastModifiedDateTime
         }
@@ -151,8 +151,9 @@ If (!($Drive)) {
 }
 # Create output list and CSV file
 $Global:ReportData = [System.Collections.Generic.List[Object]]::new()
-$CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\Files in {0} document library.csv" -f $DriveName)
+$CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\Files {0}-{1} library.csv" -f $Site.displayName, $DriveName)
 # Get the items in the root, including child folders
+Write-Host "Fetching file information..."
 [array]$DriveItems = Get-MgDriveItemChild -DriveId $Drive.id -DriveItemId "root"
 ForEach ($DriveItem in $DriveItems) {
      # Retrieve items from all folders beneath the root
