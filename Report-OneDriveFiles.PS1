@@ -141,7 +141,7 @@ If (!($OneDriveInfo)) { # Nothing found
 
 # Create output list and CSV file
 $Global:ODBFiles = [System.Collections.Generic.List[Object]]::new()
-$CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\OneDrive files for {0}" -f $OneDriveInfo.owner.user.displayName)
+$CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\OneDrive files for {0}.csv" -f $OneDriveInfo.owner.user.displayName)
 
 # Get the items in the root, including child folders
 Write-Host "Fetching file information from OneDrive for Business..." -ForegroundColor Yellow
