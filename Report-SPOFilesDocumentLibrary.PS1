@@ -1,6 +1,6 @@
 # Report-SPOFilesDocumentLibrary.PS1
-# A version of the script to report files from a SharePoint Online document library that uses the Microsoft Graph SDK
-# instead of Graph API requests (see ReportFilesSPOSite.PS1 for that version). 
+# A version of the script to report files from a SharePoint Online document library that uses cmdlets from
+# the Microsoft Graph SDK instead of Graph API requests (see ReportFilesSPOSite.PS1 for that version). 
 
 # V1.0 20-Apr-2024
 
@@ -9,50 +9,37 @@ Param (
     [Parameter(Mandatory = $true)]
     [string]$SiteName  # Name of the SharePoint Online site to process
 )
-
-function Get-DriveItem {
-    # function to get properties of a drive item
+function Get-DriveItems {
     [CmdletBinding()]
     param (
         [Parameter()]
         $Drive,
         [Parameter()]
-        $DriveItem
+        $FolderId
     )
-
-    # Ignore any folder that has no child items
-    If ($DriveItem.folder.childcount -eq 0) {
-        Continue 
-    }
-    If ($DriveItem.folder.childcount -gt 0) {
-        $FolderSize = FormatFileSize $DriveItem.Size
-        Write-Output ("Processing folder {0} with {1} items ({2})" -f $DriveItem.Name, $DriveItem.folder.childcount, $FolderSize)
-        # Recurse in the folder to get the childitems of the folder
-        [array]$FolderItems = $null
-        $CurrentFolderName = $DriveItem.Name
-        $FolderItems = (Get-MgDriveItem -DriveId $Drive.id -DriveItemId $DriveItem.Id -ExpandProperty Children).Children
-        If ($FolderItems) {
-            $FolderItems | ForEach-Object { 
-                Get-DriveItem -Drive $Drive -DriveItem (Get-MgDriveItem -DriveId $Drive.Id -DriveItemId $($_.Id) ) 
-            }
-        } 
-    } Else {
-        # Write-Output ("Processing file {0}" -f $DriveItem.Name) 
-        If ($null -eq $CurrentFolderName) {
-            $CurrentFolderName = "Root"
-        }
+    # Get data for a folder and its children
+    [array]$Data = Get-MgDriveItemChild -DriveId $Drive -DriveItemId $FolderId -All
+    # Split the data into files and folders
+    [array]$Folders = $Data | Where-Object {$_.folder.childcount -gt 0}
+    [array]$Files = $Data | Where-Object {$null -ne $_.file.mimetype}
+    # Process the files
+    ForEach ($File in $Files) {
+    # Write-Output ("Processing file {0}" -f $File.Name) 
         $ReportLine = [PSCustomObject]@{
-            FileName        = $DriveItem.Name
-            Folder          = $CurrentFolderName
-            WebURL          = $DriveItem.WebUrl
-            Size            = (FormatFileSize $DriveItem.Size)
-            Created         = $DriveItem.CreatedDateTime
-            LastModified    = $DriveItem.LastModifiedDateTime
-        }
+            FileName        = $File.Name
+            Folder          = $File.parentreference.name
+            WebURL          = $File.WebUrl
+            Size            = (FormatFileSize $File.Size)
+            Created         = $File.CreatedDateTime
+            LastModified    = $File.LastModifiedDateTime
+            }
         $ReportData.Add($ReportLine)
     }
+    # Process the folders
+    ForEach ($Folder in $Folders) {
+        Get-DriveItems -Drive $Drive -FolderId $Folder.Id
+    }
 }
-
 function FormatFileSize {
     # Format File Size nicely
     param (
@@ -156,11 +143,7 @@ $Global:ReportData = [System.Collections.Generic.List[Object]]::new()
 $CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\Files {0}-{1} library.csv" -f $Site.displayName, $DriveName)
 # Get the items in the root, including child folders
 Write-Host "Fetching file information..."
-[array]$DriveItems = Get-MgDriveItemChild -DriveId $Drive.id -DriveItemId "root"
-ForEach ($DriveItem in $DriveItems) {
-     # Retrieve items from all folders beneath the root
-    Get-DriveItem -Drive $Drive -DriveItem $DriveItem
-}
+Get-DriveItems -Drive $Drive.Id -FolderId "root"
 
 $ReportData | Out-GridView -Title ("Files in {0} document library for the {1} site" -f $DriveName, $SiteName)
 $ReportData | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
