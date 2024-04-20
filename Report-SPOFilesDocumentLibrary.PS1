@@ -95,9 +95,11 @@ If ($Sites.Count -eq 1) { # Only one site found - go ahead
     $Site = $Sites
     $SiteName = $Site.DisplayName
     Write-Host "Found site to process:" $SiteName 
-} ElseIf ($Sites.Count -gt 1) { # More than one site found. Ask which to use
+} ElseIf ($Sites.Count -gt 1) { 
+    # More than one site found. Ask which to use
     Clear-Host
-    Write-Host "More than one matching site was found. We need you to select a site to report."; [int]$i=1
+    [int]$i = 1
+    Write-Host "More than one matching site was found. We need you to select a site to report."
     Write-Host " "
     ForEach ($SiteOption in $Sites) {
         Write-Host ("{0}: {1} ({2})" -f $i, $SiteOption.DisplayName, $SiteOption.Name); $i++
@@ -107,7 +109,7 @@ If ($Sites.Count -eq 1) { # Only one site found - go ahead
     If (($Answer -gt 0) -and ($Answer -le $i)) {
         [int]$Si = ($Answer-1)
         $SiteName = $Sites[$Si].DisplayName 
-        Write-Host "OK. Selected site is" $Sites[$Si].DisplayName 
+        Write-Host ("OK. Selected site is {0}" -f $Sites[$Si].DisplayName) 
         $Site = $Sites[$Si] 
     }
 }
@@ -160,7 +162,7 @@ ForEach ($DriveItem in $DriveItems) {
     Get-DriveItem -Drive $Drive -DriveItem $DriveItem
 }
 
-$ReportData | Out-GridView -Title ("Files in {0} document library" -f $DriveName)
+$ReportData | Out-GridView -Title ("Files in {0} document library for the {1} site" -f $DriveName, $SiteName)
 $ReportData | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
 Write-Host ("Report data saved to {0}" -f $CSVOutputFile)
 
