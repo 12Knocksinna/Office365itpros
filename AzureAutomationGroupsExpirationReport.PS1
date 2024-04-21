@@ -76,6 +76,7 @@ $Headers = @{
 $AzConnection = Connect-AzAccount -Tenant $Connection.TenantId -ApplicationId `
     $Connection.ApplicationId -CertificateThumbPrint $Connection.CertificateThumbprint `
     -ServicePrincipal
+Write-Host "AZ Connection is" $AzConnection
 # Get username and password from Key Vault - You need to set up your own Key Vault and populate 
 # it with secrets to make this work...
 $UserName = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -Name "ExoAccountName" -AsPlainText
@@ -133,6 +134,7 @@ $PnpConnection = Connect-PnPOnline $SiteURL -Credentials $UserCredentials -Retur
 $Values = @{"Title" = 'Microsoft 365 Groups Expiration Report (CSV)'}
 # Add the file to the General folder
 $FileAddStatus = (Add-PnPFile -Folder "Shared Documents/General" -Path $SourceDocument -Connection $PnpConnection -Values $Values | Out-Null)
+$FileAddStatus
 $NewFileUri = $SiteUrl + "/Shared Documents/General/" + $HTMLDocument
 # Now the HTML file
 Connect-MgGraph -ClientID $Connection.ApplicationId -TenantId $Connection.TenantId -CertificateThumbprint $Connection.CertificateThumbprint
@@ -174,6 +176,8 @@ $FileAddStatus = (Add-PnPFile -Folder "Shared Documents/General" -Path $HTMLDocu
 # Post to a Teams channel using an incoming webhook connector
 $GroupWebHookData = 'The new report is available in <a href="' + $NewFileUri + '">' + 'Microsoft 365 Groups Expiration Report</a>'
 
+Write-Host $GroupWebHookData
+
 $DateNow = Get-Date -format g
 $Notification = @"
     {
@@ -208,6 +212,8 @@ $Notification = @"
 
 $NotificationBody = $Notification.Replace("TENANT","$TenantName").Replace("DATETIME","$DateNow").Replace("URI","$NewFileUri")
 $Command = (Invoke-RestMethod -uri $TargetChannel -Method Post -body $NotificationBody -ContentType 'application/json')           
+
+Write-Host "Command result" $Command
 
 # Post to a Teams channel using PnP
 Submit-PnPTeamsChannelMessage -Team $TargetTeamId -Channel $TargetTeamChannel -Message $Body -ContentType Html -Important
