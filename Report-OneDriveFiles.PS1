@@ -106,19 +106,20 @@ param (
         $InFileSize
     ) 
 
- If ($InFileSize -lt 1KB) { # Format the size of a document
-        $FileSize = $InFileSize.ToString() + " B" 
-    } ElseIf ($InFileSize -lt 1MB) {
-        $FileSize = $InFileSize / 1KB
-        $FileSize = ("{0:n2}" -f $FileSize) + " KB"
-    } Elseif ($InFileSize -lt 1GB) {
-        $FileSize = $InFileSize / 1MB
-        $FileSize = ("{0:n2}" -f $FileSize) + " MB" 
-    } Elseif ($InFileSize -ge 1GB) {
-        $FileSize = $InFileSize / 1GB
-        $FileSize = ("{0:n2}" -f $FileSize) + " GB" 
-    }
-  Return $FileSize
+If ($InFileSize -lt 1KB) { # Format the size of a document
+    $FileSize = $InFileSize.ToString() + " B" 
+} ElseIf ($InFileSize -lt 1MB) {
+    $FileSize = $InFileSize / 1KB
+    $FileSize = ("{0:n2}" -f $FileSize) + " KB"
+} Elseif ($InFileSize -lt 1GB) {
+    $FileSize = $InFileSize / 1MB
+    $FileSize = ("{0:n2}" -f $FileSize) + " MB" 
+} Elseif ($InFileSize -ge 1GB) {
+    $FileSize = $InFileSize / 1GB
+    $FileSize = ("{0:n2}" -f $FileSize) + " GB" 
+}
+  
+Return $FileSize
 } 
 
 # Connect to the Microsoft Graph with the permission to read sites
@@ -204,7 +205,7 @@ Write-Host "-------------------------------"
 $OldestFiles | Format-Table FileName, Created, Modified, DaysOld, Size -AutoSize
 Write-Host ""
 $ODBFiles | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
-Write-Host ("Report data saved to {0}" -f $CSVOutputFile)
+Write-Host ("Report data saved to file: {0}" -f $CSVOutputFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
