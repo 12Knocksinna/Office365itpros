@@ -5,40 +5,25 @@
 # This script is https://github.com/12Knocksinna/Office365itpros/blob/master/Report-OneDriveFiles.PS1
 # V1.0 19-Apr-2024
 
-function Get-DriveItem {
-    # function to get properties of a drive item
+function Get-DriveItems {
     [CmdletBinding()]
     param (
         [Parameter()]
         $Drive,
         [Parameter()]
-        $DriveItem
+        $FolderId
     )
+    # Get OneDrive items for a folder
+    [array]$Data = Get-MgDriveItemChild -DriveId $Drive -DriveItemId $FolderId -All
+    # Split the data into files and folders
+    [array]$Folders = $Data | Where-Object {$_.folder.childcount -gt 0}
+    [array]$Files = $Data | Where-Object {$null -ne $_.file.mimetype}
 
-    # Ignore any folder that has no child items
-    If ($DriveItem.folder.childcount -eq 0) {
-        Continue 
-    }
-    If ($DriveItem.folder.childcount -gt 0) {
-        $FolderSize = FormatFileSize $DriveItem.Size
-        Write-Output ("Processing folder {0} with {1} items ({2})" -f $DriveItem.Name, $DriveItem.folder.childcount, $FolderSize)
-        # Recurse in the folder to get the childitems of the folder
-        [array]$FolderItems = $null
-        $CurrentFolderName = $DriveItem.Name
-        $FolderItems = (Get-MgDriveItem -DriveId $Drive.id -DriveItemId $DriveItem.Id -ExpandProperty Children).Children
-        If ($FolderItems) {
-            $FolderItems | ForEach-Object { 
-                Get-DriveItem -Drive $Drive -DriveItem (Get-MgDriveItem -DriveId $Drive.Id -DriveItemId $($_.Id) ) 
-            }
-        } 
-    } Else {
-        # Write-Output ("Processing file {0}" -f $DriveItem.Name) 
-        If ($null -eq $CurrentFolderName) {
-            $CurrentFolderName = "Root"
-        }
-        [datetime]$FileCreated = $DriveItem.createdDateTime
+    ForEach ($File in $Files) {
+    # Write-Output ("Processing file {0}" -f $File.Name) 
+        [datetime]$FileCreated = $File.createdDateTime
         $AgeInDays = (New-TimeSpan $FileCreated).Days
-        $FileExtension = ($DriveItem.Name.Split('.')[-1]).ToUpper()
+        $FileExtension = ($File.Name.Split('.')[-1]).ToUpper()
         Switch ($FileExtension) {
             "DOCX"  { $FileType = "Word document" }
             "DOC"   { $FileType = "Older Word document" }
@@ -48,7 +33,7 @@ function Get-DriveItem {
             "XLS"   { $FileType = "Excel spreadsheet" }
             "PPTX"  { $FileType = "PowerPoint presentation" }
             "PPT"   { $FileType = "Older PowerPoint presentation" }
-            "PDF"   { $FileType = "PDF cocument" }
+            "PDF"   { $FileType = "PDF document" }
             "TXT"   { $FileType = "Text file" }
             "MP4"   { $FileType = "Video file" }
             "NOTE"  { $FileType = "OneNote notebook" }
@@ -82,23 +67,35 @@ function Get-DriveItem {
             "ODS"   { $FileType = "OpenDocument spreadsheet" }
             "MHT"   { $FileType = "MHTML file" }
             "HTML"  { $FileType = "HTML file" }
+            "XML"   { $FileType = "XML file" }
             "XLR"   { $FileType = "Works spreadsheet" }
+            "INI"   { $FileType = "Configuration file" }
+            "ICO"   { $FileType = "Icon file" }
+            "JS"    { $FileType = "JavaScript file" }
+            "PSM1"  { $FileType = "PowerShell module" }
+            "TREC"  { $FileType = "Camtasia recording" }
+            "VSSX"  { $FileType = "Visio stencil" }
+            "BANNER" { $FileType = "Banner file" }
+            "ARTICLES" { $FileType = "Articles file" }
             Default { $FileType = "Unknown" }
         }
         $ReportLine = [PSCustomObject]@{
-            FileName        = $DriveItem.Name
-            Folder          = $CurrentFolderName
-            Author          = $DriveItem.createdby.user.displayname
-            Created         = $DriveItem.createdDateTime
-            Modified        = $DriveItem.lastModifiedDateTime
-            WebURL          = $DriveItem.WebUrl
-            Size            = (FormatFileSize $DriveItem.Size)
-            Bytes           = $DriveItem.Size
+            FileName        = $File.Name
+            Folder          = $file.parentreference.name
+            Author          = $File.createdby.user.displayname
+            Created         = $File.createdDateTime
+            Modified        = $File.lastModifiedDateTime
+            Size            = (FormatFileSize $File.Size)
+            Bytes           = $File.Size
             DaysOld         = $AgeInDays
             Extension       = $FileExtension
             FileType        = $FileType
+            WebURL          = $File.WebUrl
         }
         $ODBFiles.Add($ReportLine)
+    }
+    ForEach ($Folder in $Folders) {
+        Get-DriveItems -Drive $Drive -FolderId $Folder.Id
     }
 }
 
@@ -145,11 +142,7 @@ $CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Do
 
 # Get the items in the root, including child folders
 Write-Host "Fetching file information from OneDrive for Business..." -ForegroundColor Yellow
-[array]$DriveItems = Get-MgDriveItemChild -DriveId $OneDriveInfo.id -DriveItemId "root"
-ForEach ($DriveItem in $DriveItems) {
-     # Retrieve items from all folders beneath the root
-    Get-DriveItem -Drive $Drive -DriveItem $DriveItem
-}
+Get-DriveItems -Drive $OneDriveInfo.id -FolderId "root"
 
 # Show what we've found with Out-GridView
 $ODBFiles | Select-Object FileName, Folder, Author, Created, Modified, Size, DaysOld | `
