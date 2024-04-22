@@ -28,26 +28,28 @@ function Get-DriveItems {
         $LabelName = $null; $SensitivityLabelInfo = $Null; $LabelNameOutput = $null
         If ($SensitivityLabelsAvailable -eq $true) {
             # Only check for sensitivity labels if they are available
-            $Type = $File.Name.Split(".")[1]
-            If ($Type -in $ValidDocumentTypes) { 
-                $Uri = ("https://graph.microsoft.com/beta/sites/{0}/drive/items/{1}/extractSensitivityLabels" -f $Site.Id, $file.id)
-            Try {
-                [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
-                If ($SensitivityLabelInfo.labels.sensitivityLabelId) { 
-                    #   Write-Host "Label Id" $LabelsInfo[0].labels.sensitivityLabelId 
-                    [array]$LabelName = $SensitivityLabelsHash[$SensitivityLabelInfo.labels.sensitivityLabelId]
+            $FileType = $File.Name.Split(".")[1]
+            If ($FileType -in $ValidFileTypes) { 
+                $Uri = ("https://graph.microsoft.com/beta/sites/{0}/drive/items/{1}/extractSensitivityLabels" -f $Site.Id, $File.id)
+                Try {
+                    [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
+                    If ($SensitivityLabelInfo.labels.sensitivityLabelId) { 
+                        [array]$LabelName = $SensitivityLabelsHash[$SensitivityLabelInfo.labels.sensitivityLabelId]
+                    }
+                } Catch {
+                    Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) 
                 }
-            }
-            Catch {
-                Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) 
-            }
-          }       
+            }       
         }  
         # Get retention label information
         If ($RetentionLabelsAvailable -eq $true) {
+            Try {
             $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/retentionLabel" -f $Drive, $File.Id)
             [array]$RetentionLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method Get
             $RetentionLabelName = $RetentionLabelInfo.name
+            } Catch {
+                Write-Host ("Error reading retention label data from file {0}" -f $File.Name) 
+            }
         }
         If ($File.LastModifiedDateTime) {
             $LastModifiedDateTime = Get-Date $File.LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
@@ -115,7 +117,7 @@ $Account = (Get-MgContext).Account
 [array]$SensitivityLabels = Get-MgBetaUserSecurityInformationProtectionSensitivityLabel -UserId $Account
 If ($SensitivityLabels) {
     $Global:SensitivityLabelsAvailable = $true
-    [array]$Global:ValidDocumentTypes = "docx", "pptx", "xlsx", "pdf"
+    [array]$Global:ValidfileTypes = "docx", "pptx", "xlsx", "pdf"
     $Global:SensitivityLabelsHash = @{}
     ForEach ($Label in $SensitivityLabels) {
         $SensitivityLabelsHash.Add($Label.Id, $Label.Name)
