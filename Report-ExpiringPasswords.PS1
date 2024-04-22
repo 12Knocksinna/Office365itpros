@@ -11,7 +11,7 @@ $CSVOutputFile = "c:\temp\PasswordExpirationReport.CSV"
 $HtmlReportFile = "c:\temp\PasswordExpirationReport.html"
 
 # Connect to Microsoft Graph - these scopes can be replaced by Directory.Read.All
-Connect-MgGraph -Scopes Domain.Read.All, User.Read.All, Organization.Read.All -NoWelcome
+Connect-MgGraph -Scopes Domain.Read.All, User.Read.All, Organization.Read.All, AuditLog.Read.All -NoWelcome
 
 # Check what the tenant password expiration policy is
 [array]$Domains = Get-MgDomain
