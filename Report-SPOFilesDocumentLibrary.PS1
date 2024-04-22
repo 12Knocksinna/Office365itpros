@@ -21,6 +21,7 @@ function Get-DriveItems {
     [array]$Data = Get-MgDriveItemChild -DriveId $Drive -DriveItemId $FolderId -All
     # Split the data into files and folders
     [array]$Folders = $Data | Where-Object {$_.folder.childcount -gt 0} | Sort-Object Name
+    $Global:TotalFolders = $TotalFolders + $Folders.Count
     [array]$Files = $Data | Where-Object {$null -ne $_.file.mimetype} 
 
     # Process the files
@@ -38,6 +39,7 @@ function Get-DriveItems {
                     }
                 } Catch {
                     Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) 
+                    [array]$LabelName = "Error"
                 }
             }       
         }  
@@ -203,11 +205,18 @@ If (!($Drive)) {
    Write-Host ("Can't find the {0} drive - script exiting" -f $Uri) ; break 
 }
 # Create output list and CSV file
+[datetime]$StartProcessing = Get-Date
+$Global:TotalFolders = 1
 $Global:ReportData = [System.Collections.Generic.List[Object]]::new()
 $CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\Files {0}-{1} library.csv" -f $Site.displayName, $DriveName)
 # Get the items in the root, including child folders
 Write-Host "Fetching file information..."
 Get-DriveItems -Drive $Drive.Id -FolderId "root"
+[datetime]$EndProcessing = Get-Date
+$ElapsedTime = ($EndProcessing - $StartProcessing)
+$FilesPerMinute = [math]::Round(($ReportData.Count / ($ElapsedTime.TotalSeconds / 60)), 2)
+Write-Host ("Processed {0} files in {1} folders in {2}:{3} minutes ({4} files/minute)" -f `
+   $ReportData.Count, $TotalFolders, $ElapsedTime.Minutes, $ElapsedTime.Seconds, $FilesPerMinute)
 
 $ReportData | Out-GridView -Title ("Files in {0} document library for the {1} site" -f $DriveName, $SiteName)
 $ReportData | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
