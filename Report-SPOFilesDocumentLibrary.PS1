@@ -20,23 +20,43 @@ function Get-DriveItems {
     # Get data for a folder and its children
     [array]$Data = Get-MgDriveItemChild -DriveId $Drive -DriveItemId $FolderId -All
     # Split the data into files and folders
-    [array]$Folders = $Data | Where-Object {$_.folder.childcount -gt 0}
-    [array]$Files = $Data | Where-Object {$null -ne $_.file.mimetype}
+    [array]$Folders = $Data | Where-Object {$_.folder.childcount -gt 0} | Sort-Object Name
+    [array]$Files = $Data | Where-Object {$null -ne $_.file.mimetype} 
     # Process the files
     ForEach ($File in $Files) {
     # Write-Output ("Processing file {0}" -f $File.Name) 
+        $LabelName = $null; $LabelsInfo = $Null
+        If ($SensitivityLabelsAvailable -eq $true) {
+            # Only check for sensitivity labels if they are available
+            $Type = $File.Name.Split(".")[1]
+            If ($Type -in $ValidDocumentTypes) { 
+                $Uri = ("https://graph.microsoft.com/beta/sites/{0}/drive/items/{1}/extractSensitivityLabels" -f $Site.Id, $file.id)
+            Try {
+                [array]$LabelsInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
+                If ($LabelsInfo.labels.sensitivityLabelId) { 
+                    #   Write-Host "Label Id" $LabelsInfo[0].labels.sensitivityLabelId 
+                    [array]$LabelName = $SensitivityLabelsHash[$LabelsInfo.labels.sensitivityLabelId]
+                }
+            }
+            Catch {
+                Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) 
+            }
+          }          
+        }
         $ReportLine = [PSCustomObject]@{
-            FileName        = $File.Name
-            Folder          = $File.parentreference.name
-            WebURL          = $File.WebUrl
-            Size            = (FormatFileSize $File.Size)
-            Created         = $File.CreatedDateTime
-            LastModified    = $File.LastModifiedDateTime
+            FileName            = $File.Name
+            Folder              = $File.parentreference.name
+            WebURL              = $File.WebUrl
+            Size                = (FormatFileSize $File.Size)
+            Created             = $File.CreatedDateTime
+            LastModified        = $File.LastModifiedDateTime
+            SensitivivityLabel  = $LabelName[0]
             }
         $ReportData.Add($ReportLine)
     }
     # Process the folders
     ForEach ($Folder in $Folders) {
+        Write-Host ("Processing folder {0} ({1} files/size {2})" -f $Folder.Name, $Folder.folder.childcount, (FormatFileSize $Folder.Size))
         Get-DriveItems -Drive $Drive -FolderId $Folder.Id
     }
 }
@@ -63,12 +83,27 @@ function FormatFileSize {
         $FileSize = ("{0:n2}" -f $FileSize) + " GB" 
     }
     Return $FileSize
-    } 
+} 
 
 # Disconnect from any previous Graph SDK session
 Disconnect-MgGraph
 # Connect to the Microsoft Graph
-Connect-MgGraph -Scopes "Sites.Read.All" -NoWelcome
+Connect-MgGraph -Scopes "Sites.Read.All", "InformationProtectionPolicy.Read" -NoWelcome
+
+# Discover if the tenant uses sensitivity labels
+$Account = (Get-MgContext).Account
+[array]$SensitivityLabels = Get-MgBetaUserSecurityInformationProtectionSensitivityLabel -UserId $Account
+If ($SensitivityLabels) {
+    $Global:SensitivityLabelsAvailable = $true
+    $Global:SensitivityLabelsHash = @{}
+    ForEach ($Label in $SensitivityLabels) {
+        $SensitivityLabelsHash.Add($Label.Id, $Label.Name)
+    }
+} Else {
+    $Global:SensitivityLabelsAvailable = $false
+}
+
+[array]$Global:ValidDocumentTypes = "docx", "pptx", "xlsx", "pdf"
 
 # Find the site
 Write-Host "Looking for matching sites..."
@@ -79,7 +114,7 @@ If (!($Sites)) { # Nothing found
     break 
 }
 If ($Sites.Count -eq 1) { # Only one site found - go ahead
-    $Site = $Sites
+    $Global:Site = $Sites[0]
     $SiteName = $Site.DisplayName
     Write-Host "Found site to process:" $SiteName 
 } ElseIf ($Sites.Count -gt 1) { 
@@ -97,7 +132,7 @@ If ($Sites.Count -eq 1) { # Only one site found - go ahead
         [int]$Si = ($Answer-1)
         $SiteName = $Sites[$Si].DisplayName 
         Write-Host ("OK. Selected site is {0}" -f $Sites[$Si].DisplayName) 
-        $Site = $Sites[$Si] 
+        $Global:Site = $Sites[$Si] 
     }
 }
 
@@ -108,14 +143,11 @@ If (!($Site)) {
 
 # Find the document libraries in the site
 [array]$Drives = Get-MgSiteDrive -SiteId $Site.Id
-If ($Drives.Count -eq 0) {
+If (!($Drives)) {
     Write-Host "No document libraries found in the site" -ForegroundColor Red
     Break
 }
 
-If (!($Drives)) { # Nothing found
-    Write-Host "No matching drives found - exiting"; break 
-}
 If ($Drives.Count -eq 1) { # Only one drive found - go ahead
     $Drive = $Drives
     $DriveName = $Drive.Name
