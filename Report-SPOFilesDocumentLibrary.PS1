@@ -22,38 +22,58 @@ function Get-DriveItems {
     # Split the data into files and folders
     [array]$Folders = $Data | Where-Object {$_.folder.childcount -gt 0} | Sort-Object Name
     [array]$Files = $Data | Where-Object {$null -ne $_.file.mimetype} 
+
     # Process the files
     ForEach ($File in $Files) {
-    # Write-Output ("Processing file {0}" -f $File.Name) 
-        $LabelName = $null; $LabelsInfo = $Null
+        $LabelName = $null; $SensitivityLabelInfo = $Null; $LabelNameOutput = $null
         If ($SensitivityLabelsAvailable -eq $true) {
             # Only check for sensitivity labels if they are available
             $Type = $File.Name.Split(".")[1]
             If ($Type -in $ValidDocumentTypes) { 
                 $Uri = ("https://graph.microsoft.com/beta/sites/{0}/drive/items/{1}/extractSensitivityLabels" -f $Site.Id, $file.id)
             Try {
-                [array]$LabelsInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
-                If ($LabelsInfo.labels.sensitivityLabelId) { 
+                [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
+                If ($SensitivityLabelInfo.labels.sensitivityLabelId) { 
                     #   Write-Host "Label Id" $LabelsInfo[0].labels.sensitivityLabelId 
-                    [array]$LabelName = $SensitivityLabelsHash[$LabelsInfo.labels.sensitivityLabelId]
+                    [array]$LabelName = $SensitivityLabelsHash[$SensitivityLabelInfo.labels.sensitivityLabelId]
                 }
             }
             Catch {
                 Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) 
             }
-          }          
+          }       
+        }  
+        # Get retention label information
+        If ($RetentionLabelsAvailable -eq $true) {
+            $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/retentionLabel" -f $Drive, $File.Id)
+            [array]$RetentionLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method Get
+            $RetentionLabelName = $RetentionLabelInfo.name
         }
+        If ($File.LastModifiedDateTime) {
+            $LastModifiedDateTime = Get-Date $File.LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
+        } Else {
+            $LastModifiedDateTime = $null
+        }
+        If ($File.CreatedDateTime) {
+            $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
+        }
+        If ($LabelName) {
+           [string]$LabelNameOutput = $LabelName[0]
+        }
+
         $ReportLine = [PSCustomObject]@{
-            FileName            = $File.Name
-            Folder              = $File.parentreference.name
-            WebURL              = $File.WebUrl
-            Size                = (FormatFileSize $File.Size)
-            Created             = $File.CreatedDateTime
-            LastModified        = $File.LastModifiedDateTime
-            SensitivivityLabel  = $LabelName[0]
-            }
+            FileName                = $File.Name
+            Folder                  = $File.parentreference.name
+            Size                    = (FormatFileSize $File.Size)
+            Created                 = $FileCreatedDateTime
+            LastModified            = $LastModifiedDateTime
+            'Sensitivity label'     = $LabelNameOutput
+            'Retention label'       = $RetentionLabelName
+            WebURL                  = $File.WebUrl
+        }
         $ReportData.Add($ReportLine)
     }
+
     # Process the folders
     ForEach ($Folder in $Folders) {
         Write-Host ("Processing folder {0} ({1} files/size {2})" -f $Folder.Name, $Folder.folder.childcount, (FormatFileSize $Folder.Size))
@@ -88,13 +108,14 @@ function FormatFileSize {
 # Disconnect from any previous Graph SDK session
 Disconnect-MgGraph
 # Connect to the Microsoft Graph
-Connect-MgGraph -Scopes "Sites.Read.All", "InformationProtectionPolicy.Read" -NoWelcome
+Connect-MgGraph -Scopes "Sites.Read.All", "InformationProtectionPolicy.Read", "RecordsManagement.Read.All" -NoWelcome
 
 # Discover if the tenant uses sensitivity labels
 $Account = (Get-MgContext).Account
 [array]$SensitivityLabels = Get-MgBetaUserSecurityInformationProtectionSensitivityLabel -UserId $Account
 If ($SensitivityLabels) {
     $Global:SensitivityLabelsAvailable = $true
+    [array]$Global:ValidDocumentTypes = "docx", "pptx", "xlsx", "pdf"
     $Global:SensitivityLabelsHash = @{}
     ForEach ($Label in $SensitivityLabels) {
         $SensitivityLabelsHash.Add($Label.Id, $Label.Name)
@@ -103,7 +124,13 @@ If ($SensitivityLabels) {
     $Global:SensitivityLabelsAvailable = $false
 }
 
-[array]$Global:ValidDocumentTypes = "docx", "pptx", "xlsx", "pdf"
+# Discover if the tenant uses retention labels
+[array]$RetentionLabels = Get-MgSecurityLabelRetentionLabel
+If ($RetentionLabels) {
+    $Global:RetentionLabelsAvailable = $true
+} Else {
+    $Global:RetentionLabelsAvailable = $false
+}
 
 # Find the site
 Write-Host "Looking for matching sites..."
