@@ -25,9 +25,9 @@ function Get-DriveItems {
     [array]$Files = $Data | Where-Object {$null -ne $_.file.mimetype} 
 
     # Process the files
-    ForEach ($File in $Files) {
-        $LabelName = $null; $SensitivityLabelInfo = $Null; $LabelNameOutput = $null
+    ForEach ($File in $Files) {  
         If ($SensitivityLabelsAvailable -eq $true) {
+            $LabelName = $null; $SensitivityLabelInfo = $Null; $LabelNameOutput = $null
             # Only check for sensitivity labels if they are available
             $FileType = $File.Name.Split(".")[1]
             If ($FileType -in $ValidFileTypes) { 
@@ -46,9 +46,9 @@ function Get-DriveItems {
         # Get retention label information
         If ($RetentionLabelsAvailable -eq $true) {
             Try {
-            $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/retentionLabel" -f $Drive, $File.Id)
-            [array]$RetentionLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method Get
-            $RetentionLabelName = $RetentionLabelInfo.name
+                $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/retentionLabel" -f $Drive, $File.Id)
+                [array]$RetentionLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method Get
+                $RetentionLabelName = $RetentionLabelInfo.name
             } Catch {
                 Write-Host ("Error reading retention label data from file {0}" -f $File.Name) 
             }
@@ -61,10 +61,17 @@ function Get-DriveItems {
         If ($File.CreatedDateTime) {
             $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
         }
-        If ($LabelName) {
-           [string]$LabelNameOutput = $LabelName[0]
+        If ([string]::IsNullOrEmpty($LabelName)) {
+            $LabelNameOutput = "No label"
+        } Else {
+            [string]$LabelNameOutput = $LabelName[0].Trim()
         }
-
+        If ([string]::IsNullOrEmpty($RetentionLabelName)) {
+            $LabelNameOutput = "No label"
+        } Else {
+            [string]$RetentionLabelName = $RetentionLabelName[0].Trim()
+        }
+    
         $ReportLine = [PSCustomObject]@{
             FileName                = $File.Name
             Folder                  = $File.parentreference.name
@@ -204,9 +211,11 @@ If ($Drives.Count -eq 1) { # Only one drive found - go ahead
 If (!($Drive)) { 
    Write-Host ("Can't find the {0} drive - script exiting" -f $Uri) ; break 
 }
-# Create output list and CSV file
+
 [datetime]$StartProcessing = Get-Date
 $Global:TotalFolders = 1
+
+# Create output list and CSV file
 $Global:ReportData = [System.Collections.Generic.List[Object]]::new()
 $CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\Files {0}-{1} library.csv" -f $Site.displayName, $DriveName)
 # Get the items in the root, including child folders
@@ -215,8 +224,16 @@ Get-DriveItems -Drive $Drive.Id -FolderId "root"
 [datetime]$EndProcessing = Get-Date
 $ElapsedTime = ($EndProcessing - $StartProcessing)
 $FilesPerMinute = [math]::Round(($ReportData.Count / ($ElapsedTime.TotalSeconds / 60)), 2)
+Write-Host ""
 Write-Host ("Processed {0} files in {1} folders in {2}:{3} minutes ({4} files/minute)" -f `
    $ReportData.Count, $TotalFolders, $ElapsedTime.Minutes, $ElapsedTime.Seconds, $FilesPerMinute)
+
+Write-Host ""
+Write-Host "Retention Labels in Use"
+$ReportData | Group-Object 'Retention label' -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
+Write-Host ""
+Write-Host "Sensitivity Labels in Use"
+$ReportData | Group-Object 'Sensitivity label' -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
 
 $ReportData | Out-GridView -Title ("Files in {0} document library for the {1} site" -f $DriveName, $SiteName)
 $ReportData | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
