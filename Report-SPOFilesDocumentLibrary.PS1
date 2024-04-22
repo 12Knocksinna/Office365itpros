@@ -68,7 +68,9 @@ function Get-DriveItems {
             Folder                  = $File.parentreference.name
             Size                    = (FormatFileSize $File.Size)
             Created                 = $FileCreatedDateTime
+            Author                  = $File.CreatedBy.User.DisplayName
             LastModified            = $LastModifiedDateTime
+            'Last modified by'      = $File.LastModifiedBy.User.DisplayName
             'Sensitivity label'     = $LabelNameOutput
             'Retention label'       = $RetentionLabelName
             WebURL                  = $File.WebUrl
@@ -112,6 +114,7 @@ Disconnect-MgGraph
 # Connect to the Microsoft Graph
 Connect-MgGraph -Scopes "Sites.Read.All", "InformationProtectionPolicy.Read", "RecordsManagement.Read.All" -NoWelcome
 
+Write-Host "Setting up for the SharePoint Online site files report..."
 # Discover if the tenant uses sensitivity labels
 $Account = (Get-MgContext).Account
 [array]$SensitivityLabels = Get-MgBetaUserSecurityInformationProtectionSensitivityLabel -UserId $Account
