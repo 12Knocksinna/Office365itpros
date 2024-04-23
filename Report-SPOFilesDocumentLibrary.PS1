@@ -27,7 +27,7 @@ function Get-DriveItems {
     # Process the files
     ForEach ($File in $Files) {  
         If ($SensitivityLabelsAvailable -eq $true) {
-            $LabelName = $null; $SensitivityLabelInfo = $Null; $LabelNameOutput = $null
+            $SensitivityLabelName = $null; $SensitivityLabelInfo = $Null
             # Only check for sensitivity labels if they are available
             $FileType = $File.Name.Split(".")[1]
             If ($FileType -in $ValidFileTypes) { 
@@ -46,6 +46,7 @@ function Get-DriveItems {
         # Get retention label information
         If ($RetentionLabelsAvailable -eq $true) {
             Try {
+                $RetentionLabelName = $null; $RetentionLabelInfo = $null
                 $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/retentionLabel" -f $Drive, $File.Id)
                 [array]$RetentionLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method Get
                 $RetentionLabelName = $RetentionLabelInfo.name
@@ -62,12 +63,12 @@ function Get-DriveItems {
             $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
         }
         If ([string]::IsNullOrEmpty($LabelName)) {
-            $LabelNameOutput = "No label"
+            $SensitivityLabelName = "No label"
         } Else {
-            [string]$LabelNameOutput = $LabelName[0].Trim()
+            [string]$SensitivityLabelName = $LabelName[0].Trim()
         }
         If ([string]::IsNullOrEmpty($RetentionLabelName)) {
-            $LabelNameOutput = "No label"
+            $RetentionLabelName = "No label"
         } Else {
             [string]$RetentionLabelName = $RetentionLabelName[0].Trim()
         }
@@ -80,7 +81,7 @@ function Get-DriveItems {
             Author                  = $File.CreatedBy.User.DisplayName
             LastModified            = $LastModifiedDateTime
             'Last modified by'      = $File.LastModifiedBy.User.DisplayName
-            'Sensitivity label'     = $LabelNameOutput
+            'Sensitivity label'     = $SensitivityLabelName
             'Retention label'       = $RetentionLabelName
             WebURL                  = $File.WebUrl
         }
