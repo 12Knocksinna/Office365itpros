@@ -71,7 +71,7 @@ function Get-DriveItems {
         If ([string]::IsNullOrEmpty($RetentionLabelName)) {
             $RetentionLabelName = "No label"
         } Else {
-            [string]$RetentionLabelName = $RetentionLabelName[0].Trim()
+            [string]$RetentionLabelName = $RetentionLabelName.Trim()
         }
     
         $ReportLine = [PSCustomObject]@{

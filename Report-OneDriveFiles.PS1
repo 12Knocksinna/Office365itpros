@@ -27,7 +27,7 @@ function Get-DriveItems {
         # Only check for sensitivity labels if they are available
             $FileType = $File.Name.Split(".")[1]
             If ($FileType -in $ValidFileTypes) { 
-                $Uri = ("https://graph.microsoft.com/beta/sites/{0}/drive/items/{1}/extractSensitivityLabels" -f $Site.Id, $File.id)
+                $Uri = ("https://graph.microsoft.com/V1.0/users/{0}/drive/items/{1}/extractSensitivityLabels" -f  $Account, $File.id)
                 Try {
                     [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
                     If ($SensitivityLabelInfo.labels.sensitivityLabelId) { 
@@ -43,7 +43,7 @@ function Get-DriveItems {
         If ($RetentionLabelsAvailable -eq $true) {
             Try {
                 $RetentionLabelInfo = $Null; $RetentionLabelName = $null
-                $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/retentionLabel" -f $Drive, $File.Id)
+                $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/retentionLabel" -f $OneDriveInfo.id, $File.Id)
                 [array]$RetentionLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method Get
                 $RetentionLabelName = $RetentionLabelInfo.name
             } Catch {
@@ -68,7 +68,7 @@ function Get-DriveItems {
         If ([string]::IsNullOrEmpty($RetentionLabelName)) {
             $RetentionLabelName = "No label"
         } Else {
-            [string]$RetentionLabelName = $RetentionLabelName[0].Trim()
+            [string]$RetentionLabelName = $RetentionLabelName.Trim()
         }
        
         $FileExtension = ($File.Name.Split('.')[-1]).ToUpper()
@@ -136,7 +136,7 @@ function Get-DriveItems {
             Size                = (FormatFileSize $File.Size)
             DaysOld             = $AgeInDays
             'Retention label'   = $RetentionLabelName
-            'Sensitive label'   = $SensitivityLabelName
+            'Sensitivity label' = $SensitivityLabelName
             FileType            = $FileType
             Bytes               = $File.Size
             Extension           = $FileExtension
@@ -146,6 +146,7 @@ function Get-DriveItems {
         $ODBFiles.Add($ReportLine)
     }
     ForEach ($Folder in $Folders) {
+        Write-Host ("Processing folder {0} ({1} files/size {2})" -f $Folder.Name, $Folder.folder.childcount, (FormatFileSize $Folder.Size))
         Get-DriveItems -Drive $Drive -FolderId $Folder.Id
     }
 }
@@ -178,7 +179,7 @@ Disconnect-MgGraph | Out-Null # Make sure that we sign out of existing sessions
 # User must have a valid license for OneDrive for Business...
 Connect-MgGraph -Scopes Sites.Read.All -NoWelcome
 
-Write-Host "Setting up for the SharePoint Online site files report..."
+Write-Host "Setting up for the OneDrive for Business account files report..."
 # Discover if the tenant uses sensitivity labels
 $Account = (Get-MgContext).Account
 [array]$SensitivityLabels = Get-MgBetaUserSecurityInformationProtectionSensitivityLabel -UserId $Account
@@ -201,7 +202,7 @@ If ($RetentionLabels) {
     $Global:RetentionLabelsAvailable = $false
 }
 
-$Site = ("https://graph.microsoft.com/v1.0/users/{0}/drive/" -f $Account)
+$Global:Site = ("https://graph.microsoft.com/v1.0/users/{0}/drive/" -f $Account)
 [array]$OneDriveInfo = Invoke-MgGraphRequest -Uri $Site -Method Get
 If (!($OneDriveInfo)) { # Nothing found
     Write-Host "No matching OneDrive found - exiting"; break 
@@ -289,7 +290,7 @@ Write-Host ("Report data saved to file: {0}" -f $CSVOutputFile)
 
 Write-Host ""
 Write-Host ("Processed {0} files in {1} folders in {2}:{3} minutes ({4} files/minute)" -f `
-   $ReportData.Count, $TotalFolders, $ElapsedTime.Minutes, $ElapsedTime.Seconds, $FilesPerMinute)
+   $ODBFiles.Count, $TotalFolders, $ElapsedTime.Minutes, $ElapsedTime.Seconds, $FilesPerMinute)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
