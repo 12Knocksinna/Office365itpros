@@ -30,12 +30,24 @@ function Get-DriveItems {
                 $Uri = ("https://graph.microsoft.com/V1.0/users/{0}/drive/items/{1}/extractSensitivityLabels" -f  $Account, $File.id)
                 Try {
                     [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
-                    If ($SensitivityLabelInfo.labels.sensitivityLabelId) { 
+                    # Could get multiple labels returned. Select one if just one is there
+                    If ($SensitivityLabelInfo.labels.sensitivityLabelId.count -eq 1) {
                         [array]$LabelName = $SensitivityLabelsHash[$SensitivityLabelInfo.labels.sensitivityLabelId]
+                    } Else  {
+                        # Take the last sensitivity label...
+                        [int]$LabelCount = $SensitivityLabelInfo.labels.sensitivityLabelId.count
+                        $LabelCount = $LabelCount - 1
+                        $LabelLookUp = $SensitivityLabelInfo.labels.sensitivityLabelId[$LabelCount]
+                        $LabelName = $SensitivityLabelsHash[$LabelLookUp]
                     }
                 } Catch {
                     Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) 
                     [array]$LabelName = "Error"
+                }
+                If ([string]::IsNullOrEmpty($LabelName)) {
+                    $SensitivityLabelName = "No label"
+                } Else {
+                    $SensitivityLabelName = $LabelName.Trim()
                 }
             }       
         }  
@@ -59,11 +71,6 @@ function Get-DriveItems {
             [datetime]$FileCreated = $File.createdDateTime
             $AgeInDays = (New-TimeSpan $FileCreated).Days
             $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
-        }
-        If ([string]::IsNullOrEmpty($LabelName)) {
-            $SensitivityLabelName = "No label"
-        } Else {
-            [string]$SensitivityLabelName = $LabelName[0].Trim()
         }
         If ([string]::IsNullOrEmpty($RetentionLabelName)) {
             $RetentionLabelName = "No label"
@@ -177,7 +184,7 @@ Return $FileSize
 # Connect to the Microsoft Graph with the permission to read sites
 Disconnect-MgGraph | Out-Null # Make sure that we sign out of existing sessions
 # User must have a valid license for OneDrive for Business...
-Connect-MgGraph -Scopes Sites.Read.All -NoWelcome
+Connect-MgGraph -Scopes Files.Read.All, RecordsManagement.Read.All, InformationProtectionPolicy.Read -NoWelcome
 
 Write-Host "Setting up for the OneDrive for Business account files report..."
 # Discover if the tenant uses sensitivity labels
@@ -227,7 +234,7 @@ $ElapsedTime = ($EndProcessing - $StartProcessing)
 $FilesPerMinute = [math]::Round(($ODBFiles.Count / ($ElapsedTime.TotalSeconds / 60)), 2)
 
 # Show what we've found with Out-GridView
-$ODBFiles | Select-Object FileName, Folder, Author, Created, Modified, Size, DaysOld | `
+$ODBFiles | Select-Object FileName, Folder, Author, Created, Modified, Size, DaysOld, 'Retention Label', 'Sensitivity Label' | `
     Out-GridView -Title ("OneDrive for Business Files for {0}" -f $OneDriveInfo.owner.user.displayName) 
 
 # Generate some statistics
@@ -243,10 +250,10 @@ ForEach ($FT in $FileTypeCount.Name) {
     $FileSize = FormatFileSize $FileExtensionData.Sum
     $FileAverageSize = FormatFileSize $FileExtensionData.Average
     $ReportLine = [PSCustomObject]@{
-        FileType    = $FT
-        Count       = $FileCount
-        Size        = $FileSize
-        AverageSize = $FileAverageSize
+        'File Type'     = $FT
+        Count           = $FileCount
+        Size            = $FileSize
+        'Average Size'  = $FileAverageSize
     }
     $ReportData.Add($ReportLine)
 }
@@ -287,6 +294,20 @@ $OldestFiles | Format-Table FileName, Created, Modified, DaysOld, Size -AutoSize
 Write-Host ""
 $ODBFiles | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
 Write-Host ("Report data saved to file: {0}" -f $CSVOutputFile)
+Write-Host ""
+
+If ($RetentionLabelsAvailable) {
+    $PercentRetentionLabels = (($ODBFiles | Where-Object {$_.'Retention Label' -ne "No label"}).Count /$ODBFiles.Count).toString('P')
+    Write-Host ("Retention Label Usage is {0} of {1} files" -f $PercentRetentionLabels, $ODBFiles.Count)
+    $ODBfiles | Group-Object 'Retention label' -NoElement | Sort-Object Count -Descending | Format-Table Name, Count -AutoSize
+    Write-Host ""
+}
+If ($SensitivityLabelsAvailable) {
+    $PercentSensitivityLabels = (($ODBFiles | Where-Object {$_.'Sensitivity Label' -ne "No label"}).Count /$ODBFiles.Count).toString('P')
+    Write-Host ("Sensitivity Label Usage is {0} of {1} files" -f $PercentSensitivityLabels, $ODBFiles.Count)
+    $ODBfiles | Group-Object 'Sensitivity label' -NoElement | Sort-Object Count -Descending | Format-Table Name, Count -AutoSize
+    Write-Host ""
+}
 
 Write-Host ""
 Write-Host ("Processed {0} files in {1} folders in {2}:{3} minutes ({4} files/minute)" -f `
