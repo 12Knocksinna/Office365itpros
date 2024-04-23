@@ -2,6 +2,7 @@
 # A version of the script to report files from a SharePoint Online document library that uses cmdlets from
 # the Microsoft Graph SDK instead of Graph API requests (see ReportFilesSPOSite.PS1 for that version). 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-SPOFilesDocumentLibrary.PS1
+# See https://practical365.com/sharepoint-online-files-report/ for more information.
 # V1.0 20-Apr-2024
 
 # Set up the script parameter - the name of the site to find
