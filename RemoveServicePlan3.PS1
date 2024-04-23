@@ -7,6 +7,8 @@
 #                 2. Made the call to Get-MgUser much more efficient by filtering on the SKU assigned to the user
 #                 3. Added a check to see if the service plan is already disabled before trying to remove it
 #                 4. Made sure that we only report a removed service plan if it's actually removed  
+#
+# See https://office365itpros.com/2024/04/23/remove-service-plan-powershell-2/ for more information
 
 Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
 # Helper function to prompt a question and get a response
