@@ -12,7 +12,7 @@ Write-Host ("Chats will be sent by {0}" -f $SendingUser)
 # Define the group that's used to find the set of users to send chats to (make sure you change this for your tenant)
 $GroupName = "Information Quality and Accuracy"
 
-$WebImage = "https://office365itpros.com/wp-content/uploads/2021/03/Emergency.jpg"
+$WebImage = "https://i0.wp.com/office365itpros.com/wp-content/uploads/2024/04/Emergency.jpg"
 # Download the icon we want to use if it's not already available - use your own image if you want
 $ContentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Emergency.jpg"
 If (!(Get-Item -Path $ContentFile -ErrorAction SilentlyContinue)) {
