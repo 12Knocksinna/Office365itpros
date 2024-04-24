@@ -27,28 +27,24 @@ function Get-DriveItems {
         # Only check for sensitivity labels if they are available
             $FileType = $File.Name.Split(".")[1]
             If ($FileType -in $ValidFileTypes) { 
+                [string]$SensitivityLabelName = "None"
                 $Uri = ("https://graph.microsoft.com/V1.0/users/{0}/drive/items/{1}/extractSensitivityLabels" -f  $Account, $File.id)
                 Try {
                     [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
-                    # Could get multiple labels returned. Select one if just one is there
-                    If ($SensitivityLabelInfo.labels.sensitivityLabelId.count -eq 1) {
-                        [array]$LabelName = $SensitivityLabelsHash[$SensitivityLabelInfo.labels.sensitivityLabelId]
-                    } Else  {
-                        # Take the last sensitivity label...
-                        [int]$LabelCount = $SensitivityLabelInfo.labels.sensitivityLabelId.count
-                        $LabelCount = $LabelCount - 1
-                        $LabelLookUp = $SensitivityLabelInfo.labels.sensitivityLabelId[$LabelCount]
-                        $LabelName = $SensitivityLabelsHash[$LabelLookUp]
-                    }
                 } Catch {
                     Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) 
-                    [array]$LabelName = "Error"
+                    [string]$SensitivityLabelName = "Error"
                 }
-                If ([string]::IsNullOrEmpty($LabelName)) {
-                    $SensitivityLabelName = "No label"
-                } Else {
-                    $SensitivityLabelName = $LabelName.Trim()
+                If ($SensitivitylabelInfo.labels.count -eq 1) {
+                    [string]$SensitivityLabelName = $SensitivityLabelsHash[$SensitivityLabelInfo.labels.sensitivitylabelid]
                 }
+                If ($SensitivityLabelInfo.labels.count -gt 1) {
+                    [string]$SensitivityLabelName = $SensitivityLabelsHash[$SensitivityLabelInfo[0].labels.sensitivitylabelid]     
+                }
+                If ([string]::IsNullOrEmpty($SensitivityLabelName)) {
+                    $SensitivityLabelName = "None"
+                }
+                #Write-Host ("File {0} has sensitivity label {1}" -f $File.Name, $SensitivityLabelName )
             }       
         }  
         # Get retention label information
@@ -237,6 +233,8 @@ $FilesPerMinute = [math]::Round(($ODBFiles.Count / ($ElapsedTime.TotalSeconds / 
 $ODBFiles | Select-Object FileName, Folder, Author, Created, Modified, Size, DaysOld, 'Retention Label', 'Sensitivity Label' | `
     Out-GridView -Title ("OneDrive for Business Files for {0}" -f $OneDriveInfo.owner.user.displayName) 
 
+Clear-Host
+Write-Host "Generating analysis of OneDrive for Business files..." -ForegroundColor Yellow
 # Generate some statistics
 [array]$FileTypeCount = $ODBFiles | Group-Object FileType -NoElement | Sort-Object Count -Descending | `
     Select-Object Name, Count
@@ -303,7 +301,7 @@ If ($RetentionLabelsAvailable) {
     Write-Host ""
 }
 If ($SensitivityLabelsAvailable) {
-    $PercentSensitivityLabels = (($ODBFiles | Where-Object {$_.'Sensitivity Label' -ne "No label"}).Count /$ODBFiles.Count).toString('P')
+    $PercentSensitivityLabels = (($ODBFiles | Where-Object {$_.'Sensitivity Label' -ne "None"}).Count /$ODBFiles.Count).toString('P')
     Write-Host ("Sensitivity Label Usage is {0} of {1} files" -f $PercentSensitivityLabels, $ODBFiles.Count)
     $ODBfiles | Group-Object 'Sensitivity label' -NoElement | Sort-Object Count -Descending | Format-Table Name, Count -AutoSize
     Write-Host ""
