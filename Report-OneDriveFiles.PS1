@@ -22,26 +22,30 @@ function Get-DriveItems {
 
     ForEach ($File in $Files) {
     # Write-Output ("Processing file {0}" -f $File.Name) 
-        If ($SensitivityLabelsAvailable -eq $true) {
-            $SensitivityLabelInfo = $Null; $SensitivityLabelName = $null
         # Only check for sensitivity labels if they are available
+        If ($SensitivityLabelsAvailable -eq $true) {        
             $FileType = $File.Name.Split(".")[1]
-            If ($FileType -in $ValidFileTypes) { 
+            If ($FileType -notin $ValidFileTypes) { 
+                # This file isn't an Office document or PDF file
+                [string]$SensitivityLabelName = "Unsupported file type"
+            } Else {
+                $SensitivityLabelInfo = $Null
                 [string]$SensitivityLabelName = "None"
-                $Uri = ("https://graph.microsoft.com/V1.0/users/{0}/drive/items/{1}/extractSensitivityLabels" -f  $Account, $File.id)
+                # Use Graph API to get sensitivity label information
+                $Uri = ("https://graph.microsoft.com/V1.0/users/{0}/drive/items/{1}/extractSensitivityLabels" -f $Account, $File.id)
                 Try {
                     [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
+                    If ($SensitivitylabelInfo.labels.count -eq 1) {
+                        [string]$SensitivityLabelName = $SensitivityLabelsHash[$SensitivityLabelInfo.labels.sensitivitylabelid]
+                    }
+                    If ($SensitivityLabelInfo.labels.count -gt 1) {
+                        [string]$SensitivityLabelName = $SensitivityLabelsHash[$SensitivityLabelInfo[0].labels.sensitivitylabelid]     
+                    }
                 } Catch {
-                    Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) 
+                    Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) -ForegroundColor Red
                     [string]$SensitivityLabelName = "Error"
                 }
-                If ($SensitivitylabelInfo.labels.count -eq 1) {
-                    [string]$SensitivityLabelName = $SensitivityLabelsHash[$SensitivityLabelInfo.labels.sensitivitylabelid]
-                }
-                If ($SensitivityLabelInfo.labels.count -gt 1) {
-                    [string]$SensitivityLabelName = $SensitivityLabelsHash[$SensitivityLabelInfo[0].labels.sensitivitylabelid]     
-                }
-                If ([string]::IsNullOrEmpty($SensitivityLabelName)) {
+                If ([string]::IsNullOrWhiteSpace($SensitivityLabelName)) {
                     $SensitivityLabelName = "None"
                 }
                 #Write-Host ("File {0} has sensitivity label {1}" -f $File.Name, $SensitivityLabelName )
@@ -301,8 +305,14 @@ If ($RetentionLabelsAvailable) {
     Write-Host ""
 }
 If ($SensitivityLabelsAvailable) {
-    $PercentSensitivityLabels = (($ODBFiles | Where-Object {$_.'Sensitivity Label' -ne "None"}).Count /$ODBFiles.Count).toString('P')
-    Write-Host ("Sensitivity Label Usage is {0} of {1} files" -f $PercentSensitivityLabels, $ODBFiles.Count)
+    [array]$ExcludedLabels = "None", "Unsupported file type"
+    # Files that could receive sensitivity labels
+    [array]$ValidFilesforLabels = $ODBFiles | Where-Object {$_.Extension -in $ValidFileTypes}
+    # Files that have received a sensivity label
+    [array]$ValidLabelledFiles = $ValidFilesForLabels | Where-Object {$_.'Sensitivity Label' -notin $ExcludedLabels}
+    $PercentSensitivityLabels = ($ValidLabelledFiles.count/$ValidFilesForLabels.Count).toString('P')
+    Write-Host ("Sensitivity Label Usage is {0} of {1} files that support labels ({2} total files)" `
+        -f $PercentSensitivityLabels, $ValidFilesForLabels.Count, $ODBFiles.count)
     $ODBfiles | Group-Object 'Sensitivity label' -NoElement | Sort-Object Count -Descending | Format-Table Name, Count -AutoSize
     Write-Host ""
 }
