@@ -70,7 +70,9 @@ function GetAccessToken {
 # function to return an Oauth access token
     
     # Define the values applicable for the application used to connect to the Graph. These values will be
-    # different to those shown here and are specific to the app and your tenant.
+    # different to those shown here and are specific to the app and your tenant. Make sure that you create (or reuse)
+    # a suitable app with an app secret (or change it to a certificate) before attempting to run the script. The app
+    # must have consent to use the Mail.Read application permission.
     $AppId = "56a7d55c-a847-443d-b7b9-f24b67ec4709"
     $TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478"
     $AppSecret = 'B7h8Q~pzvflr5pPb.4mgzOWS_hLuK76l4qbkRMcqv'
