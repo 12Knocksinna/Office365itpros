@@ -5,6 +5,8 @@
 
 #Requires -Version 7.4
 
+$CSVOutputFile = "C:\Temp\UserReport.csv"
+
 # Connects to the Graph (to read user data) and Exchange Online (to get mailboxes)
 Connect-MgGraph -Scopes "User.Read.All" -NoWelcome
 Connect-ExchangeOnline -SkipLoadingCmdletHelp
@@ -45,15 +47,6 @@ $Batches = For($i = 0; $i -lt $mbx.count; $i += $BatchSize) {
         $RequestData.Add($ReportLine)
     }
 
-    # This is the original method described in https://nicolasuter.medium.com/optimising-microsoft-graph-powershell-scripts-3eb76a280077
-    #$Requests = $Mbx[$i..($end)] | ForEach-Object {
-    #    [PSCustomObject]@{
-    #        'Id'     = ++$index
-    #        'Method' = 'GET'
-    #        'Url'    = "users/{0}?`$select=id,displayname,assignedLicenses,country,jobtitle,officelocation,userprincipalname,businessphones,employeeid,employeehiredate " -f $PSItem.ExternalDirectoryObjectId
-    #    }
-    #}
-
     # Create a batch request
     @{
         'Method'      = 'Post'
@@ -74,5 +67,30 @@ $Batches | ForEach-Object -Parallel {
 If ($UserDetails.Count -ne $Mbx.Count) { 
         throw [System.Exception]::new() 
 }
-[array]$UserData = $UserDetails | Sort-Object displayName 
-Write-Host ("Total of {0} user accounts processed" -f $UserData.count)
+Write-Host ("Total of {0} user accounts processed" -f $UserDetails.count)
+
+# Create a hash table containing the user data
+$UserHash = @{}
+ForEach ($User in $UserDetails) {
+    $UserHash.Add($User.Id,$User)
+}
+# Create the report by combining mailbox and user data
+$UserReport = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Mailbox in $Mbx) {
+    $User = $UserHash[$Mailbox.ExternalDirectoryObjectId]
+    $BusinessPhone = $User.BusinessPhones -join ','
+    $UserReport.Add([PSCustomObject]@{
+        DisplayName             = $User.DisplayName
+        UserPrincipalName       = $User.UserPrincipalName
+        SMTPAddress             = $Mailbox.PrimarySmtpAddress
+        Country                 = $User.Country
+        'Job Title'             = $User.JobTitle
+        'Office Location'       = $User.OfficeLocation
+        'Business Phones'       = $BusinessPhone
+        EmployeeId              = $User.EmployeeId
+        'Employee Hire Date'    = $User.EmployeeHireDate
+    })
+}
+# Generate a CSV file and display the report in a grid view
+$UserReport | Export-CSV -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
+$UserReport | Sort-Object DisplayName | Out-GridView -Title "User Report" 
