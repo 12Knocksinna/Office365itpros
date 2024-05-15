@@ -1,6 +1,9 @@
 # Test-BatchProcessing.PS1
 # A script to demonstrate how to use batch processing with Microsoft Graph API  by using mailboxes fetched from Exchange
 # to get user account information.
+# https://github.com/12Knocksinna/Office365itpros/blob/master/Test-BatchProcessing.PS1
+# 15-May-2024
+
 # Requires PowerShell V7 or later
 
 #Requires -Version 7.4
