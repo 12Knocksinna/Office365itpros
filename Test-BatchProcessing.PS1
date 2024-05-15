@@ -90,7 +90,7 @@ ForEach ($User in $UserDetails) {
 $UserReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Mailbox in $Mbx) {
     $User = $UserHash[$Mailbox.ExternalDirectoryObjectId]
-    $BusinessPhone = $User.BusinessPhones -join ', '
+    # Resolve product license names from the SKU identifiers    
     [array]$AssignedLicenses = $null
     ForEach ($License in $User.assignedLicenses.SkuId) {
         $SKUName = $SkuHashTable[$License]
@@ -103,7 +103,7 @@ ForEach ($Mailbox in $Mbx) {
         Country                 = $User.Country
         'Job Title'             = $User.JobTitle
         'Office Location'       = $User.OfficeLocation
-        'Business Phones'       = $BusinessPhone
+        'Business Phones'       = $User.BusinessPhones -join ', '
         'Assigned Licenses'     = $AssignedLicenses -join ', '
         EmployeeId              = $User.EmployeeId
         'Employee Hire Date'    = $User.EmployeeHireDate
