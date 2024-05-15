@@ -50,7 +50,7 @@ $Batches = For($i = 0; $i -lt $Mbx.count; $i += $BatchSize) {
     $RequestData = [System.Collections.Generic.List[Object]]::new()
     ForEach ($Request in $Requests) {
         # the URL is the Graph lookup request to fetch user account details
-        $Url = "users/{0}?`$select=id,displayname,assignedLicenses,country,city,jobtitle,officelocation,userprincipalname,businessphones,employeeid,employeehiredate " -f $Request.ExternalDirectoryObjectId
+        $Url = "users/{0}?`$select=id,displayname,assignedLicenses,country,city,jobtitle,officelocation,userprincipalname,businessphones,employeeid,employeehiredate" -f $Request.ExternalDirectoryObjectId
         $ReportLine = [PSCustomObject]@{
             Id     = $Index++
             Method = 'GET'
