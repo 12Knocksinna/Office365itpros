@@ -37,10 +37,10 @@ If ($Mbx.Count -eq 0) {
 $BatchSize = 20
 # Define output list (concurrent bag to store user details)
 $UserDetails = [System.Collections.Concurrent.ConcurrentBag[System.Object]]::new()
-$Batches = For($i = 0; $i -lt $mbx.count; $i += $BatchSize) {
+$Batches = For($i = 0; $i -lt $Mbx.count; $i += $BatchSize) {
     $End = $i + $BatchSize - 1
-    If ($end -ge $mbx.count) { 
-        $end = $mbx.count 
+    If ($end -ge $Mbx.count) { 
+        $end = $Mbx.count 
     }
     $Index = $i
     # Create requests from the next batch of mailboxes
@@ -50,7 +50,7 @@ $Batches = For($i = 0; $i -lt $mbx.count; $i += $BatchSize) {
     $RequestData = [System.Collections.Generic.List[Object]]::new()
     ForEach ($Request in $Requests) {
         # the URL is the Graph lookup request to fetch user account details
-        $Url = "users/{0}?`$select=id,displayname,assignedLicenses,country,jobtitle,officelocation,userprincipalname,businessphones,employeeid,employeehiredate " -f $Request.ExternalDirectoryObjectId
+        $Url = "users/{0}?`$select=id,displayname,assignedLicenses,country,city,jobtitle,officelocation,userprincipalname,businessphones,employeeid,employeehiredate " -f $Request.ExternalDirectoryObjectId
         $ReportLine = [PSCustomObject]@{
             Id     = $Index++
             Method = 'GET'
@@ -100,6 +100,7 @@ ForEach ($Mailbox in $Mbx) {
         DisplayName             = $User.DisplayName
         UserPrincipalName       = $User.UserPrincipalName
         SMTPAddress             = $Mailbox.PrimarySmtpAddress
+        City                    = $User.City
         Country                 = $User.Country
         'Job Title'             = $User.JobTitle
         'Office Location'       = $User.OfficeLocation
@@ -112,7 +113,7 @@ ForEach ($Mailbox in $Mbx) {
 # Generate a CSV file and display the report in a grid view
 $UserReport | Export-CSV -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
 Write-Host ("CSV file available in {0}" -f $CSVOutputFile)
-$UserReport | Sort-Object DisplayName | Out-GridView -Title "User Report" 
+$UserReport | Sort-Object DisplayName | Out-GridView -Title "User Account Information" 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
