@@ -9,6 +9,15 @@
 #Requires -Version 7.4
 
 $CSVOutputFile = "C:\Temp\UserReport.csv"
+$SkuDataPath = "C:\temp\SkuDataComplete.csv"
+If ((Test-Path $SkuDataPath) -eq $False) {
+    Write-Host ("Can't find the product data file ({0}). Exiting..." -f $SkuDataPath) ; break 
+}
+$ImportSkus = Import-CSV $SkuDataPath
+$SkuHashTable = @{}
+ForEach ($Line in $ImportSkus) { 
+    $SkuHashTable.Add([string]$Line.SkuId, [string]$Line.DisplayName) 
+}
 
 # Connects to the Graph (to read user data) and Exchange Online (to get mailboxes)
 Connect-MgGraph -Scopes "User.Read.All" -NoWelcome
@@ -81,7 +90,12 @@ ForEach ($User in $UserDetails) {
 $UserReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Mailbox in $Mbx) {
     $User = $UserHash[$Mailbox.ExternalDirectoryObjectId]
-    $BusinessPhone = $User.BusinessPhones -join ','
+    $BusinessPhone = $User.BusinessPhones -join ', '
+    [array]$AssignedLicenses = $null
+    ForEach ($License in $User.assignedLicenses.SkuId) {
+        $SKUName = $SkuHashTable[$License]
+        $AssignedLicenses += $SKUName
+    }
     $UserReport.Add([PSCustomObject]@{
         DisplayName             = $User.DisplayName
         UserPrincipalName       = $User.UserPrincipalName
@@ -90,6 +104,7 @@ ForEach ($Mailbox in $Mbx) {
         'Job Title'             = $User.JobTitle
         'Office Location'       = $User.OfficeLocation
         'Business Phones'       = $BusinessPhone
+        'Assigned Licenses'     = $AssignedLicenses -join ', '
         EmployeeId              = $User.EmployeeId
         'Employee Hire Date'    = $User.EmployeeHireDate
     })
