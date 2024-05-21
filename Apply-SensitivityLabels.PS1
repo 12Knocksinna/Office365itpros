@@ -1,6 +1,7 @@
 # Apply-SensitivityLabels.PS1
 # A version of the script to apply sensitivity labels to files from a SharePoint Online document library 
 # Based on https://github.com/12Knocksinna/Office365itpros/blob/master/Report-SPOFilesDocumentLibrary.PS1
+# This script is https://github.com/12Knocksinna/Office365itpros/blob/master/Apply-SensitivityLabels.PS1
 # See https://practical365.com/sharepoint-online-files-report/ for more information.
 # V1.0 21-May-2024
 
