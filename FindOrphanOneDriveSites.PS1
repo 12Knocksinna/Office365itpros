@@ -11,13 +11,14 @@ If ($AzureADCheck -eq $Null) {
 
 Connect-AzureAD -Credential $O365Cred
 
-If(-not(Get-Module -name Microsoft.Online.Sharepoint.PowerShell)) {Import-Module Microsoft.Online.Sharepoint.PowerShell} 
-Connect-SPOService -URL $TenantAdminUrl -Credential $O365Cred
-
 # Define the SharePoint admin endpoint for the tenant
 $TenantAdminUrl = "https://office365itpros-admin.sharepoint.com"
 # Define the account to add to each orphan site
 $NewSiteAdmin = "Administrator@office365itpros.com"
+
+
+If(-not(Get-Module -name Microsoft.Online.Sharepoint.PowerShell)) {Import-Module Microsoft.Online.Sharepoint.PowerShell} 
+Connect-SPOService -URL $TenantAdminUrl -Credential $O365Cred
 
 # Create list for output report
 $Report = [System.Collections.Generic.List[Object]]::new()
