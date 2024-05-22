@@ -13,6 +13,7 @@ If ("ExchangeOnlineManagement -notin $Modules") {
     -Properties DefaultAuditSet, AuditOwner, AuditDelegate, AuditAdmin, AuditEnabled |`
     Sort-Object RecipientTypeDetails -Descending
 Write-Host ("{0} mailboxes found" -f $Mbx.Count)
+
 # Define the default audit set
 [array]$DefaultAuditSet = "Admin", "Delegate", "Owner"
 [string]$DefaultAuditSetReport = $DefaultAuditSet -join ", "
@@ -28,7 +29,7 @@ ForEach ($M in $Mbx) {
     # Check if the mailbox uses a custom audit configuration
     $CustomAuditSet = $null; $UsesDefaultAuditSet = $true; [array]$MissingActions = $null
     If ($null -ne (Compare-Object -ReferenceObject $DefaultAuditSet -DifferenceObject $M.DefaultAuditSet)) {
-       $CustomAuditSet = $M.DefaultAuditSet -join ","
+       $CustomAuditSet = $M.DefaultAuditSet -join ", "
        $UsesDefaultAuditSet = $false
        $CustomAuditConfigurations++
     } 
@@ -52,11 +53,12 @@ ForEach ($M in $Mbx) {
     } Else {
         $MailboxAuditSet = $DefaultAuditSetReport
     }
-    # This set is to make sure that mailbox auditing is enabled and audit events are being ingested by
-    # the audit log
+    # This command is to make sure that mailbox auditing is enabled and audit events are being ingested by
+    # the audit log. It does slow things down, so you can comment it out if you feel it's not necessary.
     If ($M.AuditEnabled -eq $true) {
         Set-Mailbox -Identity $M.UserPrincipalName -AuditEnabled $true -WarningAction SilentlyContinue
     }
+
     # Generate the report line
     $ReportLine = [PSCustomObject]@{
         UserPrincipalName        = $M.UserPrincipalName
@@ -77,6 +79,7 @@ ForEach ($M in $Mbx) {
 Write-Host ("All done. Of the {0} mailboxes, {1} are audit enabled, and {2} use custom audit configurations" -f $Report.Count, ($Mbx.count - $NotEnabledforAuditing.count), $CustomAuditConfigurations)
 
 # if the ImportExcel module is available, use it to generate an Excel worksheet, otherwise create a CSV file
+Write-Host "Generating output file..."
 If (Get-Module ImportExcel -ListAvailable) {
     Import-Module ImportExcel -ErrorAction SilentlyContinue
     $ExcelOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\MailboxAuditingReport.xlsx" -f $Site.displayName, $DriveName)
