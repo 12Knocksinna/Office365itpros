@@ -17,9 +17,9 @@ Write-Host ("{0} mailboxes found" -f $Mbx.Count)
 [array]$DefaultAuditSet = "Admin", "Delegate", "Owner"
 [string]$DefaultAuditSetReport = $DefaultAuditSet -join ", "
 # Define the auditable actions that we want to check for
-[array]$CriticalAuditActions = "MailItemsAccessed", "Send", "searchqueryinitiatedexchange"
-# Create output CSV file in the downloads folder
-$CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\MailboxAuditingReport.csv" -f $Site.displayName, $DriveName)
+[array]$CriticalAuditActionsOwner = "MailItemsAccessed", "Send", "searchqueryinitiatedexchange"
+[array]$CriticalAuditActionsDelegate = "SendAs", "SendOnBehalf", "MoveToDeletedItems", `
+    "SoftDelete", "HardDelete", "MailItemsAccessed"
 
 Write-Host "Checking mailboxes..."
 $Report = [System.Collections.Generic.List[Object]]::new()
@@ -32,9 +32,14 @@ ForEach ($M in $Mbx) {
        $UsesDefaultAuditSet = $false
        $CustomAuditConfigurations++
     } 
-    ForEach ($Action In $CriticalAuditActions) {
+    ForEach ($Action In $CriticalAuditActionsOwner) {
         If ($Action -notin $M.AuditOwner) {
-            $MissingActions += $Action
+            $MissingActions += ($Action + " (Owner)")
+        }
+    }
+    ForEach ($Action In $CriticalAuditActionsDelegate) {
+        If ($Action -notin $M.AuditDelegate) {
+            $MissingActions += ($Action + " (Delegate)")
         }
     }
     # create formatted strings for the actions audited in each set
@@ -70,8 +75,22 @@ ForEach ($M in $Mbx) {
 
 [array]$NotEnabledforAuditing = $Report | Where-Object { $_.AuditEnabled -eq $false }
 Write-Host ("All done. Of the {0} mailboxes, {1} are audit enabled, and {2} use custom audit configurations" -f $Report.Count, ($Mbx.count - $NotEnabledforAuditing.count), $CustomAuditConfigurations)
-$Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
-Write-Host ("Output data is available in {0}" -f $CSVOutputFile)
+
+# if the ImportExcel module is available, use it to generate an Excel worksheet, otherwise create a CSV file
+If (Get-Module ImportExcel -ListAvailable) {
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\MailboxAuditingReport.xlsx" -f $Site.displayName, $DriveName)
+    $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Mailbox Audit Configurations" `
+    -Title ("Mailbox Audit Configurations {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "MailboxAuditConfiguration" 
+    $OutputFile = $ExcelOutputFile
+} Else {
+    $CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\MailboxAuditingReport.csv" -f $Site.displayName, $DriveName)
+    $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+    $Outputfile = $CSVOutputFile
+ 
+}
+Write-Host ("Output data is available in {0}" -f $OutputFile)
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
