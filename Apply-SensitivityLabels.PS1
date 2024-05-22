@@ -14,12 +14,12 @@ function Get-DriveItems {
     [CmdletBinding()]
     param (
         [Parameter()]
-        $Drive,
+        $DriveId,
         [Parameter()]
         $FolderId
     )
     # Get data for a folder and its children
-    [array]$Data = Get-MgDriveItemChild -DriveId $Drive -DriveItemId $FolderId -All
+    [array]$Data = Get-MgDriveItemChild -DriveId $DriveId -DriveItemId $FolderId -All
     # Split the data into files and folders
     [array]$Folders = $Data | Where-Object {$_.folder.childcount -gt 0} | Sort-Object Name
     $Global:TotalFolders = $TotalFolders + $Folders.Count
@@ -35,18 +35,20 @@ function Get-DriveItems {
                 [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
                 } Catch {
                     Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) -ForegroundColor Yellow
-                    $SensitivityLabelName = "Error"
+                    If ($FileType.ToUpper() -ne "PDF") {
+                        $SensitivityLabelName = "Error"
+                    }
                 }
         }         
         If (($null -eq $SensitivityLabelInfo.labels.sensitivityLabelId) -and ($FileType -in $ValidFileTypes) -and $SensitivityLabelName -ne "Error") {
             Write-Host ("Assigning sensitivity label to {0}" -f $File.Name)
-            $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/assignSensitivityLabel" -f $Drive.Id, $File.Id)
+            $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/assignSensitivityLabel" -f $DriveId, $File.Id)
             Try {
-                $Status = Invoke-MgGraphRequest -Method "POST" -Uri $Uri -Body $AssignmentParameters -OutputType PSObject
+                Invoke-MgGraphRequest -Method "POST" -Uri $Uri -Body $AssignmentPayload -OutputType PSObject
                 $Status = $true
-                $SensitivityLabelName = "Internal"
             }
             Catch {
+                $Error[0].Exception.Message
                 Write-Host ("Failed to assign sensitivity label to file {0}" -f $File.Name ) -ForegroundColor Red
             }
         }
@@ -82,7 +84,7 @@ function Get-DriveItems {
     # Process the folders
     ForEach ($Folder in $Folders) {
         Write-Host ("Processing folder {0} ({1} files/size {2})" -f $Folder.Name, $Folder.folder.childcount, (FormatFileSize $Folder.Size))
-        Get-DriveItems -Drive $Drive -FolderId $Folder.Id
+        Get-DriveItems -Drive $DriveId -FolderId $Folder.Id
     }
 }
 
@@ -114,16 +116,15 @@ function FormatFileSize {
 # Disconnect from any previous Graph SDK session
 Disconnect-MgGraph
 
-$Global:AssignmentMethod = "Privileged"
 $Global:Justification = "Trying out the assignSensivityLabel API"
 # Guid for sensitivity label to apply
 $Global:SensitivityLabelId = "27451a5b-5823-4853-bcd4-2204d03ab477"
+$Global:SensitivityLabelName = "Internal"
 # Parameters to assign a sensitivity label
-$Global:AssignmentParameters = @{}
-$AssignmentParameters.Add("Any", $null)
-$AssignmentParameters.Add("AssignmentMethod", $AssignmentMethod)
-$AssignmentParameters.Add("Justification", $Justification)
-$AssignmentParameters.Add("SensitivityLabelId", $SensitivityLabelId)
+$Global:AssignmentPayload = @{}
+$AssignmentPayload.Add("AssignmentMethod", "Auto")
+$AssignmentPayload.Add("Justification", $Justification)
+$AssignmentPayload.Add("SensitivityLabelId", $SensitivityLabelId)
 
 $AppId = "43685887-266e-46cf-915b-ea69bd84fe25"
 $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
@@ -218,9 +219,6 @@ Write-Host ""
 Write-Host ("Processed {0} files in {1} folders in {2}:{3} minutes ({4} files/minute)" -f `
    $ReportData.Count, $TotalFolders, $ElapsedTime.Minutes, $ElapsedTime.Seconds, $FilesPerMinute)
 
-Write-Host ""
-Write-Host "Sensitivity Labels in Use"
-$ReportData | Group-Object 'Sensitivity label' -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
 
 $ReportData | Out-GridView -Title ("Files in {0} document library for the {1} site" -f $DriveName, $SiteName)
 $ReportData | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
