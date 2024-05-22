@@ -35,6 +35,7 @@ function Get-DriveItems {
                 [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
                 } Catch {
                     Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) -ForegroundColor Yellow
+                    # PDFs often return errors when reading sensitivity label info, so I ignore them and only accept the error for Office documents
                     If ($FileType.ToUpper() -ne "PDF") {
                         $SensitivityLabelName = "Error"
                     }
