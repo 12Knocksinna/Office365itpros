@@ -5,6 +5,9 @@
 # See https://practical365.com/sharepoint-online-files-report/ for more information.
 # V1.0 20-Apr-2024
 
+# Run the script with the name of the site to process.
+# .\Report-SPOFilesDocumentLibrary.PS1 -SiteName "Contoso"
+
 # Set up the script parameter - the name of the site to find
 Param (
     [Parameter(Mandatory = $true)]
