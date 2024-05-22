@@ -1,7 +1,7 @@
 # Report-MailboxAuditConfiguration.PS1
 # A script to report the audit configuration for all user and shared mailboxes
 # V1.0 22-May-2024
-# GitHub link:
+# GitHub link for this script: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-MailboxAuditingConfiguration.PS1
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement -notin $Modules") {
@@ -55,6 +55,7 @@ ForEach ($M in $Mbx) {
     # Generate the report line
     $ReportLine = [PSCustomObject]@{
         UserPrincipalName        = $M.UserPrincipalName
+        Name                     = $M.displayName
         RecipientTypeDetails     = $M.RecipientTypeDetails
         AuditEnabled             = $M.AuditEnabled
         DefaultAuditSet          = $MailboxAuditSet
