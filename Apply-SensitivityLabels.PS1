@@ -115,19 +115,21 @@ function FormatFileSize {
 # Disconnect from any previous Graph SDK session
 Disconnect-MgGraph
 
-$Global:Justification = "Trying out the assignSensivityLabel API"
-# Guid for sensitivity label to apply
+
+
+# Insert values for your tenant and app here
+$AppId = "43685887-266e-46cf-915b"
+$TenantId = "-14fc-43a2-9a7a-d2e27f4f3478"
+$CertThumbprint = "F79286DB88C21491110109A0222348FACF694CBD"
+# Guid for sensitivity label to apply - againm from your tenant
 $Global:SensitivityLabelId = "27451a5b-5823-4853-bcd4-2204d03ab477"
 $Global:AssignedSensitivityLabelName = "Internal"
+
 # Parameters to assign a sensitivity label
 $Global:AssignmentPayload = @{}
 $AssignmentPayload.Add("AssignmentMethod", "Auto")
-$AssignmentPayload.Add("Justification", $Justification)
+$AssignmentPayload.Add("Justification", "API application of label")
 $AssignmentPayload.Add("SensitivityLabelId", $SensitivityLabelId)
-
-$AppId = "43685887-266e-46cf-915b-ea69bd84fe25"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$CertThumbprint = "F79286DB88C21491110109A0222348FACF694CBD"
 
 # Connect to the Microsoft Graph
 Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertThumbprint
