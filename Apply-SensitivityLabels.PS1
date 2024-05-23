@@ -115,8 +115,6 @@ function FormatFileSize {
 # Disconnect from any previous Graph SDK session
 Disconnect-MgGraph
 
-
-
 # Insert values for your tenant and app here
 $AppId = "43685887-266e-46cf-915b"
 $TenantId = "-14fc-43a2-9a7a-d2e27f4f3478"
