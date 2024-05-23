@@ -65,11 +65,6 @@ function Get-DriveItems {
         If ($File.CreatedDateTime) {
             $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
         }
-        If ([string]::IsNullOrEmpty($LabelName)) {
-            $SensitivityLabelName = "No label"
-        } Else {
-            [string]$SensitivityLabelName = $LabelName[0].Trim()
-        }
         If ($Status -eq $true) {
             $ReportLine = [PSCustomObject]@{
                 FileName                = $File.Name
@@ -79,7 +74,7 @@ function Get-DriveItems {
                 Author                  = $File.CreatedBy.User.DisplayName
                 LastModified            = $LastModifiedDateTime
                 'Last modified by'      = $File.LastModifiedBy.User.DisplayName
-                'Sensitivity label'     = $SensitivityLabelName
+                'Sensitivity label'     = $AssignedSensitivityLabelName
             }
             $ReportData.Add($ReportLine)
         }
@@ -123,7 +118,7 @@ Disconnect-MgGraph
 $Global:Justification = "Trying out the assignSensivityLabel API"
 # Guid for sensitivity label to apply
 $Global:SensitivityLabelId = "27451a5b-5823-4853-bcd4-2204d03ab477"
-$Global:SensitivityLabelName = "Internal"
+$Global:AssignedSensitivityLabelName = "Internal"
 # Parameters to assign a sensitivity label
 $Global:AssignmentPayload = @{}
 $AssignmentPayload.Add("AssignmentMethod", "Auto")
