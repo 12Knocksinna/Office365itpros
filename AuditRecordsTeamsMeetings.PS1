@@ -1,18 +1,27 @@
 # AuditRecordsTeamsMeetings.PS1
 # https://github.com/12Knocksinna/Office365itpros/blob/master/AuditRecordsTeamsMeetings.PS1
 # A script to show how to find and interpret audit records captured for Teams meetings (advanced auditing)
-$ModulesLoaded = Get-Module | Select Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
-If (!($ModulesLoaded -match "AzureAD")) { Write-Host "Please connect to the Azure AD or Azure AD Preview module and then restart the script"; break }
+# Updated 24-May-2024 to use the Microsoft Graph PowerShell SDK
 
-# Start and end date for the audit scan. By default, we look for 39 days, but you can choose any value you like up to 365 (if you have Office 365 E5)
-$StartDate = (Get-Date).AddDays(-30); $EndDate = (Get-Date) # Set your own date span here!
+$ModulesLoaded = Get-Module | Select-Object -ExpandProperty Name
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {
+    Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break
+}
+Connect-MgGraph -NoWelcome -Scopes User.Read.All
+
+# Start and end date for the audit scan. By default, we look for 90 days, but you can choose any value you like up to 365 (if you have Office 365 E5)
+$StartDate = (Get-Date).AddDays(-90); $EndDate = (Get-Date).AddDays(1) # Set your own date span here!
 $OutputCSVFile = "C:\temp\AuditEventsTeamsMeetings.csv"
 
 # Find the audit records
 Write-Host "Looking for Teams meeting audit records..."
-[array]$Records = (Search-UnifiedAuditLog -Operations MeetingDetail, MeetingParticipantDetail -StartDate $StartDate -EndDate $EndDate -Formatted -ResultSize 5000)
-If (!($Records)) {Write-Host "No audit records found - exiting!"; break}
+[array]$Records = Search-UnifiedAuditLog -Operations MeetingDetail, MeetingParticipantDetail -StartDate $StartDate -EndDate $EndDate -Formatted `
+   -ResultSize 5000 -SessionCommand ReturnLargeSet
+If (!($Records)) {
+   Write-Host "No audit records found - exiting!"; break
+} Else {
+   $Records = $Records | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime]} -Descending
+}
 Write-Host "Processing" $Records.Count "Teams meeting audit records..."
 # Process the records
 $MeetingRecords = [System.Collections.Generic.List[Object]]::new() 	
@@ -24,7 +33,7 @@ ForEach ($Rec in $Records) {
       [datetime]$StartTime = Get-Date($AuditData.StartTime)
       [datetime]$EndTime = Get-Date($AuditData.EndTime)   
       $TimeSpent = $EndTime - $StartTime 
-      $Organizer = (Get-AzureADUser -ObjectId $AuditData.Organizer.UserObjectId).DisplayName
+      $Organizer = (Get-MgUser -UserId $AuditData.Organizer.UserObjectId).DisplayName
       $DataLine = [PSCustomObject] @{
          Date                = Get-Date($Rec.CreationDate).ToLocalTime()
          User                = $Rec.UserIds
@@ -40,15 +49,17 @@ ForEach ($Rec in $Records) {
          Operation           = $Rec.Operations }
      }
      "MeetingParticipantDetail" { # A meeting participant record   
-       [datetime]$StartTime = Get-Date($AuditData.JoinTime)
-       [datetime]$EndTime = Get-Date($AuditData.LeaveTime)   
-       $TimeSpent = $EndTime - $StartTime
+      [datetime]$StartTime = Get-Date($AuditData.JoinTime)
+      [datetime]$EndTime = Get-Date($AuditData.LeaveTime)   
+      $TimeSpent = $EndTime - $StartTime
        # Resolve user name from the object identifier logged for participant
-       If ($AuditData.Attendees.RecipientType -eq "User") {
-          $User = (Get-AzureADUser -ObjectId $AuditData.Attendees.UserObjectid).UserPrincipalName }
-       Else {
-          $User = $AuditData.Attendees.DisplayName }
-       If ($User -eq "bdd75849-e0a6-4cce-8fc1-d7c0d4da43e5") { $User = "Teams Meeting Recording Bot" }
+      If ($AuditData.Attendees.RecipientType -eq "User") {
+            $User = (Get-MgUser -UserId $AuditData.Attendees.UserObjectid).UserPrincipalName }
+      Else {
+            $User = $AuditData.Attendees.DisplayName }
+      If ($User -eq "b1902c3e-b9f7-4650-9b23-5772bd429747") { 
+            $User = "Teams Meeting Recording Bot" 
+      }
        $DataLine = [PSCustomObject] @{
          Date                = $Rec.CreationDate
          User                = $User
@@ -69,8 +80,9 @@ ForEach ($Rec in $Records) {
 
 } #End For
 
-$MeetingRecords |  Sort {$_.Date -as [datetime]}, MeetingId, Operation | Select Start, End, User, MeetingType, Organizer, Type, MeetingId | Out-GridView
-$MeetingRecords |  Sort {$_.Date -as [datetime]}, MeetingId, Operation | Export-CSV -NoTypeInformation $OutputCSVFile
+$MeetingRecords |  Sort-Object {$_.Date -as [datetime]}, MeetingId, Operation | `
+   Select-Object Start, End, User, MeetingType, Organizer, Type, MeetingId | Out-GridView
+$MeetingRecords |  Sort-Object {$_.Date -as [datetime]}, MeetingId, Operation | Export-CSV -NoTypeInformation $OutputCSVFile
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
