@@ -1,6 +1,7 @@
 # Analyze-TeamsMeetings.PS1
 # a script to show how to use Graph APIs to analyze Teams meetings and attendance reports for the last 60 days
 # V1.0 28-May-2024
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Analyze-TeamsMeetings.PS1
 
 # Connect to the Graph using an appId, tenantId, and certificate thumbprint
 # The app must have the necessary application permissions to read calendar data and online meeting information
