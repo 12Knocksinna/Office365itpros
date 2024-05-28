@@ -33,7 +33,7 @@ function Get-DriveItems {
         $SensitivityLabelName = $null; $SensitivityLabelInfo = $Null; $Status = $false
         $FileType = $File.Name.Split(".")[1]
         If ($FileType -in $ValidFileTypes) { 
-            $Uri = ("https://graph.microsoft.com/beta/sites/{0}/drive/items/{1}/extractSensitivityLabels" -f $Site.Id, $File.id)
+            $Uri = ("https://graph.microsoft.com/V1.0/sites/{0}/drive/items/{1}/extractSensitivityLabels" -f $Site.Id, $File.id)
             Try {
                 [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
                 } Catch {
