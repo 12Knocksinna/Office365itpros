@@ -21,16 +21,17 @@ $CertThumbprint = "A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8A9B0"
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertThumbprint -NoWelcome
 $Organization = Get-MgOrganization
 $TenantName = $Organization.DisplayName
-[array]$OverMeetingAttendees = $null
 
 $StartDate = (Get-Date).AddDays(-62)
 $EndDate = (Get-Date)
 $StartDateSearch = Get-Date $StartDate -format s
 $EndDateSearch = Get-Date $EndDate -format s
+$HtmlReportFile = "C:\Temp\TeamsMeetingReport.html"
 # Get members of the group that we want to process - change the name of the group to match your tenant
 [array]$TeamsOrganizers = Get-MgGroupMember -GroupId (Get-MgGroup -Filter "displayName eq 'Teams Meeting Organizers'").Id
 
 $MeetingReport = [System.Collections.Generic.List[Object]]::new()
+[array]$OverallMeetingAttendees = $null
 
 ForEach ($Organizer in $TeamsOrganizers) {
     $DisplayName = $Organizer.additionalProperties.displayName
@@ -54,8 +55,6 @@ ForEach ($Organizer in $TeamsOrganizers) {
         $MeetingIdStart = $DecodedURL.IndexOf("19:") 
         $MeetingIdEnd = $DecodedURL.IndexOf("thread")
         $MeetingId = $DecodedURL.Substring($MeetingIdStart, $MeetingIdEnd - $MeetingIdStart +9)
-        #$OrganizerIdStart = $DecodedURL.IndexOf("Oid")
-        #$OrganizerId = $DecodedURL.Substring($OrganizerIdStart + 6, 36)
         $MeetingIdLookup = ("1*{0}*0**{1}" -f $Organizer.id, $MeetingId)
         $Base64MeetingId = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($MeetingIdLookup))
         $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}" -f $Organizer.Id, $Base64MeetingId)
@@ -73,13 +72,13 @@ ForEach ($Organizer in $TeamsOrganizers) {
         $ReportLine = [PSCustomObject]@{
             MeetingId               = $MeetingId
             Organizer               = $DisplayName
-            'Creation date'         = (Get-Date $MeetingData.creationDateTime -format 'dd-MMM-yyyy HH:mm:ss')
-            'Meeting Start'         = (Get-Date $MeetingData.startDatetime -format 'dd-MMM-yyyy HH:mm:ss')
-            'Meeting End'           = (Get-Date $MeetingData.endDateTime -format 'dd-MMM-yyyy HH:mm:ss')
+            'Creation timestamp'    = (Get-Date $MeetingData.creationDateTime -format 'dd-MMM-yyyy HH:mm:ss')
+            'Meeting start'         = (Get-Date $MeetingData.startDatetime -format 'dd-MMM-yyyy HH:mm')
+            'Meeting snd'           = (Get-Date $MeetingData.endDateTime -format 'dd-MMM-yyyy HH:mm')
             'Time zone'             = $Item.originalStartTimeZone
-            'Meeting Duration'      = ("{0:hh\:mm\:ss}" -f $MeetingDuration)
+            'Meeting duration'      = ("{0:hh\:mm\:ss}" -f $MeetingDuration)
             Subject                 = $MeetingData.subject
-            'Allow Presenters'      = $MeetingData.allowedpresenters
+            'Allow presenters'      = $MeetingData.allowedpresenters
             'Lobby bypass'          = $MeetingData.lobbyBypassSettings.scope
             'Auto admit'            = $MeetingData.autoAdmittedUsers
             'Allow recording'       = $MeetingData.allowRecording
@@ -103,6 +102,7 @@ ForEach ($Organizer in $TeamsOrganizers) {
     If ($AttendanceReports) {
         $AttendanceData = [System.Collections.Generic.List[Object]]::new()
         ForEach ($AR in $AttendanceReports) {
+            $AttendanceRecords = $null
             $Uri = $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/attendanceReports/{2}?`$expand=attendanceRecords" -f `
                 $Organizer.Id, $Base64MeetingId, $AR.Id)
             [array]$AttendanceRecords = Invoke-MgGraphRequest -Method get -Uri $Uri
@@ -118,6 +118,7 @@ ForEach ($Organizer in $TeamsOrganizers) {
                 }
 
                 $TimeInMeeting = [timespan]::fromseconds($Participant.totalAttendanceInSeconds)
+
                 $ReportLine = [PSCustomObject]@{
                     MeetingId               = $AR.Id
                     'Number Participants'   = $AR.totalParticipantCount
@@ -133,20 +134,61 @@ ForEach ($Organizer in $TeamsOrganizers) {
                     'Time in meeting'       = ("{0:hh\:mm\:ss}" -f $TimeInMeeting)
                     TenantId                = $Participant.identity.tenantId
                     'Tenant name'           = $ParticipantTenantName
+                    MatchMeetingId          = $MeetingId
                 }
                 $AttendanceData.Add($ReportLine)
             }
+            # Add the attendee data to the overall set
+            $OverallMeetingAttendees += $AttendanceData
         }
     }
-    # Add the data to the overall list
-    $OverMeetingAttendees += $AttendanceData 
+}
+ 
 
+# Now let's generate a HTML report
+$HtmlBody = $null
+$RunDate = (Get-Date).ToString("dd-MMM-yyyy HH:mm:ss")
+$HtmlHead="<html>
+	   <style>
+	   BODY{font-family: Arial; font-size: 10pt;}
+	   H1{font-size: 32px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H2{font-size: 24px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H3{font-size: 20px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
+	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
+	   TD{border: 1px solid #969595; padding: 5px; }
+	   td.warn{background: #FFF275;}
+	   td.fail{background: #FF2626; color: #ffffff;}
+	   td.info{background: #85D4FF;}
+	   </style>
+	   <body>
+           <div align=center>
+           <p><h1>Teams Online Meeting Report</h1></p>
+           <p><h2>Details extracted for period <b>" + (Get-Date $StartDate -format 'dd-MMM-yyyy HH:mm') + "</b> to <b>" + (Get-Date $EndDate  -format 'dd-MMM-yyyy HH:mm') + "</b></h2></p>"
+
+# Output meeting details
+
+ForEach ($M in $MeetingReport) {
+    $HtmlBody = $HtmlBody + "<h3>Meeting <u>{0}</u> organized by {1} for {2}</h3>" -f $M.Subject, $M.Organizer, $M.'Meeting start'
+    $MeetingHtml = $M | Select-Object Organizer, 'Meeting start', 'Meeting end', 'Time zone', 'Meeting duration', 'Allow presenters',`
+     'Lobby bypass', 'Auto admit', 'Allow recording', 'Record automatically', 'Allow chat', 'Allow transcripton', 'Allow reactions' | ConvertTo-HTML -Fragment
+    $HtmlBody = $HtmlBody + $MeetingHtml
+
+    # Output attendance details for the meeting
+    [array]$Attendees = $OverallMeetingAttendees | Where-Object {$_.MatchMeetingId -eq $M.MeetingId} | Select-Object `
+       Email, DisplayName, Role, 'Join time', 'Leave time', 'Time in meeting', 'Tenant name' 
+    If ($Attendees.count -eq 0) {
+        $HtmlBody = $HtmlBody + "<p>No attendance data available for this meeting</p>"
+    } Else {
+        $AttendeesHTML = $Attendees | ConvertTo-HTML -Fragment 
+        $HtmlBody = $HtmlBody + ("<h4>Attendance details for meeting <u>{0}</u></h4><p></p>" -f $M.Subject)
+        $HtmlBody = $HtmlBody + $AttendeesHTML + "<p></p>"
+    }
 }
 
-
-
-
-
+$HtmlBody = $HtmlBody + "<p>Report created: " + $RunDate + "</p>" 
+$HtmlReport = $HtmlHead + $HtmlBody + "</div></body></html>"
+$HtmlReport | Out-File $HtmlReportFile -Encoding UTF8
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
