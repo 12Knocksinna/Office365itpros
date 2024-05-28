@@ -29,30 +29,33 @@ ForEach ($Rec in $Records) {
    $AuditData = $Rec.AuditData | ConvertFrom-Json
    $User = $Null; $Organizer = $Null
    Switch ($Rec.Operations) {
-    "MeetingDetail" { # A meeting record     
+       "MeetingDetail" { # A meeting record     
       [datetime]$StartTime = Get-Date($AuditData.StartTime)
       [datetime]$EndTime = Get-Date($AuditData.EndTime)   
       $TimeSpent = $EndTime - $StartTime 
+      $MeetingDuration = ("{0:hh\:mm\:ss}" -f $TimeSpent)
       $Organizer = (Get-MgUser -UserId $AuditData.Organizer.UserObjectId).DisplayName
       $DataLine = [PSCustomObject] @{
-         Date                = Get-Date($Rec.CreationDate).ToLocalTime()
+         'Audit timestamp'   = Get-Date($Rec.CreationDate).ToLocalTime()
          User                = $Rec.UserIds
          MeetingId           = $AuditData.Id
-         MeetingType         = $AuditData.ItemName
-         Start               = Get-Date($AuditData.StartTime) -format g
-         End                 = Get-Date($AuditData.EndTime) -format g
-         MeetingTime         = $TimeSpent.ToString()
+         Start               = Get-Date($AuditData.StartTime).ToLocalTime()
+         End                 = Get-Date($AuditData.EndTime).ToLocalTime()
+         'Meeting duration'  = $MeetingDuration.ToString()
          Organizer           = $Organizer
          Modalities          = $AuditData.Modalities
-         MeetingURL          = $AuditData.MeetingURL
+         'Meeting type'      = $AuditData.CommunicationSubType
          Type                = "Meeting"
-         Operation           = $Rec.Operations }
+         MeetingURL          = $AuditData.MeetingURL
+         Operation           = $Rec.Operations 
+      }
      }
      "MeetingParticipantDetail" { # A meeting participant record   
-      [datetime]$StartTime = Get-Date($AuditData.JoinTime)
-      [datetime]$EndTime = Get-Date($AuditData.LeaveTime)   
-      $TimeSpent = $EndTime - $StartTime
-       # Resolve user name from the object identifier logged for participant
+         # Resolve user name from the object identifier logged for participant
+         [datetime]$StartTime = Get-Date($AuditData.JoinTime)
+         [datetime]$EndTime = Get-Date($AuditData.LeaveTime)   
+         $TimeSpent = $EndTime - $StartTime 
+         $MeetingDuration = ("{0:hh\:mm\:ss}" -f $TimeSpent)
       If ($AuditData.Attendees.RecipientType -eq "User") {
             $User = (Get-MgUser -UserId $AuditData.Attendees.UserObjectid).UserPrincipalName }
       Else {
@@ -61,13 +64,12 @@ ForEach ($Rec in $Records) {
             $User = "Teams Meeting Recording Bot" 
       }
        $DataLine = [PSCustomObject] @{
-         Date                = $Rec.CreationDate
+         'Audit timestamp'   = $Rec.CreationDate
          User                = $User
          MeetingId           = $AuditData.MeetingDetailId
-         MeetingType         = $AuditData.ItemName
-         Start               = Get-Date($AuditData.JoinTime) -format g
-         End                 = Get-Date($AuditData.LeaveTime) -format g
-         "User Time"         = $TimeSpent.ToString()
+         Start               = Get-Date($AuditData.JoinTime).ToLocalTime()
+         End                 = Get-Date($AuditData.LeaveTime).ToLocalTime()
+         Duration            = $MeetingDuration.ToString()
          Role                = $AuditData.Attendees.Role
          DetailId            = $AuditData.MeetingDetailId
          Artifacts           = $AuditData.ArtifactsShared.ArtifactSharedName -join ", "
