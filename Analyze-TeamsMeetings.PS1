@@ -1,65 +1,40 @@
-# Analyze-TeamsMeetings.Ps1
+# Analyze-TeamsMeetings.PS1
+# a script to show how to use Graph APIs to analyze Teams meetings and attendance reports for the last 60 days
+# V1.0 28-May-2024
 
-Connect-ExchangeOnline -SkipLoadingCmdletHelp
+# Connect to the Graph using an appId, tenantId, and certificate thumbprint
+# The app must have the necessary application permissions to read calendar data and online meeting information
+# An application access policy must be in the place to allow the app to access online meeting data for the target accounts
+# Insert the correct values for your tenant and app
+$AppId = "2817e4bc-69dd-4cfb-9411-c3f661717208"
+$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$CertThumbprint = "A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8A9B0"
+#Permissions required:
+# Calendar.Read = Read calendar data
+# Group.Read.All = Read group membership
+# OnlineMeeting.Read.All = Read online meeting data
+# OnlineMeetingArtifact.Read.All = Read attendance reports
+# User.Read.All = Read user data
+# CrossTenantInformation.ReadBasic.All = Read tenant information for external participants
 
-
-
-# Find meeting details
-$StartDate = (Get-Date).AddDays(-90)
-$EndDate =(Get-Date).AddDAys(1)
-Write-Host "Searching for audit events for Teams Meetings..."
-[array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations MeetingDetail -Formatted -SessionCommand ReturnLargeSet -ResultSize 5000
-If (!($Records)) {
-    Write-Host "No meeting details found"
-    Break
-}
-# remove duplicates
-$Records = $Records | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime]} -Descending
-Write-Host ("{0} meeting details found" -f $Records.Count)  
-$MeetingRecords = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Rec in $Records) {
-    $AuditData = ConvertFrom-Json $Rec.AuditData
-    [datetime]$Start = $AuditData.StartTime
-    [datetime]$End = $AuditData.EndTime
-    $Duration = $End - $Start
-    $MeetingDuration = ("{0:hh\:mm\:ss}" -f $Duration)
-
-    $ReportLine = [PSCustomObject]@{
-        CreationDate    = (Get-Date $Rec.CreationDate -format "dd-MMM-yyyy HH:mm:ss")
-        MeetingId       = $AuditData.Id
-        UserId          = $AuditData.UserId
-        MeetingType     = $AuditData.CommunicationSubType
-        StartTime       = (Get-Date $AuditData.StartTime -format "dd-MMM-yyyy HH:mm:ss")
-        EndTime         = (Get-Date $AuditData.EndTime -format "dd-MMM-yyyy HH:mm:ss")
-        Duration        = $MeetingDuration
-        Organizer       = $AuditData.Organizer.UserObjectId
-        Modalities      = $AuditData.Modalities
-        MeetingURL      = $AuditData.MeetingURL
-
-    }
-    $MeetingRecords.Add($ReportLine)
-}
-
-Connect-MgGraph -NoWelcome -Scopes OnlineMeetings.Read
+Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertThumbprint -NoWelcome
 $Organization = Get-MgOrganization
-$TenantId = $Organization.id
 $TenantName = $Organization.DisplayName
 [array]$OverMeetingAttendees = $null
 
-$StartDate = (Get-Date).AddDays(-60)
+$StartDate = (Get-Date).AddDays(-62)
 $EndDate = (Get-Date)
 $StartDateSearch = Get-Date $StartDate -format s
 $EndDateSearch = Get-Date $EndDate -format s
-# Get members of the group that we want to process
+# Get members of the group that we want to process - change the name of the group to match your tenant
 [array]$TeamsOrganizers = Get-MgGroupMember -GroupId (Get-MgGroup -Filter "displayName eq 'Teams Meeting Organizers'").Id
 
 $MeetingReport = [System.Collections.Generic.List[Object]]::new()
-$AttendanceData = [System.Collections.Generic.List[Object]]::new()
 
 ForEach ($Organizer in $TeamsOrganizers) {
     $DisplayName = $Organizer.additionalProperties.displayName
     Write-Host ("Checking online Teams meetings for {0}" -f $DisplayName)
-    [array]$CalendarItems = Get-MgUserCalendarView -UserId $Organizer.ID -Startdatetime $StartDateSearch -Enddatetime $EndDateSearch -All
+    [array]$CalendarItems = Get-MgUserCalendarView -UserId $Organizer.id -Startdatetime $StartDateSearch -Enddatetime $EndDateSearch -All
     $CalendarItems = $CalendarItems | Where-Object {$_.isCancelled -eq $False -and $_.OnlineMeetingProvider -eq "teamsForBusiness" `
          -and $_.IsOrganizer -eq $true}
     If ($CalendarItems) {
@@ -117,58 +92,58 @@ ForEach ($Organizer in $TeamsOrganizers) {
     }
     # attempt at throttling control
     Start-Sleep -Milliseconds 500
-}
 
+    # Now get the attendance reports for the meeting
+    Write-Host "Fetching attendance reports for the meetings..."
+    $Uri = $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/attendanceReports" -f $Organizer.Id, $Base64MeetingId)
+    [array]$AttendanceReports = Invoke-MgGraphRequest -Method get -Uri $Uri
+    $AttendanceReports = $AttendanceReports.value
+ 
+    If ($AttendanceReports) {
+        $AttendanceData = [System.Collections.Generic.List[Object]]::new()
+        ForEach ($AR in $AttendanceReports) {
+            $Uri = $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/attendanceReports/{2}?`$expand=attendanceRecords" -f `
+                $Organizer.Id, $Base64MeetingId, $AR.Id)
+            [array]$AttendanceRecords = Invoke-MgGraphRequest -Method get -Uri $Uri
+            $AttendanceRecords = $AttendanceRecords.AttendanceRecords
+            ForEach ($Participant in $AttendanceRecords) {  
+                If ($Participant.identity.tenantId -eq $TenantId) {
+                    $ParticipantTenantName = $TenantName
+                } Else {
+                    $LookUpTenantId = $Participant.identity.tenantId
+                    $Uri = ("https://graph.microsoft.com/V1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='{0}')" -f $LookUpTenantId)
+                    $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
+                    $ParticipantTenantName = $ExternalTenantData.displayName
+                }
 
-
-
-
-# Get the set of attendance reports for the meeting
-$Uri = $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/attendanceReports" -f $OrganizerId, $Base64MeetingId)
-[array]$AttendanceReports = Invoke-MgGraphRequest -Method get -Uri $Uri
-$AttendanceReports = $AttendanceReports.value
-# Extract the individual attendee records from each report
-
-If ($AttendanceReports) {
-    ForEach ($AR in $AttendanceReports) {
-        $Uri = $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/attendanceReports/{2}?`$expand=attendanceRecords" -f `
-            $OrganizerId, $Base64MeetingId, $AR.Id)
-        [array]$AttendanceRecords = Invoke-MgGraphRequest -Method get -Uri $Uri
-        $AttendanceRecords = $AttendanceRecords.AttendanceRecords
-        ForEach ($Participant in $AttendanceRecords) {  
-            
-            If ($Participant.identity.tenantId -eq $TenantId) {
-                $ParticipantTenantName = $TenantName
-            } Else {
-                $LookUpTenantId = $Participant.identity.tenantId
-                $Uri = ("https://graph.microsoft.com/V1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='{0}')" -f $LookUpTenantId)
-                $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
-                $ParticipantTenantName = $ExternalTenantData.displayName
+                $TimeInMeeting = [timespan]::fromseconds($Participant.totalAttendanceInSeconds)
+                $ReportLine = [PSCustomObject]@{
+                    MeetingId               = $AR.Id
+                    'Number Participants'   = $AR.totalParticipantCount
+                    Email                   = $Participant.emailAddress
+                    DisplayName             = $Participant.identity.displayName
+                    'Meeting start time'    = (Get-Date $AR.MeetingStartDateTime -format 'dd-MMM-yyyy HH:mm:ss')
+                    'Meeting end time'      = (Get-Date $AR.MeetingEndDateTime -format 'dd-MMM-yyyy HH:mm:ss')
+                    ParticipantId           = $Participant.Id
+                    Role                    = $Participant.role   
+                    'Join time'             = $Participant.attendanceIntervals.joinDateTime
+                    'Leave time'            = $Participant.attendanceIntervals.leaveDateTime
+                    'Attendance in seconds' = $Participant.totalAttendanceInSeconds
+                    'Time in meeting'       = ("{0:hh\:mm\:ss}" -f $TimeInMeeting)
+                    TenantId                = $Participant.identity.tenantId
+                    'Tenant name'           = $ParticipantTenantName
+                }
+                $AttendanceData.Add($ReportLine)
             }
-
-            $TimeInMeeting = [timespan]::fromseconds($Participant.totalAttendanceInSeconds)
-            $ReportLine = [PSCustomObject]@{
-                ReportId                = $AR.Id
-                'Number Participants'   = $AR.totalParticipantCount
-                'Meeting start time'    = (Get-Date $AR.MeetingStartDateTime -format 'dd-MMM-yyyy HH:mm:ss')
-                'Meeting end time'      = (Get-Date $AR.MeetingEndDateTime -format 'dd-MMM-yyyy HH:mm:ss')
-                ParticipantId           = $Participant.Id
-                Role                    = $Participant.role   
-                'Join time'             = $Participant.attendanceIntervals.joinDateTime
-                'Leave time'            = $Participant.attendanceIntervals.leaveDateTime
-                'Attendance in seconds' = $Participant.totalAttendanceInSeconds
-                'Time in meeting'       = ("{0:hh\:mm\:ss}" -f $TimeInMeeting)
-                TenantId                = $Participant.identity.tenantId
-                'Tenant name'           = $ParticipantTenantName
-                Email                   = $Participant.emailAddress
-                DisplayName             = $Participant.identity.displayName
-            }
-            $AttendanceData.Add($ReportLine)
         }
     }
+    # Add the data to the overall list
+    $OverMeetingAttendees += $AttendanceData 
+
 }
 
-$OverMeetingAttendees += $AttendanceData 
+
+
 
 
 
