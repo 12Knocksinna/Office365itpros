@@ -49,9 +49,8 @@ function Get-DriveItems {
             $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/assignSensitivityLabel" -f $DriveId, $File.Id)
             Try {
                 Invoke-MgGraphRequest -Method "POST" -Uri $Uri -Body $AssignmentPayload -OutputType PSObject
-                $Status = $true
-            }
-            Catch {
+                $Status = $true # set so that we report the update
+            } Catch {
                 $Error[0].Exception.Message
                 Write-Host ("Failed to assign sensitivity label to file {0}" -f $File.Name ) -ForegroundColor Red
             }
