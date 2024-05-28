@@ -7,6 +7,9 @@
 # V1.2 2-Jan-2024 (Check against SDK V2.11)
 # .\ReportFilesSPOSite.PS1 -SearchSite "Billing"
 
+# A better version is available in https://github.com/12Knocksinna/Office365itpros/blob/master/Report-SPOFilesDocumentLibrary.PS1 and
+# described in the article https://practical365.com/sharepoint-online-files-report/
+
 Param ([Parameter(Mandatory)]$SearchSite)
 
 function UnpackFilesRecursively {
