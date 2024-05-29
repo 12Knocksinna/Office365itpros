@@ -82,12 +82,12 @@ Write-Host ("All done. Of the {0} mailboxes, {1} are audit enabled, and {2} use 
 Write-Host "Generating output file..."
 If (Get-Module ImportExcel -ListAvailable) {
     Import-Module ImportExcel -ErrorAction SilentlyContinue
-    $ExcelOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\MailboxAuditingReport.xlsx" -f $Site.displayName, $DriveName)
+    $ExcelOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\MailboxAuditingReport.xlsx"
     $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Mailbox Audit Configurations" `
     -Title ("Mailbox Audit Configurations {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "MailboxAuditConfiguration" 
     $OutputFile = $ExcelOutputFile
 } Else {
-    $CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\MailboxAuditingReport.csv" -f $Site.displayName, $DriveName)
+    $CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\MailboxAuditingReport.csv"
     $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
     $Outputfile = $CSVOutputFile
  

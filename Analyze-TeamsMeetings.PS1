@@ -22,11 +22,12 @@ Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertTh
 $Organization = Get-MgOrganization
 $TenantName = $Organization.DisplayName
 
-$StartDate = (Get-Date).AddDays(-62)
+$StartDate = (Get-Date).AddDays(-60)
 $EndDate = (Get-Date)
 $StartDateSearch = Get-Date $StartDate -format s
 $EndDateSearch = Get-Date $EndDate -format s
-$HtmlReportFile = "C:\Temp\TeamsMeetingReport.html"
+$HtmlReportFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\TeamsMeetingData.html")
+e = "C:\Temp\TeamsMeetingReport.html"
 # Get members of the group that we want to process - change the name of the group to match your tenant
 [array]$TeamsOrganizers = Get-MgGroupMember -GroupId (Get-MgGroup -Filter "displayName eq 'Teams Meeting Organizers'").Id
 
@@ -188,6 +189,8 @@ ForEach ($M in $MeetingReport) {
 $HtmlBody = $HtmlBody + "<p>Report created: " + $RunDate + "</p>" 
 $HtmlReport = $HtmlHead + $HtmlBody + "</div></body></html>"
 $HtmlReport | Out-File $HtmlReportFile -Encoding UTF8
+
+Write-Host ("Output HTML file is available in {0}" -f $HtmlReportFile) -ForegroundColor Green
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
