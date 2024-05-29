@@ -11,12 +11,12 @@ $AppId = "2817e4bc-69dd-4cfb-9411-c3f661717208"
 $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $CertThumbprint = "A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8A9B0"
 #Permissions required:
-# Calendar.Read = Read calendar data
+# Calendars.Read = Read calendar data
 # Group.Read.All = Read group membership
-# OnlineMeeting.Read.All = Read online meeting data
+# OnlineMeetings.Read.All = Read online meeting data
 # OnlineMeetingArtifact.Read.All = Read attendance reports
-# User.Read.All = Read user data
-# CrossTenantInformation.ReadBasic.All = Read tenant information for external participants
+# CrossTenantInformation.ReadBasic.All = Read tenant information for external (federated) participants
+# Organization.Read.All = Read organization information
 
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertThumbprint -NoWelcome
 $Organization = Get-MgOrganization
@@ -31,8 +31,7 @@ $HtmlReportFile = "C:\Temp\TeamsMeetingReport.html"
 [array]$TeamsOrganizers = Get-MgGroupMember -GroupId (Get-MgGroup -Filter "displayName eq 'Teams Meeting Organizers'").Id
 
 $MeetingReport = [System.Collections.Generic.List[Object]]::new()
-[array]$OverallMeetingAttendees = $null
-
+$AttendanceData = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Organizer in $TeamsOrganizers) {
     $DisplayName = $Organizer.additionalProperties.displayName
     Write-Host ("Checking online Teams meetings for {0}" -f $DisplayName)
@@ -45,7 +44,7 @@ ForEach ($Organizer in $TeamsOrganizers) {
         Write-Host ('No Teams meetings found for {0}' -f $DisplayName)
         continue
     }
-    Write-Host ("Proceeding to analyze Teams meetings for {0}" -f $DisplayName)
+    Write-Host ("Analyzing Teams meetings for {0}..." -f $DisplayName)
 
     ForEach ($Item in $CalendarItems) {
         $MeetingDuration = $null; [array]$MeetingData = $null
@@ -61,7 +60,7 @@ ForEach ($Organizer in $TeamsOrganizers) {
         Try {
             [array]$MeetingData = Invoke-MgGraphRequest -Method Get -Uri $Uri
         } Catch {
-            Write-Host ("Ran into an issue retieving information for meeting {0} (created {1}): {1}" -f $Item.subject, $Item.CreatedDateTime, $($PSItem.ToString()))
+            Write-Host ("Ran into an issue retieving information for meeting {0} (created {1})" -f $Item.subject, $Item.CreatedDateTime, $($PSItem.ToString())) -ForegroundColor Red
             Continue
         }
         If (!($MeetingData)) {
@@ -100,9 +99,9 @@ ForEach ($Organizer in $TeamsOrganizers) {
     $AttendanceReports = $AttendanceReports.value
  
     If ($AttendanceReports) {
-        $AttendanceData = [System.Collections.Generic.List[Object]]::new()
         ForEach ($AR in $AttendanceReports) {
-            $AttendanceRecords = $null
+          
+            $AttendanceRecords = $null; $Participant = $null
             $Uri = $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/attendanceReports/{2}?`$expand=attendanceRecords" -f `
                 $Organizer.Id, $Base64MeetingId, $AR.Id)
             [array]$AttendanceRecords = Invoke-MgGraphRequest -Method get -Uri $Uri
@@ -116,7 +115,6 @@ ForEach ($Organizer in $TeamsOrganizers) {
                     $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
                     $ParticipantTenantName = $ExternalTenantData.displayName
                 }
-
                 $TimeInMeeting = [timespan]::fromseconds($Participant.totalAttendanceInSeconds)
 
                 $ReportLine = [PSCustomObject]@{
@@ -136,14 +134,14 @@ ForEach ($Organizer in $TeamsOrganizers) {
                     'Tenant name'           = $ParticipantTenantName
                     MatchMeetingId          = $MeetingId
                 }
-                $AttendanceData.Add($ReportLine)
-            }
-            # Add the attendee data to the overall set
-            $OverallMeetingAttendees += $AttendanceData
+                $AttendanceData.Add($ReportLine)              
+            }   
+             # Add the attendee data to the overall set
+           #  $OverallMeetingAttendees += $AttendanceData   
+       
         }
     }
 }
- 
 
 # Now let's generate a HTML report
 $HtmlBody = $null
@@ -162,9 +160,10 @@ $HtmlHead="<html>
 	   td.info{background: #85D4FF;}
 	   </style>
 	   <body>
-           <div align=center>
-           <p><h1>Teams Online Meeting Report</h1></p>
-           <p><h2>Details extracted for period <b>" + (Get-Date $StartDate -format 'dd-MMM-yyyy HH:mm') + "</b> to <b>" + (Get-Date $EndDate  -format 'dd-MMM-yyyy HH:mm') + "</b></h2></p>"
+           <div align=center>"
+$HtmlHead1 = ("<p><h1>Teams Online Meeting Report for the {0} tenant</h1></p>" -f $TenantName)
+$HtmlHead2 = ("<p><h2>Details extracted for period <b>{0}</b> to <b>{1}</b></h2></p>" -f (Get-Date $StartDate -format 'dd-MMM-yyyy HH:mm'), (Get-Date $EndDate  -format 'dd-MMM-yyyy HH:mm'))     
+$HtmlHead = $HtmlHead + $HtmlHead1 + $HtmlHead2        
 
 # Output meeting details
 
@@ -175,7 +174,7 @@ ForEach ($M in $MeetingReport) {
     $HtmlBody = $HtmlBody + $MeetingHtml
 
     # Output attendance details for the meeting
-    [array]$Attendees = $OverallMeetingAttendees | Where-Object {$_.MatchMeetingId -eq $M.MeetingId} | Select-Object `
+    [array]$Attendees = $AttendanceData | Where-Object {$_.MatchMeetingId -eq $M.MeetingId} | Select-Object `
        Email, DisplayName, Role, 'Join time', 'Leave time', 'Time in meeting', 'Tenant name' 
     If ($Attendees.count -eq 0) {
         $HtmlBody = $HtmlBody + "<p>No attendance data available for this meeting</p>"
