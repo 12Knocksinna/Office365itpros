@@ -9,7 +9,7 @@ $Account = (Get-MgContext).Account
 $UserId = (Get-MgUser -UserId $Account).Id
 
 # Get chats for the user
-[array]$Chats = Get-MgBetaUserChat -Userid $UserId -All -Filter "chattype eq 'group' or chattype eq 'oneonone' or chattype eq 'Meeting'" | Sort-Object LastUpdatedDateTime -Descending
+[array]$Chats = Get-MgUserChat -Userid $UserId -All -Filter "chattype eq 'group' or chattype eq 'oneonone' or chattype eq 'Meeting'" | Sort-Object LastUpdatedDateTime -Descending
 
 # Extract the identifiers for the tenants that chat threads belong to so that we can resolve them to a tenant name
 Write-Host "Finding tenant information for chats..."
@@ -28,7 +28,7 @@ $TenantsCount
 Write-Host "Resolving tenant identifiers..."
 $TenantsHash = @{}
 ForEach ($Tenant in $TenantsCount) {
-    $Uri = ("https://graph.microsoft.com/beta/tenantRelationships/findTenantInformationByTenantId(tenantId='{0}')" -f $Tenant.Name.ToString())
+    $Uri = ("https://graph.microsoft.com/V1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='{0}')" -f $Tenant.Name.ToString())
     $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get  
     $TenantsHash.Add([string]$Tenant.Name.toString(), [string]$ExternalTenantData.displayName)
 }
@@ -40,7 +40,7 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 Write-Host "Analyzing chat threads..."
 ForEach($Chat in $Chats) {
     # Get members of the chat thread
-    [array]$Members = Get-MgBetaUserChatMember -UserId $UserId -ChatId $Chat.Id
+    [array]$Members = Get-MgUserChatMember -UserId $UserId -ChatId $Chat.Id
 
     # Extract the member display names and remove any blanks (accounts that no longer exist)
     [array]$MemberNames = $Members.displayName | Sort-Object -Unique
