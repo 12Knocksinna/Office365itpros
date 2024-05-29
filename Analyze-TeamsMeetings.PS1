@@ -26,7 +26,7 @@ $StartDate = (Get-Date).AddDays(-60)
 $EndDate = (Get-Date)
 $StartDateSearch = Get-Date $StartDate -format s
 $EndDateSearch = Get-Date $EndDate -format s
-$HtmlReportFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\TeamsMeetingData.html")
+$HtmlReportFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TeamsOnlineMeetingReport.html"
 e = "C:\Temp\TeamsMeetingReport.html"
 # Get members of the group that we want to process - change the name of the group to match your tenant
 [array]$TeamsOrganizers = Get-MgGroupMember -GroupId (Get-MgGroup -Filter "displayName eq 'Teams Meeting Organizers'").Id
