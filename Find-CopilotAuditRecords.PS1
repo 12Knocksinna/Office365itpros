@@ -3,6 +3,7 @@
 # (not from mobile devices)
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Find-CopilotAuditRecords.PS1
 # V1.0 28-Mar-2024
+# V1.1 30-May-2024 Add support for Stream and refined the handling of associated resources
 
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select-Object -ExpandProperty Name
@@ -98,7 +99,10 @@ ForEach ($Rec in $Records) {
 $Report | Out-GridView -Title "Copilot for Microsoft 365 Audit Records"
 
 Write-Host ""
+Write-Host ("{0} Copilot audit records processed" -f $Records.count)
+Write-Host ""
 Write-Host "Summary of Copilot audit records by app"
+Write-Host "----------------------------------------"
 $Report | Group-Object App -NoElement | Sort-Object Count -Descending | Format-Table Name, count
 
 
