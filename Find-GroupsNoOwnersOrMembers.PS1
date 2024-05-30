@@ -1,6 +1,7 @@
 # Find-GroupsNoOwnersOrMembers.PS1
 # example of a script to find and report groups with no owners or members
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-GroupsNoOwnersOrMembers.PS1
+# V1.0 30-May-2024
 
 $Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -notin $Modules) {
