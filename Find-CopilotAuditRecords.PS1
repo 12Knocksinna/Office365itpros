@@ -43,6 +43,10 @@ ForEach ($Rec in $Records) {
             $CopilotApp = "Teams"
             $CopilotLocation = "Teams meeting"
         }
+        "StreamVideo" {
+            $CopilotApp = "Stream"
+            $CopilotLocation = "Stream video player"
+        }
     }
 
     If ($Auditdata.copiloteventdata.contexts.id -like "*https://teams.microsoft.com/*") {
@@ -70,23 +74,33 @@ ForEach ($Rec in $Records) {
     } ElseIf ($Auditdata.copiloteventdata.contexts.id -like "*/personal/*") {
         $CopilotLocation = "OneDrive for Business"
     } 
-    # Make sure that we report the resources used by Copilot
-    $AccessedResources = $AuditData.copiloteventdata.accessedResources.name -join ", "
-    $AccessedResourceLocations = $AuditData.copiloteventdata.accessedResources.id -join ", "
+    # Make sure that we report the resources used by Copilot and the action (like read) used to access the resource
+    [array]$AccessedResources = $AuditData.copiloteventdata.accessedResources.name | Sort-Object -Unique
+    [string]$AccessedResources = $AccessedResources -join ", "
+    [array]$AccessedResourceLocations = $AuditData.copiloteventdata.accessedResources.id | Sort-Object -Unique
+    [string]$AccessedResourceLocations = $AccessedResourceLocations -join ", "
+    [array]$AccessedResourceActions = $AuditData.copiloteventdata.accessedResources.action | Sort-Object -Unique
+    [string]$AccessedResourceActions = $AccessedResourceActions -join ", "
 
     $ReportLine = [PSCustomObject][Ordered]@{
         TimeStamp                       = (Get-Date $Rec.CreationDate -format "dd-MMM-yyyy HH:mm:ss")
         User                            = $Rec.UserIds
         App                             = $CopilotApp
-        Location                        = $CopilotLocation
+        Location                        = $CopilotLocation 
         'App context'                   = $Context   
         'Accessed Resources'            = $AccessedResources
         'Accessed Resource Locations'   = $AccessedResourceLocations
+        Action                          = $AccessedResourceActions
     }
     $Report.Add($ReportLine)
 }
 
 $Report | Out-GridView -Title "Copilot for Microsoft 365 Audit Records"
+
+Write-Host ""
+Write-Host "Summary of Copilot audit records by app"
+$Report | Group-Object App -NoElement | Sort-Object Count -Descending | Format-Table Name, count
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
