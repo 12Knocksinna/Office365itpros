@@ -12,9 +12,11 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
 Connect-MgGraph -NoWelcome -Scopes Group.Read.All
 $NoOwnersCSVFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\GroupsWithNoOwners.CSV"
 # Find groups and expand owners. Only one property can be expanded at a time
-[array]$Groups = Get-MgGroup -All -ExpandProperty Owners | Select-Object Owners, Id, displayName, groupTypes, CreatedDateTime, mailEnabled, Mail, SecurityEnabled
-# Reduce the set to the groups that have no owner 
-[array]$NoOwners = $Groups | Where-Object {($_.Owners.count) -eq 0}
+[array]$NoOwners = Get-MgGroup -All -PageSize 999 -ExpandProperty "owners(`$select=id)" `
+    -Property Owners, Id, displayName, groupTypes, CreatedDateTime, mailEnabled, Mail, SecurityEnabled | `
+    Select-Object Owners, Id, displayName, groupTypes, CreatedDateTime, mailEnabled, Mail, SecurityEnabled | `
+    Where-Object {($_.Owners.count) -eq 0} | Sort-Object DisplayName
+
 If ($NoOwners.Count -eq 0) {
     Write-Host "No groups without owners found"
 } Else {
@@ -49,9 +51,11 @@ If ($NoOwners.Count -eq 0) {
 # Now check groups with no members...
 $NoMembersCSVFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\GroupsWithNoMembers.CSV"
 Write-Host "Checking for groups with no members..."
-[array]$Groups = Get-MgGroup -All -ExpandProperty Members | Select-Object Members, Id, displayName, groupTypes, CreatedDateTime, mailEnabled, Mail, SecurityEnabled
-# Reduce the set to the groups that have no owner 
-[array]$NoMembers = $Groups | Where-Object {($_.Members.count) -eq 0}
+[array]$NoMembers = Get-MgGroup -All -PageSize 999 -ExpandProperty "members(`$select=id)" `
+    -Property Members, Id, displayName, groupTypes, CreatedDateTime, mailEnabled, Mail, SecurityEnabled | `
+    Select-Object Members, Id, displayName, groupTypes, CreatedDateTime, mailEnabled, Mail, SecurityEnabled | `
+    Where-Object {($_.Members.count) -eq 0} | Sort-Object DisplayName
+
 If ($NoMembers.Count -eq 0) {
     Write-Host "No groups without members found"
 } Else {
