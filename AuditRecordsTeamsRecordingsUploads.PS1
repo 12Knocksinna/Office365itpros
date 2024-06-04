@@ -50,6 +50,8 @@ ForEach ($Rec in $Records) {
         } Else {
             $Topic = $RecordingFileName.SubString(0,$DateLoc)
         }   
+        # All uploads are performed by the app@sharepoint account, so we try to use the hash table
+        # to figure out the owner of the target OneDrive for Business account
         $User = $OneDriveHashTable[$AuditData.SiteURL]
         $CreationDate = Get-Date $Rec.CreationDate -format 'dd-MMM-yyyy HH:mm:ss'
         $DataLine = [PSCustomObject] @{
