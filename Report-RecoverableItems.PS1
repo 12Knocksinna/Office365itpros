@@ -68,7 +68,7 @@ ForEach ($M in $Mbx) {
         # $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/mailfolders/{1}/Messages/?`$select=sender,createdDateTime,subject&`$expand=singleValueExtendedProperties(`$filter=Id%20eq%20'LONG%200x0E08')" -f $M.ExternalDirectoryObjectId, $Folder.id)
        
             [array]$Items = Get-MgUserMailFolderMessage -UserId $M.ExternalDirectoryObjectId -MailFolderId $Folder.id -All `
-                -Property sender,createdDateTime,subject `
+                -Property sender,createdDateTime,subject -PageSize 999 `
                 -ExpandProperty "singleValueExtendedProperties(`$filter=Id eq 'LONG 0x0E08')"
             # If some items are returned, report them
             Write-Host ("Found {0} items in folder {1}" -f $Items.Count, $Folder.displayName)
