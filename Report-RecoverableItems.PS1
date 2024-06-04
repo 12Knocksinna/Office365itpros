@@ -27,7 +27,8 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
     Write-Host "Connecting to Exchange Online..."
     Connect-ExchangeOnline -SkipLoadingCmdletHelp
 }
-# Connect to the Graph with an Entra ID app that has the Mail.Read permission
+# Connect to the Graph with an Entra ID app that has the Mail.Read permission. These values must be defined for youe
+# tenant
 Connect-MgGraph -AppId $AppId -Scopes $Scopes -TenantId $TenantId -CertificateThumbprint $Thumbprint
 
 Write-Host "Scanning for mailboxes..."
@@ -67,7 +68,7 @@ ForEach ($M in $Mbx) {
         # $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/mailfolders/{1}/Messages/?`$select=sender,createdDateTime,subject&`$expand=singleValueExtendedProperties(`$filter=Id%20eq%20'LONG%200x0E08')" -f $M.ExternalDirectoryObjectId, $Folder.id)
        
             [array]$Items = Get-MgUserMailFolderMessage -UserId $M.ExternalDirectoryObjectId -MailFolderId $Folder.id -All `
-                -Property sender,createdDateTime,subject`
+                -Property sender,createdDateTime,subject `
                 -ExpandProperty "singleValueExtendedProperties(`$filter=Id eq 'LONG 0x0E08')"
             # If some items are returned, report them
             Write-Host ("Found {0} items in folder {1}" -f $Items.Count, $Folder.displayName)
