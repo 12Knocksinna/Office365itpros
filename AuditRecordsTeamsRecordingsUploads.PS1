@@ -1,55 +1,80 @@
 # AuditRecordsTeamsRecordingsUploads.PS1
 # A script to show how to use audit records in the Office 365 audit log to track uploads of Teams meeting recordings
 
-$Status = Get-ConnectionInformation -ErrorAction SilentlyContinue
-If (!($Status)) {
-  Connect-ExchangeOnline -SkipLoadingCmdletHelp 
+# article at https://office365itpros.com/2021/06/29/track-creation-teams-meeting-recordings/
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/AuditRecordsTeamsRecordingsUploads.PS1
+
+# This part is to generate a hash table of OneDrive sites that we can use to look up for audit records
+Import-Module Microsoft.Online.SharePoint.PowerShell -UseWindowsPowerShell
+# Make sure that you use the right URL for your tenant here
+Connect-SPOService -Url https://office365itpros-admin.sharepoint.com
+[array]$OneDriveSites = Get-SPOSite -IncludePersonalSite $true -Limit all -Filter "Url -like '-my.sharepoint.com/personal/'"
+# Build the hash table
+$OneDriveHashTable = @{}
+ForEach ($Site in $OneDriveSites) { 
+    [string]$SiteKey = $Site.URL + "/"
+    $OneDriveHashTable.Add($SiteKey, $Site.Owner) 
 }
 
-# Start and end date for the audit scan. By default, we look for 14 days, but you can choose 
-# any value you like up to 365 (assuming Office 365 E5)
-$StartDate = (Get-Date).AddDays(-180); $EndDate = (Get-Date) # Set your own date span here!
-$OutputCSVFile = "C:\temp\AuditEventsTeamsRecordings.csv"
+# Connect to Exchange Online, if we're not already connected
+$Modules = Get-Module | Select-Object -ExpandProperty Name
+If ("ExchangeOnlineManagement" -notin $Modules) {
+    Write-Host "Connecting to Exchange Online..."
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp
+}
 
-# Find the audit records
-[array]$Records = (Search-UnifiedAuditLog -Operations FileUploaded, FileModified -StartDate `
-   $StartDate -EndDate $EndDate -Formatted -ResultSize 5000 -SessionCommand ReturnLargeset)
+$StartDate = (Get-Date).AddDays(-180)
+$EndDate = Get-Date
+Write-Host "Searching for Teams recordings upload records..."
+[array]$Records = Search-UnifiedAuditLog -Operations FileUploaded, FileModified `
+ -StartDate $StartDate -EndDate $EndDate -Formatted -ResultSize 5000 -SessionCommand ReturnLargeSet `
+ -UserIds "app@sharepoint" -RecordType SharePointFileOperation
 
 If (!($Records)) {
-   Write-Host "No audit records found - exiting!"; break
+    Write-Host "No audit records found - exiting!"; break
 }
-$Records = $Records | Sort-Object {$_.CreationDate -as [datetime]}
+
+$Records = $Records | Sort-Object Identity -Unique
 
 $TaggedRecordings = [System.Collections.Generic.List[Object]]::new() 	
 ForEach ($Rec in $Records) {
    $AuditData = $Rec.AuditData | ConvertFrom-Json
-   If (($AuditData.SourceFileExtension -eq "mp4") -and ($AuditData.SourceRelativeUrl -like "*/Recordings")) { 
-      $RecordingFileName = $AuditData.SourceFileName
-      $DateLoc = $RecordingFileName.IndexOf("-202")
-      If ($DateLoc -eq -1) {$Topic = $RecordingFileName} Else {$Topic = $RecordingFileName.SubString(0,$DateLoc)}
-      $DataLine = [PSCustomObject] @{
-         Workload            = $AuditData.Workload
-         Date                = $Rec.CreationDate
-         User                = $Rec.UserIds
-         Recording           = $RecordingFileName
-         "Meeting title"     = $Topic
-         Site                = $AuditData.SiteURL
-         FullURL             = $AuditData.ObjectId
-         Folder              = $AuditData.SourceRelativeURL
-         Operation           = $Rec.Operations }
+  
+   If (($AuditData.SourceFileExtension -eq "mp4") -and ($AuditData.SourceRelativeUrl -like "*/Recordings") `
+     -and $AuditData.SourceFileName.Substring(0,4) -ne "~tmp") { 
+        $A += $AuditData
+        $RecordingFileName = $AuditData.SourceFileName
+        $DateLoc = $RecordingFileName.IndexOf("-202")
+        If ($DateLoc -eq -1) {
+            $Topic = $RecordingFileName
+        } Else {
+            $Topic = $RecordingFileName.SubString(0,$DateLoc)
+        }   
+        $User = $OneDriveHashTable[$AuditData.SiteURL]
+        $CreationDate = Get-Date $Rec.CreationDate -format 'dd-MMM-yyyy HH:mm:ss'
+        $DataLine = [PSCustomObject] @{
+            Workload            = $AuditData.Workload
+            Operation           = $Rec.Operations
+            Date                = $CreationDate
+            User                = $User
+            Recording           = $RecordingFileName
+            "Meeting title"     = $Topic
+            Site                = $AuditData.SiteURL
+            FullURL             = $AuditData.ObjectId
+            Folder              = $AuditData.SourceRelativeURL
+         }
     $TaggedRecordings.Add($DataLine) 
 
    } #End If
 } #End For
 
-# Generate the list of audit events for Teams recordings
-$UploadedMeetings = $TaggedRecordings | Where-Object {$_.Recording -notlike "*~tmp*"}
-$UploadedMeetings | Out-GridView
-$UploadedMeetings | Export-CSV -NoTypeInformation $OutputCSVFile
-
+$TaggedRecordings = $TaggedRecordings | Sort-Object {$_.Date -as [datetime]} -Descending
+$CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TeamsRecordings.csv"
+$TaggedRecordings | Out-GridView -Title 'Teams Recordings Uploads' 
+$TaggedRecordings | Export-CSV -NoTypeInformation $CSVOutputFile -Encoding utf8
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
-# first validating the code in a non-production environment.
+# first validating the code in a non-production envi
