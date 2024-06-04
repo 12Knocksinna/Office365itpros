@@ -1,7 +1,7 @@
 # Report-DelegatePermissions.PS1
 # A script to demonstrate how to report delegated permissions held by Entra ID user accounts
 # V1.0 4-June-2024
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-DelegatedPermissions.PS1
 
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All
 # Find licensed users
@@ -48,6 +48,7 @@ ForEach ($User in $Users) {
         }
         # Generate the output
         $ReportLine = [PSCustomObject][Ordered]@{
+            'Consent type'      = $Permission.consentType
             UserPrincipalName   = $User.UserPrincipalName
             Client              = $ClientDisplayName
             Resource            = $ResourceDisplayName
@@ -56,6 +57,47 @@ ForEach ($User in $Users) {
         }
         $Report.Add($ReportLine)
     }
+}
+
+# Now handle the AppPrincipals delegated permissions
+Write-Host "Checking delegated permissions for all user accounts (AllPrincipals)"
+[array]$AllPermissions = Get-MgOauth2PermissionGrant -filter "consentType eq 'AllPrincipals'" -All 
+Write-Host ("{0} delegated permissions found for all user accounts" -f $AllPermissions.count)
+[int]$i = 0
+ForEach ($AllPermission in $AllPermissions) {
+    $i++
+    # Try to look up client and resource names in the hash tables. If we find an entry, use the 
+    # display name, else run Get-MgServicePrincipal to find the display name and store it
+    $ClientDisplayName = $ClientIds[$AllPermission.ClientId]
+    If ($null -eq $ClientDisplayName) {
+        $ClientDisplayName = (Get-MgServicePrincipal -ServicePrincipalId $AllPermission.ClientId).displayName
+        $ClientIds.Add($AllPermission.ClientId, $ClientDisplayName)
+    }
+    Write-Host ("Checking permission for client {0} ({1}/{2})" -f $ClientDisplayName, $i, $AllPermissions.count)
+    $ResourceDisplayName = $ResourceIds[$AllPermission.ResourceId]
+    If ($null -eq $ResourceDisplayName) {
+        $ResourceDisplayName = (Get-MgServicePrincipal -ServicePrincipalId $AllPermission.ResourceId).displayName
+        $ResourceIds.Add($AllPermission.ResourceId, $ResourceDisplayName)
+    }
+    # Find the set of assigned scopes, ignoring some of the common scopes
+    [array]$Scopes = $AllPermission.scope.Split(" ")
+    [array]$FoundScopes = $null
+    ForEach ($Scope in $Scopes) {
+        If ($Scope -in $IgnoredScopes -or [string]::isNullOrWhiteSpace($Scope)) {
+            Continue
+        }
+            $FoundScopes += $Scope
+        }
+    # Generate the output
+    $ReportLine = [PSCustomObject][Ordered]@{
+        'Consent type'      = $AllPermission.consentType
+        UserPrincipalName   = "All User Accounts"
+        Client              = $ClientDisplayName
+        Resource            = $ResourceDisplayName
+        Scopes              = $FoundScopes -join ", "
+        ClientId            = $AllPermission.ClientId
+    }
+    $Report.Add($ReportLine)
 }
 
 $Report | Out-GridView -Title "Delegated Permissions Report"
