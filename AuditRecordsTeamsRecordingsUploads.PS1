@@ -1,6 +1,6 @@
 # AuditRecordsTeamsRecordingsUploads.PS1
 # A script to show how to use audit records in the Office 365 audit log to track uploads of Teams meeting recordings
-
+# V2.0 updated 4-June-2024 to deal with the new mechanism for uploading Teams meeting recordings to OneDrive for Business
 # article at https://office365itpros.com/2021/06/29/track-creation-teams-meeting-recordings/
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/AuditRecordsTeamsRecordingsUploads.PS1
 
