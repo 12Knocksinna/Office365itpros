@@ -21,7 +21,6 @@ function FormatFileSize {
       Return $FileSize    
 } 
 
-
 # Connect to Exchange Online, if we're not already connected
 $Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -notin $Modules) {
@@ -31,6 +30,7 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
 # Connect to the Graph with an Entra ID app that has the Mail.Read permission
 Connect-MgGraph -AppId $AppId -Scopes $Scopes -TenantId $TenantId -CertificateThumbprint $Thumbprint
 
+Write-Host "Scanning for mailboxes..."
 [array]$NoReportFolders = @("Audits", "Calendar Logging", "SubstrateHolds")
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited
 If (!($Mbx)) {
