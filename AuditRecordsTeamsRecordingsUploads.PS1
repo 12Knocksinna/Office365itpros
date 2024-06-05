@@ -8,7 +8,8 @@
 Import-Module Microsoft.Online.SharePoint.PowerShell -UseWindowsPowerShell
 # Make sure that you use the right URL for your tenant here
 Connect-SPOService -Url https://office365itpros-admin.sharepoint.com
-[array]$OneDriveSites = Get-SPOSite -IncludePersonalSite $true -Limit all -Filter "Url -like '-my.sharepoint.com/personal/'"
+[array]$OneDriveSites = Get-SPOSite -IncludePersonalSite $true -Limit All `
+    -Filter "Url -like '-my.sharepoint.com/personal/'" | Select-Object URL, Owner
 # Build the hash table
 $OneDriveHashTable = @{}
 ForEach ($Site in $OneDriveSites) { 
