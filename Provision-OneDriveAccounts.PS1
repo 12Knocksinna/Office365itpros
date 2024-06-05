@@ -2,7 +2,7 @@
 # A script to pre-provision OneDrive for Business accounts
 # A fixed version of what's in https://learn.microsoft.com/en-us/sharepoint/pre-provision-accounts#pre-provision-onedrive-for-all-licensed-users-in-your-organization
 # V1.0 5-June-2024
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Provision-OneDriveAccounts.PS1
 
 # Connect to the Microsoft Graph PowerShell SDK
 Try {
