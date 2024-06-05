@@ -6,7 +6,7 @@
 # V2.0 10-Oct-2022
 # V2.1 19-Jul-2022 Updated for Graph SDK V2
 
-Connect-MgGraph -Scopes AuditLog.Read.All, Directory.Read.All
+Connect-MgGraph -Scopes AuditLog.Read.All, Directory.Read.All -NoWelcome
 
 # Set age threshold for reporting a guest account
 [int]$AgeThreshold = 365
@@ -14,7 +14,7 @@ Connect-MgGraph -Scopes AuditLog.Read.All, Directory.Read.All
 $OutputReport = "c:\Temp\OldGuestAccounts.csv"
 # Get all guest accounts in the tenant
 Write-Host "Finding Guest Accounts..."
-[Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All -Property Id, displayName, userPrincipalName, createdDateTime, signInActivity `
+[Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All -PageSize 999 -Property Id, displayName, userPrincipalName, createdDateTime, signInActivity `
     | Sort-Object displayName
 $i = 0; $Report = [System.Collections.Generic.List[Object]]::new()
 # Loop through the guest accounts looking for old accounts 

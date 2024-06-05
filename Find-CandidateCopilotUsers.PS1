@@ -30,7 +30,7 @@ Write-Host "Finding user accounts to check..."
     or assignedLicenses/any(s:s/skuid eq 05e9a617-0261-4cee-bb44-138d3ef5d965) `
     or assignedLicenses/any(s:s/skuid eq 06ebc4ee-1bb5-47dd-8120-11324bc54e06)" `
     -ConsistencyLevel Eventual -CountVariable Licenses -All -Sort 'displayName' `
-    -Property Id, displayName, signInActivity, userPrincipalName
+    -Property Id, displayName, signInActivity, userPrincipalName -PageSize 999
 
 Write-Host "Fetching usage data for Teams, Exchange, and OneDrive for Business..."
 # Get Teams user activity detail for the last 30 days
