@@ -4,8 +4,9 @@
 # article at https://office365itpros.com/2021/06/29/track-creation-teams-meeting-recordings/
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/AuditRecordsTeamsRecordingsUploads.PS1
 
+Write-Host "Connecting to SharePoint Online to fetch details of OneDrive for Business sites..."
 # This part is to generate a hash table of OneDrive sites that we can use to look up for audit records
-Import-Module Microsoft.Online.SharePoint.PowerShell -UseWindowsPowerShell
+Import-Module Microsoft.Online.SharePoint.PowerShell -UseWindowsPowerShell 
 # Make sure that you use the right URL for your tenant here
 Connect-SPOService -Url https://office365itpros-admin.sharepoint.com
 [array]$OneDriveSites = Get-SPOSite -IncludePersonalSite $true -Limit All `
@@ -26,7 +27,7 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
 
 $StartDate = (Get-Date).AddDays(-180)
 $EndDate = Get-Date
-Write-Host "Searching for Teams recordings upload records..."
+Write-Host "Searching for Teams recordings upload audit records..."
 [array]$Records = Search-UnifiedAuditLog -Operations FileUploaded, FileModified `
  -StartDate $StartDate -EndDate $EndDate -Formatted -ResultSize 5000 -SessionCommand ReturnLargeSet `
  -UserIds "app@sharepoint" -RecordType SharePointFileOperation
@@ -43,7 +44,6 @@ ForEach ($Rec in $Records) {
   
    If (($AuditData.SourceFileExtension -eq "mp4") -and ($AuditData.SourceRelativeUrl -like "*/Recordings") `
      -and $AuditData.SourceFileName.Substring(0,4) -ne "~tmp") { 
-        $A += $AuditData
         $RecordingFileName = $AuditData.SourceFileName
         $DateLoc = $RecordingFileName.IndexOf("-202")
         If ($DateLoc -eq -1) {
@@ -54,6 +54,9 @@ ForEach ($Rec in $Records) {
         # All uploads are performed by the app@sharepoint account, so we try to use the hash table
         # to figure out the owner of the target OneDrive for Business account
         $User = $OneDriveHashTable[$AuditData.SiteURL]
+        If ($null -eq $User) {
+            $User = "SharePoint app"
+        }
         $CreationDate = Get-Date $Rec.CreationDate -format 'dd-MMM-yyyy HH:mm:ss'
         $DataLine = [PSCustomObject] @{
             Workload            = $AuditData.Workload
