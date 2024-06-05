@@ -36,7 +36,8 @@ If (!($Records)) {
     Write-Host "No audit records found - exiting!"; break
 }
 
-$Records = $Records | Sort-Object Identity -Unique
+# Remove duplicates and make sure that we have a set sorted by date
+$Records = $Records | Sort-Object Identity -Unique | Sort-Object {$_.CreationDate -as [datetime]} -Descending
 
 $TaggedRecordings = [System.Collections.Generic.List[Object]]::new() 	
 ForEach ($Rec in $Records) {
