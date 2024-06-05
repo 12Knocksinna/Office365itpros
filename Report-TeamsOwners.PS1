@@ -4,7 +4,7 @@
 
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All
 Write-Host "Finding teams..."
-[array]$Teams = Get-MgGroup -Filter "resourceProvisioningOptions/any(x:x eq 'Team')" -All | Sort-Object DisplayName
+[array]$Teams = Get-MgGroup -Filter "resourceProvisioningOptions/any(x:x eq 'Team')" -All -PageSize 999 | Sort-Object DisplayName
 If ($Teams) {
     Write-Host ("Found {0} teams. Now processing..." -f $Teams.count)
 } Else {

@@ -5,8 +5,8 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportM365GroupMemberships.PS1
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportM365GroupMemberships-Graph.PS1 is a version of this script that uses Graph API requests
 
-CLS
-Connect-MgGraph -Scope Directory.Read.All, Group.Read.All, GroupMember.Read.All
+Clear-Host
+Connect-MgGraph -Scope Directory.Read.All, Group.Read.All, GroupMember.Read.All -NoWelcome
 Select-MgProfile Beta
 
 $OrgName = (Get-MgOrganization).displayName
@@ -17,13 +17,16 @@ $CSVFileMembers = "c:\temp\M365MembersReport.csv"
 
 $MemberList = [System.Collections.Generic.List[Object]]::new()
 $SummaryData = [System.Collections.Generic.List[Object]]::new()
-$UserNoGroups = 0; $UserWithGroups = 0
+
 $CreationDate = Get-Date -format g
-CLS
+Clear-Host
 
 Write-Host "Fetching user information from Azure Active Directory..."
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All
-If (!($Users)) { Write-Host "Can't get user information from Azure AD - exiting" ; break }
+[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual `
+  -CountVariable Records -All -PageSize 999
+If (!($Users)) { 
+  Write-Host "Can't get user information from Azure AD - exiting" ; break 
+}
 $Users = $Users | Sort-Object DisplayName
 $S1 = Get-Date
 
@@ -32,7 +35,7 @@ $S1 = Get-Date
 $TeamsHash = @{}
 $Teams.ForEach( {
    $TeamsHash.Add($_.Id, $_.DisplayName) } )
-CLS
+Clear-Host
 # Set up progress bar
 $ProgDelta = 100/($Users.Count); $CheckCount = 0; $UserNumber = 0
 ForEach ($User in $Users) {
@@ -46,7 +49,7 @@ ForEach ($User in $Users) {
   [array]$Groups = $Data.Value
   
   If ($Groups) { # We found some groups for this recipient - process them
-   $Groups = $Groups | Sort DisplayName
+   $Groups = $Groups | Sort-Object DisplayName
    $AllGroups = $Groups.DisplayName -Join ", "
    ForEach ($Group in $Groups)  { 
      [array]$Owners = $null # Get group owners
@@ -85,7 +88,7 @@ ForEach ($User in $Users) {
   } #End Else
 } #End For 
 
-$SummaryData = $SummaryData | Sort "Groups Count" -Descending
+$SummaryData = $SummaryData | Sort-Object "Groups Count" -Descending
 $GCount = $MemberList | Select-Object "Group Email" | Sort-Object "Group EMail" -Unique
 $UsersNoGroups = ($SummaryData | Where-Object {$_."Groups Count" -eq 0}).Count
 $UsersWithGroups = ($SummaryData.Count - $UsersNoGroups)
@@ -133,7 +136,7 @@ $htmlreport | Out-File $ReportFile  -Encoding UTF8
 
 $MemberList | Export-CSV -NoTypeInformation $CSVFileMembers
 $SummaryData | Export-CSV -NoTypeInformation $CSVFileSummary
-CLS
+Clear-Host
 Write-Host "Microsoft 365 Group Membership Report - Job Complete"
 Write-Host "----------------------------------------------------"
 Write-Host " "

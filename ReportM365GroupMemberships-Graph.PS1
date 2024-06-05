@@ -72,9 +72,9 @@ function Get-GraphData {
 # End Functions
 
 
-CLS
+Clear-Host
 # Check that we are connected to Exchange Online
-$ModulesLoaded = Get-Module | Select Name
+$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 # The need for the Exchange Online module only exists to get the organization name. If you want to hard code this variable, you can eliminate the need to load the EXO module
 $OrgName = (Get-OrganizationConfig).Name
@@ -86,7 +86,6 @@ $CSVFileMembers = "c:\temp\M365MembersReport.csv"
 
 $MemberList = [System.Collections.Generic.List[Object]]::new()
 $SummaryData = [System.Collections.Generic.List[Object]]::new()
-$UserNoGroups = 0; $UserWithGroups = 0
 $CreationDate = Get-Date -format g
 
 # Define the values applicable for the application used to connect to the Graph - these variables differ from tenant to tenant and from app to app
@@ -113,12 +112,12 @@ $Headers = @{
             'Authorization' = "Bearer $Token" 
             'ConsistencyLevel' = "eventual" }
 
-CLS
+Clear-Host
 Write-Host "Fetching user information from Azure Active Directory..."
 $Uri = "https://graph.microsoft.com/v1.0/users?&`$select=displayName,usertype,assignedlicenses,id,mail,userprincipalname"
 $Users = Get-GraphData -AccessToken $Token -Uri $uri
 # Now get rid of all the accounts created for room and resource mailboxes, service accounts etc.
-$Users = $Users |?{($_.UserType -eq "Member" -and $_.AssignedLicenses -ne $Null) -or ($_.UserType -eq "Guest")}
+$Users = $Users | Where-Object {($_.UserType -eq "Member" -and $_.AssignedLicenses -ne $Null) -or ($_.UserType -eq "Guest")}
 
 # Get a list of Teams and put them into a hash table so that we can mark the groups we process as being team-enabled
 $uri = "https://graph.microsoft.com/V1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')"
@@ -138,7 +137,7 @@ ForEach ($User in $Users) {
   # Get Microsoft 365 groups this user is a member of and sort by displayname
   $Uri = "https://graph.microsoft.com/v1.0/users/" + $user.id +"/transitiveMemberOf"
   $Groups = Get-GraphData -AccessToken $Token -Uri $Uri
-  $Groups = $Groups | ?{$_.Grouptypes -eq "unified"} | Sort DisplayName
+  $Groups = $Groups | Where-Object {$_.Grouptypes -eq "unified"} | Sort-Object DisplayName
   If ($Groups) { # We found some groups for this recipient - process them
    $AllGroups = $Groups.DisplayName -Join ", "
    $g = 0
@@ -180,9 +179,9 @@ ForEach ($User in $Users) {
   } #End Else
 } #End For 
 
-$SummaryData = $SummaryData | Sort "Groups Count" -Descending
-$GCount = $MemberList | Sort "Group Email" -unique
-$UsersNoGroups = ($SummaryData | ? {$_."Groups Count" -eq 0}).Count
+$SummaryData = $SummaryData | Sort-Object "Groups Count" -Descending
+$GCount = $MemberList | Sort-Object "Group Email" -unique
+$UsersNoGroups = ($SummaryData | Where-Object {$_."Groups Count" -eq 0}).Count
 $UsersWithGroups = ($SummaryData.Count - $UsersNoGroups)
 $S2 = Get-Date
 $TotalSeconds = [math]::round(($S2-$S1).TotalSeconds,2)
@@ -228,7 +227,7 @@ $htmlreport | Out-File $ReportFile  -Encoding UTF8
 
 $MemberList | Export-CSV -NoTypeInformation $CSVFileMembers
 $SummaryData | Export-CSV -NoTypeInformation $CSVFileSummary
-CLS
+Clear-Host
 Write-Host "Microsoft 365 Group Membership Report (Graph Version) - Job Complete"
 Write-Host "--------------------------------------------------------------------"
 Write-Host " "

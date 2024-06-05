@@ -9,20 +9,23 @@ If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connec
 
 Write-Host "Fetching list of teams..."
 # $Teams = (Get-Team | Sort DisplayName)
-$Teams = Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited | Select Alias, ManagedBy, WhenCreated, GroupMemberCount, DisplayName, ExternalDirectoryObjectId | Sort DisplayName
+$Teams = Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited | `
+   Select-Object Alias, ManagedBy, WhenCreated, GroupMemberCount, DisplayName, ExternalDirectoryObjectId | `
+   Sort-Object DisplayName
 Write-Host "Starting to process" $Teams.Count "teams"
-$Count = 0; CLS; $GroupNumber = 0
+$Count = 0; Clear-Host ; $GroupNumber = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($T in $Teams) {
   $ActiveStatus = "Inactive"
   $GroupNumber++
   $ProgressBar = "Processing team " + $T.DisplayName + " (" + $GroupNumber + " of " + $Teams.Count + ")" 
   Write-Progress -Activity "Checking Teams for activity" -Status $ProgressBar -PercentComplete ($GroupNumber/$Teams.Count*100)
-  # $G = Get-UnifiedGroup -Identity $T.GroupId | Select Alias, ManagedBy, WhenCreated, GroupMemberCount, DisplayName, ExternalDirectoryObjectId
-  $TeamsData = (Get-ExoMailboxFolderStatistics -Identity $T.ExternalDirectoryObjectId -FolderScope NonIpmRoot -IncludeOldestAndNewestItems | ? {$_.FolderType -eq "TeamsMessagesData"})
+  # $G = Get-UnifiedGroup -Identity $T.GroupId | Select-Object Alias, ManagedBy, WhenCreated, GroupMemberCount, DisplayName, ExternalDirectoryObjectId
+  $TeamsData = (Get-ExoMailboxFolderStatistics -Identity $T.ExternalDirectoryObjectId -FolderScope NonIpmRoot -IncludeOldestAndNewestItems | `
+   Where-Object {$_.FolderType -eq "TeamsMessagesData"})
   If ($TeamsData.ItemsInFolder) {
        # Write-Host "Processing" $T.DisplayName
-       If ($TeamsData.OldestItemReceivedDate -ne $Null) {
+       If ($null -ne $TeamsData.OldestItemReceivedDate ) {
            $TimeSinceCreation = (New-TimeSpan -Start $TeamsData.OldestItemReceivedDate -End (Get-Date)).Days }
        Else {
            $TimeSinceCreation = "No compliance records found" }
@@ -57,9 +60,9 @@ ForEach ($T in $Teams) {
      ActiveStatus = $ActiveStatus}
   $Report.Add($ReportLine)
 }
-CLS
+Clear-Host
 Write-Host $Count "of" $Teams.Count "have some Teams activity"
-$Report | Group ActiveStatus | Sort Count -Descending | Format-Table Name, count
+$Report | Group-Object ActiveStatus | Sort-Object Count -Descending | Format-Table Name, count
 $Report | Export-CSV c:\temp\TeamsReport.csv -NoTypeInformation
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.

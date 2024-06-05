@@ -106,7 +106,7 @@ If ($ImportSkus[0].Price) {
 # Find tenant accounts - but filtered so that we only fetch those with licenses
 Write-Host "Finding licensed user accounts..."
 [Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'"  `
-  -ConsistencyLevel eventual -CountVariable Records -All `
+  -ConsistencyLevel eventual -CountVariable Records -All -PageSize 999 `
   -Property id, displayName, userPrincipalName, country, department, assignedlicenses, `
   licenseAssignmentStates, createdDateTime, jobTitle, signInActivity, companyName |  `
   Sort-Object DisplayName
