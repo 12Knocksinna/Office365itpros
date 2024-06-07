@@ -37,7 +37,8 @@ Write-Host "Looking for users with OneDrive licenses..."
     -ConsistencyLevel eventual -CountVariable Test -All -PageSize 999 `
     -Property Id, displayName, userprincipalName, assignedLicenses, assignedPlans, department, country `
     -Sort displayName
-Write-Host ("Found {0} users with OneDrive licenses" -f $Users.Count)
+Write-Host ("Found {0} users with SharePoint (OneDrive) licenses" -f $Users.Count)
+
     # Check each user to see if a OneDrive site exists. If not, force its provisioning
 
 [int]$CountOfProvisionedSites = 0
