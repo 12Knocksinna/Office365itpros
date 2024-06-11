@@ -1,7 +1,7 @@
 # Post-ItemstoHTTPWorkFlow.ps1
 # An example of posting an adaptive card to the Power Automate 'Post to a channel when a webhook request is received' workflow
 # V1.0 12-Jun-2024
-# Github link: 
+# Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/Post-ItemsToHTTPWorkFlow.PS1
 
 # Define a protype adaptive card to use to post to the webhook
 $Card = '{
