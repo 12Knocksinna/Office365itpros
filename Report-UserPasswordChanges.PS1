@@ -4,18 +4,19 @@
 # an account is active.
 # V1.0 5-Jan-2024
 # V1.1 17-Mar-2024
+# V1.2 12-June-2024 Add check for per-user MFA state
 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-UserPasswordChanges.PS1
 
 Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All, UserAuthenticationMethod.Read.All
 
 [string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
-$Version = "1.1"
-$CSVOutputFile = "c:\temp\UserAuthenticationReport.CSV"
-$ReportFile = "c:\temp\UserAuthenticationReport.html"
+$Version = "1.2"
+$CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.CSV"
+$ReportFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.html"
 
 # Define the optional MFA user sign-in file downloaded from the Entra ID admin center
-$UserSignInDataFile = "c:\temp\InteractiveSignIns.CSV"
+$UserSignInDataFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InteractiveSignIns.csv"
 # Flag indicating if MFA user sign-in data is available
 $MFADataAvailable = $false
 
@@ -36,11 +37,11 @@ If (Test-Path $UserSignInDataFile) {
 
 Write-Host "Retrieving user details"
 # We use a Graph API request here instead of an SDK cmdlet because the Last successful interactive sign in data is
-# unavailable in SDK V2.12
+# unavailable in SDK V2.19
 
 $ContentType = "application/json"
 $Headers = @{ConsistencyLevel="Eventual"}  
-$Uri = "https://graph.microsoft.com/beta/users?`$count=true&`$filter=(assignedLicenses/`$count ne 0 and userType eq 'Member')&$`top=999&`$select=id, displayName, usertype, signInActivity, SignInSessionsValidFromDateTime, LastPasswordChangeDateTime, passwordPolicies"
+$Uri = "https://graph.microsoft.com/beta/users?`$count=true&`$filter=(assignedLicenses/`$count ne 0 and userType eq 'Member')&$`top=999&`$select=id, displayName, userprincipalname, usertype, signInActivity, SignInSessionsValidFromDateTime, LastPasswordChangeDateTime, passwordPolicies"
 [array]$Data = Invoke-MgGraphRequest -Uri $Uri -Headers $Headers -ContentType $ContentType
 [array]$Users = $Data.Value
 
@@ -98,6 +99,10 @@ While ($null -ne $Nextlink) {
     $UserMFAStatus  = $MFAData | Where-Object {$_.Id -eq $User.Id}
     $AuthenticationTypesOutput = $UserMFAStatus.MethodsRegistered -join ", "
 
+    # Get per-user MFA data if possible
+    $Uri = ("https://graph.microsoft.com/beta/users/{0}/authentication/requirements" -f $User.id)
+    $Data = Invoke-MgGraphRequest -Uri $Uri -Method Get
+
     # Make sure dates are all in a common format
     If ($LastSignIn) {
         $LastSignInOutput = (Get-Date $LastSignIn -format 'dd-MMM-yyyy HH:mm')
@@ -139,6 +144,7 @@ While ($null -ne $Nextlink) {
             'MFA last used'                    = $MFAVerifiedDate
             'MFA default method'               = $UserMFAStatus.DefaultMfaMethod
             'Secondary auth. method'           = $UserMFAStatus.UserPreferredMethodForSecondaryAuthentication
+            'Per user MFA state'               = $Data.perUserMfaState
         }
     } Else {
         $DataLine = [PSCustomObject][Ordered]@{
@@ -160,6 +166,7 @@ While ($null -ne $Nextlink) {
             'MFA registered'                   = $UserMFAStatus.IsMfaRegistered
             'MFA default method'               = $UserMFAStatus.DefaultMfaMethod
             'Secondary auth. method'           = $UserMFAStatus.UserPreferredMethodForSecondaryAuthentication
+            'Per user MFA state'               = $Data.perUserMfaState
         }
     }
     # Output report line
@@ -168,6 +175,7 @@ While ($null -ne $Nextlink) {
  
 # Now to generate a HTML report
 Write-Host "Generating HTML report..."
+[array]$PerUserMFAStates = "enabled", "enforced"
 $OrgName  = (Get-MgOrganization).DisplayName
 #  First, define the header.
 $HTMLHead="<html>
@@ -181,7 +189,8 @@ $HTMLHead="<html>
 	   TD{border: 1px solid #969595; padding: 5px; }
 	   td.admin{background: #B7EB83;}
 	   td.mfacapable{background: #E3242B;}
-       td.mfaregistered{background: #FFFF00;}
+       td.mfaperuserenabled{background: #FFFF00;}
+       td.mfaregistered{background: #FF474C;}
 	   </style>
 	   <body>
            <div align=center>
@@ -192,28 +201,33 @@ $HTMLHead="<html>
 # This section highlights whether a conditional access policy is enabled or disabled in the summary.
 # Idea from https://stackoverflow.com/questions/37662940/convertto-html-highlight-the-cells-with-special-values
 # First, convert the CA Policies report to HTML and then import it into an XML structure
+
 $HTMLTable = $Report | ConvertTo-Html -Fragment
 [xml]$XML = $HTMLTable
 # Create an attribute class to use, name it, and append to the XML table attributes
 $TableClass = $XML.CreateAttribute("class")
 $TableClass.Value = "State"
 $XML.table.Attributes.Append($TableClass) | Out-Null
-# Conditional formatting for the table rows. The number of available units is in table row 6, so we update td[5]
+# Conditional formatting for the table rows.  
 ForEach ($TableRow in $XML.table.SelectNodes("tr")) {
     # each TR becomes a member of class "tablerow"
     $TableRow.SetAttribute("class","tablerow")
     # If row has the admin flag set to true
-    If (($TableRow.td) -and ([string]$TableRow.td[11] -eq 'True'))  {
+    If (($TableRow.td) -and ([string]$TableRow.td[13] -eq 'True'))  {
         ## tag the TD with either the color for admin in the heading
-        $TableRow.SelectNodes("td")[11].SetAttribute("class","admin")
+        $TableRow.SelectNodes("td")[13].SetAttribute("class","admin")
     }
     # If MFA capable
-    If (($TableRow.td) -and ([string]$TableRow.td[12] -eq 'True')) {
-        $TableRow.SelectNodes("td")[12].SetAttribute("class","mfacapable")
+    If (($TableRow.td) -and ([string]$TableRow.td[14] -eq 'True')) {
+        $TableRow.SelectNodes("td")[14].SetAttribute("class","mfacapable")
     }
     # If MFA registered
-    If (($TableRow.td) -and ([string]$TableRow.td[13] -eq 'True')) {
-        $TableRow.SelectNodes("td")[13].SetAttribute("class","mfaregistered")
+    If (($TableRow.td) -and ([string]$TableRow.td[15] -eq 'True')) {
+        $TableRow.SelectNodes("td")[15].SetAttribute("class","mfaregistered")
+    }
+    # Per-user MFA status
+    If (($TableRow.td) -and ([string]$TableRow.td[19] -in $PerUserMFAStates)) {
+        $TableRow.SelectNodes("td")[19].SetAttribute("class","mfaperuserenabled")
     }
 }
 # Wrap the output table with a div tag
@@ -226,7 +240,14 @@ $HTMLBody = [string]::Format('<div class="tablediv">{0}</div>',$XML.OuterXml)
 [int]$NumberAdminNoMFA = $AdminNoMFA.Count
 [int]$NumberUsersNoMFA =  ($Users.Count - $MFAUsers.count)
 $PercentMFAUsers = ($NumberUsersNoMFA/$Users.Count).ToString("P")
-$PercentMFAAdmins = ($NumberAdminNoMFA/$AdminUsers.Count).ToString("P")
+If ($NumberofAdmins -eq 0) {
+    $PercentMFAAdmins = "N/A"
+} Else {
+    $PercentMFAAdmins = ($NumberAdminNoMFA/$AdminUsers.Count).ToString("P")
+}
+[array]$PerUserMFAEnabled = $Report | Where-Object {$_.'Per user MFA state' -eq 'enabled'}
+[array]$PerUserMFAEnforced = $Report | Where-Object {$_.'Per user MFA state' -eq 'enforced'}
+
 
 # If MFA data is available, find out how many MFA-capable users are actually connecting with MFA
 If ($MFADataAvailable) {
@@ -239,7 +260,15 @@ $HTMLTail = "<p>Report created for the " + $OrgName + " tenant on " + $RunDate +
 "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
 "<p>Number of user accouts analyzed:         " + $Users.Count + "</p>" +
 "<p>Number of admin accounts found:          " + $AdminUsers.Count + "</p>" +
-"<p>Number of accounts registred for MFA:    " + $MFAUsers.Count + "</p>"
+"<p>Number of accounts registred for MFA:    " + $MFAUsers.Count + "</p>" 
+
+IF ($PerUserMFAEnabled.Count -gt 0 -or $PerUserMFAEnforced.Count -gt 0) {
+    $HTMLTail = $HTMLTail +
+    "<p>Number of accounts with per-user MFA:    " + $PerUserMFAEnabled.Count + "</p>" +
+    "<p>Names of accounts enabled for per-user MFA: " + ($PerUserMFAEnabled.User -join ", ") + "</p>" +
+    "<p>Number of accounts with per-user MFA enforced: " + $PerUserMFAEnforced.Count + "</p>" +
+    "<p>Names of accounts with per-user MFA enforced: " + ($PerUserMFAEnforced.User -join ", ") + "</p>"
+}
 
 If ($MFADataAvailable) {
     $HTMLTail = $HTMLTail +
@@ -258,7 +287,7 @@ $HTMLReport = $HTMLHead + $HTMLBody + $HTMLtail
 $HTMLReport | Out-File $ReportFile  -Encoding UTF8
 
 $Report | Export-Csv -NoTypeInformation $CSVOutputFile -Encoding utf8
-Write-Host ("HTML format report is available in {0}  and CSV file in {1}" -f $ReportFile, $CSVOutputFile)
+Write-Host ("HTML format report is available in {0} and CSV file in {1}" -f $ReportFile, $CSVOutputFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
