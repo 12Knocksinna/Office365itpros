@@ -4,6 +4,9 @@
 # V1.0 19-Feb-2024
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Update-PlanWithTasks.PS1
 # See https://practical365.com/create-planner-tasks-powershell for an article showing how to use the script
+# The signed in user must be a member of the group owning the target plan. If not, use application permissions
+# by signing into the Graph using a client secret/certificate thumbnail and application ID. Make sure that the app has 
+# consent to use the necessary Graph permissions.
 
 Connect-MgGraph -NoWelcome -Scopes Group.Read.All, Tasks.ReadWrite, ServiceMessage.Read.All, User.Read.All
 
