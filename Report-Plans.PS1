@@ -50,7 +50,7 @@ ForEach ($Task in $UncompletedTasks) {
    # Write-Host ("Processing task {0}" -f $Task.title)
    $TaskData = @{} 
    # Convert assignment data to a hash table for processing
-   ($Task.assignments).psObject.Properties | ForEach { $TaskData[$_.Name] = $_.Value}
+   ($Task.assignments).psObject.Properties | ForEach-Object { $TaskData[$_.Name] = $_.Value}
    [array]$TaskAssignments = $TaskData.Keys
    [array]$TaskAssignmentDates = $TaskData.Values.assignedDateTime
    [int]$i = 0; $DaysSinceAssignment = $Null
@@ -189,14 +189,7 @@ $body = @{
   $TokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
 # Unpack Access Token
   $Global:Token = ($tokenRequest.Content | ConvertFrom-Json).access_token
-
-   Write-Host ("Retrieved new access token at {0}" -f (Get-Date)) -foregroundcolor red
-
-   $Global:Headers = @{
-            'Content-Type'  = "application\json"
-            'Authorization' = "Bearer $Token" 
-            'ConsistencyLevel' = "eventual" }
-	    
+  Write-Host ("Retrieved new access token at {0}" -f (Get-Date)) -foregroundcolor red   
   Return $Token
 }
 
@@ -324,6 +317,7 @@ $CountOfTasks = ($Report.Tasks | Measure-Object -Sum).sum
 $CountOfCompletedTasks = ($Report."Completed Tasks" | Measure-Object -Sum).sum
 $CountOfActiveTasks = $CountOfTasks - $CountOfCompletedTasks
 $PercentCompletedTasks = ($CountOfCompletedTasks/$CountOfTasks).toString("P")
+$PercentActiveTasks = ($CountOfActiveTasks/$CountOfTasks).toString("P")
 
 Write-Host "Generating analysis..."
 
@@ -400,13 +394,14 @@ $Htmltail = "<p><p>Report created for: " + ($OrgData.DisplayName) + "</p><p>" +
              "<p>Number of individual Tasks:                  " + $CountOfTasks + "</p>" +
              "<p>Number of Completed Tasks:                   " + $CountOfCompletedTasks + "</p>" +
              "<p>Percentage of Completed Tasks:               " + $PercentCompletedTasks + "</p>" +
+             "<p>Percentage of Active Tasks:                  " + $PercentActiveTasks + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------" +
              "<p>Microsoft 365 Groups and Plans <b>" + $Version + "</b>"	
 $HtmlReport = $HtmlHead + $HtmlReport + $HtmlTail
 $HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
 $Report | Export-CSV $CSVReportFile -Notypeinformation
 
-CLS
+Clear-Host
 Write-Host "Finishing processing plans. Here's what we found"
 Write-Host "------------------------------------------------"
 Write-Host ""
