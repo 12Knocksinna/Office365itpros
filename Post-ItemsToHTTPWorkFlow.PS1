@@ -46,8 +46,8 @@ Connect-MgGraph -NoWelcome -Scopes ServiceHealth.Read.All
 
 # Grab the service health data
 Write-Host "Retrieving service health data..."
-$uri = "https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/healthOverviews"
-[array]$data = invoke-MgGraphRequest -Method get -Uri $Uri
+$Uri = "https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/healthOverviews"
+[array]$Data = Invoke-MgGraphRequest -Method Get -Uri $Uri
 
 # Extract the service health data for the services we're interested in
 [array]$ImportantServiceStatus = $Data.Value | Where-Object {$_.Id -in $ImportantServices}
