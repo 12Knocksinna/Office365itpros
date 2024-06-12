@@ -35,10 +35,9 @@ $Card = '{
        ]
 }'
 
-# Webhook to post the adaptive card to
+# Webhook to post the adaptive card to - each team channel will have a different webhook
 #$Webhook = "https://prod-152.westeurope.logic.azure.com:443/workflows/dd73b0cf0934458099cb3847b111796b/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fCO7RgyxVULJynVUVUQic_IQFj4PzWckSYzAOalNQrI"
 $Webhook = "https://prod-107.westeurope.logic.azure.com:443/workflows/c34f1acbe7e4471ab49cd05d5148a829/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JGIXldJ-0DNfn3GntGeEQ09GiZJwioy78tc-iSXZeG0"
-
 
 # Connect to the Microsoft Graph PowerShell SDK with the permission to read service health data
 Connect-MgGraph -NoWelcome -Scopes ServiceHealth.Read.All
