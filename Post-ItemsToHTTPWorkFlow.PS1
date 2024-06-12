@@ -36,8 +36,7 @@ $Card = '{
 }'
 
 # Webhook to post the adaptive card to - each team channel will have a different webhook
-#$Webhook = "https://prod-152.westeurope.logic.azure.com:443/workflows/dd73b0cf0934458099cb3847b111796b/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fCO7RgyxVULJynVUVUQic_IQFj4PzWckSYzAOalNQrI"
-$Webhook = "https://prod-107.westeurope.logic.azure.com:443/workflows/c34f1acbe7e4471ab49cd05d5148a829/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=JGIXldJ-0DNfn3GntGeEQ09GiZJwioy78tc-iSXZeG0"
+$WebHook = "https://prod-161.westeurope.logic.azure.com:443/workflows/643e69f83c8944438d68119179a10a64/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=KODuebWbDGYFr0z0eu-6Rj8aUKz7108W3wrNJZxFE5A"
 
 # Connect to the Microsoft Graph PowerShell SDK with the permission to read service health data
 Connect-MgGraph -NoWelcome -Scopes ServiceHealth.Read.All
@@ -134,9 +133,15 @@ ForEach ($R in $Report) {
 $MessageHeader = "Microsoft 365 Critical Service Status at " + (Get-Date).ToString("dd-MMM-yyyy HH:mm:ss") 
 # Replace the fields in the protype card with the actual data
 $Card = $Card.Replace("MessageHeader",$MessageHeader).Replace("InsertFacts",$Facts)
+
 # And post the card to the webhook
 Write-Host "Posting adaptive card to webhook..."
-Invoke-MgGraphRequest -uri $WebHook -Method Post -body $Card 
+Try {
+    Invoke-MgGraphRequest -uri $WebHook -Method Post -body $Card 
+    Write-Host "Service health status successfully posted to Teams channel"
+} Catch {
+    Write-Host "Failed to post adaptive card to webhook: $_"
+}   
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
