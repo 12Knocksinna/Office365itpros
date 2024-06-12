@@ -254,7 +254,7 @@ ForEach ($Announcement in $Announcements) {
 # Now we need to check if any changes have happened to tasks in our plan
 # Start off by getting the set of known tasks in the plan
 # We're only interested in incomplete tasks, so that's why we filter out any that are marked as complete
-[array]$CurrentTasks = Get-MgPlannerPlanTask -PlannerPlanId $TargetPlan.Id | Where-Object  {$_.null -eq $_.CompletedDateTime}
+[array]$CurrentTasks = Get-MgPlannerPlanTask -PlannerPlanId $TargetPlan.Id -All -PageSize 999 | Where-Object  {$_.null -eq $_.CompletedDateTime}
 ForEach ($Task in $CurrentTasks) {
     # For each task, get its MC identifier
     $Start = $Task.Title.IndexOf("MC")
