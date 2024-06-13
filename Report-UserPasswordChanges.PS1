@@ -202,7 +202,8 @@ $HTMLHead="<html>
 # Idea from https://stackoverflow.com/questions/37662940/convertto-html-highlight-the-cells-with-special-values
 # First, convert the CA Policies report to HTML and then import it into an XML structure
 
-$HTMLTable = $Report | ConvertTo-Html -Fragment
+$HTMLTable = $Report | Select-Object User, UPN, 'Last password change', 'Days since password change', 'Last successful sign in', 'Days since sign in', 'Password policies applied', `
+    'Authentication types', 'Admin flag', 'MFA capable', 'MFA registered', 'MFA last used', 'MFA default method', 'Secondary auth. method', 'Per user MFA state' | ConvertTo-Html -Fragment
 [xml]$XML = $HTMLTable
 # Create an attribute class to use, name it, and append to the XML table attributes
 $TableClass = $XML.CreateAttribute("class")
@@ -213,21 +214,21 @@ ForEach ($TableRow in $XML.table.SelectNodes("tr")) {
     # each TR becomes a member of class "tablerow"
     $TableRow.SetAttribute("class","tablerow")
     # If row has the admin flag set to true
-    If (($TableRow.td) -and ([string]$TableRow.td[13] -eq 'True'))  {
+    If (($TableRow.td) -and ([string]$TableRow.td[8] -eq 'True'))  {
         ## tag the TD with either the color for admin in the heading
-        $TableRow.SelectNodes("td")[13].SetAttribute("class","admin")
+        $TableRow.SelectNodes("td")[8].SetAttribute("class","admin")
     }
     # If MFA capable
-    If (($TableRow.td) -and ([string]$TableRow.td[14] -eq 'True')) {
-        $TableRow.SelectNodes("td")[14].SetAttribute("class","mfacapable")
+    If (($TableRow.td) -and ([string]$TableRow.td[9] -eq 'True')) {
+        $TableRow.SelectNodes("td")[9].SetAttribute("class","mfacapable")
     }
     # If MFA registered
-    If (($TableRow.td) -and ([string]$TableRow.td[15] -eq 'True')) {
-        $TableRow.SelectNodes("td")[15].SetAttribute("class","mfaregistered")
+    If (($TableRow.td) -and ([string]$TableRow.td[10] -eq 'True')) {
+        $TableRow.SelectNodes("td")[10].SetAttribute("class","mfaregistered")
     }
     # Per-user MFA status
-    If (($TableRow.td) -and ([string]$TableRow.td[19] -in $PerUserMFAStates)) {
-        $TableRow.SelectNodes("td")[19].SetAttribute("class","mfaperuserenabled")
+    If (($TableRow.td) -and ([string]$TableRow.td[14] -in $PerUserMFAStates)) {
+        $TableRow.SelectNodes("td")[14].SetAttribute("class","mfaperuserenabled")
     }
 }
 # Wrap the output table with a div tag
