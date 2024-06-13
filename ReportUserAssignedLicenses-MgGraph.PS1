@@ -1,5 +1,5 @@
 # ReportUserAssignedLicenses-MgGraph.PS1
-# Create a report of licenses assigned to Azure AD user accounts using the Microsoft Graph PowerShell SDK cmdlets
+# Create a report of licenses assigned to Entra ID user accounts using the Microsoft Graph PowerShell SDK cmdlets
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUserAssignedLicenses-MgGraph.PS1
 # See https://practical365.com/create-licensing-report-microsoft365-tenant/ for an article describing how to run the report and 
 # https://practical365.com/report-user-license-costs/ for information about how to include licensing cost information
@@ -14,6 +14,7 @@
 # V1.6 12-Feb-2024 Added info to report when license costs can't be attributed to countries or departments because of missing user account properties
 # V1.7 7-Mar-2024  Added company name to the set of properties output by report
 # V1.8 17-Mar-2024 Tidy up
+# V1.9 1-June-2024 Add cost analysis for inactive and disabled accounts
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
@@ -43,7 +44,7 @@ Function Get-LicenseCosts {
 
 [datetime]$RunDate = Get-Date
 [string]$ReportRunDate = Get-Date ($RunDate) -format 'dd-MMM-yyyy HH:mm'
-$Version = "1.8"
+$Version = "1.9"
 
 # Default currency - can be overwritten by a value read into the $ImportSkus array
 [string]$Currency = "USD"
@@ -70,15 +71,15 @@ Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredent
 
 $SkuDataPath = "C:\temp\SkuDataComplete.csv"
 $ServicePlanPath = "C:\temp\ServicePlanDataComplete.csv"
-$CSVOutputFile = "c:\temp\Microsoft365LicensesReport.CSV"
-$HtmlReportFile = "c:\temp\Microsoft365LicensesReport.html"
+$CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft365LicensesReport.CSV"
+$HtmlReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
 
 If ((Test-Path $skuDataPath) -eq $False) {
-  Write-Host ("Can't find the product data file ({0}). Exiting..." -f $skuDataPath) ; break 
+    Write-Host ("Can't find the product data file ({0}). Exiting..." -f $skuDataPath) ; break 
 }
 If ((Test-Path $servicePlanPath) -eq $False) {
-  Write-Host ("Can't find the serivice plan data file ({0}). Exiting..." -f $servicePlanPath) ; break 
+    Write-Host ("Can't find the serivice plan data file ({0}). Exiting..." -f $servicePlanPath) ; break 
 }
    
 $ImportSkus = Import-CSV $skuDataPath
@@ -108,7 +109,7 @@ Write-Host "Finding licensed user accounts..."
 [Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'"  `
   -ConsistencyLevel eventual -CountVariable Records -All -PageSize 999 `
   -Property id, displayName, userPrincipalName, country, department, assignedlicenses, `
-  licenseAssignmentStates, createdDateTime, jobTitle, signInActivity, companyName |  `
+  licenseAssignmentStates, createdDateTime, jobTitle, signInActivity, companyName, accountenabled |  `
   Sort-Object DisplayName
 
 If (!($Users)) { 
@@ -230,9 +231,9 @@ ForEach ($User in $Users) {
       $DuplicateWarningReport = ("Warning: Duplicate licenses detected for: {0}" -f ($DuplicateSkuNames -join ", "))
     }
   } Else { 
-    $UnlicensedAccounts++
+      $UnlicensedAccounts++
   }
-
+  # Figure out the last time the account signed in. This is important for detecting unused accounts
   $LastSignIn = $User.SignInActivity.LastSignInDateTime
   $LastNonInteractiveSignIn = $User.SignInActivity.LastNonInteractiveSignInDateTime
 
@@ -259,18 +260,24 @@ ForEach ($User in $Users) {
     $DaysSinceLastSignIn = ($RunDate - $CompareDate).Days
     $LastAccess = Get-Date($CompareDate) -format g
     If ($DaysSinceLastSignIn -gt 60) { 
-      $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn) 
+        $UnusedAccountWarning = ("Account unused for {0} days - check!" -f $DaysSinceLastSignIn) 
     }
   }
 
   $AccountCreatedDate = $null
   If ($User.CreatedDateTime) {
-    $AccountCreatedDate = Get-Date($User.CreatedDateTime) -format 'dd-MMM-yyyy HH:mm' 
+      $AccountCreatedDate = Get-Date($User.CreatedDateTime) -format 'dd-MMM-yyyy HH:mm' 
   }
 
   # Report information
   [string]$DisabledPlans = $DisabledPlans -join ", " 
   [string]$LicenseInfo = $LicenseInfo -join (", ")
+
+  If ($User.AccountEnabled -eq $False) {
+      $AccountStatus = "Disabled" 
+  } Else {
+      $AccountStatus = "Enabled"
+    }
 
   If ($PricingInfoAvailable) { 
     # Output report line with pricing info
@@ -293,6 +300,7 @@ ForEach ($User in $Users) {
       "Days since last signin"   = $DaysSinceLastSignIn
       "Duplicates detected"      = $DuplicateWarningReport
       Status                     = $UnusedAccountWarning
+      "Account status"           = $AccountStatus
       UserCosts                  = $UserCosts  
     }
   } Else { 
@@ -313,6 +321,7 @@ ForEach ($User in $Users) {
       "Days since last signin"   = $DaysSinceLastSignIn
       "Duplicates detected"      = $DuplicateWarningReport
       Status                     = $UnusedAccountWarning
+      "Account status"           = $AccountStatus
     }
   }  
   $Report.Add($ReportLine)
@@ -356,14 +365,14 @@ ForEach ($S in $SkuSummary) {
 }
 
 If ($PricingInfoAvailable) {
-  $AverageCostPerUser = ($TotalUserLicenseCosts / $Users.Count)
-  $AverageCostPerUserOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $AverageCostPerUser))
-  $TotalUserLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalUserLicenseCosts))
-  $TotalBoughtLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalBoughtLicenseCosts))
-  $PercentBoughtLicensesUsed = ($TotalUserLicenseCosts / $TotalBoughtLicenseCosts).toString('P')
-  $SkuReport = $SkuReport | Sort-Object "Annual license costs" -Descending
+    $AverageCostPerUser = ($TotalUserLicenseCosts / $Users.Count)
+    $AverageCostPerUserOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $AverageCostPerUser))
+    $TotalUserLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalUserLicenseCosts))
+    $TotalBoughtLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalBoughtLicenseCosts))
+    $PercentBoughtLicensesUsed = ($TotalUserLicenseCosts / $TotalBoughtLicenseCosts).toString('P')
+    $SkuReport = $SkuReport | Sort-Object "Annual license costs" -Descending
 } Else {
-  $SkuReport = $SkuReport | Sort-Object "SKU Name" -Descending
+    $SkuReport = $SkuReport | Sort-Object "SKU Name" -Descending
 }
 
 If ($PricingInfoAvailable) { 
@@ -400,6 +409,13 @@ If ($PricingInfoAvailable) {
   # Anyone without a country?
   [array]$NoCountry = $Report | Where-Object { $null -eq $_.Country }
   $NoCountryCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoCountry | Measure-Object UserCosts -Sum).Sum))
+
+  # Inactive user accounts - these are accounts that have never signed in or whose last sign-in was more than 60 days ago
+  $InactiveUserAccounts = $Report | Where-Object {($_."Days since last signin" -ge 60) -or ($_.'Days since last signin' -eq "Unknown")}
+  $InactiveUserAccountsCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($InactiveUserAccounts | Measure-Object UserCosts -Sum).Sum))
+  # Disabled user accounts
+  $DisabledUserAccounts = $Report | Where-Object { $_."Account status" -eq "disabled" }
+  $DisabledUserAccountsCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DisabledUserAccounts | Measure-Object UserCosts -Sum).Sum)) 
 }
 
 # Create the HTML report
@@ -419,7 +435,11 @@ $HtmlHead = "<html>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
            <p><h3>Generated: " + $ReportRunDate + "</h3></p></div>"
 
-$HtmlBody1 = $Report | ConvertTo-Html -Fragment
+If ($PricingInfoAvailable) {
+  $HtmlBody1 = $Report | Select-Object User, UPN, Country, Department, Title, Company, "Direct assigned licenses", "Disabled Plans", "Group based licenses", "Annual License Costs", "Last license change", "Account created", "Last Signin", "Days since last signin", "Duplicates detected", Status, "Account status" | ConvertTo-Html -Fragment
+} Else {
+  $HtmlBody1 = $Report | ConvertTo-Html -Fragment
+}
 $HtmlBody1 = $HtmlBody1 + "<p>Report created for: " + $OrgName + "</p>" +
 "<p>Created: " + $ReportRunDate + "<p>" +
 "<p>-----------------------------------------------------------------------------------------------------------------------------</p>" +  
@@ -430,7 +450,6 @@ $HtmlBody1 = $HtmlBody1 + "<p>Report created for: " + $OrgName + "</p>" +
 "<p>Count of duplicate licenses:               " + $DuplicateSKULicenses + "</p>" +
 "<p>Count of errors:                           " + $LicenseErrorCount + "</p>" +
 "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"
-
 
 $HtmlBody2 = $SkuReport | Select-Object "SKU Id", "SKU Name", "Units used", "Units purchased", "Annual licensing cost" | ConvertTo-Html -Fragment
 $HtmlSkuSeparator = "<p><h2>Product License Distribution</h2></p>"
@@ -447,7 +466,15 @@ If ($PricingInfoAvailable) {
   "<p><h2>License Costs by Country</h2></p>" + $CountryHTML +
   "<p>License costs for users without a country:   " + $NoCountryCosts +
   "<p><h2>License Costs by Department</h2></p>" + $DepartmentHTML +
-  "<p>License costs for users without a department: " + $NoDepartmentCosts
+  "<p>License costs for users without a department: " + $NoDepartmentCosts +
+  "<p><h2>Inactive User Accounts</h2></p>" +
+  "<p>Number of inactive user accounts:             " + $InactiveUserAccounts.Count + "</p>" +
+  "<p>Names of inactive accounts:                   " + ($InactiveUserAccounts.User -join ", ") + "</p>" +
+  "<p>Cost of inactive user accounts:               " + $InactiveUserAccountsCost + "</p>" +
+  "<p><h2>Disabled User Accounts</h2></p>" +
+  "<p>Number of disabled accounts:                  " + $DisabledUserAccounts.Count + "</p>" +
+  "<p>Names of disabled accounts:                   " + ($DisabledUserAccounts.User -join ", ") + "</p>" +
+  "<p>Cost of disabled user accounts:               " + $DisabledUserAccountsCost + "</p>"
 }
           
 $HTMLTail = $HTMLTail + "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b></p>"	

@@ -12,8 +12,8 @@ Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All, UserAu
 
 [string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
 $Version = "1.2"
-$CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.CSV"
-$ReportFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.html"
+$CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.CSV"
+$ReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.html"
 
 # Define the optional MFA user sign-in file downloaded from the Entra ID admin center
 $UserSignInDataFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InteractiveSignIns.csv"
