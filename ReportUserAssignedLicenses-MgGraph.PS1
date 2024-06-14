@@ -418,18 +418,26 @@ If ($PricingInfoAvailable) {
   $DisabledUserAccountsCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DisabledUserAccounts | Measure-Object UserCosts -Sum).Sum)) 
 }
 
+# Cost spans for license comparison
+$LowCost = $AverageCostPerUser * 0.8
+$MediumCost = $AverageCostPerUser
+
 # Create the HTML report
 $HtmlHead = "<html>
-	   <style>
-	   BODY{font-family: Arial; font-size: 8pt;}
-	   H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-	   H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-	   H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
-	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
-	   TD{border: 1px solid #969595; padding: 5px; }
-	   </style>
-	   <body>
+	  <style>
+	  BODY{font-family: Arial; font-size: 8pt;}
+	  H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	  H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	  H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	  TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
+	  TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
+	  TD{border: 1px solid #969595; padding: 5px; }
+    TD.disabledaccount{background: #B7EB83;}
+	  TD.higherlicensecost{background: #E3242B;}
+    TD.averagelicensecost{background: #FFFF00;}
+    TD.lowerlicensecost{background: #4cff47;}
+	  </style>
+	  <body>
            <div align=center>
            <p><h1>Microsoft 365 License Report</h1></p>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
@@ -437,6 +445,46 @@ $HtmlHead = "<html>
 
 If ($PricingInfoAvailable) {
   $HtmlBody1 = $Report | Select-Object User, UPN, Country, Department, Title, Company, "Direct assigned licenses", "Disabled Plans", "Group based licenses", "Annual License Costs", "Last license change", "Account created", "Last Signin", "Days since last signin", "Duplicates detected", Status, "Account status" | ConvertTo-Html -Fragment
+  # Create an attribute class to use, name it, and append to the XML table attributes
+  [xml]$XML = $HTMLBody1
+  $TableClass = $XML.CreateAttribute("class")
+  $TableClass.Value = "State"
+  $XML.table.Attributes.Append($TableClass) | Out-Null
+  # Conditional formatting for the table rows.  
+  ForEach ($TableRow in $XML.table.SelectNodes("tr")) {
+    # each TR becomes a member of class "tablerow"
+    $TableRow.SetAttribute("class","tablerow")
+    # If row has the account status set to disabled
+    If (($TableRow.td) -and ([string]$TableRow.td[16] -eq 'disabled'))  {
+        ## tag the TD with either the color for admin in the heading
+        $TableRow.SelectNodes("td")[16].SetAttribute("class","disabledaccount")
+    }
+    # Level of license cost
+    Try {
+      $UserUPN = $TableRow.td[1]
+    }
+    Catch { # ignore error in fetching user principal name for header lines
+      Continue
+    } 
+    # Fetch total license cost without currency prefix
+    $Cost = $Report.Where{$_.UPN -eq $UserUPN} | Select-Object -ExpandProperty UserCosts
+    Switch ($Cost) {
+      {$Cost -gt $MediumCost} { 
+        $TableRow.SelectNodes("td")[9].SetAttribute("class","higherlicensecost") 
+        Write-Host ("High cost for {0}" -f $TableRow.td[1])
+      }
+      {($Cost -gt $LowCost) -and ($Cost -le $MediumCost)} { 
+        $TableRow.SelectNodes("td")[9].SetAttribute("class","averagelicensecost") 
+        Write-Host ("Medium cost for {0}" -f $TableRow.td[1])
+      }
+      {$Cost -le $LowCost} { 
+        $TableRow.SelectNodes("td")[9].SetAttribute("class","lowerlicensecost") 
+        Write-Host ("Low cost for {0}" -f $TableRow.td[1])
+      }
+    }
+  }
+    # Wrap the output table with a div tag
+    $HTMLBody1 = [string]::Format('<div class="tablediv">{0}</div>',$XML.OuterXml)
 } Else {
   $HtmlBody1 = $Report | ConvertTo-Html -Fragment
 }
