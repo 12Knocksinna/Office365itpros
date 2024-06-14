@@ -547,12 +547,12 @@ $HTMLTail = $HTMLTail +
 "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"
           
 $HTMLTail = $HTMLTail + "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b></p>"	
-
+$HtmlReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.html"
 $HtmlReport = $Htmlhead + $Htmlbody1 + $HtmlSkuSeparator + $HtmlBody2 + $Htmltail
 $HtmlReport | Out-File $HtmlReportFile -Encoding UTF8
 
 # Generate output report files
-$HtmlReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.html"
+
 If (Get-Module ImportExcel -ListAvailable) {
   $ExcelGenerated = $True
   Import-Module ImportExcel -ErrorAction SilentlyContinue
