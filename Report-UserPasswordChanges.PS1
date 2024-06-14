@@ -42,7 +42,7 @@ Write-Host "Retrieving user details"
 $ContentType = "application/json"
 $Headers = @{ConsistencyLevel="Eventual"}  
 $Uri = "https://graph.microsoft.com/beta/users?`$count=true&`$filter=(assignedLicenses/`$count ne 0 and userType eq 'Member')&$`top=999&`$select=id, displayName, userprincipalname, usertype, signInActivity, SignInSessionsValidFromDateTime, LastPasswordChangeDateTime, passwordPolicies"
-[array]$Data = Invoke-MgGraphRequest -Uri $Uri -Headers $Headers -ContentType $ContentType
+[array]$Data = Invoke-MgGraphRequest -Uri $Uri -Headers $Headers -ContentType $ContentType -Method Get
 [array]$Users = $Data.Value
 
 If (!($Users)) {
@@ -53,8 +53,8 @@ If (!($Users)) {
 $Nextlink = $Data.'@odata.nextLink'
 While ($null -ne $Nextlink) {
     Write-Host ("Fetching more user accounts - currently at {0}" -f $Users.count)
-    [array]$Data = Invoke-MgGraphRequest -Uri $Nextlink -Headers $Headers -ContentType $ContentType
-    $Users = $Users + $Data.Value
+    [array]$Data = Invoke-MgGraphRequest -Uri $Nextlink -Headers $Headers -ContentType $ContentType -Method Get
+    $Users = $Users += $Data.Value
     $Nextlink = $Data.'@odata.nextLink'
  }
  Write-Host ("All available user accounts fetched ({0}) - now processing report" -f $Users.count) -ForegroundColor Yellow
