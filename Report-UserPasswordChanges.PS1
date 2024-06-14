@@ -215,7 +215,7 @@ ForEach ($TableRow in $XML.table.SelectNodes("tr")) {
     $TableRow.SetAttribute("class","tablerow")
     # If row has the admin flag set to true
     If (($TableRow.td) -and ([string]$TableRow.td[8] -eq 'True'))  {
-        ## tag the TD with either the color for admin in the heading
+        ## tag the TD with the color for admin in the heading
         $TableRow.SelectNodes("td")[8].SetAttribute("class","admin")
     }
     # If MFA capable

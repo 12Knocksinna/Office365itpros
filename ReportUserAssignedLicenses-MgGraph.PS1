@@ -432,10 +432,12 @@ $HtmlHead = "<html>
 	  TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
 	  TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
 	  TD{border: 1px solid #969595; padding: 5px; }
-    TD.disabledaccount{background: #B7EB83;}
+    TD.disabledaccount{background: #FFC0CB;}
 	  TD.higherlicensecost{background: #E3242B;}
     TD.averagelicensecost{background: #FFFF00;}
     TD.lowerlicensecost{background: #4cff47;}
+    TD.inactiveaccount{background: #FF474C;}
+    TD.duplicatelicenses{background: #F8FF00}
 	  </style>
 	  <body>
            <div align=center>
@@ -454,11 +456,7 @@ If ($PricingInfoAvailable) {
   ForEach ($TableRow in $XML.table.SelectNodes("tr")) {
     # each TR becomes a member of class "tablerow"
     $TableRow.SetAttribute("class","tablerow")
-    # If row has the account status set to disabled
-    If (($TableRow.td) -and ([string]$TableRow.td[16] -eq 'disabled'))  {
-        ## tag the TD with either the color for admin in the heading
-        $TableRow.SelectNodes("td")[16].SetAttribute("class","disabledaccount")
-    }
+    
     # Level of license cost
     Try {
       $UserUPN = $TableRow.td[1]
@@ -471,16 +469,32 @@ If ($PricingInfoAvailable) {
     Switch ($Cost) {
       {$Cost -gt $MediumCost} { 
         $TableRow.SelectNodes("td")[9].SetAttribute("class","higherlicensecost") 
-        Write-Host ("High cost for {0}" -f $TableRow.td[1])
+        #Write-Host ("High cost for {0}" -f $TableRow.td[1])
       }
       {($Cost -gt $LowCost) -and ($Cost -le $MediumCost)} { 
         $TableRow.SelectNodes("td")[9].SetAttribute("class","averagelicensecost") 
-        Write-Host ("Medium cost for {0}" -f $TableRow.td[1])
+        #Write-Host ("Medium cost for {0}" -f $TableRow.td[1])
       }
       {$Cost -le $LowCost} { 
         $TableRow.SelectNodes("td")[9].SetAttribute("class","lowerlicensecost") 
-        Write-Host ("Low cost for {0}" -f $TableRow.td[1])
+        #Write-Host ("Low cost for {0}" -f $TableRow.td[1])
       }
+    }
+    # Highlight accounts that haven't signed in for more than 90 days 
+    If (($TableRow.td) -and ([int]$TableRow.td[13] -ge 90))  {
+        ## tag the TD as inactive
+      $TableRow.SelectNodes("td")[13].SetAttribute("class","inactiveaccount")
+    }
+    # If duplicate licenses are detected
+    If (($TableRow.td) -and ([string]$TableRow.td[14] -ne 'N/A'))  {
+        ## tag the TD with the color for duplicate licenses
+        Write-Host "Detected duplicate licenses for $($TableRow.td[1])"
+      $TableRow.SelectNodes("td")[14].SetAttribute("class","duplicatelicenses")
+    }
+    # If row has the account status set to disabled
+    If (($TableRow.td) -and ([string]$TableRow.td[16] -eq 'disabled'))  {
+      ## tag the TD with the color for a disabled account
+      $TableRow.SelectNodes("td")[16].SetAttribute("class","disabledaccount")
     }
   }
     # Wrap the output table with a div tag
@@ -507,13 +521,13 @@ $HtmlTail = "<p></p>"
 
 If ($PricingInfoAvailable) {
   $HTMLTail = $HTMLTail + "<h2>Licensing Cost Analysis</h2>" +
-  "<p>Total licensing cost for tenant:             " + $TotalBoughtLicenseCostsOutput + "</p>" +
-  "<p>Total cost for assigned licenses:            " + $TotalUserLicenseCostsOutput + "</p>" +
-  "<p>Percent bought licenses assigned to users:   " + $PercentBoughtLicensesUsed + "</p>" +
-  "<p>Average licensing cost per user:             " + $AverageCostPerUserOutput + "</p>" +
-  "<p><h2>License Costs by Country</h2></p>" + $CountryHTML +
-  "<p>License costs for users without a country:   " + $NoCountryCosts +
-  "<p><h2>License Costs by Department</h2></p>" + $DepartmentHTML +
+  "<p>Total licensing cost for tenant:              " + $TotalBoughtLicenseCostsOutput + "</p>" +
+  "<p>Total cost for assigned licenses:             " + $TotalUserLicenseCostsOutput + "</p>" +
+  "<p>Percent bought licenses assigned to users:    " + $PercentBoughtLicensesUsed + "</p>" +
+  "<p>Average licensing cost per user:              " + $AverageCostPerUserOutput + "</p>" +
+  "<p><h2>License Costs by Country</h2></p>         " + $CountryHTML +
+  "<p>License costs for users without a country:    " + $NoCountryCosts +
+  "<p><h2>License Costs by Department</h2></p>      " + $DepartmentHTML +
   "<p>License costs for users without a department: " + $NoDepartmentCosts +
   "<p><h2>Inactive User Accounts</h2></p>" +
   "<p>Number of inactive user accounts:             " + $InactiveUserAccounts.Count + "</p>" +
