@@ -365,14 +365,14 @@ ForEach ($S in $SkuSummary) {
 }
 
 If ($PricingInfoAvailable) {
-    $AverageCostPerUser = ($TotalUserLicenseCosts / $Users.Count)
-    $AverageCostPerUserOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $AverageCostPerUser))
-    $TotalUserLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalUserLicenseCosts))
-    $TotalBoughtLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalBoughtLicenseCosts))
-    $PercentBoughtLicensesUsed = ($TotalUserLicenseCosts / $TotalBoughtLicenseCosts).toString('P')
-    $SkuReport = $SkuReport | Sort-Object "Annual license costs" -Descending
+  $AverageCostPerUser = ($TotalUserLicenseCosts / $Users.Count)
+  $AverageCostPerUserOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $AverageCostPerUser))
+  $TotalUserLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalUserLicenseCosts))
+  $TotalBoughtLicenseCostsOutput = ("{0} {1}" -f $Currency, ('{0:N2}' -f $TotalBoughtLicenseCosts))
+  $PercentBoughtLicensesUsed = ($TotalUserLicenseCosts / $TotalBoughtLicenseCosts).toString('P')
+  $SkuReport = $SkuReport | Sort-Object "Annual license costs" -Descending
 } Else {
-    $SkuReport = $SkuReport | Sort-Object "SKU Name" -Descending
+  $SkuReport = $SkuReport | Sort-Object "SKU Name" -Descending
 }
 
 If ($PricingInfoAvailable) { 
@@ -391,7 +391,11 @@ If ($PricingInfoAvailable) {
   $DepartmentHTML = $DepartmentReport | ConvertTo-HTML -Fragment
   # Anyone without a department?
   [array]$NoDepartments = $Report | Where-Object { $null -eq $_.Department }
-  $NoDepartmentCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoDepartments | Measure-Object UserCosts -Sum).Sum))
+  If ($NoDepartments) {
+    $NoDepartmentCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoDepartments | Measure-Object UserCosts -Sum).Sum))
+  } Else {
+    $NoDepartmentCosts = "Zero"
+  }
 
   # Generate the country analysis
   $CountryReport = [System.Collections.Generic.List[Object]]::new()
@@ -408,7 +412,11 @@ If ($PricingInfoAvailable) {
   $CountryHTML = $CountryReport | ConvertTo-HTML -Fragment
   # Anyone without a country?
   [array]$NoCountry = $Report | Where-Object { $null -eq $_.Country }
-  $NoCountryCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoCountry | Measure-Object UserCosts -Sum).Sum))
+  If ($NoCountry) {
+    $NoCountryCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoCountry | Measure-Object UserCosts -Sum).Sum))
+  } Else {
+    $NoCountryCosts = "Zero"
+  }
 
   # Inactive user accounts - these are accounts that have never signed in or whose last sign-in was more than 60 days ago
   $InactiveUserAccounts = $Report | Where-Object {($_."Days since last signin" -ge 60) -or ($_.'Days since last signin' -eq "Unknown")}
@@ -487,8 +495,8 @@ If ($PricingInfoAvailable) {
     }
     # If duplicate licenses are detected
     If (($TableRow.td) -and ([string]$TableRow.td[14] -ne 'N/A'))  {
-        ## tag the TD with the color for duplicate licenses
-        Write-Host "Detected duplicate licenses for $($TableRow.td[1])"
+        # tag the TD with the color for duplicate licenses
+        # Write-Host "Detected duplicate licenses for $($TableRow.td[1])"
       $TableRow.SelectNodes("td")[14].SetAttribute("class","duplicatelicenses")
     }
     # If row has the account status set to disabled
@@ -502,16 +510,7 @@ If ($PricingInfoAvailable) {
 } Else {
   $HtmlBody1 = $Report | ConvertTo-Html -Fragment
 }
-$HtmlBody1 = $HtmlBody1 + "<p>Report created for: " + $OrgName + "</p>" +
-"<p>Created: " + $ReportRunDate + "<p>" +
-"<p>-----------------------------------------------------------------------------------------------------------------------------</p>" +  
-"<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
-"<p>Number of underused user accounts found:   " + $UnderUsedAccounts.Count + "</p>" +
-"<p>Percent underused user accounts:           " + $PercentUnderusedAccounts + "</p>" +
-"<p>Accounts detected with duplicate licenses: " + $DuplicateSKUsAccounts + "</p>" +
-"<p>Count of duplicate licenses:               " + $DuplicateSKULicenses + "</p>" +
-"<p>Count of errors:                           " + $LicenseErrorCount + "</p>" +
-"<p>-----------------------------------------------------------------------------------------------------------------------------</p>"
+$HtmlBody1 = $HtmlBody1 + "<p>Report created for: " + $OrgName + "</p><p>Created: " + $ReportRunDate + "<p>" 
 
 $HtmlBody2 = $SkuReport | Select-Object "SKU Id", "SKU Name", "Units used", "Units purchased", "Annual licensing cost" | ConvertTo-Html -Fragment
 $HtmlSkuSeparator = "<p><h2>Product License Distribution</h2></p>"
@@ -538,6 +537,16 @@ If ($PricingInfoAvailable) {
   "<p>Names of disabled accounts:                   " + ($DisabledUserAccounts.User -join ", ") + "</p>" +
   "<p>Cost of disabled user accounts:               " + $DisabledUserAccountsCost + "</p>"
 }
+
+$HTMLTail = $HTMLTail +
+"<p>-----------------------------------------------------------------------------------------------------------------------------</p>" +  
+"<p>Number of licensed user accounts found:    " + $Report.Count + "</p>" +
+"<p>Number of underused user accounts found:   " + $UnderUsedAccounts.Count + "</p>" +
+"<p>Percent underused user accounts:           " + $PercentUnderusedAccounts + "</p>" +
+"<p>Accounts detected with duplicate licenses: " + $DuplicateSKUsAccounts + "</p>" +
+"<p>Count of duplicate licenses:               " + $DuplicateSKULicenses + "</p>" +
+"<p>Count of errors:                           " + $LicenseErrorCount + "</p>" +
+"<p>-----------------------------------------------------------------------------------------------------------------------------</p>"
           
 $HTMLTail = $HTMLTail + "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b></p>"	
 

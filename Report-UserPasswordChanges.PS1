@@ -261,7 +261,7 @@ $HTMLTail = "<p>Report created for the " + $OrgName + " tenant on " + $RunDate +
 "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
 "<p>Number of user accouts analyzed:         " + $Users.Count + "</p>" +
 "<p>Number of admin accounts found:          " + $AdminUsers.Count + "</p>" +
-"<p>Number of accounts registred for MFA:    " + $MFAUsers.Count + "</p>" 
+"<p>Number of accounts registered for MFA:   " + $MFAUsers.Count + "</p>" 
 
 IF ($PerUserMFAEnabled.Count -gt 0 -or $PerUserMFAEnforced.Count -gt 0) {
     $HTMLTail = $HTMLTail +
