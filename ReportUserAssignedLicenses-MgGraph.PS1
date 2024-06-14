@@ -71,8 +71,6 @@ Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredent
 
 $SkuDataPath = "C:\temp\SkuDataComplete.csv"
 $ServicePlanPath = "C:\temp\ServicePlanDataComplete.csv"
-$CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft365LicensesReport.CSV"
-$HtmlReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft365LicensesReport.html"
 $UnlicensedAccounts = 0
 
 If ((Test-Path $skuDataPath) -eq $False) {
@@ -553,9 +551,29 @@ $HTMLTail = $HTMLTail + "<p>Microsoft 365 Licensing Report<b> " + $Version + "</
 $HtmlReport = $Htmlhead + $Htmlbody1 + $HtmlSkuSeparator + $HtmlBody2 + $Htmltail
 $HtmlReport | Out-File $HtmlReportFile -Encoding UTF8
 
+# Generate output report files
+$HtmlReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.html"
+If (Get-Module ImportExcel -ListAvailable) {
+  $ExcelGenerated = $True
+  Import-Module ImportExcel -ErrorAction SilentlyContinue
+  $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.xlsx"
+  $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Microsoft 365 Licensing Report" -Title ("Microsoft 365 Licensing Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Microsoft365LicensingReport" 
+} Else {
+  $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.CSV"
+  $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+}
+
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile -Encoding UTF8
 Write-Host ""
-Write-Host "All done. Output files are" $CSVOutputFile "and" $ReportFile
+Write-Host "Microsoft 365 Licensing Report complete"
+Write-Host "---------------------------------------"
+Write-Host ""
+Write-Host ("An HTML report is available in {0}" -f $HtmlReportFile)
+If ($ExcelGenerated) {
+  Write-Host ("An Excel report is available in {0}" -f $ExcelOutputFile)
+} Else {
+  Write-Host ("A CSV report is available in {0}" -f $CSVOutputFile)
+}
 
 Disconnect-MgGraph
 
