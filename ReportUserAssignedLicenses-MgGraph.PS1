@@ -53,7 +53,7 @@ $Version = "1.9"
 Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog.Read.All" -NoWelcome
 
 <#
-Alternative: Use Application ID and Secured Password for authentication (you could also pass a certificate thumbnail)
+Alternative: Use Application ID and Secured Password for authentication (you could also pass a certificate thumbprint)
 $ApplicationId = "<applicationId>"
 $SecuredPassword = "<securedPassword>"
 $tenantID = "<tenantId>"
