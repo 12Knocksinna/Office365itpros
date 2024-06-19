@@ -5,13 +5,86 @@
 # V1.0 5-Jan-2024
 # V1.1 17-Mar-2024
 # V1.2 12-June-2024 Add check for per-user MFA state
+# V1.3 20-June-2024 Add better output for authentication methods registered for a user
 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-UserPasswordChanges.PS1
+
+Param (
+    [Parameter(Mandatory = $false)]
+    [switch]$PrivacyFlag  # Must be true to output minimal MFA data. This is the default. If you want to see full MFA data in the report, set to $true
+)
+function Get-AuthMethods {
+    # Function to return details of the authentication methods registered for a user
+    [CmdletBinding()]
+    Param (
+        [Parameter(Mandatory=$true)]
+        [string]$UserId
+    )
+    [array]$AllMethods = @()
+    [array]$AuthMethods = Get-MgUserAuthenticationMethod -UserId $UserId
+    ForEach ($AuthMethod in $AuthMethods) {
+       $P1 = $null; $P2 = $null
+       $Method = $AuthMethod.AdditionalProperties['@odata.type']
+       Switch ($Method) {
+           "#microsoft.graph.passwordAuthenticationMethod" {
+               $DisplayMethod = "Password"
+               $P1 = "Traditional password"
+               $MethodSummary = "Password"
+           }
+           "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod" {
+               $DisplayMethod = "Authenticator app" 
+               $P1 = $AuthMethod.AdditionalProperties['displayName']
+               $P2 = $AuthMethod.AdditionalProperties['deviceTag'] + " " + $AuthMethod.AdditionalProperties['phoneAppVersion'] 
+               $MethodSummary = ("{0} on {1} ({2})" -f $DisplayMethod, $P1, $P2)
+           }
+           "#microsoft.graph.fido2AuthenticationMethod" {
+               If ($AuthMethod.AdditionalProperties['aaGuid'] -eq "90a3ccdf-635c-4729-a248-9b709135078f") {
+                   $DisplayMethod = ("Passkey: {0}" -f $AuthMethod.AdditionalProperties['model'])
+               } Else {
+                   $DisplayMethod = "Fido 2 Key"
+               }
+               $P1 = $AuthMethod.AdditionalProperties['displayName']
+               $P2 = Get-Date($AuthMethod.AdditionalProperties['createdDateTime']) -format "dd-MMM-yyyy HH:mm"
+               $MethodSummary = ("Passkey on {0}" -f $AuthMethod.AdditionalProperties['model'])
+           }
+           "#microsoft.graph.phoneAuthenticationMethod" {
+               $DisplayMethod = "SMS" 
+               $P1 = "Number: " + $AuthMethod.AdditionalProperties['phoneNumber']
+               $P2 = "Type: " + $AuthMethod.AdditionalProperties['phoneType']
+               $MethodSummary = ("{0} to {1} ({2})" -f $DisplayMethod, $AuthMethod.AdditionalProperties['phoneNumber'], $AuthMethod.AdditionalProperties['phoneType'])
+           }
+           "#microsoft.graph.emailAuthenticationMethod" {
+               $DisplayMethod = "Email"
+               $P1 = "Address: " + $AuthMethod.AdditionalProperties['emailAddress']
+               $MethodSummary = ("{0} to {1}" -f $DisplayMethod, $AuthMethod.AdditionalProperties['emailAddress'] )
+           }
+           "#microsoft.graph.passwordlessMicrosoftAuthenticatorAuthenticationMethod" {
+               $DisplayMethod = "Passwordless"
+               $P1 = $AuthMethod.AdditionalProperties['displayName']
+               $P2 = Get-Date($AuthMethod.AdditionalProperties['createdDateTime']) -format "dd-MMM-yyyy HH:mm"
+               $MethodSummary = ("{0} enabled on {1}" -f $DisplayMethod, $P2)
+           }
+           "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod" {    
+               $DisplayMethod = "Windows Hello for Business"
+               $P1 = $AuthMethod.AdditionalProperties['displayName']
+               $P2 = Get-Date($AuthMethod.AdditionalProperties['createdDateTime']) -format "dd-MMM-yyyy HH:mm"
+               $MethodSummary = ("{0} enabled for {1} on {2}" -f $DisplayMethod, $P1, $P2)
+           }
+           Default {
+               $DisplayMethod = "Unknown authentication method"
+               $MethodSummary = ("Unknown method: {0}" -f $AuthMethod.AdditionalProperties['@odata.type'])
+           }
+        }
+    $AllMethods += $MethodSummary
+    }
+    $AllMethods = $AllMethods -join ", "
+    Return $AllMethods
+}
 
 Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All, UserAuthenticationMethod.Read.All, Policy.ReadWrite.AuthenticationMethod
 
 [string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
-$Version = "1.2"
+$Version = "1.3"
 $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.CSV"
 $ReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.html"
 
@@ -95,9 +168,14 @@ While ($null -ne $Nextlink) {
         $PasswordPoliciesOutput = $PasswordPolicies -join ", "
     }
 
-    # Get MFA status for the user
+    # Get MFA status for the user. If the privacy flag is set, we get the basic data reported for the user
+    # If not, we get the full set of authentication methods registered for the user, including the details of each method
     $UserMFAStatus  = $MFAData | Where-Object {$_.Id -eq $User.Id}
-    $AuthenticationTypesOutput = $UserMFAStatus.MethodsRegistered -join ", "
+    If ($PrivacyFlag -eq $true) {   
+        $AuthenticationTypesOutput = $UserMFAStatus.MethodsRegistered -join ", "
+    } Else { 
+        $AuthenticationTypesOutput = Get-AuthMethods -UserId $User.Id
+    }
 
     # Get per-user MFA data if possible
     $Uri = ("https://graph.microsoft.com/beta/users/{0}/authentication/requirements" -f $User.id)
