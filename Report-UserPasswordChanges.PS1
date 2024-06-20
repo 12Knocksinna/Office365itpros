@@ -54,7 +54,7 @@ function Get-AuthMethods {
                $MethodSummary = ("{0} to {1} ({2})" -f $DisplayMethod, $AuthMethod.AdditionalProperties['phoneNumber'], $AuthMethod.AdditionalProperties['phoneType'])
            }
            "#microsoft.graph.emailAuthenticationMethod" {
-               $DisplayMethod = "Email"
+               $DisplayMethod = "Email (SSPR)"
                $P1 = "Address: " + $AuthMethod.AdditionalProperties['emailAddress']
                $MethodSummary = ("{0} to {1}" -f $DisplayMethod, $AuthMethod.AdditionalProperties['emailAddress'] )
            }
