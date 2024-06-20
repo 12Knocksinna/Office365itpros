@@ -75,7 +75,7 @@ function Get-AuthMethods {
                $MethodSummary = ("Unknown method: {0}" -f $AuthMethod.AdditionalProperties['@odata.type'])
            }
         }
-    $AllMethods += $MethodSummary
+    $AllMethods += $MethodSummary 
     }
     $AllMethods = $AllMethods -join ", "
     Return $AllMethods
@@ -215,7 +215,7 @@ While ($null -ne $Nextlink) {
             'Days since sign in'               = $DaysSinceLastSignIn
             'Session tokens valid from'        = $SessionTokensValidFromOutput
             'Password policies applied'        = $PasswordPoliciesOutput
-            'Authentication types'             = $AuthenticationTypesOutput
+            'Authentication methods'           = $AuthenticationTypesOutput
             'Admin flag'                       = $UserMFAStatus.isAdmin
             'MFA capable'                      = $UserMFAStatus.IsMfaCapable
             'MFA registered'                   = $UserMFAStatus.IsMfaRegistered
@@ -238,7 +238,7 @@ While ($null -ne $Nextlink) {
             'Days since sign in'               = $DaysSinceLastSignIn
             'Session tokens valid from'        = $SessionTokensValidFromOutput
             'Password policies applied'        = $PasswordPoliciesOutput
-            'Authentication types'             = $AuthenticationTypesOutput
+            'Authentication methods'           = $AuthenticationTypesOutput
             'Admin flag'                       = $UserMFAStatus.isAdmin
             'MFA capable'                      = $UserMFAStatus.IsMfaCapable
             'MFA registered'                   = $UserMFAStatus.IsMfaRegistered
