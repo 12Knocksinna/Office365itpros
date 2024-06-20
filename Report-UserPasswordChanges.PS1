@@ -281,7 +281,7 @@ $HTMLHead="<html>
 # First, convert the CA Policies report to HTML and then import it into an XML structure
 
 $HTMLTable = $Report | Select-Object User, UPN, 'Last password change', 'Days since password change', 'Last successful sign in', 'Days since sign in', 'Password policies applied', `
-    'Authentication types', 'Admin flag', 'MFA capable', 'MFA registered', 'MFA last used', 'MFA default method', 'Secondary auth. method', 'Per user MFA state' | ConvertTo-Html -Fragment
+    'Authentication methods', 'Admin flag', 'MFA capable', 'MFA registered', 'MFA last used', 'MFA default method', 'Secondary auth. method', 'Per user MFA state' | ConvertTo-Html -Fragment
 [xml]$XML = $HTMLTable
 # Create an attribute class to use, name it, and append to the XML table attributes
 $TableClass = $XML.CreateAttribute("class")
