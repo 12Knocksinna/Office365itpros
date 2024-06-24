@@ -377,7 +377,7 @@ If ($PricingInfoAvailable) {
   # Generate the department analysis
   $DepartmentReport = [System.Collections.Generic.List[Object]]::new()
   ForEach ($Department in $Departments) {
-    $DepartmentRecords = $Report | Where-Object Department -match $Department
+    $DepartmentRecords = $Report | Where-Object {$_.Department -eq $Department}
     $DepartmentReportLine = [PSCustomObject][Ordered]@{
       Department  = $Department
       Accounts    = $DepartmentRecords.count
