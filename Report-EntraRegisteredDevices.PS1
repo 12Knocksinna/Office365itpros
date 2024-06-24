@@ -2,7 +2,7 @@
 # Report-EntraRegisteredDevices.PS1
 # A demo script to show how to generate a report about Entra registered devices using the 
 # Microsoft Graph PowerShell SDK. The script is based on the example in the article
-# described in the article https://practical365.com/sharepoint-site-files-report/
+# described in the article https://office365itpros.com/2023/01/31/entra-id-registered-devices-os/
 # This script is https://github.com/12Knocksinna/Office365itpros/blob/master/Report-EntraRegisteredDevices.PS1
 # V1.0 24-June-2024
 
