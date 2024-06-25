@@ -377,7 +377,7 @@ If ($PricingInfoAvailable) {
   # Generate the department analysis
   $DepartmentReport = [System.Collections.Generic.List[Object]]::new()
   ForEach ($Department in $Departments) {
-    $DepartmentRecords = $Report | Where-Object {$_.Department -eq $Department}
+    [array]$DepartmentRecords = $Report | Where-Object {$_.Department -eq $Department}
     $DepartmentReportLine = [PSCustomObject][Ordered]@{
       Department  = $Department
       Accounts    = $DepartmentRecords.count
@@ -390,15 +390,15 @@ If ($PricingInfoAvailable) {
   # Anyone without a department?
   [array]$NoDepartments = $Report | Where-Object { $null -eq $_.Department }
   If ($NoDepartments) {
-    $NoDepartmentCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoDepartments | Measure-Object UserCosts -Sum).Sum))
+      $NoDepartmentCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoDepartments | Measure-Object UserCosts -Sum).Sum))
   } Else {
-    $NoDepartmentCosts = "Zero"
+      $NoDepartmentCosts = "Zero"
   }
 
   # Generate the country analysis
   $CountryReport = [System.Collections.Generic.List[Object]]::new()
   ForEach ($Country in $Countries) {
-    $CountryRecords = $Report | Where-Object Country -match $Country
+    [array]$CountryRecords = $Report | Where-Object Country -match $Country
     $CountryReportLine = [PSCustomObject][Ordered]@{
       Country     = $Country
       Accounts    = $CountryRecords.count
