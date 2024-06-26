@@ -5,16 +5,17 @@
 # https://practical365.com/report-user-license-costs/ for information about how to include licensing cost information
 # in the output
 
-# V1.1 27-Sep-2022 Add sign in data for users and calculate how long it's been since they signed in and used a license.
-# V1.2 23-Nov-2022 Added SKU usage summary to HTML report
-# V1.3 29-Sep-2023 Added support for group-based licensing
-# V1.4 13-Oct-2023 Fixed some bugs
-# V1.5 26-Jan-2024 Added license pricing computation
-# V1.5 8-Feb-2024  Added cost analysis for departments and countries
-# V1.6 12-Feb-2024 Added info to report when license costs can't be attributed to countries or departments because of missing user account properties
-# V1.7 7-Mar-2024  Added company name to the set of properties output by report
-# V1.8 17-Mar-2024 Tidy up
-# V1.9 1-June-2024 Add cost analysis for inactive and disabled accounts
+# V1.1  27-Sep-2022   Add sign in data for users and calculate how long it's been since they signed in and used a license.
+# V1.2  23-Nov-2022   Added SKU usage summary to HTML report
+# V1.3  29-Sep-2023   Added support for group-based licensing
+# V1.4  13-Oct-2023   Fixed some bugs
+# V1.5  26-Jan-2024   Added license pricing computation
+# V1.5  8-Feb-2024    Added cost analysis for departments and countries
+# V1.6  12-Feb-2024   Added info to report when license costs can't be attributed to countries or departments because of missing user account properties
+# V1.7  7-Mar-2024    Added company name to the set of properties output by report
+# V1.8  17-Mar-2024   Tidy up
+# V1.9  1-June-2024   Add cost analysis for inactive and disabled accounts
+# V1.91 26-June-2024  Fix bug with color formatting of inactive account column
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
@@ -44,7 +45,7 @@ Function Get-LicenseCosts {
 
 [datetime]$RunDate = Get-Date
 [string]$ReportRunDate = Get-Date ($RunDate) -format 'dd-MMM-yyyy HH:mm'
-$Version = "1.9"
+$Version = "1.91"
 
 # Default currency - can be overwritten by a value read into the $ImportSkus array
 [string]$Currency = "USD"
@@ -462,7 +463,14 @@ If ($PricingInfoAvailable) {
   ForEach ($TableRow in $XML.table.SelectNodes("tr")) {
     # each TR becomes a member of class "tablerow"
     $TableRow.SetAttribute("class","tablerow")
-    
+    # Make sure that we can deal with the days since last sign-in property, which could be blank for new accounts
+    Try {
+      [int]$DaysSinceLastSignIn = $TableRow.td[13]
+    } Catch {
+      # This Catch block will be executed if the value of the DaysSinceLastSignIn property is not an integer
+      # like "Unknown"
+      $DaysSinceLastSignIn = 99999
+    }
     # Level of license cost
     Try {
       $UserUPN = $TableRow.td[1]
@@ -487,7 +495,7 @@ If ($PricingInfoAvailable) {
       }
     }
     # Highlight accounts that haven't signed in for more than 90 days 
-    If (($TableRow.td) -and ([int]$TableRow.td[13] -ge 90))  {
+    If (($TableRow.td) -and ($DaysSinceLastSignIn -ge 90))  {
         ## tag the TD as inactive
       $TableRow.SelectNodes("td")[13].SetAttribute("class","inactiveaccount")
     }
