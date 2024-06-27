@@ -3,6 +3,12 @@
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-SharingAuditEvents.PS1
 
+$Modules = Get-Module | Select-Object -ExpandProperty Name
+If ("ExchangeOnlineManagement" -notin $Modules) {
+    Write-Host "Loading Exchange Online Management module"
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp
+}
+
 [array]$Operations = "SharingSet", "SecureLinkUsed", "SecureLinkCreated"
 [array]$Records = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-30) -EndDate (Get-Date).AddDays(+1) `
    -Operations $Operations -ResultSize 2000 -Formatted -SessionCommand ReturnLargeSet
