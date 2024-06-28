@@ -1,6 +1,8 @@
 # ReportAuditRecsFileUpdates.PS1
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportAuditRecsFileUpdates.PS1
 # Example of using audit records to find out who changed a file
+# Updated 28-June-2024 for the 2025 Book
+
 $FileName = (Read-Host "Enter file name to search")
 [array]$Records = Search-UnifiedAuditLog -Operations FileModified, FileAccessed, FileUploaded `
   -ObjectIds $FileName -ResultSize 5000 -StartDate (Get-Date).AddDays(-180) -EndDate (Get-Date).AddDays(+1) `
