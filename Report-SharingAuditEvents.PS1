@@ -9,7 +9,7 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
     Connect-ExchangeOnline -SkipLoadingCmdletHelp
 }
 
-[array]$Operations = "SharingSet", "SecureLinkUsed", "SecureLinkCreated"
+[array]$Operations = "SharingSet", "SecureLinkUsed", "SecureLinkCreated", "CompanyLinkCreated", "CompanyLinkUsed", "AnonymousLinkCreated"
 [array]$Records = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-30) -EndDate (Get-Date).AddDays(+1) `
    -Operations $Operations -ResultSize 2000 -Formatted -SessionCommand ReturnLargeSet
 If (!($Records)) {
@@ -28,16 +28,41 @@ ForEach ($Rec in $Records) {
             $File = $AuditData.SourceFileName
             $URL = $AuditData.ObjectId
             $EventData = $AuditData.EventData
+            $LinkType = "Secure link"
         }
         "SharingSet" {
-            $File = $AuditData.SourceFileName
+            If ($Rec.UserIds -eq "app@sharepoint") {
+                $File = "Teams Meeting Recording"
+            } Else {
+                $File = $AuditData.SourceFileName
+            }
             $URL = $AuditData.ObjectId
             $EventData = $AuditData.EventData
+            $LinkType = "Secure link"
         }
         "SecureLinkUsed" {
             $File = $AuditData.SourceFileName
             $URL = $AuditData.ObjectId
             $Sharee = $AuditData.UserId
+            $LinkType = "Secure link"
+        }
+        "CompanyLinkCreated" {
+            $File = $AuditData.SourceFileName
+            $URL = $AuditData.ObjectId
+            $EventData = $AuditData.EventData
+            $LinkType = "Company link"
+        }
+        "CompanyLinkUsed" {
+            $File = $AuditData.SourceFileName
+            $URL = $AuditData.ObjectId
+            $Sharee = $AuditData.UserId
+            $LinkType = "Company link"
+        }
+        "AnonymousLinkCreated" {
+            $File = $AuditData.SourceFileName
+            $URL = $AuditData.ObjectId
+            $EventData = $AuditData.EventData
+            $LinkType = "Anonymous link"
         }
     }
  
@@ -49,6 +74,7 @@ ForEach ($Rec in $Records) {
         URL         = $URL
         EventData   = $EventData
         Sharee      = $Sharee
+        Linktype    = $LinkType
 
      }
     $Report.Add($ReportLine)
