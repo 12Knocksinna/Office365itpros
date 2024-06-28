@@ -1,10 +1,10 @@
 # Update-OneDriveGroupMembers.PS1
 # Sample script to illustrate the principal of using groups to drive the allocation of storage quotas to OneDrive accounts
-#
+# See https://office365itpros.com/2023/06/15/onedrive-storage-quota-manage/ for more information
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Update-OneDriveGroupMembers.PS1
 #
 # Check that we're connected to SharePoint Online
-$Modules = Get-Module
+[array]$Modules = Get-Module
 If ("Microsoft.Online.Sharepoint.PowerShell" -notin $Modules.Name) { 
    Write-Host "Please connect to the SharePoint Online management module and restart the script."; break 
 }
@@ -12,8 +12,12 @@ If ("Microsoft.Online.Sharepoint.PowerShell" -notin $Modules.Name) {
 # Connect to the Microsoft Graph
 Connect-MgGraph -Scopes Directory.Read.All, Group.Read.All
 # Read in allocated sizes for different group members
-$OneDriveAllocations = Import-CSV -Path c:\temp\OneDriveAllocations.csv
-If (!($OneDriveAllocations)) { Write-Host "Can't find group information to process - exiting" ; break }
+# The CSV file used should have columns for group, groupid, and allocation (in megabytes)
+If (Test-Path "c:\temp\OneDriveAllocations.csv") {
+   [array]$OneDriveAllocations = Import-CSV -Path c:\temp\OneDriveAllocations.csv 
+} Else {
+   Write-Host "Can't find group information to process - exiting" ; break 
+}
 
 # Figure out the service domain and what this means for the root of OneDrive account URLs
 $ServiceDomain = (Get-MgOrganization).verifiedDomains | Where-Object {$_.IsInitial -eq $True} | Select-Object -ExpandProperty Name
