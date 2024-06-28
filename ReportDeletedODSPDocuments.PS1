@@ -4,6 +4,7 @@
 
 # Updated 15-Aug-2023 because SharePoint Online changed its audit record for file deletions
 # from FileDeleted to FileRecycled
+# Updated 28-June-2024 for the 2025 Book
 
 $Operations = "FileDeleted, FileDeletedFirstStageRecycleBin, FileDeletedSecondStageRecycleBin, FileRecycled" 
 $StartDate = (Get-Date).AddDays(-90); $EndDate = (Get-Date) 
@@ -15,15 +16,20 @@ $OneDriveDomain = ("https://{0}-my.sharepoint.com/personal/" -f $ServiceDomain.S
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
 
 Clear-Host; Write-Host "Searching Office 365 Audit Records to find deletion records for SharePoint and OneDrive documents"
-[array]$Records = (Search-UnifiedAuditLog -Operations $Operations -StartDate $StartDate -EndDate $EndDate -ResultSize 5000 -Formatted)
+[array]$Records = Search-UnifiedAuditLog -Operations $Operations -StartDate $StartDate `
+    -EndDate $EndDate -ResultSize 5000 -Formatted -SessionCommand ReturnLargeSet
+
 If (!($Records)) {
     Write-Host "No audit records for ODSP deletions found." 
-} Else {
-    Write-Host "Processing" $Records.Count "ODSP file deletion records..."
-    # Scan each audit record to extract information
-    ForEach ($Rec in $Records) {
-      $AuditData = ConvertFrom-Json $Rec.Auditdata
-      Switch ($AuditData.Operation) {
+    Break
+}
+# Remove any duplicates and sort by date
+$Records = $Records | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime]} -Descending
+Write-Host "Processing" $Records.Count "ODSP file deletion records..."
+# Scan each audit record to extract information
+ForEach ($Rec in $Records) {
+    $AuditData = ConvertFrom-Json $Rec.Auditdata
+    Switch ($AuditData.Operation) {
         "FileDeleted" { # Old Normal deletion
            $Reason = "Moved document to site recycle bin"
            $UserDeletions++
@@ -51,20 +57,20 @@ If (!($Records)) {
        }
       } #End Switch
 
-      If ([string]::IsNullOrWhiteSpace($AuditData.UserAgent)) {
-          $UserAgent = "Background process"
-      } Else {
-          $UserAgent = $AuditData.UserAgent 
-      }
-      $Workload = "SharePoint Online"
-      If ($AuditData.SiteUrl -match "my.sharepoint.com") { $Workload = "OneDrive for Business"}
+    If ([string]::IsNullOrWhiteSpace($AuditData.UserAgent)) {
+        $UserAgent = "Background process"
+    } Else {
+        $UserAgent = $AuditData.UserAgent 
+    }
+    $Workload = "SharePoint Online"
+    If ($AuditData.SiteUrl -match "my.sharepoint.com") { $Workload = "OneDrive for Business"}
 
-      # Handle situation where it's a Teams meeting recording that expires
-      If ($AuditData.SourceFileName) {
+    # Handle situation where it's a Teams meeting recording that expires
+    If ($AuditData.SourceFileName) {
         $SiteURL  = $AuditData.SiteURL
         $Folder   = $AuditData.SourceRelativeURL
         $FileName = $AuditData.SourceFileName
-     } Elseif ($Rec.UserIds -ne "SHAREPOINT\system") {
+    } Elseif ($Rec.UserIds -ne "SHAREPOINT\system") {
         $OneDriveUser = $Rec.Userids.Replace(".", "_")	
         $OneDriveUser = $Rec.UserIds.Replace("@","-")
         $OneDriveURL = $OneDriveDomain + $OneDriveUser
@@ -73,21 +79,23 @@ If (!($Records)) {
         $SiteUrl  = $OneDriveURL
         $Folder   = "/Recordings/"
         $FileName = $FileName
-     }
+    }
 
-          $ReportLine = [PSCustomObject] @{
-           TimeStamp    = Get-Date($AuditData.CreationTime) -format g
-           "Deleted by" = $DeletedBy
-           User         = $AuditData.UserId
-           Site         = $SiteURL
-           "Folder"     = $Folder
-           "File name"  = $FileName
-           Workload     = $Workload
-           Reason       = $Reason
-           Action       = $AuditData.Operation
-           Client       = $UserAgent }        
-      $Report.Add($ReportLine) }
+    $ReportLine = [PSCustomObject] @{
+        TimeStamp    = Get-Date($AuditData.CreationTime) -format g
+        "Deleted by" = $DeletedBy
+        User         = $AuditData.UserId
+        Site         = $SiteURL
+        "Folder"     = $Folder
+        "File name"  = $FileName
+        Workload     = $Workload
+        Reason       = $Reason
+        Action       = $AuditData.Operation
+        Client       = $UserAgent 
+    }        
+    $Report.Add($ReportLine)
 }
+
 Clear-Host
 Write-Host ("All done - ODSP Deletions in the period {0} to {1}" -f $StartDate, $EndDate)
 Write-Host ""
