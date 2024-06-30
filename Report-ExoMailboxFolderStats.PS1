@@ -99,7 +99,7 @@ ForEach ($Mbx in $Mailboxes) {
     If ($Mbx.ArchiveStatus -eq 'Active') {
         [array]$ArchiveStats = Get-ExoMailboxStatistics -Identity $Mbx.ExternalDirectoryObjectId -Archive | Sort-Object Name
         $ArchiveMbxBytes = ($ArchiveStats.TotalItemSize.value.ToString().Split("(")[1].Split(" ")[0].Replace(",",""))  
-        [float]$ArchiveMbxSizeGB = [math]::Round($MbxBytes/1024MB,2) 
+        [float]$ArchiveMbxSizeGB = [math]::Round($ArchiveMbxBytes/1024MB,2) 
         $ArchiveFolderStats = Get-ExoMailboxFolderStatistics -Identity $Mbx.ExternalDirectoryObjectId -Archive -IncludeOldestAndNewestItems | `
             Where-Object {$_.ItemsInFolder -gt 0 -and $_.Name -notin $UnwantedFolders} | Sort-Object Name
         ForEach ($Folder in $ArchiveFolderStats) {
