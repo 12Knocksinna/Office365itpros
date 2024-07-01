@@ -17,12 +17,12 @@ If (!($Records)) {
      Break
  }
 $Records = $Records | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime]} -Descending
-
+$Organization = Get-OrganizationConfig | Select-Object -ExpandProperty DisplayName
 $Report = [System.Collections.Generic.List[Object]]::new()
  
 ForEach ($Rec in $Records) {
     $AuditData = ConvertFrom-Json $Rec.AuditData
-    $EventData = $null; $Sharee = $null
+    $EventData = $null; $Sharee = $null; $SharingTarget = $null
     Switch ($AuditData.Operation) {
         "SecureLinkCreated" {   
             $File = $AuditData.SourceFileName
@@ -39,6 +39,7 @@ ForEach ($Rec in $Records) {
             $URL = $AuditData.ObjectId
             $EventData = $AuditData.EventData
             $LinkType = "Secure link"
+            $SharingTarget = $AuditData.TargetUserOrGroupName
         }
         "SecureLinkUsed" {
             $File = $AuditData.SourceFileName
@@ -51,11 +52,12 @@ ForEach ($Rec in $Records) {
             $URL = $AuditData.ObjectId
             $EventData = $AuditData.EventData
             $LinkType = "Company link"
+            $SharingTarget = $Organization
         }
         "CompanyLinkUsed" {
             $File = $AuditData.SourceFileName
             $URL = $AuditData.ObjectId
-            $Sharee = $AuditData.UserId
+            $SharingTarget = $AuditData.UserId
             $LinkType = "Company link"
         }
         "AnonymousLinkCreated" {
@@ -72,8 +74,8 @@ ForEach ($Rec in $Records) {
         User        = $AuditData.UserId
         File        = $File
         URL         = $URL
+        Target      = $SharingTarget
         EventData   = $EventData
-        Sharee      = $Sharee
         Linktype    = $LinkType
 
      }
