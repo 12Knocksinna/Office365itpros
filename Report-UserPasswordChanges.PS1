@@ -134,7 +134,7 @@ While ($null -ne $Nextlink) {
 
  $Users = $Users | Sort-Object displayName
  # Get MFA data
- [array]$MFAData = Get-MgBetaReportAuthenticationMethodUserRegistrationDetail
+ [array]$MFAData = Get-MgBetaReportAuthenticationMethodUserRegistrationDetail -All -PageSize 999
  $MFAData = $MFAData | Where-Object {$_.userType -eq 'Member'}
 
  # Report what we've found
