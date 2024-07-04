@@ -2,6 +2,8 @@
 # Report specific apps install in teams
 # Initially designed to help with the retirement of Office Connectors from Teams in August 2024
 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-TeamsApps.PS1
+
 Connect-MgGraph -NoWelcome -Scopes TeamsAppInstallation.Read.Group, Team.ReadBasic.All
 
 Write-Host "Looking for teams to analyze..."
