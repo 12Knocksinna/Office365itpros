@@ -44,7 +44,7 @@ ForEach ($Rec in $Records) {
         "SecureLinkUsed" {
             $File = $AuditData.SourceFileName
             $URL = $AuditData.ObjectId
-            $Sharee = $AuditData.UserId
+            $SharingTarget = $AuditData.UserId
             $LinkType = "Secure link"
         }
         "CompanyLinkCreated" {
