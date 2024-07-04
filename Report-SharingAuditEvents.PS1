@@ -22,7 +22,7 @@ $Report = [System.Collections.Generic.List[Object]]::new()
  
 ForEach ($Rec in $Records) {
     $AuditData = ConvertFrom-Json $Rec.AuditData
-    $EventData = $null; $Sharee = $null; $SharingTarget = $null
+    $EventData = $null; $SharingTarget = $null
     Switch ($AuditData.Operation) {
         "SecureLinkCreated" {   
             $File = $AuditData.SourceFileName
