@@ -16,6 +16,10 @@
 # V1.8  17-Mar-2024   Tidy up
 # V1.9  1-June-2024   Add cost analysis for inactive and disabled accounts
 # V1.91 26-June-2024  Fix bug with color formatting of inactive account column
+# V1.92 04-Jul-2024   Add optional cost center license analysis based on cost center details stored in a
+#                     custom attribute for Exchange mailboxes that's synchronized to Entra ID. The custom attribute
+#                     to use is held in $CostCenterAttribute. If this variable is undefined or $null, the report
+#                     script ignores cost centers
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
@@ -45,7 +49,7 @@ Function Get-LicenseCosts {
 
 [datetime]$RunDate = Get-Date
 [string]$ReportRunDate = Get-Date ($RunDate) -format 'dd-MMM-yyyy HH:mm'
-$Version = "1.91"
+$Version = "1.92"
 
 # Default currency - can be overwritten by a value read into the $ImportSkus array
 [string]$Currency = "USD"
@@ -73,6 +77,12 @@ Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredent
 $SkuDataPath = "C:\temp\SkuDataComplete.csv"
 $ServicePlanPath = "C:\temp\ServicePlanDataComplete.csv"
 $UnlicensedAccounts = 0
+
+# Define this variable if you want to do cost center reporting based on a cost center stored in one of the
+# 15 Exchange Online custom attributes synchronized to Entra ID. Use the Entra ID attribute (like extensionAttribute6) 
+# name not the Exchange Online attribute name (CustomAttribute6) Set the variable to $null or don't define it at all 
+# to ignore cost centers
+#$CostCenterAttribute = "extensionAttribute6"
 
 If ((Test-Path $skuDataPath) -eq $False) {
     Write-Host ("Can't find the product data file ({0}). Exiting..." -f $skuDataPath) ; break 
@@ -107,7 +117,7 @@ If ($ImportSkus[0].Price) {
 Write-Host "Finding licensed user accounts..."
 [Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'"  `
   -ConsistencyLevel eventual -CountVariable Records -All -PageSize 999 `
-  -Property id, displayName, userPrincipalName, country, department, assignedlicenses, `
+  -Property id, displayName, userPrincipalName, country, department, assignedlicenses, OnPremisesExtensionAttributes, `
   licenseAssignmentStates, createdDateTime, jobTitle, signInActivity, companyName, accountenabled |  `
   Sort-Object DisplayName
 
@@ -120,6 +130,7 @@ Else {
 
 [array]$Departments = $Users.Department | Sort-Object -Unique
 [array]$Countries = $Users.Country | Sort-Object -Unique
+[array]$CostCenters = $Users.OnPremisesExtensionAttributes.($CostCenterAttribute) | Sort-Object -Unique
 $OrgName = (Get-MgOrganization).DisplayName
 $DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0; $LicenseErrorCount = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
@@ -268,6 +279,12 @@ ForEach ($User in $Users) {
       $AccountCreatedDate = Get-Date($User.CreatedDateTime) -format 'dd-MMM-yyyy HH:mm' 
   }
 
+  # If cost center reporting is enabled, extract the cost center for the user
+  [string]$CostCenter = $Null
+  If ($CostCenterAttribute) {
+    $CostCenter = $User.OnPremisesExtensionAttributes.($CostCenterAttribute)
+  }
+
   # Report information
   [string]$DisabledPlans = $DisabledPlans -join ", " 
   [string]$LicenseInfo = $LicenseInfo -join (", ")
@@ -301,6 +318,7 @@ ForEach ($User in $Users) {
       Status                     = $UnusedAccountWarning
       "Account status"           = $AccountStatus
       UserCosts                  = $UserCosts  
+      'Cost Center'              = $CostCenter
     }
   } Else { 
     # No pricing information
@@ -374,32 +392,31 @@ If ($PricingInfoAvailable) {
   $SkuReport = $SkuReport | Sort-Object "SKU Name" -Descending
 }
 
-If ($PricingInfoAvailable) { 
   # Generate the department analysis
   $DepartmentReport = [System.Collections.Generic.List[Object]]::new()
   ForEach ($Department in $Departments) {
     [array]$DepartmentRecords = $Report | Where-Object {$_.Department -eq $Department}
     $DepartmentReportLine = [PSCustomObject][Ordered]@{
-      Department  = $Department
-      Accounts    = $DepartmentRecords.count
+      Department    = $Depatment
+      Accounts      = $DepartmentRecords.count
       Costs       = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DepartmentRecords | Measure-Object UserCosts -Sum).Sum))
       AverageCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DepartmentRecords | Measure-Object UserCosts -Average).Average))
     } 
     $DepartmentReport.Add($DepartmentReportLine)
   }
   $DepartmentHTML = $DepartmentReport | ConvertTo-HTML -Fragment
-  # Anyone without a department?
-  [array]$NoDepartments = $Report | Where-Object { $null -eq $_.Department }
-  If ($NoDepartments) {
-      $NoDepartmentCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoDepartments | Measure-Object UserCosts -Sum).Sum))
+  # Anyone without a depaertment?
+  [array]$NoDepartment = $Report | Where-Object { $null -eq $_.Department }
+  If ($NoDepartment) {
+    $NoDepartmentCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoDepartment | Measure-Object UserCosts -Sum).Sum))
   } Else {
-      $NoDepartmentCosts = "Zero"
+    $NoDepartmentCosts = "Zero"
   }
 
   # Generate the country analysis
   $CountryReport = [System.Collections.Generic.List[Object]]::new()
   ForEach ($Country in $Countries) {
-    [array]$CountryRecords = $Report | Where-Object Country -match $Country
+    [array]$CountryRecords = $Report | Where-Object {$_.Country -eq $Country}
     $CountryReportLine = [PSCustomObject][Ordered]@{
       Country     = $Country
       Accounts    = $CountryRecords.count
@@ -416,6 +433,28 @@ If ($PricingInfoAvailable) {
   } Else {
     $NoCountryCosts = "Zero"
   }
+
+  # Generate cost center analysis
+  If ($PricingInfoAvailable -and $null -ne $CostCenterAttribute) { 
+    $CostCenterReport = [System.Collections.Generic.List[Object]]::new()
+    ForEach ($CostCenter in $CostCenters) {
+      [array]$CostCenterRecords = $Report | Where-Object {$_.'Cost Center' -eq $CostCenter}
+      $CostCenterReportLine = [PSCustomObject][Ordered]@{
+        'Cost Center'  = $CostCenter
+        Accounts    = $CostCenterRecords.count
+        Costs       = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CostCenterRecords | Measure-Object UserCosts -Sum).Sum))
+        AverageCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CostCenterRecords | Measure-Object UserCosts -Average).Average))
+      } 
+      $CostCenterReport.Add($CostCenterReportLine)
+    }
+    $CostCenterHTML = $CostCenterReport | ConvertTo-HTML -Fragment
+    # Anyone without a cost center?
+    [array]$NoCostCenter = $Report | Where-Object { $null -eq $_.'Cost Center' }
+    If ($NoCostCenter) {
+        $NoCostCenterCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoCostCenter | Measure-Object UserCosts -Sum).Sum))
+    } Else {
+        $NoCostCenterCosts = "Zero"
+    }
 
   # Inactive user accounts - these are accounts that have never signed in or whose last sign-in was more than 60 days ago
   $InactiveUserAccounts = $Report | Where-Object {($_."Days since last signin" -ge 60) -or ($_.'Days since last signin' -eq "Unknown")}
@@ -522,8 +561,8 @@ $HtmlBody2 = $SkuReport | Select-Object "SKU Id", "SKU Name", "Units used", "Uni
 $HtmlSkuSeparator = "<p><h2>Product License Distribution</h2></p>"
 
 $HtmlTail = "<p></p>"
-# Add Cost analysis if pricing information is available
 
+# Add first set of cost analysis if pricing information is available
 If ($PricingInfoAvailable) {
   $HTMLTail = $HTMLTail + "<h2>Licensing Cost Analysis</h2>" +
   "<p>Total licensing cost for tenant:              " + $TotalBoughtLicenseCostsOutput + "</p>" +
@@ -533,7 +572,18 @@ If ($PricingInfoAvailable) {
   "<p><h2>License Costs by Country</h2></p>         " + $CountryHTML +
   "<p>License costs for users without a country:    " + $NoCountryCosts +
   "<p><h2>License Costs by Department</h2></p>      " + $DepartmentHTML +
-  "<p>License costs for users without a department: " + $NoDepartmentCosts +
+  "<p>License costs for users without a department: " + $NoDepartmentCosts 
+}
+
+# Add cost center information if we've been asked to generate it
+If ($CostCenterAttribute) {
+  $HTMLTail = $HtmlTail + "<h2>Cost Center Analysis</h2><p></p>" + $CostCenterHTML + "<p></p>" +
+  "<p>License costs for users without a cost center:    " + $NoCostCenterCosts 
+}
+
+# Add the second part of the cost summary
+If ($PricingInfoAvailable) {
+  $HTMLTail = $HTMLTail +
   "<p><h2>Inactive User Accounts</h2></p>" +
   "<p>Number of inactive user accounts:             " + $InactiveUserAccounts.Count + "</p>" +
   "<p>Names of inactive accounts:                   " + ($InactiveUserAccounts.User -join ", ") + "</p>" +
