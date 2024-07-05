@@ -129,7 +129,7 @@ $SharedDocFolder = "/Shared%20Documents" # These values are to allow internation
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 $Version = "V6.00"
 
-$RunDate = Get-Date -format 'dd-MMM-yyyy'
+$RunDate = Get-Date -format 'dd-MMM-yyyy HH:mm'
 # Get tenant name 
 $OrgName = Get-MgOrganization | Select-Object -ExpandProperty DisplayName
 $HeaderInfo = ("Report generated for the {0} tenant on {1}" -f $OrgName, $RunDate)
@@ -544,7 +544,7 @@ $htmltail = "<p>Report created for: " + $OrgName + "
 
 # Generate the HTML report
 $HTMLReport = $HTMLHead + $HTMLBody + $HTMLTail
-$HTMLReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.html"
+$HTMLReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Teams and Groups Activity Report.html"
 $HTMLReport | Out-File $HTMLReportFile -Encoding utf8
 
 # Generate the report in either Excel worksheet or CSV format, depending on if the ImportExcel module is available

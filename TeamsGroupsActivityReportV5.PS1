@@ -206,7 +206,7 @@ $SharedDocFolder = "/Shared%20Documents" # These values are to allow internation
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 $Version = "V5.13"
 [int]$TimeToRefreshToken = 53 # Token lifetime
-$RunDate = Get-Date -format 'dd-MMM-yyyy'
+$RunDate = Get-Date -format 'dd-MMM-yyyy HH:mm'
 # Get tenant name and other details
 $Uri = "https://graph.microsoft.com/v1.0/organization"
 $OrgData = Get-GraphData -Uri $Uri -AccessToken $Token
