@@ -111,6 +111,10 @@ Connect-MgGraph -NoWelcome -AppId $AppId -CertificateThumbprint $CertificateThum
 
 $Global:TempDataFile = 'c:\temp\TempData.csv'
 $DataObfuscationOn = $False
+$Headers = @{}
+$Headers.Add("consistencyLevel", "eventual")
+$Headers.Add("Content-Type", "application/json")
+
 # We need full access to report data, so check the setting and update if necessary
 If ((Get-MgBetaAdminReportSetting).DisplayConcealedNames -eq $True) {
     $DataObfuscationOn = $True
@@ -166,7 +170,7 @@ Remove-Item $TempDataFile -ErrorAction SilentlyContinue
 # This code inserted to fetch site information and build a hash table of SharePoint site URLs
 # to fix problem where Microsoft's API doesn't turn the URL in the usage data
 $DataTable = @{}
-[array]$SPOSiteData = Get-MgSite -All -PageSize 999
+[array]$SPOSiteData = Get-MgSite -All -PageSize 999 
 Write-Host ("Processing details for {0} sites..." -f $SPOSiteData.count)
 $SPOSiteLookup = @{}
 ForEach ($S in $SPOSiteData) {
@@ -214,7 +218,9 @@ ForEach ($Site in $SPOUsage) {
 Write-Host ("Checking Microsoft 365 Groups and Teams for: {0}" -f $OrgName)
 Write-Host "This phase can take some time because we need to fetch every group in the organization and"
 Write-Host "then analyze its settings and activity. Please wait."
-[array]$Groups = Get-MgGroup -Filter "groupTypes/any(a:a eq 'unified')" -PageSize 999 -All | Sort-Object DisplayName
+[array]$Groups = Get-MgGroup -Filter "groupTypes/any(a:a eq 'unified')" -PageSize 999 -All `
+    -Property id, displayname, visibility, assignedlabels, description, createdDateTime, renewedDateTime, drive `
+    | Sort-Object DisplayName
 If (!($Groups)) {
     Write-Host "Can't find any Microsoft 365 Groups"; break
 }
@@ -237,56 +243,62 @@ ForEach ($Group in $Groups) {
             $OwnerNames = "No owners found"
             $GroupOwnerEMail = $null 
         }
-    }
-    # Get extended group properties 
-    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "?`$select=visibility,description,assignedlabels"
-    $GroupData = Get-GraphData -AccessToken $Token -Uri $uri
-    $Visibility  = $GroupData.Visibility
-    $Description = $GroupData.Description
-    $GroupLabel  = $GroupData.AssignedLabels.DisplayName
+    }  
     # Get SharePoint site URL
     $SPOUrl = $Null; $SPODocLib = $Null; $SPOLastDateActivity = $Null
-    $Uri = "https://graph.microsoft.com/v1.0/groups/" + $Group.Id + "/drive"
-    [array]$SPOData = Get-GraphData -AccessToken $Token -Uri $uri
-    [int]$LLVValue = $SPOData.WebUrl.IndexOf($SharedDocFolder) # Can we find a local-language value for the document library in the data returned?
-    If (($SPOData.id) -and ($SPOData.DriveType -eq "documentLibrary")) { # Using language-specific values to identify the document library defined
-        If ($LLVValue -gt 0) {  # If we have a local language value, parse it to extract the document library URL
-            $SPOUrl = $SPOData.WebUrl.SubString(0,$SPOData.WebUrl.IndexOf($SharedDocFolder))
-            $SPODocLib = $SPOUrl + $SharedDocFolder2 
-            # $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
-            $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g 
-        } Else  { # Just report what we read from the Graph
-            $SPOUrl = $SPOData.WebUrl
-            $SPODocLib = $SPOUrl + $SharedDocFolder2 
-            # $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
-            $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format g 
-        } # End Else
-    } Else { # End if against $SPODataElse  
-        Clear-Host
-        Write-Host "Continuing to fetch information about Microsoft 365 Groups..." 
-    } # Get rid of mucky SharePoint error  308 
+   
+    $Uri = ("https://graph.microsoft.com/v1.0/groups/{0}/drive" -f $Group.Id)
+    Try {
+        [array]$SPOData = Invoke-MgGraphRequest -Uri $Uri -Method Get
+    } Catch {
+        Write-Host ("Error fetching SharePoint data for {0}. Site migh be archived. Continuing..." -f $Group.DisplayName)
+        $SPOData = $null
+    }
+    If ($SPOData) {
+        [int]$LLVValue = $SPOData.WebUrl.IndexOf($SharedDocFolder) # Can we find a local-language value for the document library in the data returned?
+        If (($SPOData.id) -and ($SPOData.DriveType -eq "documentLibrary")) { # Using language-specific values to identify the document library defined
+            If ($LLVValue -gt 0) {  # If we have a local language value, parse it to extract the document library URL
+                $SPOUrl = $SPOData.WebUrl.SubString(0,$SPOData.WebUrl.IndexOf($SharedDocFolder))
+                $SPODocLib = $SPOUrl + $SharedDocFolder2 
+                # $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
+                $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format 'dd-MMM-yyyy HH:mm'
+            } Else  { # Just report what we read from the Graph
+                $SPOUrl = $SPOData.WebUrl
+                $SPODocLib = $SPOUrl + $SharedDocFolder2 
+                # $SPOQuotaUsed = [Math]::Round($SPOData.quota.used/1Gb,2)
+                $SPOLastDateActivity = Get-Date ($SPOData.lastModifiedDateTime) -format 'dd-MMM-yyyy HH:mm'
+            } 
+        }
+    } Else {
+        # Drive is probably locked because the site is archived, so get what we can...
+        $Data = $SPOSiteData | Where-Object {$_.Name -eq $Group.displayname}
+        $SPOUrl = $Data.WebUrl
+        $SPODocLib = $null
+        $SPOLastDateActivity = "Site archived"
+    }
 
    # Get Member and Guest member counts
-   $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Guest'"
-   $GuestMemberCount = Get-GraphData -AccessToken $Token -Uri $uri
-   $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Member'"
-   $GroupMemberCount = Get-GraphData -AccessToken $Token -Uri $uri  
+   [array]$Members = Get-MgGroupMember -GroupId $Group.Id -All -PageSize 500
+   [array]$Members = $Members.AdditionalProperties
+   [array]$GuestMembers = $Members | Where-Object {$_.userPrincipalName -like "*#EXT#*"}
+ 
    # Update list with group information
    $ReportLine = [PSCustomObject][Ordered]@{
        DisplayName      = $Group.DisplayName
        ObjectId         = $Group.Id
        ManagedBy        = $OwnerNames
        GroupContact     = $GroupOwnerEmail
-       GroupMembers     = $GroupMemberCount
-       GuestMembers     = $GuestMemberCount
+       GroupMembers     = $Members.count
+       GuestMembers     = $GuestMembers.count
        SharePointURL    = $SPOUrl
        SharePointDocLib = $SPODocLib
        LastSPOActivity  = $SPOLastDateActivity
        WhenCreated      = Get-Date ($Group.createdDateTime) -format 'dd-MMM-yyyy HH:mm'
        WhenRenewed      = Get-Date ($Group.renewedDateTime) -format 'dd-MMM-yyyy HH:mm'
-       Visibility       = $Visibility
-       Description      = $Description
-       Label            = $GroupLabel }
+       Visibility       = $Group.visibility
+       Description      = $Group.Description
+       Label            = ($Group.assignedLabels.displayName -join ", ")
+    }
   $GroupsList.Add($ReportLine) 
 
 } 
@@ -294,8 +306,8 @@ $GroupsList = $GroupsList | Sort-Object DisplayName
 
 Write-Host "Getting information about team-enabled groups..."
 # Get Teams
-$uri = "https://graph.microsoft.com/V1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')"
-[array]$Teams = Get-GraphData -AccessToken $Token -Uri $uri
+[array]$Teams = Get-MgTeam -All -PageSize 999 | Sort-Object DisplayName
+
 $TeamsHash = @{}
 $Teams.ForEach( {
    $TeamsHash.Add($_.Id, $_.DisplayName) } )
@@ -315,22 +327,21 @@ $ProgDelta = 100/($GroupsCount); $CheckCount = 0; $GroupNumber = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 # Main loop
 ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Graph call, the first thing is to get the group properties
-   $GroupNumber++
-   $DisplayName = $G.DisplayName
-   $SPOStatus = "SPO: OK"; $MailboxStatus = "Mbx: OK"; $TeamsStatus = "Teams: OK"
-   $GroupStatus = $DisplayName + " ["+ $GroupNumber +"/" + $GroupsCount + "]"
-   Write-Progress -Activity "Analyzing and reporting group" -Status $GroupStatus -PercentComplete $CheckCount
-   $CheckCount += $ProgDelta;  $ObsoleteReportLine = $DisplayName
-   $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsChatData = $Null;  $TeamsEnabled = $False;  [string]$LastItemAddedtoTeams = "N/A";  $ObsoleteReportLine = $Null
-
-   # Check for expired access token and renew if necessary
-   $Global:Token = CheckAccessToken
-  
+    $GroupNumber++
+    $DisplayName = $G.DisplayName
+    $SPOStatus = "SPO: OK"; $MailboxStatus = "Mbx: OK"; $TeamsStatus = "Teams: OK"
+    $GroupStatus = $DisplayName + " ["+ $GroupNumber +"/" + $GroupsCount + "]"
+    Write-Progress -Activity "Analyzing and reporting group" -Status $GroupStatus -PercentComplete $CheckCount
+    $CheckCount += $ProgDelta;  $ObsoleteReportLine = $DisplayName
+    $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsChatData = $Null;  $TeamsEnabled = $False;  [string]$LastItemAddedtoTeams = "N/A";  $ObsoleteReportLine = $Null
+ 
 # Group Age
-  $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
+    $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
 # Team-enabled or not?
-$GroupIsTeamEnabled = $False
-If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
+    $GroupIsTeamEnabled = $False
+    If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {
+        $GroupIsTeamEnabled = $True
+    }
 
  If ($GroupIsTeamEnabled -eq $False) { # Not a Teams-enabled group, so look at the Inbox etc.
  # Fetch information about activity in the Inbox folder of the group mailbox  
@@ -360,7 +371,8 @@ If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {$GroupIsTeamEnabled = $True}
    }
 
     If ($G.resourceBehaviorOptions -eq "CalendarMemberReadOnly") {
-     $LastConversation = "Yammer group" }
+        $LastConversation = "Yammer group"
+    }
 
    If ($LastConversation -le $WarningEmailDate) {
       # Write-Host "Last conversation item created in" $G.DisplayName "was" $LastConversation "-> Obsolete?"
@@ -480,30 +492,31 @@ If ($NumberWarnings -gt 1) { $OverallStatus = "Issues"}
 If ($NumberWarnings -gt 2) { $OverallStatus = "Fail" }
     
 # Generate a line for this group and store it in the report
-    $ReportLine = [PSCustomObject][Ordered]@{
-          GroupName               = $DisplayName
-          ManagedBy               = $G.ManagedBy
-	      ContactEmail            = $G.GroupContact
-          Visibility              = $G.Visibility
-          Members                 = $G.GroupMembers
-          "External Guests"       = $G.GuestMembers
-          Description             = $G.Description
-          "Sensitivity Label"     = $G.Label
-          "Team Enabled"          = $TeamsEnabled
-          "Last Teams message"    = $LastItemAddedtoTeams
-          "Number Teams messages" = $NumberOfChats
-          "Last Email Inbox"      = $LastConversation
-          "Number Email Inbox"    = $NumberConversations
-          "Last SPO Activity"     = $SPOLastActivityDate
-          "SPO Storage Used (GB)" = $SPOStorageUsed
-          "Number SPO Files"      = $SPOFileCount
-	      "SPO Site URL"          = $G.SharePointURL
-          "Date Created"          = $G.WhenCreated
-          "Days Old"              = $GroupAge       
-           NumberWarnings         = $NumberWarnings
-           Status                 = $Status
-           "Overall Result"       = $OverallStatus }
-   $Report.Add($ReportLine)  
+$ReportLine = [PSCustomObject][Ordered]@{
+    GroupName               = $DisplayName
+    ManagedBy               = $G.ManagedBy
+	ContactEmail            = $G.GroupContact
+    Visibility              = $G.Visibility
+    Members                 = $G.GroupMembers
+    "External Guests"       = $G.GuestMembers
+    Description             = $G.Description
+    "Sensitivity Label"     = $G.Label
+    "Team Enabled"          = $TeamsEnabled
+    "Last Teams message"    = $LastItemAddedtoTeams
+    "Number Teams messages" = $NumberOfChats
+    "Last Email Inbox"      = $LastConversation
+    "Number Email Inbox"    = $NumberConversations
+    "Last SPO Activity"     = $SPOLastActivityDate
+    "SPO Storage Used (GB)" = $SPOStorageUsed
+    "Number SPO Files"      = $SPOFileCount
+	"SPO Site URL"          = $G.SharePointURL
+    "Date Created"          = $G.WhenCreated
+    "Days Old"              = $GroupAge       
+    NumberWarnings         = $NumberWarnings
+    Status                 = $Status
+    "Overall Result"       = $OverallStatus 
+}
+$Report.Add($ReportLine)  
 
 $S3 = Get-Date
 $TotalSeconds = [math]::round(($S3-$S2).TotalSeconds,2)
