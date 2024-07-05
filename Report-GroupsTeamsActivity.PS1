@@ -216,8 +216,8 @@ ForEach ($Site in $SPOUsage) {
 # to store the object identifier and display name for the group. 
 
 Write-Host ("Checking Microsoft 365 Groups and Teams for: {0}" -f $OrgName)
-Write-Host "This phase can take some time because we need to fetch every group in the organization and"
-Write-Host "then analyze its settings and activity. Please wait."
+Write-Host "This phase can take some time because we need to fetch every group in the organization to be able to"
+Write-Host "analyze its settings and activity. Please wait..."
 [array]$Groups = Get-MgGroup -Filter "groupTypes/any(a:a eq 'unified')" -PageSize 999 -All `
     -Property id, displayname, visibility, assignedlabels, description, createdDateTime, renewedDateTime, drive `
     | Sort-Object DisplayName
@@ -436,7 +436,6 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
        }
        $NumberOfChats = $TeamsChatData.ItemsInFolder 
     } Else { # Read the data from the Teams usage data
-    # Write-Host "Reading from Teams Hash Table for" $ThisTeamData.DisplayName
         $ThisTeamData = $TeamsUsageHash[$G.ObjectId]
         $NumberOfChats = [int]$ThisTeamData.Posts + [int]$ThisTeamData.Replies
         [int]$DaysSinceTeamsActivity = 0; [string]$LastItemAddedToTeams = $null
@@ -459,12 +458,10 @@ If ($GroupIsTeamEnabled -eq $True) { # We have a team-enabled group
         $TeamsStatus = ("{0} last item added {1} days ago" -f $TeamsStatus, $DaysSinceTeamsActivity)
     }
 
-  # If (($TeamsEnabled -eq $True) -and ($NumberOfChats -le 100)) { Write-Host "Team-enabled group" $G.DisplayName "has only" $NumberOfChats "compliance record(s)" }    
    # Discover if team is archived
    If ($TeamsEnabled -eq $True) {
-        $Uri = ("https://graph.microsoft.com/v1.0/teams/{0}" -f $G.ObjectId)
         Try {
-            $TeamDetails = Get-GraphData -AccessToken $Token -Uri $Uri
+            $TeamDetails = Get-MgTeam -TeamId $G.ObjectId -Property IsArchived, Id, displayName
         } Catch {
             Out-Null
         }
@@ -554,10 +551,10 @@ $HTMLReport | Out-File $HTMLReportFile -Encoding utf8
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
     Import-Module ImportExcel -ErrorAction SilentlyContinue
-    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.xlsx"
-    $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Microsoft 365 Licensing Report" -Title ("Microsoft 365 Licensing Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Microsoft365LicensingReport" 
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Teams and Groups Activity Report.xlsx"
+    $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Teams and Groups activity" -Title ("Teams and Groups Activity Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Microsoft365LicensingReport" 
 } Else {
-    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.CSV"
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Teams and Groups Activity Report.CSV"
     $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
 }
 

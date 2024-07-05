@@ -581,7 +581,7 @@ If ($CostCenterAttribute) {
   "<p>License costs for users without a cost center:    " + $NoCostCenterCosts 
 }
 
-# Add the second part of the cost summary
+# Add the second part of the cost analysis if pricing information is available
 If ($PricingInfoAvailable) {
   $HTMLTail = $HTMLTail +
   "<p><h2>Inactive User Accounts</h2></p>" +
