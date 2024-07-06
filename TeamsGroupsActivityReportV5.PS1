@@ -147,45 +147,51 @@ Function Get-TeamsStats {
 # Function to retrieve per-team usage stats so that there's no need for the admin to download the report. The output is a hash table that
 # we check for Teams data
 
-$Uri = "https://graph.microsoft.com/V1.0/reports/getTeamsTeamActivityDetail(period='D180')?`$format=application/json"
-[array]$TeamsData = Get-GraphData -Uri $Uri  -AccessToken $Token
+$Uri = "https://graph.microsoft.com/v1.0/reports/GetTeamsTeamActivityDetail(period='D180')"
+[array]$TeamsData = (Invoke-RestMethod -Uri $URI -Headers $Headers -Method Get -ContentType "application/json") -Replace "...Report Refresh Date", "Report Refresh Date" |`
+ ConvertFrom-Csv 
+
 $PerTeamStats = [System.Collections.Generic.List[Object]]::new() 
 $TeamsDataHash = @{}
 ForEach ($Team in $TeamsData) {
-   If (!([string]::IsNullOrWhiteSpace($Team.LastActivityDate))) {
-      $DaysSinceActive = (New-Timespan -Start ($Team.LastActivityDate -as [datetime]) -End ($Team.Reportrefreshdate -as [datetime])).Days
-      $LastActiveDate = Get-Date ($Team.lastActivityDate) -format dd-MMM-yyyy 
-    } Else { $DaysSinceActive = "> 90"
-       $LastActiveDate = "More than 90 days ago" 
+    If (!([string]::IsNullOrWhiteSpace($Team.'Last Activity Date'))) {
+        $DaysSinceActive = (New-Timespan -Start ($Team.'Last Activity Date' -as [datetime]) -End ($Team.'Report Refresh date' -as [datetime])).Days
+        $LastActiveDate = Get-Date ($Team.'Last Activity Date') -format dd-MMM-yyyy 
+    } Else { 
+        $DaysSinceActive = "> 90"
+        $LastActiveDate = "More than 90 days ago" 
     }
-   $ReportLine  = [PSCustomObject] @{   
-      Team            = $Team.teamName
-      Privacy         = $Team.teamType
-      TeamId          = $Team.teamId
-      LastActivity    = $LastActiveDate
-      ReportPeriod    = $Team.Details.reportPeriod
-      DaysSinceActive = $DaysSinceActive
-      ActiveUsers     = $Team.Details.activeUsers
-      Posts           = $Team.Details.postMessages
-      ChannelMessages = $Team.Details.channelmessages
-      Replies         = $Team.Details.replyMessages
-      Urgent          = $Team.Details.urgentMessages
-      Mentions        = $Team.Details.mentions
-      Guests          = $Team.Details.guests
-      ActiveChannels  = $Team.Details.activeChannels
-      Reactions       = $Team.Details.reactions }
- $PerTeamStats.Add($ReportLine)
- # Update hash file
- $DataLine  = [PSCustomObject] @{  
-      Id              = $Team.TeamId
-      DisplayName     = $Team.TeamName
-      Privacy         = $Team.TeamType
-      Posts           = $Team.Details.postMessages
-      Replies         = $Team.Details.replyMessages
-      Messages        = $Team.Details.channelmessages
-      LastActivity    = $LastActiveDate
-      DaysSinceActive = $DaysSinceActive }    
-   $TeamsDataHash.Add([string]$Team.TeamId, $DataLine)
+    $ReportLine  = [PSCustomObject] @{   
+        Team            = $Team.'Team Name'
+        Privacy         = $Team.'Team Type'
+        TeamId          = $Team.'Team Id'
+        LastActivity    = $LastActiveDate
+        ReportPeriod    = $Team.'Report Period'
+        DaysSinceActive = $DaysSinceActive
+        ActiveUsers     = $Team.'Active Users'
+        Posts           = $Team.'Post Messages'
+        ChannelMessages = $Team.'Channel Messages'
+        Replies         = $Team.'Reply Messages'
+        Urgent          = $Team.'Urgent Messages'
+        Mentions        = $Team.Mentions
+        Guests          = $Team.Guests
+        ActiveChannels  = $Team.'Active Channels'
+        ActiveGuests    = $Team.'Active external users'
+        Reactions       = $Team.Reactions 
+    }
+    $PerTeamStats.Add($ReportLine)
+    # Update hash file
+    $DataLine  = [PSCustomObject] @{  
+        Id              = $Team.'Team Id'
+        DisplayName     = $Team.'Team Name'
+        Privacy         = $Team.'Team Type'
+        Posts           = $Team.'Post Messages'
+        Replies         = $Team.'Reply Messages'
+        Messages        = $Team.'Channel messages'
+        LastActivity    = $LastActiveDate
+        DaysSinceActive = $DaysSinceActive 
+    }    
+    $TeamsDataHash.Add([string]$Team.'Team Id', $DataLine)
 } #end ForEach
    $TeamsDataHash
 }
@@ -206,6 +212,16 @@ $SharedDocFolder = "/Shared%20Documents" # These values are to allow internation
 $SharedDocFolder2 = "/Shared Documents"  # Add both values
 $Version = "V5.13"
 [int]$TimeToRefreshToken = 53 # Token lifetime
+$Global:Token = GetAccessToken
+If (!($Token)) {
+    Write-Host "Can't get a valid access token from Entra ID - exiting"
+    break 
+}
+$Global:Headers = @{
+    'Content-Type'  = "application\json"
+    'Authorization' = "Bearer $Token" 
+    'ConsistencyLevel' = "eventual"  
+}
 $RunDate = Get-Date -format 'dd-MMM-yyyy HH:mm'
 # Get tenant name and other details
 $Uri = "https://graph.microsoft.com/v1.0/organization"
@@ -235,17 +251,6 @@ Write-Host ("Teams and Groups Activity Report {0} starting up..." -f $Version)
 $path = "C:\Temp"
 If(!(test-path $path)) {
     New-Item -ItemType Directory -Force -Path $path | Out-Null 
-}
-
-$Global:Token = GetAccessToken
-If (!($Token)) {
-    Write-Host "Can't get a valid access token from Entra ID - exiting"
-    break 
-}
-$Global:Headers = @{
-    'Content-Type'  = "application\json"
-    'Authorization' = "Bearer $Token" 
-    'ConsistencyLevel' = "eventual"  
 }
 
 # Set the creation date of the initial access token (59min and 59sec life long) and add 57 minutes to renew the token later in the main loop

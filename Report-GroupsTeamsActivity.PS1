@@ -1,5 +1,4 @@
 # TeamsGroupsActivityReport.PS1
-# https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReportV5.PS1
 # A script to check the activity of Microsoft 365 Groups and Teams and report the groups and teams that might be deleted because they're not used.
 # We check the group mailbox to see what the last time a conversation item was added to the Inbox folder. 
 # Another check sees whether a low number of items exist in the mailbox, which would show that it's not being used.
@@ -33,12 +32,18 @@
 # V5.13 18-Mar-2024 Include workaround because of problems with the SharePoint usage API
 # V6.0  05-Jul-2024 Conversion to use the Microsoft Graph PowerShell SDK
 # 
-# https://github.com/12Knocksinna/Office365itpros/blob/master/Report-TeamsGroupsActivity.ps1
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-GroupsTeamsActivity.PS1
 # See https://office365itpros.com/2022/03/14/microsoft-365-groups-teams-activity-report/ for more information
 #
 =======
-# Needs the following Graph application permissions:
-# Group.Read.All, Reports.Read.All, User.Read.All, GroupMember.Read.All, Sites.Read.All, Organization.Read.All (or Directory.Read.All)
+# Uses an Entra ID registered app with consent for the following Graph application permissions:
+# Group.Read.All:           Read groups
+# Reports.Read.All:         Read usage reports
+# User.Read.All:            Read users
+# GroupMember.Read.All:     Read group membership 
+# Sites.Read.All:           Read SharePoint Online sites for groups
+# Organization.Read.All:    Read details of tenant
+# Teams.ReadBasic.All:      Read basic Teams information
 #
 #+-------------------------- Functions etc. -------------------------
 
