@@ -220,7 +220,7 @@ Write-Host "This phase can take some time because we need to fetch every group i
 Write-Host "analyze its settings and activity. Please wait..."
 [array]$Groups = Get-MgGroup -Filter "groupTypes/any(a:a eq 'unified')" -PageSize 999 -All `
     -Property id, displayname, visibility, assignedlabels, description, createdDateTime, renewedDateTime, drive `
-    | Sort-Object DisplayName
+    -Sort "displayName DESC" -ConsistencyLevel "eventual" -CountVariable NumberGroups
 If (!($Groups)) {
     Write-Host "Can't find any Microsoft 365 Groups"; break
 }
@@ -302,12 +302,10 @@ ForEach ($Group in $Groups) {
   $GroupsList.Add($ReportLine) 
 
 } 
-$GroupsList = $GroupsList | Sort-Object DisplayName
 
 Write-Host "Getting information about team-enabled groups..."
 # Get Teams
 [array]$Teams = Get-MgTeam -All -PageSize 999 | Sort-Object DisplayName
-
 $TeamsHash = @{}
 $Teams.ForEach( {
    $TeamsHash.Add($_.Id, $_.DisplayName) } )
@@ -339,47 +337,47 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
     $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
 # Team-enabled or not?
     $GroupIsTeamEnabled = $False
-    If ($TeamsHash.ContainsKey($G.ObjectId) -eq $True) {
+    If ($TeamsHash[$G.ObjectId]) {
         $GroupIsTeamEnabled = $True
     }
 
- If ($GroupIsTeamEnabled -eq $False) { # Not a Teams-enabled group, so look at the Inbox etc.
- # Fetch information about activity in the Inbox folder of the group mailbox  
- Try {  
-   [array]$Data = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestITems -FolderScope Inbox -ErrorAction SilentlyContinue) }
-   Catch {
-      Write-Host ("Can't read information from the group mailbox for {0} - continuing." -f $G.DisplayName)
-      $Data = $Null
-   }
-   If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {
+    If ($GroupIsTeamEnabled -eq $False) { # Not a Teams-enabled group, so look at the Inbox etc.
+    # Fetch information about activity in the Inbox folder of the group mailbox  
+    Try {  
+        [array]$Data = (Get-ExoMailboxFolderStatistics -Identity $G.ObjectId -IncludeOldestAndNewestITems -FolderScope Inbox -ErrorAction SilentlyContinue) 
+    } Catch {
+        Write-Host ("Can't read information from the group mailbox for {0} - continuing." -f $G.DisplayName)
+        $Data = $Null
+    }
+    If ([string]::IsNullOrEmpty($Data.NewestItemReceivedDate)) {
        $LastConversation = "No items found"
        $NumberConversations = 0
-   } Else {
-     Try {
-        $LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format 'dd-MMM-yyyy HH:mm'
-        $NumberConversations = $Data.ItemsInFolder }
-     Catch [System.Management.Automation.ParameterBindingException] {
-       # Caused by the Exo cmdlets returning bad dates, so we need to do this...
-        [string]$LastDate = $Data.NewestItemReceivedDate[0]
-        [datetime]$LastDateConversation = $LastDate
-        $LastConversation = Get-Date($LastDateConversation) -format 'dd-MMM-yyyy HH:mm'
-        [string]$NumberConversations = $Data.ItemsInfolder[0].toString()
+    } Else {
+        Try {
+            $LastConversation = Get-Date ($Data.NewestItemReceivedDate) -Format 'dd-MMM-yyyy HH:mm'
+            $NumberConversations = $Data.ItemsInFolder 
+        } Catch [System.Management.Automation.ParameterBindingException] {
+            # Caused by the Exo cmdlets returning bad dates, so we need to do this...
+            [string]$LastDate = $Data.NewestItemReceivedDate[0]
+            [datetime]$LastDateConversation = $LastDate
+            $LastConversation = Get-Date($LastDateConversation) -format 'dd-MMM-yyyy HH:mm'
+            [string]$NumberConversations = $Data.ItemsInfolder[0].toString()
             $Error.Clear()
         } Catch {
             Write-Host "Error converting date values"
-     }
-   }
+        }
+    }
 
     If ($G.resourceBehaviorOptions -eq "CalendarMemberReadOnly") {
         $LastConversation = "Yammer group"
     }
 
-   If ($LastConversation -le $WarningEmailDate) {
+    If ($LastConversation -le $WarningEmailDate) {
       # Write-Host "Last conversation item created in" $G.DisplayName "was" $LastConversation "-> Obsolete?"
-      $ObsoleteReportLine = ("Last Outlook conversation dated {0}." -f $LastConversation)
-      $MailboxStatus = "Group Inbox Not Recently Used"
-      $ObsoleteEmailGroups++
-      $NumberWarnings++ 
+        $ObsoleteReportLine = ("Last Outlook conversation dated {0}." -f $LastConversation)
+        $MailboxStatus = "Group Inbox Not Recently Used"
+        $ObsoleteEmailGroups++
+        $NumberWarnings++ 
     } Else { # Some conversations exist - but if there are fewer than 20, we should flag this...
         If ($NumberConversations -lt 20) {
            $ObsoleteReportLine = $ObsoleteReportLine + "Only " + $NumberConversations + " Outlook conversation item(s) found."
@@ -387,11 +385,10 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
            $NumberWarnings++
         }
     }
-  } # End If
-  Else { # It's a team-enabled group, so we don't need to check the mailbox and so populate the values appropriately
-     $LastConversation = "Teams-enabled group"
-     $NumberConversations = "N/A" 
-  } #End Else
+  }  Else { # It's a team-enabled group, so we don't need to check the mailbox and so populate the values appropriately
+        $LastConversation = "Teams-enabled group"
+        $NumberConversations = "N/A" 
+  } 
 
 # Check for activity in the group's SharePoint site
    $SPOFileCount = 0; $SPOStorageUsed = "N/A"; $SPOLastActivityDate = $Null; $DaysSinceLastSPOActivity = "N/A"
