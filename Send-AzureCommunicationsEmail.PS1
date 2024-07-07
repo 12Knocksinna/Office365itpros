@@ -1,9 +1,8 @@
-
 # Send-AzureCommunicationsEmail.PS1
 # An example script to show how to send email from Azure Communication Services using PowerShell
-# V1.0 6-Jul-2024
+# V1.0 7-Jul-2024
 
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Send-AzureCommunicationsEmail.PS1
 
 function Get-AccessToken {    
     # Get an access token for the tenant using the defined credentials
