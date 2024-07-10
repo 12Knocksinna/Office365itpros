@@ -4,7 +4,7 @@
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-TeamsApps.PS1
 
-Connect-MgGraph -NoWelcome -Scopes TeamsAppInstallation.Read.Group, Team.ReadBasic.All
+Connect-MgGraph -NoWelcome -Scopes Directory.Read.All, Team.ReadBasic.All
 
 Write-Host "Looking for teams to analyze..."
 [array]$Teams = Get-MgTeam -All -PageSize 999 | Sort-Object DisplayName
