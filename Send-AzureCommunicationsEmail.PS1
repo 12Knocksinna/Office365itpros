@@ -38,8 +38,7 @@ Function Get-MessageToRecipients { # Build a list of the To recipients for a mes
     Return $To 
 }
 
-# Replace the next three values with values for your tenant
-# The App Id of the Entra ID registered app created to allow email to be sent
+# Replace the identifiers with appropriate values for your tenant. Application (client) identifier, app secret, and tenant id
 $AppId = 'e0789401-fc4f-499a-9bb2-8b0fd349798f'
 $AppSecret = 'q7n8Q~xwBCGPz--2sVtDvQGgK4k-CsFtkKQxDb3~'
 $TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
@@ -49,9 +48,6 @@ $SenderAddress = 'DoNotReply@office365itpros.com'
 
 # Endpoint for the Azure Communication Services API
 $CommunicationEndPoint = "office365itpros.unitedstates.communication.azure.com"
-
-# Full endpoint with API info for the Azure Communication Services API
-$uri = "https://$CommunicationEndpoint/emails:send?api-version=2023-03-31"
 
 # Define the headers for the REST API call
 $headers = @{
@@ -77,13 +73,16 @@ $Content = "<p>Dear Subscriber,</p>" +
 
 [array]$RecipientList = Import-CSV 'c:\temp\UserData.CSV'
 
+# URI to send a message... The same URI is used for all messages. The body of the message dictates who receives the email
+$Uri = ("https://{0}/emails:send?api-version=2023-03-31" -f $CommunicationEndpoint)
+
 ForEach ($Recipient in $RecipientList.Email) {
     # Construct the TO addresses for the message
-    $RecipientAddresses = $Recipient, 'o365itprosrenewals@office365itpros.com'
-    [array]$RecipientAddress = Get-MessageToRecipients -ListOfAddresses $RecipientAddresses
+    $RecipientAddresses = $Recipient
+    [array]$ToRecipientAddress = Get-MessageToRecipients -ListOfAddresses $RecipientAddresses
     Write-Host ("Sending email to {0}" -f $Recipient)
 
-# Define the email settings
+    # Build a hash table containing the settings for the message
     $Email = @{
          # The sender's email address
         senderAddress = $senderAddress
@@ -94,48 +93,52 @@ ForEach ($Recipient in $RecipientList.Email) {
        
         # The content of the email, including the subject and HTML body
         content = @{
-            subject   = "Office 365 for IT Pros Email Subscription"
-        #plainText = "This is an email from Office 365 for IT Pros"
+            subject   = "Office 365 for IT Pros Email Subscription Update"
             html      = $Content
         }
         # The recipients of the email
         recipients = @{
-        #to  = @(
-        #    @{
-        #        address     = $recipientAddress
-        #        displayName = $recipientAddress
-        #    }
-        #)
-            to = $RecipientAddress
-       # cc  = @(
-       #     @{
-       #         address     = 'o365itprosrenewals@office365itpros.com'
-       #         displayName = 'Office 365 for IT Pros Renewals'
-       #     }   
-       # )
+            to = $ToRecipientAddress
+            bcc = @(
+                @{
+                    address     = "o365itprosrenewals@office365itpros.com"
+                    displayname = "Office 365 for IT Pros Support"
+                }
+            )
         }
         # The reply-to addresses for the email - doesn't have to be the same as the sender address
-        replyTo = @(
+        ReplyTo = @(
             @{
                 address     = "o365itprosrenewals@office365itpros.com"
                 displayName = "Office 365 for IT Pros Support"
             }
         )
         userEngagementTrackingDisabled = $false
-        }
+    }
 
     # Convert the email settings structure to JSON
     $EmailSettings = $Email | ConvertTo-Json -Depth 10
 
-    # Send the email
+    # Submit the message to the Email Communication service
     try {
-        $response = Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Body $EmailSettings -UseBasicParsing
-        $response   
+        $Mailstatus = Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Body $EmailSettings -UseBasicParsing
     }
     catch {
         Write-Error $_.Exception.Message
     }
+    # Optional code to check the status of a sent message.
+    Start-Sleep -Seconds 2
+    $Uri = ("https://{0}/emails/operations/{1}?api-version=2023-03-31" -f $CommunicationEndpoint, $Mailstatus.id)
+    Try {
+        $MailCheck = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
+        Write-Host ("Message sent to {0} returned status of {1}" -f $Recipient, $Mailcheck.status)
+    } Catch {
+        Write-Error $_.Exception.Message
+    }
 }
+
+
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
