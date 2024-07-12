@@ -31,11 +31,12 @@
 # V5.11 01-Nov-2023 
 # V5.12 15-Feb-2024 Add check for Teams that haven't had a channel message for more than 90 days
 # V5.13 18-Mar-2024 Include workaround because of problems with the SharePoint usage API
+# V5.14 12-Jul-2024 CheckAccessToken Function now refreshes also the Header
 # 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 # See https://office365itpros.com/2022/03/14/microsoft-365-groups-teams-activity-report/ for more information
 #
-=======
+# =======
 # Needs the following Graph application permissions:
 # Group.Read.All, Reports.Read.All, User.Read.All, GroupMember.Read.All, Sites.Read.All, Organization.Read.All (or Directory.Read.All)
 #
@@ -138,9 +139,16 @@ If ($TimeNow -ge $TokenExpiredDate) {
     $Global:Token = GetAccessToken
     $Global:TokenExpiredDate = (Get-Date).AddMinutes($TimeToRefreshToken) 
     Write-Host ("The next time to renew the access token is {0}" -f ($TokenExpiredDate.toString())) 
+
+    # Also renew the header that contains the token
+    $Global:Headers = @{
+        'Content-Type'     = "application\json"
+        'Authorization'    = "Bearer $Token" 
+        'ConsistencyLevel' = "eventual"  
+    }
 }
 
-Return $Token
+Return $Token, $Headers
 }
 
 Function Get-TeamsStats {
@@ -330,7 +338,7 @@ ForEach ($Group in $Groups) {
     $i++
     Write-Host ("Processing group {0} {1}/{2}" -f $Group.DisplayName, $i, $Groups.Count)  
     # Check for expired access token and renew if necessary
-    $Global:Token = CheckAccessToken
+    $Global:Token, $Global:Headers = CheckAccessToken
     $GroupOwnerEmail = $Null; $OwnerNames = $Null 
     # Get Group Owners
     $Uri = ("https://graph.microsoft.com/v1.0/groups/{0}/owners?`$select=id,displayName,mail" -f $Group.Id)
@@ -431,7 +439,7 @@ ForEach ($G in $GroupsList ) { #Because we fetched the list of groups with a Gra
    $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsChatData = $Null;  $TeamsEnabled = $False;  [string]$LastItemAddedtoTeams = "N/A";  $ObsoleteReportLine = $Null
 
    # Check for expired access token and renew if necessary
-   $Global:Token = CheckAccessToken
+   $Global:Token, $Global:Headers = CheckAccessToken
   
 # Group Age
   $GroupAge = (New-TimeSpan -Start $G.WhenCreated -End $Today).Days
