@@ -152,7 +152,19 @@ ForEach ($Recipient in $RecipientList.Email) {
     $Recipient = $null
 }
 
-
+Write-Host "Summary of email transmission session"
+Write-Host "-------------------------------------"
+Write-Host ""
+Write-Host ("Messages sent via ECS endpoint {0}" -f $CommunicationEndPoint)
+Write-Host ""
+Write-Host ("Number of messages sent:              {0}" -f $Report.Count)   
+Write-Host ("Number of messages sent successfully: {0}" -f ($Report | Where-Object { $_.Status -eq "Succeeded" }).Count)
+Write-Host ("Number of messages failed:            {0}" -f ($Report | Where-Object { $_.Status -eq "Failed" }).Count)
+Write-Host ("Number of messages pending:           {0}" -f ($Report | Where-Object { $_.Status -eq "Running" }).Count)
+Write-Host ""
+Write-Host "Message status"
+Write-Host ""
+$Report
 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
