@@ -75,6 +75,7 @@ $Content = "<p>Dear Subscriber,</p>" +
 
 [array]$RecipientList = Import-CSV 'c:\temp\UserData.CSV'
 $Report = [System.Collections.Generic.List[Object]]::new()
+$MessageIds = [System.Collections.Generic.List[Object]]::new()
 
 ForEach ($Recipient in $RecipientList.Email) {
     # Construct the TO addresses for the message
@@ -118,38 +119,47 @@ ForEach ($Recipient in $RecipientList.Email) {
 
     # Convert the email settings structure to JSON
     $EmailSettings = $Email | ConvertTo-Json -Depth 10
-    $Mailcheck = $null
+    $MailStatus = $null
     # URI to send a message... The same URI is used for all messages. The body of the message dictates who receives the email
     $Uri = ("https://{0}/emails:send?api-version=2023-03-31" -f $CommunicationEndpoint)
     # Submit the message to the Email Communication service
     try {
-        $Mailstatus = Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Body $EmailSettings -UseBasicParsing
+        $MailStatus = Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Body $EmailSettings -UseBasicParsing
+        $ReportLine = [PSCustomObject][Ordered]@{   
+            Id          = $MailStatus.id
+            Timestamp   = (Get-Date -format s) 
+            Recipient   = $Recipient
+        }
+        $MessageIds.Add($ReportLine)
     }
     catch {
         Write-Host ("Failed to send email to {0}" -f $Recipient)
         $ReportLine = [PSCustomObject][Ordered]@{   
             Timestamp   = (Get-Date -format s) 
             Recipient   = $Recipient
-            Status      = $Mailcheck.status
+            Status      = $Mailstatus.status
+            Id          = $Mailstatus.id
         }
         $Report.Add($ReportLine)
     }
-    # Check the status of a sent message.
-    Start-Sleep -Seconds 4
-    $Uri = ("https://{0}/emails/operations/{1}?api-version=2023-03-31" -f $CommunicationEndpoint, $Mailstatus.id)
+    $Recipient = $null
+}
+
+# All messages are sent. Let's find out what happened
+ForEach ($Message in $MessageIds) {
+    $Uri = ("https://{0}/emails/operations/{1}?api-version=2023-03-31" -f $CommunicationEndpoint, $Message.id)
     Try {
-        $MailCheck = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
-        Write-Host ("Message sent to {0} returned status of {1}" -f $Recipient, $Mailcheck.status)
+        $MailStatus = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
+        Write-Host ("Message sent to {0} returned status of {1}" -f $Message.Recipient, $MailStatus.status)
         $ReportLine = [PSCustomObject][Ordered]@{  
-            Timestamp   = (Get-Date -format s) 
-            Recipient   = $Recipient
-            Status      = $Mailcheck.status
+            Timestamp   = $Message.Timestamp
+            Recipient   = $Message.Recipient
+            Status      = $MailStatus.status
         }
         $Report.Add($ReportLine)
     } Catch {
         Write-Error $_.Exception.Message
     }
-    $Recipient = $null
 }
 
 Write-Host "Summary of email transmission session"
