@@ -44,6 +44,8 @@ $AppSecret = 'q7n8Q~xwBCGPz--2sVtDvQGgK4k-CsFtkKQxDb3~'
 $TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
 
 # The sender's email address. This must be an address defined as a sender with Email Communication Services
+# See https://learn.microsoft.com/azure/communication-services/quickstarts/email/add-multiple-senders for how to
+# configure additional email addresses as senders
 $SenderAddress = 'DoNotReply@office365itpros.com'
 
 # Endpoint for the Azure Communication Services API
@@ -58,7 +60,7 @@ $headers = @{
 # Define the content of the email - handcrafted HTML here
 $Content = "<p>Dear Subscriber,</p>" +
 "<p>You bought a full-price copy of the Office 365 for IT Pros eBook (2024 edition) during June 2024." +
-"We promised to make a free subscription to the 2025 edition to you, but you have not yet accessed" +
+"We promised to make a free subscription to the 2025 edition to you, but you have not yet accessed " +
 "Gumroad.com to claim your free copy of <b><i>Office 365 for IT Pros (2025 edition)</i></b>, including " +
 "the new <b><i>Automating Microsoft 365 with PowerShell</i></b> eBook.</span></p>" +
 "
@@ -72,9 +74,7 @@ $Content = "<p>Dear Subscriber,</p>" +
 "<p><span lang=EN-US>Tony</span></p>"
 
 [array]$RecipientList = Import-CSV 'c:\temp\UserData.CSV'
-
-# URI to send a message... The same URI is used for all messages. The body of the message dictates who receives the email
-$Uri = ("https://{0}/emails:send?api-version=2023-03-31" -f $CommunicationEndpoint)
+$Report = [System.Collections.Generic.List[Object]]::new()
 
 ForEach ($Recipient in $RecipientList.Email) {
     # Construct the TO addresses for the message
@@ -118,23 +118,38 @@ ForEach ($Recipient in $RecipientList.Email) {
 
     # Convert the email settings structure to JSON
     $EmailSettings = $Email | ConvertTo-Json -Depth 10
-
+    $Mailcheck = $null
+    # URI to send a message... The same URI is used for all messages. The body of the message dictates who receives the email
+    $Uri = ("https://{0}/emails:send?api-version=2023-03-31" -f $CommunicationEndpoint)
     # Submit the message to the Email Communication service
     try {
         $Mailstatus = Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Body $EmailSettings -UseBasicParsing
     }
     catch {
-        Write-Error $_.Exception.Message
+        Write-Host ("Failed to send email to {0}" -f $Recipient)
+        $ReportLine = [PSCustomObject][Ordered]@{   
+            Timestamp   = (Get-Date -format s) 
+            Recipient   = $Recipient
+            Status      = $Mailcheck.status
+        }
+        $Report.Add($ReportLine)
     }
-    # Optional code to check the status of a sent message.
-    Start-Sleep -Seconds 2
+    # Check the status of a sent message.
+    Start-Sleep -Seconds 4
     $Uri = ("https://{0}/emails/operations/{1}?api-version=2023-03-31" -f $CommunicationEndpoint, $Mailstatus.id)
     Try {
         $MailCheck = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers
         Write-Host ("Message sent to {0} returned status of {1}" -f $Recipient, $Mailcheck.status)
+        $ReportLine = [PSCustomObject][Ordered]@{  
+            Timestamp   = (Get-Date -format s) 
+            Recipient   = $Recipient
+            Status      = $Mailcheck.status
+        }
+        $Report.Add($ReportLine)
     } Catch {
         Write-Error $_.Exception.Message
     }
+    $Recipient = $null
 }
 
 
