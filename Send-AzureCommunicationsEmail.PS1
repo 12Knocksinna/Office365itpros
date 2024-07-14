@@ -77,20 +77,19 @@ $Content = "<p>Dear Subscriber,</p>" +
 $Report = [System.Collections.Generic.List[Object]]::new()
 $MessageIds = [System.Collections.Generic.List[Object]]::new()
 
-Write-HOst "Processing messages... "
+Write-Host "Processing messages... "
 ForEach ($Recipient in $RecipientList.Email) {
     # Construct the TO addresses for the message
-    $RecipientAddresses = $Recipient
-    [array]$ToRecipientAddress = Get-MessageToRecipients -ListOfAddresses $RecipientAddresses
+    [array]$ToRecipientAddress = Get-MessageToRecipients -ListOfAddresses $Recipient
     Write-Host ("Sending email to {0}" -f $Recipient)
 
     # Build a hash table containing the settings for the message
     $Email = @{
          # The sender's email address
         senderAddress = $senderAddress
-        # Email headers, including a unqiue ID.
+        # Create a unique identifier for this message
         headers = @{
-            id = ("{0}-{1}" -f (Get-Date -format s), $RecipientAddress.displayname)
+            id = ("{0}-{1}" -f (Get-Date -format s), $ToRecipientAddress.address)
         }
        
         # The content of the email, including the subject and HTML body
