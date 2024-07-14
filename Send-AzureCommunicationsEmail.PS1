@@ -77,6 +77,7 @@ $Content = "<p>Dear Subscriber,</p>" +
 $Report = [System.Collections.Generic.List[Object]]::new()
 $MessageIds = [System.Collections.Generic.List[Object]]::new()
 
+Write-HOst "Processing messages... "
 ForEach ($Recipient in $RecipientList.Email) {
     # Construct the TO addresses for the message
     $RecipientAddresses = $Recipient
@@ -145,6 +146,7 @@ ForEach ($Recipient in $RecipientList.Email) {
     $Recipient = $null
 }
 
+Write-Host "Checking status of messages sent..."
 # All messages are sent. Let's find out what happened
 ForEach ($Message in $MessageIds) {
     $Uri = ("https://{0}/emails/operations/{1}?api-version=2023-03-31" -f $CommunicationEndpoint, $Message.id)
@@ -161,7 +163,7 @@ ForEach ($Message in $MessageIds) {
         Write-Error $_.Exception.Message
     }
 }
-
+Clear-Host
 Write-Host "Summary of email transmission session"
 Write-Host "-------------------------------------"
 Write-Host ""
