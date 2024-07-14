@@ -2,7 +2,7 @@
 # Example of how to use Microsoft 365 audit records to track changes made in sensitivity labels and policies
 # and retention labels and policies.
 # V1.0 14-Jul-2024
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-LabelChangesAuditRecords.PS1
 
 $Modules = Get-Module | Select-Object Name
 If ("ExchangeOnlineManagement -notin $Modules") {
@@ -12,6 +12,10 @@ If ("ExchangeOnlineManagement -notin $Modules") {
 }
 # Connect to the Graph to resolve service principals
 Connect-MgGraph -Scopes Application.Read.All
+
+# It seems like only one service principal (75367c9a-9a5b-41be-840f-ee9ee448c1f5, "Microsoft Exchange Online Protection")
+# is ever found in the audit records found by this search. If this is the case, it would be possible to hard code the
+# check for the service principal identifier and avoid the overhead of running the Get-MgServicePrincipal cmdlet
 
 # Get sensitivity labels and build a hash table to lookup labels
 $Labels = Get-Label
