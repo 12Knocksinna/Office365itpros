@@ -22,7 +22,7 @@ function Get-AccessToken {
     return $token.access_token
 }
 
-Function Get-MessageToRecipients { # Build a list of the To recipients for a message
+Function Get-MessageToRecipients { # Build a list of the recipients for a message
     [cmdletbinding()]
     Param(
         [array]$ListOfAddresses )
@@ -57,31 +57,38 @@ $headers = @{
     "Authorization" = "Bearer $(Get-AccessToken)"
 }
 
-# Define the content of the email - handcrafted HTML here
-$Content = "<p>Dear Subscriber,</p>" +
-"<p>You bought a full-price copy of the Office 365 for IT Pros eBook (2024 edition) during June 2024." +
-"We promised to make a free subscription to the 2025 edition to you, but you have not yet accessed " +
-"Gumroad.com to claim your free copy of <b><i>Office 365 for IT Pros (2025 edition)</i></b>, including " +
-"the new <b><i>Automating Microsoft 365 with PowerShell</i></b> eBook.</span></p>" +
-"
-<p><span lang=EN-US>To claim your free subscription, please " +
-'<a href="https://o365itpros.gumroad.com/l/O365IT/June2024Buyer">click this link</a>. ' +
-"After receiving the emailed receipt, use the View Content button in the receipt to access the EPUB " +
-"and PDF files for the two books. If you do not get the receipt, please check your Junk Email folder.</span></p>" +
+# Define the content of the email - handcrafted HTML here. This is an actual message that we sent to 
+# subscribers of the Office 365 for IT Pros eBook
+$Content = "<p>Dear Subscriber:</p>" +
+"<p>As a subscriber to Office 365 for IT Pros (2024 edition), you are entitled to upgrade and extend your " +
+"subscription to cover Office 365 for IT Pros (2025 edition) for `$16.95. Time is running out for this offer, " +
+"which closes on July 21. After that, the upgrade link will still work, but you’ll be charged `$19.95. " +
+"The Office 365 for IT Pros (2025 edition) bundle includes the new Automating Microsoft 365 with PowerShell eBook.</p>" +
+"<p>Please use the <a href='https://o365itpros.gumroad.com/l/O365IT/Subscriber2025'>link</a> to secure your upgrade.</p>" +
+"<p>I apologize if you have already upgraded. We have had a few problems with the Gumroad email system and were not " +
+"confident that everyone received the upgrade link. That feeling was compounded by requests from over 200 people for " +
+"the upgrade link because they said that the email had not reached them.</p>" +
+"<p>To avoid problems with messages sent using the Gumroad email system being tagged as spam or ending up in " +
+"quarantine, we’re sending this message using the Azure Email communication service (ECS). It’s a relatively new " +
+"service that’s designed to handle mass mailings of the type we do when communicating with subscribers. " +
+"It’s been an interesting project to work out how to process email with ECS.</p>" +
+"<p>If you have any questions, please check <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>our FAQ</a> " +
+"or send email to o365itprosrenewals@office365itpros.com.</p>" +
+"<p>Thank you for supporting Office 365 for IT Pros (2024 edition). We hope that you like Office 365 for IT Pros" +
+"(2025 edition).</p>" +
+"<p>Best Regards,</p><p>Tony</p>" 
 
-"<p><span lang=EN-US>If you have any other problems, please contact us at o365itprosrenewals@office365itpros.com " +
-"and we will do our best to resolve the issue.</span></p>" +
-"<p><span lang=EN-US>Tony</span></p>"
-
-[array]$RecipientList = Import-CSV 'c:\temp\UserData.CSV'
+[array]$RecipientList = Import-CSV 'c:\temp\StillToBuy.CSV'
 $Report = [System.Collections.Generic.List[Object]]::new()
 $MessageIds = [System.Collections.Generic.List[Object]]::new()
 
+[int]$i = 0
 Write-Host "Processing messages... "
 ForEach ($Recipient in $RecipientList.Email) {
     # Construct the TO addresses for the message
     [array]$ToRecipientAddress = Get-MessageToRecipients -ListOfAddresses $Recipient
-    Write-Host ("Sending email to {0}" -f $Recipient)
+    $i++
+    Write-Host ("Sending email to {0} ({1}/{2})" -f $Recipient, $i, $RecipientList.count)
 
     # Build a hash table containing the settings for the message
     $Email = @{
@@ -94,7 +101,7 @@ ForEach ($Recipient in $RecipientList.Email) {
        
         # The content of the email, including the subject and HTML body
         content = @{
-            subject   = "Office 365 for IT Pros Email Subscription Update"
+            subject   = "Office 365 for IT Pros Subscription Update"
             html      = $Content
         }
         # The recipients of the email
