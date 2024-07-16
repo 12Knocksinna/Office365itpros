@@ -63,7 +63,7 @@ $Content = "<p>Dear Subscriber:</p>" +
 "<p>As a subscriber to Office 365 for IT Pros (2024 edition), you are entitled to upgrade and extend your " +
 "subscription to cover Office 365 for IT Pros (2025 edition) for `$16.95. Time is running out for this offer, " +
 "which closes on July 21. After that, the upgrade link will still work, but you’ll be charged `$19.95. " +
-"The Office 365 for IT Pros (2025 edition) bundle includes the new Automating Microsoft 365 with PowerShell eBook.</p>" +
+"The Office 365 for IT Pros (2025 edition) bundle includes the new <b>Automating Microsoft 365 with PowerShell eBook</b>.</p>" +
 "<p>Please use the <a href='https://o365itpros.gumroad.com/l/O365IT/Subscriber2025'>link</a> to secure your upgrade.</p>" +
 "<p>I apologize if you have already upgraded. We have had a few problems with the Gumroad email system and were not " +
 "confident that everyone received the upgrade link. That feeling was compounded by requests from over 200 people for " +
@@ -74,11 +74,16 @@ $Content = "<p>Dear Subscriber:</p>" +
 "It’s been an interesting project to work out how to process email with ECS.</p>" +
 "<p>If you have any questions, please check <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>our FAQ</a> " +
 "or send email to o365itprosrenewals@office365itpros.com.</p>" +
-"<p>Thank you for supporting Office 365 for IT Pros (2024 edition). We hope that you like Office 365 for IT Pros" +
+"<p>Thank you for supporting Office 365 for IT Pros (2024 edition). We hope that you like Office 365 for IT Pros " +
 "(2025 edition).</p>" +
-"<p>Best Regards,</p><p>Tony</p>" 
+"<p>Best Regards,</p><p>Tony</p><p><p>" +
+"<p>------------------------------------------------------------------------------</p>" +
+"<p>This email was sent using Azure Email Communication Service" 
 
-[array]$RecipientList = Import-CSV 'c:\temp\StillToBuy.CSV'
+# Read in email addresses to process
+[array]$RecipientList = Import-CSV 'c:\temp\MessageRecipients.CSV'
+# Remove any duplicates
+$RecipientList = $RecipientList | Sort-Object Email -Unique
 $Report = [System.Collections.Generic.List[Object]]::new()
 $MessageIds = [System.Collections.Generic.List[Object]]::new()
 
@@ -108,9 +113,9 @@ ForEach ($Recipient in $RecipientList.Email) {
         recipients = @{
             to = $ToRecipientAddress
             bcc = @(
-                @{
-                    address     = "o365itprosrenewals@office365itpros.com"
-                    displayname = "Office 365 for IT Pros Support"
+               @{
+                   address     = "o365itprosrenewals@office365itpros.com"
+                   displayname = "Office 365 for IT Pros Support"
                 }
             )
         }
@@ -149,6 +154,7 @@ ForEach ($Recipient in $RecipientList.Email) {
         }
         $Report.Add($ReportLine)
     }
+    Start-Sleep -Seconds 2
     $Recipient = $null
 }
 
