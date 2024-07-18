@@ -5,7 +5,7 @@
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Send-AzureCommunicationsEmail.PS1
 
 function Get-AccessToken {    
-    # Get an access token for the tenant using the defined credentials
+    # Get an access token for Azure Communication Services
     $params = @{
         Uri    = "https://login.microsoftonline.com/$($TenantId)/oauth2/v2.0/token"
         Method = "POST"
@@ -16,8 +16,6 @@ function Get-AccessToken {
             scope         = "https://communication.azure.com/.default"
         }
     }
-
-    # Call the REST API and get the access token
     $token = Invoke-RestMethod @params
     return $token.access_token
 }
@@ -80,10 +78,17 @@ $Content = "<p>Dear Subscriber:</p>" +
 "<p>------------------------------------------------------------------------------</p>" +
 "<p>This email was sent using Azure Email Communication Service" 
 
-# Read in email addresses to process
+# Read in email addresses to process. This script uses a simple CSV file with a single column called Email
 [array]$RecipientList = Import-CSV 'c:\temp\MessageRecipients.CSV'
-# Remove any duplicates
+# Remove any duplicates found in the set imported from the CSV
 $RecipientList = $RecipientList | Sort-Object Email -Unique
+
+# ECS has a limit of 100 recipients per message. If the list is longer, we'll only process the first 100
+If ($RecipientList.count -gt 100) {
+    Write-Host "Too many recipients to process in one go. Limiting the set to the first 100"
+    $RecipientList = $RecipientList | Select-Object -First 100
+}
+
 $Report = [System.Collections.Generic.List[Object]]::new()
 $MessageIds = [System.Collections.Generic.List[Object]]::new()
 
@@ -132,7 +137,8 @@ ForEach ($Recipient in $RecipientList.Email) {
     # Convert the email settings structure to JSON
     $EmailSettings = $Email | ConvertTo-Json -Depth 10
     $MailStatus = $null
-    # URI to send a message... The same URI is used for all messages. The body of the message dictates who receives the email
+    # Define the URI to post to when sending a message with ECS. 
+    # The same URI is used for all messages. The body of the message dictates who receives the email
     $Uri = ("https://{0}/emails:send?api-version=2023-03-31" -f $CommunicationEndpoint)
     # Submit the message to the Email Communication service
     try {
