@@ -1,13 +1,19 @@
 # Remove-Microsoft365UserAccount.PS1
 
-$UserToRemove = "Popeye.Doyle@o365maestro.onmicrosoft.com"
+$UserToRemove = "GradyA@o365maestro.onmicrosoft.com"
 $DefaultSecondarySiteAdmin = "Warren.Gatland@o365maestro.onmicrosoft.com"
 $RetentionPolicyForExEmployees = "Ex-Employees Retention Policy"
 
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All, User.ReadWrite.All, Directory.AccessAsUser.All
 
-Write-Host "Disabling user account and revoking refresh tokens..."
+# Do we have a valid account?
+$User = Get-MgUser -UserId $UserToRemove -ErrorAction SilentlyContinue
+If (!($User)) {
+    Write-Host ("User {0} not found" -f $UserToRemove)
+    Break
+}
 
+Write-Host "Disabling user account and revoking refresh tokens..."
 # First thing to do is to block the account and set a new password
 $NewPassword = @{}
 $NewPassword["Password"]= "!NewYorkCity2022?"
@@ -40,12 +46,6 @@ If ($UserToRemove -notin $RetentionLocations.Name) {
     break
 } Else {
     Write-Host ("Mailbox for {0} added to retention policy {1}" -f $UserToRemove, $RetentionPolicyForExEmployees)
-}
-
-$User = Get-MgUser -UserId $UserToRemove -ErrorAction SilentlyContinue
-If (!($User)) {
-    Write-Host ("User {0} not found" -f $UserToRemove)
-    Break
 }
 
 Write-Host "Pausing to allow the retention hold to take effect"
