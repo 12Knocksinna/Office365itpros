@@ -4,7 +4,9 @@ $UserToRemove = "Popeye.Doyle@o365maestro.onmicrosoft.com"
 $DefaultSecondarySiteAdmin = "Warren.Gatland@o365maestro.onmicrosoft.com"
 $RetentionPolicyForExEmployees = "Ex-Employees Retention Policy"
 
-Connect-MgGraph -NoWelcome -Scopes Directory.Read.All, User.ReadWrite.All, Directory.AccessAsUser.All 
+Connect-MgGraph -NoWelcome -Scopes Directory.Read.All, User.ReadWrite.All, Directory.AccessAsUser.All
+
+Write-Host "Disabling user account and revoking refresh tokens..."
 
 # First thing to do is to block the account and set a new password
 $NewPassword = @{}
@@ -46,7 +48,9 @@ If (!($User)) {
     Break
 }
 
-Write-Host "Disabling user account and revoking refresh tokens..."
+Write-Host "Pausing to allow the retention hold to take effect"
+# Delay to allow the retention hold to take effect
+Start-Sleep -Seconds 30
 
 # Find the user's manager and set them as a secondary administrator for the user's OneDrive for Business site
 $ManagerData = Get-MgUser -UserId $UserToRemove -ExpandProperty Manager
