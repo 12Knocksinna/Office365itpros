@@ -1,6 +1,7 @@
 # Send-EmailExchangeHVE.PS1
 # Example scriot to show how to send email using the Exchange High Volume Email (HVE) service in Office 365
 # V1.0 22-Jul-2024
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Send-EmailExchangeHVE.PS1
 
 # Define the tenant identifier, subscription identifier, and the account used to send the email
 $SubscriptionId = '35429342-a1a5-4427-9e2d-551840f2ad25'
@@ -48,11 +49,13 @@ $Content = "<p>Dear Subscriber:</p>" +
 "<p>------------------------------------------------------------------------------</p>" +
 "<p>This email was sent using Exchange Online High-Volume Email" 
 
+[int]$i = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 [datetime]$StartTime = Get-Date
 
 ForEach ($Recipient in $EmailAddresses.Email) {
-    Write-Host ("Sending HVE email to {0}" -f $Recipient)
+    $i++
+    Write-Host ("Sending HVE email to {0} ({1}/{2})" -f $Recipient, $i, $EmailAddresses.Count)
     $SendHVEMessageParams = @{
         From = 'HVE1@office365itpros.com'
         To = $Recipient
@@ -66,22 +69,28 @@ ForEach ($Recipient in $EmailAddresses.Email) {
         BodyAsHtml = $True
     }   
     Try {
-        Send-MailMessage @SendHVEMessageParams 
+        Send-MailMessage @SendHVEMessageParams -ErrorAction Stop   
+    } Catch {
+        Write-Host ("Failed to send email to {0} with error {1}" -f $Recipient, $_.Exception.Message)  
+        $ErrorFlag = $True
+    }
+    If ($ErrorFlag) {
+        $ReportLine = [PSCustomObject][Ordered]@{   
+            Action      = 'Message Failed'
+            Timestamp   = (Get-Date -format s) 
+            Recipient   = $Recipient
+        }
+    } Else {
         $ReportLine = [PSCustomObject][Ordered]@{   
             Action      = 'Message Sent'
             Timestamp   = (Get-Date -format s) 
             Recipient   = $Recipient
         }
-        $Report.Add($ReportLine)     
-    } Catch {
-        Write-Host ("Failed to send email to {0} with error {1}" -f $Recipient, $_.Exception.Message)  
-        $ReportLine = [PSCustomObject][Ordered]@{   
-            Action      = 'Message failed'
-            Timestamp   = (Get-Date -format s) 
-            Recipient   = $Recipient
-        }
-        $Report.Add($ReportLine)     
     }
+
+    $Report.Add($ReportLine)  
+    $ErrorFlag = $False
+    Start-Sleep -Seconds 5
 }
 [datetime]$EndTime = Get-Date
 
