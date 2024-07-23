@@ -59,7 +59,7 @@ ForEach ($Recipient in $EmailAddresses.Email) {
     $SendHVEMessageParams = @{
         From = 'HVE1@office365itpros.com'
         To = $Recipient
-        Bcc = 'o365itprosrenewals@office365itpros.com'
+        Bcc = 'Office365itpros@proton.me'
         Subject = "Extending your Office 365 for IT Pros subscription"
         Body = $Content
         Credential = $HVECredentials
@@ -96,6 +96,7 @@ ForEach ($Recipient in $EmailAddresses.Email) {
 
 $SuccessfulSends = $Report | Where-Object {$_.Action -eq 'Message Sent'}
 $Duration = $EndTime - $StartTime
+Write-Host ("Started at {0} and finished at {1}" -f $StartTime, $EndTime)   
 Write-Host ("{0} messages sent in {1} seconds" -f $SuccessfulSends.Count, $Duration.TotalSeconds)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/

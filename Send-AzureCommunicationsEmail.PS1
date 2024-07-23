@@ -20,7 +20,7 @@ function Get-AccessToken {
     return $token.access_token
 }
 
-Function Get-MessageToRecipients { # Build a list of the recipients for a message
+Function Get-MessageRecipients { # Build a list of the recipients for a message
     [cmdletbinding()]
     Param(
         [array]$ListOfAddresses )
@@ -96,7 +96,7 @@ $MessageIds = [System.Collections.Generic.List[Object]]::new()
 Write-Host "Processing messages... "
 ForEach ($Recipient in $RecipientList.Email) {
     # Construct the TO addresses for the message
-    [array]$ToRecipientAddress = Get-MessageToRecipients -ListOfAddresses $Recipient
+    [array]$ToRecipientAddress = Get-MessageRecipients -ListOfAddresses $Recipient
     $i++
     Write-Host ("Sending email to {0} ({1}/{2})" -f $Recipient, $i, $RecipientList.count)
 
