@@ -30,7 +30,7 @@ $HVECredentials = Get-Credential -Message "Enter credentials for the HVE account
 ForEach ($User in $Users) {
     Write-Host ("Processing mailbox {0} created on {1}" -f $User.UserPrincipalName, $User.WhenMailboxCreated)
     # Set up message content    
-    $Content = "<h2>Welcome to Microsoft 365></h2><p>" +
+    $Content = "<h2>Welcome to Microsoft 365</h2><p>" +
     ("<p>Dear {0},</p>" -f $User.displayName) +
     "<p>Welcome to Microsoft 365. Your mailbox is now ready for use. Please sign in to Outlook on the web at " +
     "<a href='https://outlook.office.com'>https://outlook.office.com</a> to access your email.</p>" +
