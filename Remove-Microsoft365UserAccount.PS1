@@ -1,7 +1,9 @@
 # Remove-Microsoft365UserAccount.PS1
+# Prototype script to show how to remove a user account from Microsoft 365 and set up retention policies for the user's mailbox and OneDrive for Business site
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-Microsoft365UserAccount.PS1
 
-$UserToRemove = "GradyA@o365maestro.onmicrosoft.com"
-$DefaultSecondarySiteAdmin = "Warren.Gatland@o365maestro.onmicrosoft.com"
+$UserToRemove = "Grady.Mike@Contoso.com"
+$DefaultSecondarySiteAdmin = "Jayne.Sixsmith@contoso.com"
 $RetentionPolicyForExEmployees = "Ex-Employees Retention Policy"
 
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All, User.ReadWrite.All, Directory.AccessAsUser.All
