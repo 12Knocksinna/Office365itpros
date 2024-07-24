@@ -7,6 +7,13 @@ $DefaultSecondarySiteAdmin = "Jayne.Sixsmith@contoso.com"
 $RetentionPolicyForExEmployees = "Ex-Employees Retention Policy"
 
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All, User.ReadWrite.All, Directory.AccessAsUser.All
+# Connect to Exchange Online to add the user to the special retention policy for ex-employees
+$Modules = Get-Module | Select-Object Name
+if ('ExchangeOnlineManagement' -notin $Modules) {
+    Write-Host "Connecting to Exchange Online..."
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp
+    Connect-IPPSSession
+}
 
 # Do we have a valid account?
 $User = Get-MgUser -UserId $UserToRemove -ErrorAction SilentlyContinue
@@ -35,32 +42,6 @@ ForEach ($Device in $UserDevices) {
   Update-MgDevice -DeviceId $Device.Id -AccountEnabled:$False}
 }
 
-# Connect to Exchange Online to add the user to the special retention policy for ex-employees
-$Modules = Get-Module | Select-Object Name
-if ('ExchangeOnlineManagement' -notin $Modules) {
-    Write-Host "Connecting to Exchange Online..."
-    Connect-ExchangeOnline -SkipLoadingCmdletHelp
-    Connect-IPPSSession
-}
-
-# Add the user's mailbox to the retention policy for ex-employees
-Write-Host "Adding mailbox to retention policy..."
-Set-RetentionCompliancePolicy -Identity $RetentionPolicyForExEmployees -AddExchangeLocation $UserToRemove
-# Also add a litigation hold to the mailbox
-Set-Mailbox -Identity $UserToRemove -LitigationHoldEnabled $True
-[array]$RetentionLocations = Get-RetentionCompliancePolicy -Identity $RetentionPolicyforExEmployees -DistributionDetail `
-  | Select-Object -ExpandProperty ExchangeLocation
-If ($UserToRemove -notin $RetentionLocations.Name) {
-    Write-Host "Failed to add mailbox to retention policy"
-    break
-} Else {
-    Write-Host ("Mailbox for {0} added to retention policy {1}" -f $UserToRemove, $RetentionPolicyForExEmployees)
-}
-
-Write-Host "Pausing to allow the retention hold to take effect"
-# Delay to allow the retention hold to take effect
-Start-Sleep -Seconds 30
-
 # Find the user's manager and set them as a secondary administrator for the user's OneDrive for Business site
 $ManagerData = Get-MgUser -UserId $UserToRemove -ExpandProperty Manager
 If ($ManagerData.Manager.Id) {
@@ -83,7 +64,7 @@ If (Get-SPOTenant) {
     Break
 }
 
-# Create the URI for the OneDrive for Business site
+# Find the URI for the OneDrive for Business site
 $OneDriveSiteURI = ("https://{0}-my.sharepoint.com/personal/{1}" -f ($DefaultDomain.Name.split('.')[0]), ($UserToRemove -replace '\.|\@', '_'))
 
 # Assign the secondary administrator to the OneDrive for Business site
@@ -94,6 +75,25 @@ If ($Status) {
     Write-Host "Failed to assign secondary administrator"
 }
 
+# Add the user's mailbox to the retention policy for ex-employees
+Write-Host "Adding mailbox and OneDrive for Business account to retention policy..."
+Set-RetentionCompliancePolicy -Identity $RetentionPolicyForExEmployees -AddExchangeLocation $UserToRemove -AddOneDriveLocation $OneDriveSiteURI
+# Also add a litigation hold to the mailbox
+Set-Mailbox -Identity $UserToRemove -LitigationHoldEnabled $True
+[array]$RetentionLocations = Get-RetentionCompliancePolicy -Identity $RetentionPolicyforExEmployees -DistributionDetail `
+  | Select-Object -ExpandProperty ExchangeLocation
+If ($UserToRemove -notin $RetentionLocations.Name) {
+    Write-Host "Failed to add mailbox to retention policy"
+    break
+} Else {
+    Write-Host ("Mailbox and OneDrive for Business account for {0} added to retention policy {1}" -f $UserToRemove, $RetentionPolicyForExEmployees)
+}
+
+Write-Host "Pausing to allow the retention hold to take effect"
+# Delay to allow the retention hold to take effect
+Start-Sleep -Seconds 30
+
+Write-Host "Deleting user..."
 # Now go ahead and remove the user's account
 Remove-MgUser -UserId $User.Id -Confirm:$false
 If (Get-MgUser -UserId $User.Id -ErrorAction SilentlyContinue) {
