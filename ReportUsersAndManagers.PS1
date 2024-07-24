@@ -4,7 +4,6 @@
 
 Connect-ExchangeOnline
 Connect-MgGraph -Scopes Directory.Read.All
-Select-MgProfile Beta
 
 $HtmlHead="<html>
 	   <style>
@@ -32,24 +31,29 @@ $Organization = Get-MgOrganization
 
 # Find user accounts
 Write-Host "Finding user accounts..."
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All 
-If (!($Users)) { Write-Host "No licensed Azure AD accounts found - exiting" ; break}
+[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All `
+    -PageSize 999 -Property Id, displayName, userprincipalName, department, city, country
+If (!($Users)) { 
+   Write-Host "No licensed Entra ID accounts found - exiting" 
+   break
+}
 Write-Host ("Found {0} user accounts - checking management information..." -f $Users.count)
 
 # The accounts used for Room and shared mailboxes can hold licenses (for example, for Teams Rooms Devices or to get a larger quota for a shared mailbox)
 # so we remove these accounts here
 $OriginalUserAccounts = $Users.Count
-Write-Host "Finding Azure AD accounts used for shared and room mailboxes..."
+Write-Host "Finding Entra ID accounts used for shared and room mailboxes..."
 [array]$NonUserAccounts = Get-ExoMailbox -RecipientTypeDetails SharedMailbox, RoomMailbox -ResultSize Unlimited | Select-Object UserPrincipalName, ExternalDirectoryObjectId
 Write-Host "Removing non-user accounts from set to be processed..."
 $Users = $Users | Where-Object {$_.Id -notin $NonUserAccounts.ExternalDirectoryObjectId}
 $RemovedAccounts = $OriginalUserAccounts - $Users.Count
 Write-Host ("Proceeding to process {0} user accounts after removing {1} room and shared mailbox accounts" -f $Users.Count, $RemovedAccounts)
 
-$NoManagers = [System.Collections.Generic.List[Object]]::new() 
+$UsersWithNoManagers = [System.Collections.Generic.List[Object]]::new() 
 $ManagerReports = [System.Collections.Generic.List[Object]]::new() 
+
 ForEach ($User in $Users) {
-  $Status = $UserManager = Get-MgUserManager -UserId $User.Id -ErrorAction SilentlyContinue
+  $UserManager = Get-MgUserManager -UserId $User.Id -ErrorAction SilentlyContinue
   If ($Null -eq $UserManager) { # No manager
     $DataLine  = [PSCustomObject] @{
             User       = $User.DisplayName
@@ -58,9 +62,11 @@ ForEach ($User in $Users) {
             Department = $User.Department
             Office     = $User.OfficeLocation
             City       = $User.City
-            Country    = $User.Country }
-         $NoManagers.Add($DataLine)
-    Write-Host ("No manager found for {0}" -f $User.displayname) }
+            Country    = $User.Country
+         }
+         $UsersWithNoManagers.Add($Dataline)
+    Write-Host ("No manager found for {0}" -f $User.displayname) 
+   }
   
   $DirectReports = Get-MgUserDirectReport -UserId $User.Id
   If ($Null -ne $DirectReports) { # Manager with direct reports
@@ -104,7 +110,7 @@ ForEach ($Manager in $Managers) {
 
 # Add a section about users without managers
 $HtmlHeading = "<p><h1>User Accounts Without a Manager</h1>"
-$HtmlData = $NoManagers | ConvertTo-Html -Fragment
+$HtmlData = $UsersWithNoManagers | ConvertTo-Html -Fragment
 $HtmlReport = $HtmlReport + $HtmlHeading + $HtmlData 
 
 # Create the HTML report
