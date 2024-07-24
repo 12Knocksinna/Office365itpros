@@ -3,13 +3,24 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-LoopWorkspaces.PS1
 # V1.0 23-Nov-2023
 # V1.1 29-March-2024
+# V1.2 24-Jul-2024
 
-# Connect to SharePoint Online
-Import-Module Microsoft.Online.Sharepoint.PowerShell
-# Add the admin endpoint for your SharePoint Online tenant here
-Connect-SPOService -url https://office365itpros-admin.sharepoint.com
 # Connect to the Graph
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All
+
+# Connect to SharePoint Online
+[array]$Domains = (Get-MgOrganization).verifiedDomains
+$DefaultDomain = $Domains | Where-Object {$_.IsDefault -eq $true}
+$SPOAdminRoot = ("https://{0}-admin.sharepoint.com" -f $DefaultDomain.Name.split('.')[0])
+Write-Host "Connecting to SharePoint Online..."
+Import-Module Microsoft.Online.SharePoint.PowerShell -UseWindowsPowerShell
+Connect-SPOService -Url $SPOAdminRoot
+If (Get-SPOTenant) {
+    Write-Host ("Connected to SharePoint Online at {0}" -f $SPOAdminRoot)
+} Else {
+    Write-Host "Failed to connect to SharePoint Online"
+    Break
+}
 
 Write-Host "Looking for Loop workspaces..."
 [array]$LoopWorkspaces = Get-SPOContainer -OwningApplicationID a187e399-0c36-4b98-8f04-1edc167a0996 -Paged
