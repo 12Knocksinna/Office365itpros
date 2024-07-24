@@ -39,7 +39,7 @@ $Content = "<p>Dear Subscriber:</p>" +
 "<p>I apologize if you have already upgraded. We have had a few problems with the Gumroad email system and were not " +
 "confident that everyone received the upgrade link. This message is sent using the Exchange Online High Volume Email (HVE) service.</p>" +
 "<p>If you have any questions, please check <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>our FAQ</a> " +
-"or send email to o365itprosrenewals@office365itpros.com.</p>" +
+"or send email to <a href='mailto:o365itprosrenewals@office365itpros.com'>Customer Services</a>.</p>" 
 "<p>Thank you for supporting Office 365 for IT Pros (2024 edition). We hope that you like Office 365 for IT Pros " +
 "(2025 edition).</p>" +
 "<p>Best Regards,</p><p>Tony</p><p><p>" +
