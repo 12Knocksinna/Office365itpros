@@ -2,7 +2,7 @@
 # A script to explore how to keep manager-employee assignments updated.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Update-Managers.PS1
 
-Connect-MgGraph -Scopes User.ReadWrite.All, Directory.Read.All
+Connect-MgGraph -Scopes User.ReadWrite.All, Directory.Read.All -NoWelcome
 Write-Host "Setting up manager data..."
 # The manager data is in a CSV file with three columns: Department, Manager, and Level2Manager
 # Department	Manager                             Level2Manager  
