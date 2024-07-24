@@ -26,6 +26,13 @@ If ($RevokeStatus.Value -eq $true) {
     Write-Host (“User access revoked for {0}!” -f $User.displayName)
 }
 
+# Disable registered devices
+[array]$UserDevices = Get-MgUserRegisteredDevice -UserId $User.Id
+If ($UserDevices) {
+ForEach ($Device in $UserDevices) {
+  Update-MgDevice -DeviceId $Device.Id -AccountEnabled:$False}
+}
+
 # Connect to Exchange Online to add the user to the special retention policy for ex-employees
 $Modules = Get-Module | Select-Object Name
 if ('ExchangeOnlineManagement' -notin $Modules) {
