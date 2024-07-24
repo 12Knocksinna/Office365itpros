@@ -39,7 +39,7 @@ $Content = "<p>Dear Subscriber:</p>" +
 "<p>I apologize if you have already upgraded. We have had a few problems with the Gumroad email system and were not " +
 "confident that everyone received the upgrade link. This message is sent using the Exchange Online High Volume Email (HVE) service.</p>" +
 "<p>If you have any questions, please check <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>our FAQ</a> " +
-"or send email to <a href='mailto:o365itprosrenewals@office365itpros.com'>Customer Services</a>.</p>" 
+"or send email to <a href='mailto:o365itprosrenewals@office365itpros.com'>Customer Services</a>.</p>" +
 "<p>Thank you for supporting Office 365 for IT Pros (2024 edition). We hope that you like Office 365 for IT Pros " +
 "(2025 edition).</p>" +
 "<p>Best Regards,</p><p>Tony</p><p><p>" +
@@ -47,7 +47,7 @@ $Content = "<p>Dear Subscriber:</p>" +
 "the link to colleagues who used the link to subscribe. It's embarrassing all round when we have to reverse transactions and close " +
 "accounts, but keeping the link secure is the only way to enable us to offer a low-cost subscription extension to our subscribers.</p>" +
 "<p>------------------------------------------------------------------------------</p>" +
-"<p>This email was sent using Exchange Online High-Volume Email" 
+"<p>This email was sent using the Exchange Online High-Volume Email (HVE) service" 
 
 [int]$i = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
@@ -57,9 +57,9 @@ ForEach ($Recipient in $EmailAddresses.Email) {
     $i++
     Write-Host ("Sending HVE email to {0} ({1}/{2})" -f $Recipient, $i, $EmailAddresses.Count)
     $SendHVEMessageParams = @{
-        From = 'HVE1@office365itpros.com'
+        From = 'HVE02@office365itpros.com'
         To = $Recipient
-        Bcc = 'Office365itpros@proton.me'
+        Bcc = 'Customer.Services@office365itpros.com'
         Subject = "Extending your Office 365 for IT Pros subscription"
         Body = $Content
         Credential = $HVECredentials

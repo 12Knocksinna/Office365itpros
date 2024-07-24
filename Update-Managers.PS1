@@ -4,6 +4,12 @@
 
 Connect-MgGraph -Scopes User.ReadWrite.All, Directory.Read.All
 Write-Host "Setting up manager data..."
+# The manager data is in a CSV file with three columns: Department, Manager, and Level2Manager
+# Department	Manager                             Level2Manager  
+# Finance	   Ben.James@office365itpros.com       Tony.Redmond@office365itpros.com
+# CEO Office	Tony.Redmond@office365itpros.com    
+# Sales	      Brian.Weakliam@office365itpros.com  Kim.Akers@office365itpros.com
+
 $InputManagerData = "c:\temp\ManagerData.csv"
 $OutputCSVFile = "c:\temp\ManagerAssignments.csv"
 [int]$ErrorCount = 0
@@ -23,16 +29,23 @@ ForEach ($M in $ManagerData) {
    }
 }
 
-If ($ErrorCount -gt 0) { Write-Host "Please fix the manager input file before proceeeding..." -foregroundcolor Red; break }
+If ($ErrorCount -gt 0) { 
+   Write-Host "Please fix the manager input file before proceeeding..." -foregroundcolor Red
+   break
+}
 
 # Find user accounts with assigned licenses
-Write-Host "Finding licensed Azure AD accounts..."
-[array]$Users = Get-MgUser -All -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable UsersFound | Sort-Object DisplayName
-If (!($Users)) { Write-Host "Couldn't find any user accounts with assigned licenses!" ; break }
+Write-Host "Finding licensed  user accounts..."
+[array]$Users = Get-MgUser -All -PageSize 999 -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable UsersFound `
+   -Property Id, userPrincipalName, displayName, manager, department, jobtitle | Sort-Object DisplayName
+If (!($Users)) { 
+   Write-Host "Couldn't find any user accounts with assigned licenses!" 
+   break 
+}
 
 Write-Host "Checking managers assigned to user accounts..."
-[array]$UsersNoDepartment = $Users | Where-Object {$Null -eq $_.department}
-[array]$UsersWithDepartment = $Users | Where-Object {$Null -ne $_.department}
+[array]$UsersNoDepartment = $Users | Where-Object {$null -eq $_.department}
+[array]$UsersWithDepartment = $Users | Where-Object {$null -ne $_.department}
 
 # Get default manager to assign people to when we can't find a department manager
 $DefaultManager = $ManagerData | Where-Object {$_.Department -eq "Default" } | Select-Object -ExpandProperty Manager
@@ -67,15 +80,17 @@ ForEach ($User in $UsersWithDepartment) {
   # Update the account
  If ($DepartmentManager) {
    Write-Host ("Updating user account {0} with manager {1}" -f $User.displayName, $DepartmentManager)
-   $Id = ("https://graph.microsoft.com/v1.0/users/{0}" -f $DepartmentManager) 
-   Set-MgUserManagerByRef -UserId $User.Id -AdditionalProperties @{ "@odata.id" = $Id }
+   $ManagerId = ("https://graph.microsoft.com/v1.0/users/{0}" -f $DepartmentManager) 
+   $NewManager = @{"@odata.id"=$ManagerId}
+   Set-MgUserManagerByRef -UserId $User.Id -BodyParameter $NewManager
    $ReportLine = [PSCustomObject]@{
-     Account                    = $User.UserPrincipalName
-     User                       = $User.DisplayName
-     Department                 = $User.Department
-     Manager                    = $DepartmentManager
-    "Department Manager"       = $DeptManager
-    "Assigned Default Manager" = $DefaultFlag }
+     Account                     = $User.UserPrincipalName
+     User                        = $User.DisplayName
+     Department                  = $User.Department
+     Manager                     = $DepartmentManager
+    "Department Manager"         = $DeptManager
+    "Assigned Default Manager"   = $DefaultFlag 
+   }
    $Report.Add($ReportLine)
   }
 } # End ForEach User
@@ -89,7 +104,7 @@ If ($UsersNoDepartment) {
 }
 
 # Generate output file
-$Report | Out-GridView
+$Report | Out-GridView -Title "Users with updated departmental managers"
 $Report | Export-CSV -NoTypeInformation $OutputCSVFile
 Write-Host ("Processing complete. Output file available in {0}." -f $OutputCSVFile)
 
