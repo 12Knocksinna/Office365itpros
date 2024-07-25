@@ -23,6 +23,8 @@ IF (!$Users) {
 
 # Get the credentials for the HVE account we want to use
 $HVECredentials = Get-Credential -Message "Enter credentials for the HVE account" -UserName 'HVE1@office365itpros.com'
+# BCC address for each message - also used in the message content
+$BCCAddress = "Customer.Services@contoso.com"
 
 # Enforce TLS 1.2
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -34,13 +36,13 @@ ForEach ($User in $Users) {
     ("<p>Dear {0},</p>" -f $User.displayName) +
     "<p>Welcome to Microsoft 365. Your mailbox is now ready for use. Please sign in to Outlook on the web at " +
     "<a href='https://outlook.office.com'>https://outlook.office.com</a> to access your email.</p>" +
-    "<p>If you need help, please check the <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>FAQ</a> or send email to " +
-    "<a href='mailto:Customer.Services@office365itpros.com'>Customer Services</a>.</p>" 
+    "<p>If you need help, please check the <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>FAQ</a> or send email to the " +
+    ("<a href='mailto:{0}'>End User Support Desk</a>.</p>" -f $BCCAddress)  
 
     $SendHVEMessageParams = @{
         From = 'HVE02@office365itpros.com'
         To = $User.PrimarySmtpAddress
-        Bcc = 'Customer.Services@Office365itpros.com'
+        Bcc = $BCCAddress
         Subject = "Welcome to Microsoft 365"
         Body = $Content
         Credential = $HVECredentials
