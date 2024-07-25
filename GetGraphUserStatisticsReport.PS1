@@ -2,10 +2,7 @@
 # A sample script showing how to gather user activity information from the Graph and assemble it into one report
 # V1.3 2-Sep-2020
 # V2.1 3-Aug-2022 (Increased date range for activities to go back 180 days instead of 90)
-# https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1# V2.1 3-Aug-2022 (Increased date range for activities to go back 180 days instead of 90)
-# Tony Redmond
-#
-# https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReportV2.PS1
+# Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/GetGraphUserStatisticsReport.PS1
 # Note: Guest user activity is not recorded by the Graph - only tenant accounts are processed
 
 # V2.0 is the transitition from PowerShell lists to hash tables as the repository for data extracted from the Microsoft Graph
