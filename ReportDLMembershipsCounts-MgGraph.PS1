@@ -1,5 +1,6 @@
 # ReportDLMembershipsCounts-MgGraph.PS1
 # A script to demonstrate how to use the Microsoft Graph PowerShell SDK to report Exchange Online distribution list members
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/ReportDLMembershipsCounts-MgGraph.PS1
 
 Function Get-DLOwners {
 [cmdletbinding()]
@@ -21,21 +22,26 @@ ForEach ($O in $DLManagedBy) {
  
 $OwnerNames = $Users.User -join ", "
 Return $OwnerNames
-
 }
 
 # Connect to Exchange Online
-Connect-ExchangeOnline
+$Modules = Get-Module | Select-Object -ExpandProperty Name
+If ('ExchangeOnlineManagement' -notin $Modules) {
+    Write-Host "Connecting to Exchange Online..."
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp
+}
 
 # Connect to the Microsoft Graph
 Connect-MgGraph -Scope Group.Read.All, GroupMember.Read.All
 
 # Find all distribution lists - this is most easily done with Exchange Online - make sure that we exclude room lists
 Write-Host "Finding Exchange Online Distribution Lists..."
-
-$DLs = Get-DistributionGroup -ResultSize Unlimited -Filter {RecipientTypeDetails -ne "Roomlist"} | Select DisplayName, ExternalDirectoryObjectId, ManagedBy
-If (!($DLs)) { Write-Host "No distribution lists found... sorry! "; break 
- } Else { Write-Host ("{0} distribution lists found" -f $DLs.count) }
+$DLs = Get-DistributionGroup -ResultSize Unlimited -Filter {RecipientTypeDetails -ne "Roomlist"} | Select-Object DisplayName, ExternalDirectoryObjectId, ManagedBy
+If (!($DLs)) { 
+   Write-Host "No distribution lists found... sorry! "; break 
+ } Else { 
+   Write-Host ("{0} distribution lists found" -f $DLs.count) 
+}
 
 $Report = [System.Collections.Generic.List[Object]]::new()
 $DLCSVOutput = "c:\temp\DLMemberCounts.CSV"
@@ -71,7 +77,8 @@ ForEach ($DL in $DLs) {
        "Group Members"    = $GroupMembers.Count
        "Mail Contacts"    = $ContactMembers.Count
        "Member names"     = $MemberNames
-       Identity           = $DL.ExternalDirectoryObjectId }
+       Identity           = $DL.ExternalDirectoryObjectId 
+      }
     $Report.Add($ReportLine) 
 }
 
@@ -80,7 +87,7 @@ $DLCSVOutput = "c:\temp\DLData.CSV"
 $ReportFile = "c:\temp\DLData.html"
 # Create the HTML report
 $OrgName = (Get-MgOrganization).DisplayName
-$CreationDate = Get-Date -format g
+$CreationDate = Get-Date -format dd-MMM-yyyy
 $Version = "1.0"
 $htmlhead="<html>
 	   <style>
