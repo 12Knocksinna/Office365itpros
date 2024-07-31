@@ -15,6 +15,15 @@ If (!($AzConnection)) {
     Break
 }
 
+# Check if we have a connection to Exchange Online and connect if necessary to fetch list of accepted domains
+$Modules = Get-Module | Select-Object -ExpandProperty Name
+If ('ExchangeOnlineManagement' -notin $Modules) {
+    Write-Host "Connecting to Exchange Online..."
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp
+}
+
+[array]$Domains = (Get-AcceptedDomain).DomainName
+
 # Retrieve the HVE password from Key Vault
 $HVE01Password = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "HVE01Password" -AsPlainText
 [securestring]$SecurePassword = ConvertTo-SecureString $HVE01Password -AsPlainText -Force
@@ -90,7 +99,12 @@ ForEach ($Recipient in $EmailAddresses.Email) {
 
     $Report.Add($ReportLine)  
     $ErrorFlag = $False
-    Start-Sleep -Seconds 5
+
+    If (($Recipient.Split('@')[1]) -notin $Domains) {
+    # Pause only needed if sending email to external recipients
+        Write-Host "Pausing for 5 seconds to avoid throttling after sending to external recipient..."
+        Start-Sleep -Seconds 5
+    }
 }
 [datetime]$EndTime = Get-Date
 
