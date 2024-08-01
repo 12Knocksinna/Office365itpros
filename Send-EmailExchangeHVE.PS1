@@ -40,11 +40,11 @@ If (!($EmailAddresses)) {
 # Build the HTML content for the email
 $Content = "<p>Dear Subscriber:</p>" +
 "<p>As a subscriber to Office 365 for IT Pros (2024 edition), you are entitled to upgrade and extend your " +
-"subscription to cover Office 365 for IT Pros (2025 edition). " +
+"subscription to cover Office 365 for IT Pros (2025 edition). We have just released the August 2024 update for the book, which you can read about on office365itpros.com. " +
 "The Office 365 for IT Pros (2025 edition) bundle includes the new <b>Automating Microsoft 365 with PowerShell eBook</b>. " +
 "You do not have to buy the PowerShell book separately if you upgrade your subscription.</p>" + 
 "<p>The current price to extend a subscription is `$19.95. We will increase the price to `$29.95 on 5 August 2024 and make upgrades available to any subscriber for a previous edition." +
-"<p>Please use the <a href='https://o365itpros.gumroad.com/l/O365IT/Subscriber2025'>link</a> to secure your upgrade by 5, August 2024.</p>" +
+"<p>Please use the <a href='https://o365itpros.gumroad.com/l/O365IT/Subscriber2025'>link</a> to secure your upgrade by <b>5, August 2024.</b></p>" +
 "<p>I apologize if you have already upgraded. We have had a few problems with the Gumroad email system and were not " +
 "confident that everyone received the upgrade link. This message is sent using the Exchange Online High Volume Email (HVE) service.</p>" +
 "<p>If you have any questions, please check <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>our FAQ</a> " +
@@ -52,8 +52,8 @@ $Content = "<p>Dear Subscriber:</p>" +
 "<p>Thank you for supporting Office 365 for IT Pros (2024 edition). We hope that you like Office 365 for IT Pros " +
 "(2025 edition).</p>" +
 "<p>Best Regards,</p><p>Tony</p><p><p>" +
-"<p>PS: Please don't share the upgrade link with others. It's for your use only. We have had a few instances where people distributed"+
-"the link to colleagues who used the link to subscribe. It's embarrassing all round when we have to reverse transactions and close " +
+"<p>PS: Please don't share the upgrade link with others. The link is for your use only. We have had a few instances where people shared"+
+"the link with colleagues who used the link to subscribe. It is embarrassing all round when we have to reverse transactions and close " +
 "accounts, but keeping the link secure is the only way to enable us to offer a low-cost subscription extension to our subscribers.</p>" +
 "<p>------------------------------------------------------------------------------</p>" +
 "<p>This email was sent using the Exchange Online High-Volume Email (HVE) service" 
@@ -66,10 +66,10 @@ ForEach ($Recipient in $EmailAddresses.Email) {
     $i++
     Write-Host ("Sending HVE email to {0} ({1}/{2})" -f $Recipient, $i, $EmailAddresses.Count)
     $SendHVEMessageParams = @{
-        From = 'HVE02@office365itpros.com'
+        From = $HVEAccount
         To = $Recipient
         Bcc = 'Customer.Services@office365itpros.com'
-        Subject = "Extending your Office 365 for IT Pros subscription"
+        Subject = "Last chance to extend your Office 365 for IT Pros subscription"
         Body = $Content
         Credential = $HVECredentials
         UseSsl = $true
