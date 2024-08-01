@@ -37,9 +37,9 @@ Function Get-MessageRecipients { # Build a list of the recipients for a message
 }
 
 # Replace the identifiers with appropriate values for your tenant. Application (client) identifier, app secret, and tenant id
-$AppId = 'e0789401-fc4f-499a-9bb2-8b0fd349798f'
+$AppId = 'a0789401-fc4f-499a-9bb2-8b0fd349798f'
 $AppSecret = 'q7n8Q~xwBCGPz--2sVtDvQGgK4k-CsFtkKQxDb3~'
-$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 
 # The sender's email address. This must be an address defined as a sender with Email Communication Services
 # See https://learn.microsoft.com/azure/communication-services/quickstarts/email/add-multiple-senders for how to
@@ -59,21 +59,15 @@ $headers = @{
 # subscribers of the Office 365 for IT Pros eBook
 $Content = "<p>Dear Subscriber:</p>" +
 "<p>As a subscriber to Office 365 for IT Pros (2024 edition), you are entitled to upgrade and extend your " +
-"subscription to cover Office 365 for IT Pros (2025 edition) for `$16.95. Time is running out for this offer, " +
-"which closes on July 21. After that, the upgrade link will still work, but you’ll be charged `$19.95. " +
-"The Office 365 for IT Pros (2025 edition) bundle includes the new <b>Automating Microsoft 365 with PowerShell eBook</b>.</p>" +
-"<p>Please use the <a href='https://o365itpros.gumroad.com/l/O365IT/Subscriber2025'>link</a> to secure your upgrade.</p>" +
-"<p>I apologize if you have already upgraded. We have had a few problems with the Gumroad email system and were not " +
-"confident that everyone received the upgrade link. That feeling was compounded by requests from over 200 people for " +
-"the upgrade link because they said that the email had not reached them.</p>" +
+"subscription to cover Office 365 for IT Pros (2025 edition). Time is running out for this offer, " +
+"which closes on July 21." +
 "<p>To avoid problems with messages sent using the Gumroad email system being tagged as spam or ending up in " +
-"quarantine, we’re sending this message using the Azure Email communication service (ECS). It’s a relatively new " +
-"service that’s designed to handle mass mailings of the type we do when communicating with subscribers. " +
-"It’s been an interesting project to work out how to process email with ECS.</p>" +
+"quarantine, we are sending this message using the Azure Email communication service (ECS). It is a relatively new " +
+"service that is designed to handle mass mailings of the type we do when communicating with subscribers. " +
+"It has been an interesting project to work out how to process email with ECS.</p>" +
 "<p>If you have any questions, please check <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>our FAQ</a> " +
 "or send email to o365itprosrenewals@office365itpros.com.</p>" +
-"<p>Thank you for supporting Office 365 for IT Pros (2024 edition). We hope that you like Office 365 for IT Pros " +
-"(2025 edition).</p>" +
+"<p>We hope that you like Office 365 for IT Pros (2025 edition).</p>" +
 "<p>Best Regards,</p><p>Tony</p><p><p>" +
 "<p>------------------------------------------------------------------------------</p>" +
 "<p>This email was sent using Azure Email Communication Service" 
