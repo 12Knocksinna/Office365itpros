@@ -30,7 +30,7 @@ $HVE01Password = Get-AzKeyVaultSecret -VaultName "Office365ITPros" -name "HVE01P
 [pscredential]$HVECredentials = New-Object System.Management.Automation.PSCredential ($HVEAccount, $SecurePassword)
 
 # Read in email addresses from a file
-[array]$EmailAddresses = Import-CSV -Path "C:\Temp\HVEInputFile.csv"
+[array]$EmailAddresses = Import-CSV -Path "C:\Temp\StillToBuy.csv"
 $EmailAddresses = $EmailAddresses | Sort-Object Email -Unique
 If (!($EmailAddresses)) {
     Write-Host "Failed to read email addresses from file for HVE to process"
@@ -40,19 +40,24 @@ If (!($EmailAddresses)) {
 # Build the HTML content for the email
 $Content = "<p>Dear Subscriber:</p>" +
 "<p>As a subscriber to Office 365 for IT Pros (2024 edition), you are entitled to upgrade and extend your " +
-"subscription to cover Office 365 for IT Pros (2025 edition). We have just released the August 2024 update for the book, which you can read about on office365itpros.com. " +
+"subscription to cover Office 365 for IT Pros (2025 edition).  " +
 "The Office 365 for IT Pros (2025 edition) bundle includes the new <b>Automating Microsoft 365 with PowerShell eBook</b>. " +
 "You do not have to buy the PowerShell book separately if you upgrade your subscription.</p>" + 
-"<p>The current price to extend a subscription is `$19.95. We will increase the price to `$29.95 on 5 August 2024 and make upgrades available to any subscriber for a previous edition." +
-"<p>Please use the <a href='https://o365itpros.gumroad.com/l/O365IT/Subscriber2025'>link</a> to secure your upgrade by <b>5, August 2024.</b></p>" +
+"<p>The current price to extend a subscription is `$19.95. We will increase the price to `$29.95 at <b>midnight Pacific Time " +
+"on 5 August 2024 </b>. While we're happy to take the extra 10 dollars to extend your subscription, why not take the opportunity to renew " +
+"now at the lower price?</p>" +
+"<p>Use the <a href='https://o365itpros.gumroad.com/l/O365IT/Subscriber2025'>link</a> to secure your upgrade </p>" +
 "<p>I apologize if you have already upgraded. We have had a few problems with the Gumroad email system and were not " +
-"confident that everyone received the upgrade link. This message is sent using the Exchange Online High Volume Email (HVE) service.</p>" +
-"<p>If you have any questions, please check <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>our FAQ</a> " +
+"confident that everyone received the upgrade link. Every year we get complaints from people who don't receive a notification " +
+"about upgrade offers, so we tend to over-communicate now. If you have already upgraded, you might have received this email because " +
+"you used a different email address to purchase your subscription. To avoid any future confusion, please send a note to support@gumroad.com to ask them " +
+"to combine your purchases under your preferred email address.</p>" +
+"<p>If you have any questions about subscriptions, please check <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>our FAQ</a> " +
 "or send email to <a href='mailto:o365itprosrenewals@office365itpros.com'>Customer Services</a>.</p>" +
 "<p>Thank you for supporting Office 365 for IT Pros (2024 edition). We hope that you like Office 365 for IT Pros " +
 "(2025 edition).</p>" +
 "<p>Best Regards,</p><p>Tony</p><p><p>" +
-"<p>PS: Please don't share the upgrade link with others. The link is for your use only. We have had a few instances where people shared"+
+"<p>P.S.: Please don't share the upgrade link with others. The link is for your use only. We have had a few instances where people shared"+
 "the link with colleagues who used the link to subscribe. It is embarrassing all round when we have to reverse transactions and close " +
 "accounts, but keeping the link secure is the only way to enable us to offer a low-cost subscription extension to our subscribers.</p>" +
 "<p>------------------------------------------------------------------------------</p>" +
@@ -69,7 +74,7 @@ ForEach ($Recipient in $EmailAddresses.Email) {
         From = $HVEAccount
         To = $Recipient
         Bcc = 'Customer.Services@office365itpros.com'
-        Subject = "Last chance to extend your Office 365 for IT Pros subscription"
+        Subject = "Offer to extend Office 365 for IT Pros subscription expires at midnight tonight"
         Body = $Content
         Credential = $HVECredentials
         UseSsl = $true
