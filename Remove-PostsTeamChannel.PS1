@@ -19,7 +19,7 @@ Function Get-Response ([string]$Prompt,[int]$NumberPossibleAnswers) {
        } #End while
 }
 
-Connect-MgGraph -NoWelcome -Scopes ChannelMessage.ReadWrite, Team.ReadBasic.All, TeamMember.Read.All, ChannelSettings.Read.All
+Connect-MgGraph -NoWelcome -Scopes ChannelMessage.ReadWrite, Team.ReadBasic.All, ChannelMessage.Read.All, TeamMember.Read.All, ChannelSettings.Read.All
 
 $CheckTeam = Read-Host "What team is the channel to clear out in?"
 Write-Host ("Searching for the {0} team" -f $CheckTeam)
