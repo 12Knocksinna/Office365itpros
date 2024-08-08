@@ -130,7 +130,7 @@ ForEach ($Mbx in $Mailboxes) {
         }     
     } Else {
         $ArchiveStats = $null
-        $ArchiveMbxSizeGB = $null
+        $ArchiveMbxSizeGB = 0
     }
 
     # Get some other details for the user account
