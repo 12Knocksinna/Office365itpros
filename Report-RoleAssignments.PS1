@@ -38,7 +38,7 @@ ForEach ($Assignment in $ActiveAssignments) {
                 Created             = $Assignment.CreatedDateTime
                 DirectoryScope      = $adminUnitName
                 OnPremisesUser      = $Assignment.Principal.AdditionalProperties.onPremisesSyncEnabled
-                AssignmentType      = "Active"
+                AssignmentType      = "Active (PIM)"
                 AssignmentVia       = "User"
                 MemberType          = $Assignment.MemberType
             }
@@ -56,7 +56,7 @@ ForEach ($Assignment in $ActiveAssignments) {
                         Created             = $Assignment.CreatedDateTime
                         DirectoryScope      = $AdminUnitName
                         OnPremisesUser      = $Assignment.Principal.AdditionalProperties.onPremisesSyncEnabled
-                        AssignmentType      = "Active"
+                        AssignmentType      = "Active (PIM)"
                         AssignmentVia       = "Group"
                         MemberType          = $Assignment.MemberType
                     }
@@ -74,7 +74,7 @@ ForEach ($Assignment in $ActiveAssignments) {
                 Created             = $Assignment.CreatedDateTime
                 DirectoryScope      = $AdminUnitName
                 OnPremisesUser      = "N/A"
-                AssignmentType      = "Active"
+                AssignmentType      = "Active (PIM)"
                 AssignmentVia       = "Service Principal"
                 MemberType          = $Assignment.MemberType
                 SPName              = $ServicePrincipal
@@ -158,22 +158,31 @@ ForEach ($Assignment in $EligibleAssignments) {
 }
 
 $PIMAssignments = $ActiveAssignments.count + $EligibleAssignments.count
+If ($PIMAssignments -eq 0) {
+    # Tenant must not be using PIM, so let's do directory roles instead
+    [array]$DirectoryRoles = Get-MgDirectoryRole -All
 
-
-    Get-MgDirectoryRole -All | ForEach-Object {
-        $roleMembers = Get-MgDirectoryRoleMember -DirectoryRoleId $_.Id | Where-Object {
-        $_.AdditionalProperties.userPrincipalName -ne $null -and $_.AdditionalProperties.userPrincipalName -notmatch ".onmicrosoft.com"
+    ForEach ($Role in $DirectoryRoles) {
+   
+        [array]$RoleMembers = Get-MgDirectoryRoleMember -DirectoryRoleId $Role.Id
+        If ($RoleMembers) {
+            $RoleName = $Role.DisplayName      
+            ForEach ($Member in $RoleMembers) {
+                $User = Get-MgUser -UserId $Member.Id
+                    $ReportLine = [PSCustomObject][Ordered]@{
+                        RoleName            = $RoleName
+                        UserPrincipalName   = $User.UserPrincipalName
+                        DirectoryScope      = "Complete directory"
+                        OnPremisesUser      = $User.OnPremisesSyncEnabled
+                        AssignmentType      = "Direct (non=PIM)"  
+                        MemberType          = "User"
+                    }
+                $Report.Add($ReportLine)
+            }
         }
-        if ($roleMembers.Count -ne 0) {
-        $roleName = $_.DisplayName
-        $roleMembers | ForEach-Object { if ((Get-MgUser -UserId $_.Id -Property OnPremisesSyncEnabled).OnPremisesSyncEnabled -ne $null) {
-        [array]$members += (Get-MgUser -UserId $_.Id).UserPrincipalName
-        }}
-        if ($members.Count -ne 0) { $members | Foreach-Object { Write-Output "$roleName,$_" }
-        Remove-Variable members
-        }
-        }
-        }
+    }
+}
+        
 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
