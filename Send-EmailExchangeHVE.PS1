@@ -39,15 +39,17 @@ If (!($EmailAddresses)) {
 
 # Build the HTML content for the email
 $Content = "<p>Dear Subscriber:</p>" +
-"<p>As a subscriber to Office 365 for IT Pros (2024 edition), you are entitled to upgrade and extend your " +
-"subscription to cover Office 365 for IT Pros (2025 edition).  " +
-"The Office 365 for IT Pros (2025 edition) bundle includes the new <b>Automating Microsoft 365 with PowerShell eBook</b>. " +
-"You do not have to buy the PowerShell book separately if you upgrade your subscription.</p>" + 
-"<p>The current price to extend a subscription is `$19.95. We will increase the price to `$29.95 at <b>midnight Pacific Time " +
-"on 5 August 2024 </b>. While we're happy to take the extra 10 dollars to extend your subscription, why not take the opportunity to renew " +
-"now at the lower price?</p>" +
+"<p>Over the past few weeks, we have sent out reminder notifications that a discount is available for you to upgrade " +
+"your subscription to cover Office 365 for IT Pros (2025 edition). The discounted price of `$19.95 lapsed on August 5, 2024 and " +
+"since that time we have received several messages from people saying that they didn't manage to upgrade for some reason. " +
+"Invariably, this comes with a request to use the lapsed discount instead of the current price.</p>" +
+"Regretfully, we can't oblige because this would be unfair to those who upgraded at the lower price. As I am sure you appreciate, we must be fair to everyone.</p>" +
+"The Office 365 for IT Pros (2025 edition) bundle includes the new 250-page <b>Automating Microsoft 365 with PowerShell eBook</b>. " +
+"You do not have to buy the PowerShell book separately if you upgrade your subscription. Like the main book, we plan to update the PowerShell book monthly.</p>" + 
+"<p>The current price to extend a subscription is `$29.95. This price will expire at midnight Pacific Time on September 1, 2024. " +
+"After that, we will have a single `$39.95 discount available for any previous subscriber, no matter what edition they last bought. <p>"+
 "<p>Use the <a href='https://o365itpros.gumroad.com/l/O365IT/Subscriber2025'>link</a> to secure your upgrade </p>" +
-"<p>I apologize if you have already upgraded. We have had a few problems with the Gumroad email system and were not " +
+"<p>I apologize if you receive this email after already upgrading. We have had a few problems with the Gumroad email system and were not " +
 "confident that everyone received the upgrade link. Every year we get complaints from people who don't receive a notification " +
 "about upgrade offers, so we tend to over-communicate now. If you have already upgraded, you might have received this email because " +
 "you used a different email address to purchase your subscription. To avoid any future confusion, please send a note to support@gumroad.com to ask them " +

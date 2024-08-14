@@ -2,10 +2,11 @@
 # Example script to show how to run an audit query using the Microsoft Graph PowerShell SDK.
 # V1.0 13-Aug-2024 (Tested with SDK V2.21)
 # See https://github.com/12Knocksinna/Office365itpros/blob/master/Search-AuditLogGraph.PS1 for an example using Graph API requests
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Get-MgAuditRecords.PS1
 
 Connect-MgGraph -NoWelcome -Scopes AuditLogsQuery.Read.All
 
+Set-MgRequestContext -MaxRetry 10 -RetryDelay 15
 $AuditQueryName = ("Audit Job created at {0}" -f (Get-Date))
 $StartDate = (Get-Date).AddDays(-180)
 $EndDate = (Get-Date).AddDays(1)
