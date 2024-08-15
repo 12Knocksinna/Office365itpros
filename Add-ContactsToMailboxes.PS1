@@ -94,10 +94,12 @@ ForEach ($User in $Users) {
         # Check if the contact already exists and add it if it's not there
         If ($null -eq $ContactsHash[$Item.Email]) {
             Write-Host ("Adding contact {0} to {1}" -f $Item.FullName, $User.displayName)
-            $Contact = New-MgUserContact -UserId $User.Id -BodyParameter $NewContact
-            If ($null -eq $Contact) {
+            Try {
+                $Contact = New-MgUserContact -UserId $User.Id -BodyParameter $NewContact
+            } Catch {
                 Write-Host ("Failed to add contact {0} to {1}" -f $Item.FullName, $User.displayName)
-            } Else {
+            }
+            If ($Contact) {
                 $ContactAdded++
             }   
         }
