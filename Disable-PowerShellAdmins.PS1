@@ -17,9 +17,6 @@ If ($Modules -notcontains "ExchangeOnlineManagement") {
 $ExoAdminRoleId = Get-MgDirectoryRoleTemplate | Where-Object {$_.displayName -eq "Exchange administrator"} | Select-Object -ExpandProperty Id
 $GlobalAdminRoleId = Get-MgDirectoryRoleTemplate | Where-Object {$_.displayName -eq "Global administrator"} | Select-Object -ExpandProperty Id
 
-# Get the tenant identifier
-$TenantId = (Get-MgOrganization).Id
-
 # Output list to gather information about admin accounts
 $Report = [System.Collections.Generic.List[Object]]::new()  
 $OutputFile = "c:\temp\PIMAssignments.csv"  
