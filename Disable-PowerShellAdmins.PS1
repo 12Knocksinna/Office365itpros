@@ -3,11 +3,15 @@
 # The original article explaining how to disable access to Exchange PowerShell for all accounts except those holding the
 # Exchange administrator and Global administrator roles is https://practical365.com/exchange-online-powershell-remove/
 # This version shows how to use Azure AD Privileged Identity Management assignments instead of simple role memberships.
+# V1.0   July 2023 Based on the AzureAD module
+# V2.0   August 2024 Updated to use the Microsoft Graph PowerShell SDK. Tested with SDK V2.22.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Disable-PowerShellAdmins.PS1
 
-Connect-MgGraph -Scopes Directory.Read.All
-Connect-ExchangeOnline
-Connect-AzureAD
+Connect-MgGraph -Scopes Directory.Read.All -NoWelcome
+$Modules = Get-Module | Select-Object -ExpandProperty Name
+If ($Modules -notcontains "ExchangeOnlineManagement") {
+   Connect-ExchangeOnline
+}
 
 # Find the identifiers for the Exchange administrator and Global administrator management roles
 $ExoAdminRoleId = Get-MgDirectoryRoleTemplate | Where-Object {$_.displayName -eq "Exchange administrator"} | Select-Object -ExpandProperty Id
@@ -21,12 +25,16 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 $OutputFile = "c:\temp\PIMAssignments.csv"  
 
 Write-Output "Retrieving assignment information from Privileged Identity Management..."                    
-# Get information about accounts holding Exchange administrator
-[array]$ExoRoleMembers = Get-AzureADMSPrivilegedRoleAssignment -ProviderId aadRoles -ResourceId $TenantId -Filter "RoleDefinitionId eq '$($ExoAdminRoleId)'" -ErrorAction Stop | Select-Object RoleDefinitionId, SubjectId, StartDateTime, EndDateTime, AssignmentState, MemberType   
+# Get PIM assignments for accounts holding Exchange administrator or Global administrator roles
+[array]$ActiveAssignments = Get-MgBetaRoleManagementDirectoryRoleAssignmentSchedule -Filter "(RoleDefinitionId eq '$($ExoAdminRoleId)') or (RoleDefinitionId eq '$($GlobalAdminRoleId)')" `
+    -ExpandProperty RoleDefinition, Principal, DirectoryScope -All
+
+# Filter out the Exchange administrators
+[array]$ExoRoleMembers = $ActiveAssignments | Where-Object {$_.RoleDefinitionId -eq $ExoAdminRoleId} | Select-Object RoleDefinitionId, Principal, MemberType   
 If (!($ExoRoleMembers)) { Write-Output "Can't find any Exchange administrators! Exiting..." ; break }                                                                                                
 
 # Do the same for global administrators
-[array]$GARoleMembers = Get-AzureADMSPrivilegedRoleAssignment -ProviderId aadRoles -ResourceId $TenantId -Filter "RoleDefinitionId eq '$($GlobalAdminRoleId)'" -ErrorAction Stop | Select-Object RoleDefinitionId, SubjectId, StartDateTime, EndDateTime, AssignmentState, MemberType
+[array]$GARoleMembers = $ActiveAssignments | Where-Object {$_.RoleDefinitionId -eq $GlobalAdminRoleId} | Select-Object RoleDefinitionId, Principal, MemberType
 If (!($GARoleMembers)) { Write-Output "Can't find any global administrators! Exiting..." ; break }
 
 Write-Output "Processing assignment information retrieved from Privileged Identity Management..."
@@ -34,20 +42,17 @@ Write-Output "Processing assignment information retrieved from Privileged Identi
 # Process Exchange administrators to extract accounts with individual assignments and those who receive assignments
 # through a group
 ForEach ($Member in $ExoRoleMembers) {
-  $User = Get-MgUser -UserId $Member.SubjectId -ErrorAction SilentlyContinue -Property Id, displayName, userPrincipalName
+  $User = Get-MgUser -UserId $Member.Principal.Id -ErrorAction SilentlyContinue -Property Id, displayName, userPrincipalName
   If ($User) {
       $ReportLine = [PSCustomObject]@{
         User            = $User.UserPrincipalName
         UserId          = $User.Id
         Name            = $User.DisplayName
         Role            = "Exchange administrator"
-        AssignmentStart = $Member.StartDateTime
-        AssignmentEnd   = $Member.EndDateTime
-        AssignmentState = $Member.AssignmentState
         MemberType      = $Member.MemberType }
       $Report.Add($ReportLine)
     } Else { # Must be a group
-        [array]$GroupMembers = Get-MgGroupMember -GroupId $Member.SubjectId -ErrorAction SilentlyContinue
+        [array]$GroupMembers = Get-MgGroupMember -GroupId $Member.Principal.id -ErrorAction SilentlyContinue
         If ($GroupMembers) {
            ForEach ($U in $GroupMembers) {
             $ReportLine = [PSCustomObject]@{
@@ -55,9 +60,6 @@ ForEach ($Member in $ExoRoleMembers) {
               UserId          = $U.Id
               Name            = $U.additionalProperties.displayName
               Role            = "Exchange administrator"
-              AssignmentStart = $Member.StartDateTime
-              AssignmentEnd   = $Member.EndDateTime
-              AssignmentState = $Member.AssignmentState
               MemberType      = $Member.MemberType }
            $Report.Add($ReportLine)
          }
@@ -67,20 +69,17 @@ ForEach ($Member in $ExoRoleMembers) {
 
 # Process global administrators
 ForEach ($Member in $GARoleMembers) {
-  $User = Get-MgUser -UserId $Member.SubjectId -ErrorAction SilentlyContinue -Property Id, displayName, userPrincipalName
+  $User = Get-MgUser -UserId $Member.Principal.Id -ErrorAction SilentlyContinue -Property Id, displayName, userPrincipalName
   If ($User) {
       $ReportLine = [PSCustomObject]@{
         User            = $User.UserPrincipalName
         UserId          = $User.Id
         Name            = $User.DisplayName
         Role            = "Global administrator"
-        AssignmentStart = $Member.StartDateTime
-        AssignmentEnd   = $Member.EndDateTime
-        AssignmentState = $Member.AssignmentState
         MemberType      = $Member.MemberType }
       $Report.Add($ReportLine)
    } Else { # Must be a group
-        [array]$GroupMembers = Get-MgGroupMember -GroupId $Member.SubjectId -ErrorAction SilentlyContinue
+        [array]$GroupMembers = Get-MgGroupMember -GroupId $Member.Principal.Id -ErrorAction SilentlyContinue
         If ($GroupMembers) {
            ForEach ($U in $GroupMembers) {
             $ReportLine = [PSCustomObject]@{
@@ -88,9 +87,6 @@ ForEach ($Member in $GARoleMembers) {
               UserId          = $U.Id
               Name            = $U.additionalProperties.displayName
               Role            = "Global administrator"
-              AssignmentStart = $Member.StartDateTime
-              AssignmentEnd   = $Member.EndDateTime
-              AssignmentState = $Member.AssignmentState
               MemberType      = $Member.MemberType }
            $Report.Add($ReportLine)
          }

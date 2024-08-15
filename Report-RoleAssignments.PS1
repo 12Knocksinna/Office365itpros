@@ -1,14 +1,19 @@
 # Report-RoleAssignments.PS1
 # Example script to show how to report Entra ID role assignments (PIM or direct) using the 
 # Microsoft Graph PowerShell SDK
+# V1.0 14-Aug-2024  Tested with SDK V2.22. Based on some original code tweeted by Nathan McNulty
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RoleAssignments.PS1
 
 Connect-MgGraph -Scopes 'RoleAssignmentSchedule.Read.Directory','RoleEligibilitySchedule.Read.Directory' -NoWelcome
 
+# Find administrative units and load details into a hash table to speed up lookups
 [array]$AdminUnits = Get-MgDirectoryAdministrativeUnit -Property Id, DisplayName | Sort-Object DisplayName
 $AdminUnitsHash = @{}
 ForEach ($AU in $AdminUnits) {
     $AdminUnitsHash.Add($AU.Id, $AU.DisplayName)
 }
+
+# Output report
 $Report = [System.Collections.Generic.List[Object]]::new()
 
 Write-Host "Checking for PIM active assignments..."
@@ -183,7 +188,7 @@ If ($PIMAssignments -eq 0) {
     }
 }
         
-
+$Report | Sort-Object {$_.Created -as [datetime]} | Out-GridView -Title "Role Assignments Report" 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
