@@ -49,8 +49,8 @@ Write-Host ("Found {0} organizational contacts to process" -f $ItemData.Count)
 
 # Find users assigned a license that includes the Exchange Online (Plan 1) or Exchange Online (Plan 2) service plans who were created
 # since the check date. The check also looks for users with the Exchange Online service plan enabled.
-[array]$Users = Get-MgUser -Filter "assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan1 and c/capabilityStatus eq 'Enabled') `
-  or assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan2 and c/capabilityStatus eq 'Enabled') and (CreatedDateTime ge $CheckDate)" `
+[array]$Users = Get-MgUser -Filter "assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan1 and capabilityStatus eq 'Enabled') `
+  or assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan2 and capabilityStatus eq 'Enabled') and (CreatedDateTime ge $CheckDate)" `
     -ConsistencyLevel eventual -CountVariable Test -All -PageSize 999 -Sort ('displayname') `
     -Property Id, displayName, userprincipalName, assignedLicenses, assignedPlans, department, country, CreatedDateTime
 
