@@ -24,7 +24,7 @@ Write-Host "Checking for PIM active assignments..."
 Write-Host ("Found {0} PIM active assignments" -f $ActiveAssignments.Count)
 
 ForEach ($Assignment in $ActiveAssignments) {
-    $AdminUnitId = $null; $AdminUnitName = $null; $ServicePrincipal = $null; $AppId = $null
+    $AdminUnitId = $null; $AdminUnitName = $null; $ServicePrincipal = $null; $AppId = $null; $OnPremisesUser = $false
     # Check scoping for assignment
     If ($Assignment.DirectoryScopeId -ne "/") {
         $AdminUnitId = $Assignment.DirectoryScopeId.SubString(21,$Assignment.DirectoryScopeId.Length-21)
@@ -33,6 +33,9 @@ ForEach ($Assignment in $ActiveAssignments) {
         $AdminUnitName = "Complete directory"
     }
     $RoleName = $Assignment.RoleDefinition.DisplayName
+    If ($Assignment.Principal.AdditionalProperties.onPremisesSyncEnabled) {
+        $OnPremisesUser = $true
+    }
 
     Switch ($Assignment.Principal.AdditionalProperties."@odata.type") {
         "#microsoft.graph.user" {     
@@ -42,7 +45,7 @@ ForEach ($Assignment in $ActiveAssignments) {
                 UserPrincipalName   = $Assignment.Principal.AdditionalProperties.userPrincipalName
                 Created             = $Assignment.CreatedDateTime
                 DirectoryScope      = $adminUnitName
-                OnPremisesUser      = $Assignment.Principal.AdditionalProperties.onPremisesSyncEnabled
+                OnPremisesUser      = $OnPremisesUser
                 AssignmentType      = "Active (PIM)"
                 AssignmentVia       = "User"
                 MemberType          = $Assignment.MemberType
@@ -60,7 +63,7 @@ ForEach ($Assignment in $ActiveAssignments) {
                         UserPrincipalName   = $Member.AdditionalProperties.userPrincipalName
                         Created             = $Assignment.CreatedDateTime
                         DirectoryScope      = $AdminUnitName
-                        OnPremisesUser      = $Assignment.Principal.AdditionalProperties.onPremisesSyncEnabled
+                        OnPremisesUser      = $OnPremisesUser
                         AssignmentType      = "Active (PIM)"
                         AssignmentVia       = "Group"
                         MemberType          = $Assignment.MemberType
@@ -98,7 +101,7 @@ Write-Host "Checking for PIM eligible assignments..."
 Write-Host ("Found {0} PIM eligible assignments" -f $EligibleAssignments.Count)
 
 ForEach ($Assignment in $EligibleAssignments) {
-    $AdminUnitId = $null; $AdminUnitName = $null; $ServicePrincipal = $null; $AppId = $null
+    $AdminUnitId = $null; $AdminUnitName = $null; $ServicePrincipal = $null; $AppId = $null; $OnPremisesUser = $false
     # Check scoping for assignment
     If ($Assignment.DirectoryScopeId -ne "/") {
         $AdminUnitId = $Assignment.DirectoryScopeId.SubString(21,$Assignment.DirectoryScopeId.Length-21)
@@ -107,6 +110,11 @@ ForEach ($Assignment in $EligibleAssignments) {
         $AdminUnitName = "Complete directory"
     }
     $RoleName = $Assignment.RoleDefinition.DisplayName
+    $OnPremisesUser = $false
+
+    If ($Assignment.Principal.AdditionalProperties.onPremisesSyncEnabled) {
+        $OnPremisesUser = $true
+    }
 
     Switch ($Assignment.Principal.AdditionalProperties."@odata.type") {
         "#microsoft.graph.user" {  
@@ -115,7 +123,7 @@ ForEach ($Assignment in $EligibleAssignments) {
                 UserPrincipalName   = $Assignment.Principal.AdditionalProperties.userPrincipalName
                 Created             = $Assignment.CreatedDateTime
                 DirectoryScope      = $adminUnitName
-                OnPremisesUser      = $Assignment.Principal.AdditionalProperties.onPremisesSyncEnabled
+                OnPremisesUser      = $OnPremisesUser
                 AssignmentType      = "Eligible"
                 AssignmentVia       = "User"
                 MemberType          = $Assignment.MemberType
@@ -133,7 +141,7 @@ ForEach ($Assignment in $EligibleAssignments) {
                         UserPrincipalName   = $Member.AdditionalProperties.userPrincipalName
                         Created             = $Assignment.CreatedDateTime
                         DirectoryScope      = $AdminUnitName
-                        OnPremisesUser      = $Assignment.Principal.AdditionalProperties.onPremisesSyncEnabled
+                        OnPremisesUser      = $OnPremisesUser
                         AssignmentType      = "Eligible"
                         AssignmentVia       = "Group"
                         MemberType          = $Assignment.MemberType
@@ -151,7 +159,7 @@ ForEach ($Assignment in $EligibleAssignments) {
                 UserPrincipalName   = $Assignment.Principal.AdditionalProperties.displayName
                 Created             = $Assignment.CreatedDateTime
                 DirectoryScope      = $AdminUnitName
-                OnPremisesUser      = $false
+                OnPremisesUser      = $OnPremisesUser
                 AssignmentType      = "Eligible"
                 AssignmentVia       = "Service Principal"
                 MemberType          = $Assignment.MemberType
@@ -191,7 +199,7 @@ If ($PIMAssignments -eq 0) {
 Write-Host "All done. Reporting information..."
 
 $Report | Sort-Object {$_.Created -as [datetime]} | Out-GridView -Title "Role Assignments Report" 
-[array]$OnPremisesUsers = $Report | Where-Object {$_.OnPremisesUser -ne $true -and $_.AssignmentVia -eq "User"} | `
+[array]$OnPremisesUsers = $Report | Where-Object {$_.OnPremisesUser -ne $false -and $_.AssignmentVia -eq "User"} | `
     Sort-Object UserPrincipalName -Unique
 
 # Generate the report in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
