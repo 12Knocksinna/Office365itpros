@@ -9,8 +9,8 @@ $TenantId = "22e90715-3da6-4a78-9ec6-b3282389492b"
 Connect-MgGraph -NoWelcome -TenantId $TenantId -ClientId $AppId -CertificateThumbprint $CertThumbPrint 
 
 # Define the service plan IDs for Exchange Online (Plan 1) and Exchange Online (Plan 2)
-$ExoServicePlan1Id = "9aaf7827-d63c-4b61-89c3-182f06f82e5c"
-$ExoServicePlan2Id = "efb87545-963c-4e0d-99df-69c6916d9eb0" 
+$ExoServicePlan1 = "9aaf7827-d63c-4b61-89c3-182f06f82e5c"
+$ExoServicePlan2 = "efb87545-963c-4e0d-99df-69c6916d9eb0" 
 # Define the check date to find new mailboxes
 $CheckDate = [datetime]::UtcNow.AddDays(-7).ToString("s") + "Z"
 
@@ -45,10 +45,11 @@ ForEach ($Item in $ListItems.fields) {
 }
 Write-Host ("Found {0} organizational contacts to process" -f $ItemData.Count)
 
-# Find users assigned a license that includes the Exchange Online (Plan 1) or Exchange Online (Plan 2) service plans who are created
-# since the check date
-[array]$Users = Get-MgUser -filter "(CreatedDateTime ge $CheckDate) and (assignedPlans/any(s:s/serviceplanid eq $ExoServicePlan1Id) or assignedPlans/any(s:s/serviceplanid eq $ExoServicePlan2Id))" `
-    -ConsistencyLevel eventual -CountVariable Test -All -PageSize 999 -Sort ('displayname DESC') `
+# Find users assigned a license that includes the Exchange Online (Plan 1) or Exchange Online (Plan 2) service plans who were created
+# since the check date. The check also looks for users with the Exchange Online service plan enabled.
+[array]$Users = Get-MgUser -Filter "assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan1 and c/capabilityStatus eq 'Enabled') `
+  or assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan2 and c/capabilityStatus eq 'Enabled') and (CreatedDateTime ge $CheckDate)" `
+    -ConsistencyLevel eventual -CountVariable Test -All -PageSize 999 -Sort ('displayname') `
     -Property Id, displayName, userprincipalName, assignedLicenses, assignedPlans, department, country, CreatedDateTime
 
 If ($Users.count -eq 0) {
