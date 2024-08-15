@@ -179,8 +179,8 @@ If ($PIMAssignments -eq 0) {
                         UserPrincipalName   = $User.UserPrincipalName
                         DirectoryScope      = "Complete directory"
                         OnPremisesUser      = $User.OnPremisesSyncEnabled
-                        AssignmentType      = "Direct (non=PIM)"  
-                        MemberType          = "User"
+                        AssignmentType      = "User"  
+                        MemberType          = "Direct (non-PIM)"
                     }
                 $Report.Add($ReportLine)
             }
@@ -189,6 +189,19 @@ If ($PIMAssignments -eq 0) {
 }
         
 $Report | Sort-Object {$_.Created -as [datetime]} | Out-GridView -Title "Role Assignments Report" 
+[array]$OnPremisesUsers = $Report | Where-Object {$_.OnPremisesUser -ne $true -and $_.AssignmentVia -eq "User"} | `
+    Sort-Object UserPrincipalName -Unique
+Write-Host ""
+Write-Host "Report completed"
+Write-Host "----------------"
+Write-Host ("Reported {0} PIM assignments" -f $Report.count)
+If ($OnPremisesUsers) {
+    Write-Host ("{0} assignments are for on-premises users" -f $OnPremisesUsers.count)
+    Write-Host ""
+    $OnPremisesUsers.UserPrincipalName
+} Else {
+    Write-Host "No assignments found for on-premises users"
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
