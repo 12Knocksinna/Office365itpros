@@ -1,5 +1,7 @@
 # Add-ContactsToMailboxes.PS1
 # Demonstration of how to add contacts to user mailboxes with the Microsoft Graph PowerShell SDK
+# V1.0 14-Aug-2024
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Add-ContactsToMailboxes.PS1
 
 $CertThumbPrint = "F79286DB88C21491110109A0222348FACF694CBD"
 $AppId = "0c75253c-3c01-43ed-adcf-1415c68ff455"
@@ -103,3 +105,10 @@ ForEach ($User in $Users) {
 }
 
 Write-Host ("Added {0} contacts to {1} mailboxes" -f $ContactAdded, $Users.Count)
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from the Internet without
+# first validating the code in a non-production environment.
