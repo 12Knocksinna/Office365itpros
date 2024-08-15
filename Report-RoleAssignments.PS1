@@ -78,7 +78,7 @@ ForEach ($Assignment in $ActiveAssignments) {
                 UserPrincipalName   = $Assignment.Principal.AdditionalProperties.displayName
                 Created             = $Assignment.CreatedDateTime
                 DirectoryScope      = $AdminUnitName
-                OnPremisesUser      = "N/A"
+                OnPremisesUser      = $false
                 AssignmentType      = "Active (PIM)"
                 AssignmentVia       = "Service Principal"
                 MemberType          = $Assignment.MemberType
@@ -151,7 +151,7 @@ ForEach ($Assignment in $EligibleAssignments) {
                 UserPrincipalName   = $Assignment.Principal.AdditionalProperties.displayName
                 Created             = $Assignment.CreatedDateTime
                 DirectoryScope      = $AdminUnitName
-                OnPremisesUser      = "N/A"
+                OnPremisesUser      = $false
                 AssignmentType      = "Eligible"
                 AssignmentVia       = "Service Principal"
                 MemberType          = $Assignment.MemberType
