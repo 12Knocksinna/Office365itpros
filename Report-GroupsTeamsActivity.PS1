@@ -576,7 +576,7 @@ Write-Host " "
 Write-Host "Total Elapsed time: " $OverAllElapsed "seconds"
 
 If ($ExcelGenerated -eq $true) {
-    Write-Host ("Teams and Groups activity report available in HTML {0} and Excel workbook {0}" -f $HTMLReportFile, $ExcelOutputFile)
+    Write-Host ("Teams and Groups activity report available in HTML {0} and Excel workbook {1}" -f $HTMLReportFile, $ExcelOutputFile)
 } Else {
     Write-Host ("Teams and Groups activity report available in HTML {0} and CSV file {1}" -f $HTMLReportFile, $CSVOutputFile)
 }

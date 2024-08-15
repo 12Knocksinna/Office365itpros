@@ -187,15 +187,37 @@ If ($PIMAssignments -eq 0) {
         }
     }
 }
-        
+
+Write-Host "All done. Reporting information..."
+
 $Report | Sort-Object {$_.Created -as [datetime]} | Out-GridView -Title "Role Assignments Report" 
 [array]$OnPremisesUsers = $Report | Where-Object {$_.OnPremisesUser -ne $true -and $_.AssignmentVia -eq "User"} | `
     Sort-Object UserPrincipalName -Unique
+
+# Generate the report in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\RoleAssignments.xlsx"
+    $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Role Assignments" -Title ("Role Assignments Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Microsoft365LicensingReport" 
+} Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\RoleAssignments.CSV"
+    $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+}
+
 Write-Host ""
 Write-Host "Report completed"
 Write-Host "----------------"
 Write-Host ("Reported {0} PIM assignments" -f $Report.count)
+
+If ($ExcelGenerated -eq $true) {
+    Write-Host ("Role Assignments report available in Excel workbook {0}" -f $ExcelOutputFile)
+} Else {
+    Write-Host ("Role Assignments report available in CSV file {0}" -f $CSVOutputFile)
+}
+
 If ($OnPremisesUsers) {
+    Write-Host ""
     Write-Host ("{0} assignments are for on-premises users" -f $OnPremisesUsers.count)
     Write-Host ""
     $OnPremisesUsers.UserPrincipalName
