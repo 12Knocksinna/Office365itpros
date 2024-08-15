@@ -7,7 +7,7 @@
 # V2.0   August 2024 Updated to use the Microsoft Graph PowerShell SDK. Tested with SDK V2.22.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Disable-PowerShellAdmins.PS1
 
-Connect-MgGraph -Scopes Directory.Read.All -NoWelcome
+Connect-MgGraph -Scopes RoleAssignmentSchedule.Read.Directory, RoleEligibilitySchedule.Read.Directory, User.Read.All, Group.Read.All, GroupMember.Read.All -NoWelcome
 $Modules = Get-Module | Select-Object -ExpandProperty Name
 If ($Modules -notcontains "ExchangeOnlineManagement") {
    Connect-ExchangeOnline

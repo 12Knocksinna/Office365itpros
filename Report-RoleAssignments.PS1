@@ -4,7 +4,7 @@
 # V1.0 14-Aug-2024  Tested with SDK V2.22. Based on some original code tweeted by Nathan McNulty
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RoleAssignments.PS1
 
-Connect-MgGraph -Scopes 'RoleAssignmentSchedule.Read.Directory','RoleEligibilitySchedule.Read.Directory' -NoWelcome
+Connect-MgGraph -Scopes RoleAssignmentSchedule.Read.Directory, RoleEligibilitySchedule.Read.Directory, Group.Read.All, GroupMember.Read.All -NoWelcome
 
 # Find administrative units and load details into a hash table to speed up lookups
 [array]$AdminUnits = Get-MgDirectoryAdministrativeUnit -Property Id, DisplayName | Sort-Object DisplayName
