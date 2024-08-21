@@ -1,7 +1,7 @@
 # Check-SharedMailboxes.PS1
 # Check if people are signing into shared mailboxes. If they are, check if the accounts for the mailboxes are licensed for Exchange Online (Plan 1 or Plan 2).
 #
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Check-SharedMailboxes.PS1
 
 # Connect to the Microsoft Graph and Exchange Online
 Connect-MgGraph -Scopes "AuditLog.Read.All", "User.Read.All" -NoWelcome
