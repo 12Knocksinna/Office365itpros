@@ -179,7 +179,7 @@ $Headers = @{
             'Authorization' = "Bearer $Token" 
             'ConsistencyLevel' = "eventual" }
 
-If (!($Token)) { Write-Host "Can't get Azure AD access token - exiting" ; break }
+If (!($Token)) { Write-Host "Can't get access token - exiting" ; break }
 
 # Prepare search filter
 $SearchFilter = "subject:$MessageSubject" 
