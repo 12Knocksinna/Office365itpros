@@ -14,17 +14,21 @@ Connect-MgGraph -NoWelcome -ClientId $AppId -TenantId $TenantId -CertificateThum
 $UM0 = "notifications@communityhub.microsoft.com"
 $UM1 = "messages-noreply@linkedin.com"
 $UM2 = "noreply@microsoft.com"
-$UM3 = "mssecurity-noreply@microsoft.com"
+$UM3 = "notifications-noreply@linkedin.com"
 $UM4 = "noreply@yammer.com"
 $UM5 = "microsoft@powerapps.com"
 $UM6 = "o365mc@microsoft.com"
 $UM7 = "jobs-listings@linkedin.com"
 $UM8 = "notifications@yammer.com"
+$UM9 = "noreply@amazon.com"
+$UM10 = "notify@mstechcommunity.microsoft.com"
+$UM11 = "notifications@owler.com"
 
-# Set the start and end dates for the search
-[datetime]$StartDate = (Get-Date).AddDays(-730)
+# Set the start and end dates for the search - starting five years ago and ending 30 days ago
+[datetime]$StartDate = (Get-Date).AddDays(-1825)
 [string]$StartDate = Get-Date $StartDate -Format "yyyy-MM-ddTHH:mm:ssZ"
-[string]$EndDate = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
+[datetime]$EndDate = (Get-Date).AddDays(-30)
+[string]$EndDate = Get-Date $EndDate -Format "yyyy-MM-ddTHH:mm:ssZ"
 
 # Define the service plan IDs for Exchange Online (Plan 1) and Exchange Online (Plan 2)
 $ExoServicePlan1 = "9aaf7827-d63c-4b61-89c3-182f06f82e5c"
@@ -48,18 +52,22 @@ If ($Users) {
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
     Write-Host ("Processing mailbox {0}" -f $User.DisplayName) -ForegroundColor Yellow
+    [int]$i = 0
 
     [array]$Messages = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId 'Inbox' `
     -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
-            and (sender/emailAddress/address eq '$UM0' or sender/emailAddress/address eq '$UM1' or sender/emailAddress/address eq '$UM2' `
-            or sender/emailAddress/address eq '$UM3' or sender/emailAddress/address eq '$UM4' or sender/emailAddress/address eq '$UM5' `
-            or sender/emailAddress/address eq '$UM6' or sender/emailAddress/address eq '$UM7' or sender/emailAddress/address eq '$UM8')" `
-            -Property Id, Subject, Sender, SentDateTime -All -PageSize 999
+        and (sender/emailAddress/address eq '$UM0' or sender/emailAddress/address eq '$UM1' or sender/emailAddress/address eq '$UM2' `
+        or sender/emailAddress/address eq '$UM3' or sender/emailAddress/address eq '$UM4' or sender/emailAddress/address eq '$UM5' `
+        or sender/emailAddress/address eq '$UM6' or sender/emailAddress/address eq '$UM7' or sender/emailAddress/address eq '$UM8' `
+        or sender/emailAddress/address eq '$UM9' or sender/emailAddress/address eq '$UM10' or sender/emailAddress/address eq '$UM11')" `
+        -Property Id, Subject, Sender, SentDateTime -All -PageSize 999
 
     If ($Messages) {
+        # If messages are found, delete them!
         ForEach ($Message in $Messages) {
             Try {
                 Remove-MgUserMessage -UserId $User.Id -MessageId $Message.Id -ErrorAction Continue
+                $i++
                 $ReportLine = [PSCustomObject][Ordered]@{ 
                     Timestamp   = (Get-Date -format s)   
                     Action      = 'Message Deleted'
@@ -88,7 +96,9 @@ ForEach ($User in $Users) {
     } Else {
         Write-Host ("No utility messages found in mailbox {0}" -f $User.DisplayName) -ForegroundColor Green
     }
-
+    If ($i -gt 0) {
+        Write-Host ("{0} utility messages removed from mailbox {1}" -f $i, $User.DisplayName) -ForegroundColor Green
+    }   
 }
 
 $Report | Out-GridView -Title "Utility Messages Removed from Mailboxes" 
@@ -102,32 +112,37 @@ $HTMLHeader = "<body><h1>Messages removed by the ever-loyal Utility Message Remo
      <p><strong>Generated:</strong> $(Get-Date -Format g)</p>  
      <h2><u>Messages removed from your Inbox</u></h2></p>
      <p>The background agent removes messages from selected senders from your mailbox to avoid a build-up of messages with little value.</p>
-     <p>If necessary, you can recover deleted messages from the Deleted Items folder.</p>"
+     <p>If necessary, you can recover these messages by going to the Deleted Items folder and using the <i>Recover items recently removed from this folder</i> option.</p>"
 $HTMLFooter = 
     "<p>------------------------------------------------------------------------------</p>" +
     "<p>This email was sent by the Utility Message Removal service" +
     "<p>------------------------------------------------------------------------------</p></body>"
 
 ForEach ($Address in $IndividualMailboxes) {
-
-    $HTMLReport = $Report | Where-Object {$_.SMTPAddress -eq $Address} | Select-Object Action, Subject, SenderEmail, SenderName, Sent | ConvertTo-Html -Fragment
+  
+    # Create a HTML fragment containing details of the messages removed from the mailbox
+    $HTMLReport = $Report | Where-Object {$_.SMTPAddress -eq $Address -and $_.Action -eq 'Message Deleted'} | `
+        Select-Object Action, Subject, SenderEmail, SenderName, Sent | Sort-Object {$_.Sent -as [datetime]} -Descending
+    Write-Host ("Sending notification about {0} removed messages to {1}" -f $HTMLReport.count, $Address)
+    $HTMLReport = $HTMLReport | ConvertTo-Html -Fragment
+    # Assemble the pieces into a complete HTML message
     $HTMLBody = $HTMLHeader + $HTMLReport + $HTMLFooter
     # Add the recipient using the mailbox's primary SMTP address
     $EmailAddress  = @{address = $Address} 
     $EmailRecipient = @{EmailAddress = $EmailAddress}  
-    Write-Host "Sending notification about removed messages to" $Address
     # Construct the message body
     $MessageBody = @{
         content = "$($HtmlBody)"
         ContentType = 'html'
     }
-    # Create a draft message in the signed-in user's mailbox
+    # Create a draft message in the sending mailbox
     $NewMessage = New-MgUserMessage -UserId $MsgFrom -Body $MessageBody -ToRecipients $EmailRecipient -Subject $MsgSubject 
     # Send the message
     Send-MgUserMessage -UserId $MsgFrom -MessageId $NewMessage.Id  
 
 }
 
+Write-Host ("Utility message cleanup complete. Details of {0} utility messages sent to {1} users" -f $Report.Count, $IndividualMailboxes.Count) -ForegroundColor Cyan
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
