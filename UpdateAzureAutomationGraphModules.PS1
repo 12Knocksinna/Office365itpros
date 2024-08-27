@@ -9,8 +9,8 @@ Write-Host "Connecting to Azure Automation"
 # see https://learn.microsoft.com/en-us/powershell/module/az.accounts/connect-azaccount?view=azps-11.3.0 for more info
 # e.g. 
 # $SubscriptionId = "35429342-a1a5-4427-9e2d-551840f2ad25"
-# $TenantId = (Get-MgOrganization).Id
-# Connect-AzAccount -TenantId $TenantId -SubscriptionId 
+# $TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478"
+# Connect-AzAccount -TenantId $TenantId -SubscriptionId $SubscriptionId
 $Status = Connect-AzAccount
 If (!($Status)) { 
   Write-Host "Account not authenticated - exiting" ; break 
