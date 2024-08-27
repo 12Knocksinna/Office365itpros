@@ -59,11 +59,12 @@ ForEach ($User in $Users) {
     If ($Messages) {
         ForEach ($Message in $Messages) {
             Try {
-               # Remove-MgUserMessage -UserId $User.Id -MessageId $Message.Id -ErrorAction Continue
-                $ReportLine = [PSCustomObject][Ordered]@{   
+                Remove-MgUserMessage -UserId $User.Id -MessageId $Message.Id -ErrorAction Continue
+                $ReportLine = [PSCustomObject][Ordered]@{ 
+                    Timestamp   = (Get-Date -format s)   
                     Action      = 'Message Deleted'
                     Mailbox     = $User.DisplayName
-                    Timestamp   = (Get-Date -format s) 
+                    SMTPAddress = $User.UserPrincipalName
                     Subject     = $Message.Subject
                     SenderEmail = $Message.Sender.EmailAddress.Address
                     SenderName  = $Message.Sender.EmailAddress.Name
@@ -71,10 +72,11 @@ ForEach ($User in $Users) {
                 }
             } Catch {
                 Write-Host ("Failed to remove message {0} from mailbox {1} with error {2}" -f $Message.Id, $User.DisplayName, $_.Exception.Message) -ForegroundColor Red
-                $ReportLine = [PSCustomObject][Ordered]@{   
+                $ReportLine = [PSCustomObject][Ordered]@{  
+                    Timestamp   = (Get-Date -format s)  
                     Action      = 'Message Deletion Failed'
                     Mailbox     = $User.DisplayName
-                    Timestamp   = (Get-Date -format s) 
+                    SMTPAddress = $User.UserPrincipalName
                     Subject     = $Message.Subject
                     SenderEmail = $Message.Sender.EmailAddress.Address
                     SenderName  = $Message.Sender.EmailAddress.Name
@@ -90,6 +92,42 @@ ForEach ($User in $Users) {
 }
 
 $Report | Out-GridView -Title "Utility Messages Removed from Mailboxes" 
+
+# Send email to the mailbox owners
+[array]$IndividualMailboxes = $Report | Sort-Object SMTPAddress -Unique | Select-Object -ExpandProperty SMTPAddress
+$MsgSubject = "Utility Messages Removed from Your Mailbox"
+$MsgFrom = 'Azure.Management.Account@office365itpros.com'
+
+$HTMLHeader = "<body><h1>Messages removed by the ever-loyal Utility Message Removal Service</h1>
+     <p><strong>Generated:</strong> $(Get-Date -Format g)</p>  
+     <h2><u>Messages removed from your Inbox</u></h2></p>
+     <p>The background agent removes messages from selected senders from your mailbox to avoid a build-up of messages with little value.</p>
+     <p>If necessary, you can recover deleted messages from the Deleted Items folder.</p>"
+$HTMLFooter = 
+    "<p>------------------------------------------------------------------------------</p>" +
+    "<p>This email was sent by the Utility Message Removal service" +
+    "<p>------------------------------------------------------------------------------</p></body>"
+
+ForEach ($Address in $IndividualMailboxes) {
+
+    $HTMLReport = $Report | Where-Object {$_.SMTPAddress -eq $Address} | Select-Object Action, Subject, SenderEmail, SenderName, Sent | ConvertTo-Html -Fragment
+    $HTMLBody = $HTMLHeader + $HTMLReport + $HTMLFooter
+    # Add the recipient using the mailbox's primary SMTP address
+    $EmailAddress  = @{address = $Address} 
+    $EmailRecipient = @{EmailAddress = $EmailAddress}  
+    Write-Host "Sending notification about removed messages to" $Address
+    # Construct the message body
+    $MessageBody = @{
+        content = "$($HtmlBody)"
+        ContentType = 'html'
+    }
+    # Create a draft message in the signed-in user's mailbox
+    $NewMessage = New-MgUserMessage -UserId $MsgFrom -Body $MessageBody -ToRecipients $EmailRecipient -Subject $MsgSubject 
+    # Send the message
+    Send-MgUserMessage -UserId $MsgFrom -MessageId $NewMessage.Id  
+
+}
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
