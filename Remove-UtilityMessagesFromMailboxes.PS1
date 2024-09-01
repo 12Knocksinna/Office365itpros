@@ -9,8 +9,14 @@ $AppThumbprint = "F79286DB88C21491110109A0222348FACF694CBD"
 $AppId = "d58578ac-7cb4-4b5a-a296-f19218a03f11"
 $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
 
+# The app needs the following application permissions:
+# User.Read.All: Read user account details
+# Mail.ReadWrite: Read and write mail in all mailboxes
+# Mail.Send: Send mail as a user
+
 Connect-MgGraph -NoWelcome -ClientId $AppId -TenantId $TenantId -CertificateThumbprint $AppThumbprint
-# List the utility email addresses to search for and remove
+
+# List the email addresses of the notification messages to search for and remove
 $UM0 = "notifications@communityhub.microsoft.com"
 $UM1 = "messages-noreply@linkedin.com"
 $UM2 = "noreply@microsoft.com"
@@ -27,7 +33,7 @@ $UM11 = "notifications@owler.com"
 # Set the start and end dates for the search - starting five years ago and ending 30 days ago
 [datetime]$StartDate = (Get-Date).AddDays(-1825)
 [string]$StartDate = Get-Date $StartDate -Format "yyyy-MM-ddTHH:mm:ssZ"
-[datetime]$EndDate = (Get-Date).AddDays(-30)
+[datetime]$EndDate = (Get-Date).AddDays(-1)
 [string]$EndDate = Get-Date $EndDate -Format "yyyy-MM-ddTHH:mm:ssZ"
 
 # Define the service plan IDs for Exchange Online (Plan 1) and Exchange Online (Plan 2)
@@ -94,10 +100,10 @@ ForEach ($User in $Users) {
             $Report.Add($ReportLine)
         }
     } Else {
-        Write-Host ("No utility messages found in mailbox {0}" -f $User.DisplayName) -ForegroundColor Green
+        Write-Host ("No notification messages found in mailbox {0}" -f $User.DisplayName) -ForegroundColor Green
     }
     If ($i -gt 0) {
-        Write-Host ("{0} utility messages removed from mailbox {1}" -f $i, $User.DisplayName) -ForegroundColor Green
+        Write-Host ("{0} notification messages removed from mailbox {1}" -f $i, $User.DisplayName) -ForegroundColor Green
     }   
 }
 
@@ -105,7 +111,7 @@ $Report | Out-GridView -Title "Utility Messages Removed from Mailboxes"
 
 # Send email to the mailbox owners
 [array]$IndividualMailboxes = $Report | Sort-Object SMTPAddress -Unique | Select-Object -ExpandProperty SMTPAddress
-$MsgSubject = "Utility Messages Removed from Your Mailbox"
+$MsgSubject = "Notification Messages Removed from Your Mailbox"
 $MsgFrom = 'Azure.Management.Account@office365itpros.com'
 
 $HTMLHeader = "<body><h1>Messages removed by the ever-loyal Utility Message Removal Service</h1>
@@ -142,7 +148,20 @@ ForEach ($Address in $IndividualMailboxes) {
 
 }
 
-Write-Host ("Utility message cleanup complete. Details of {0} utility messages sent to {1} users" -f $Report.Count, $IndividualMailboxes.Count) -ForegroundColor Cyan
+Write-Host ("Utility message cleanup complete. Details of {0} notification messages sent to {1} users" -f $Report.Count, $IndividualMailboxes.Count) -ForegroundColor Cyan
+
+# Generate the report in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
+If (Get-Module ImportExcel -ListAvailable) {
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Removed Notification Messages Report.xlsx"
+    $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Deleted Notification Messages" -Title ("Removed Notification Messages {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Microsoft365LicensingReport" 
+    Write-Host ("Report saved to {0}" -f $ExcelOutputFile) -ForegroundColor Green
+} Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Removed Notification Messages Report.CSV"
+    $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+    Write-Host ("Report saved to {0}" -f $CSVOutputFile) -ForegroundColor Green
+}
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
