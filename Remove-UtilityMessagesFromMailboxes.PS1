@@ -33,7 +33,7 @@ $UM11 = "notifications@owler.com"
 # Set the start and end dates for the search - starting five years ago and ending 30 days ago
 [datetime]$StartDate = (Get-Date).AddDays(-1825)
 [string]$StartDate = Get-Date $StartDate -Format "yyyy-MM-ddTHH:mm:ssZ"
-[datetime]$EndDate = (Get-Date).AddDays(-1)
+[datetime]$EndDate = (Get-Date).AddDays(-30)
 [string]$EndDate = Get-Date $EndDate -Format "yyyy-MM-ddTHH:mm:ssZ"
 
 # Define the service plan IDs for Exchange Online (Plan 1) and Exchange Online (Plan 2)
