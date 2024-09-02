@@ -18,7 +18,7 @@ Write-Host ("{0} mailboxes found" -f $Mbx.Count)
 [array]$DefaultAuditSet = "Admin", "Delegate", "Owner"
 [string]$DefaultAuditSetReport = $DefaultAuditSet -join ", "
 # Define the auditable actions that we want to check for
-[array]$CriticalAuditActionsOwner = "MailItemsAccessed", "Send", "searchqueryinitiatedexchange"
+[array]$CriticalAuditActionsOwner = "MailItemsAccessed", "Send", "SearchQueryInitiated"
 [array]$CriticalAuditActionsDelegate = "SendAs", "SendOnBehalf", "MoveToDeletedItems", `
     "SoftDelete", "HardDelete", "MailItemsAccessed"
 
