@@ -113,5 +113,5 @@ ForEach ($Item in $Items) {
 }
 
 # Output what we found
-$Report | Out-GridView -Title "Copilot Interactions" 
-$Report | Group-Object -Property Sender | Select-Object Name, Count | Sort-Object Count -Descending | Out-GridView -Title "Copilot Interactions by Sender"
+$Report | Select-Object Sender, Sent, Body | Out-GridView -Title "Copilot Interactions" 
+$Report | Group-Object -Property Sender | Select-Object Name, Count | Sort-Object Count -Descending | Out-GridView -Title "Copilot Interactions by App"
