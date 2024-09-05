@@ -32,6 +32,7 @@ $CP1 = "Copilot in Word"
 $CP2 = "Copilot in Outlook"
 $CP3 = "Copilot in PowerPoint"
 $CP4 = "Copilot in Excel"
+$CP5 = "Copilot in Teams"
 
 [datetime]$StartDate = (Get-Date).AddDays(-365)
 [string]$StartDate = Get-Date $StartDate -Format "yyyy-MM-ddTHH:mm:ssZ"
@@ -91,7 +92,7 @@ If ($FolderId) {
     [array]$Items = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId $RestId -All -PageSize 999  `
         -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
         and (sender/emailAddress/name eq '$CP0' or sender/emailAddress/name eq '$CP1' or sender/emailAddress/name eq '$CP2' `
-        or sender/emailAddress/name eq '$CP3' or sender/emailAddress/name eq '$CP4')" `
+        or sender/emailAddress/name eq '$CP3' or sender/emailAddress/name eq '$CP4' or sender/emailAddress/name eq '$CP5')" `
         -Property Sender, SentDateTime, BodyPreview, From
 } Else {
     Write-Host "Failed to find folder identifier for the TeamsMessagesData folder"
