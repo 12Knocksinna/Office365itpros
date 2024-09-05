@@ -219,7 +219,6 @@ Else {
 If (!($Mbx)) { Write-Host "No mailboxes found - exiting"; break }
 Write-Host ("{0} mailboxes found." -f $Mbx.count)
 
-[int]$Counter=0
 $DeletionsList = [System.Collections.Generic.List[Object]]::new()
 ForEach ($M in $Mbx) {
   $DataTable = @{}
