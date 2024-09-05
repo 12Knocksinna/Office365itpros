@@ -1,7 +1,31 @@
 # Report-CopilotInteractions.PS1
+# A script to show how to fetch details about Copilot interactions from the compliance records 
+# captured by the Microsoft 365 substrate in the TeamsMessagesData folder. The script uses the 
+# Get-MailboxFolderStatistics cmdlet to find the TeamsMessagesData folder and extract its identifier.
+# The identifier is then converted to an EntryId and used to fetch messages from the folder using
+# Microsoft Graph PowerShell SDK cmdlets.
 
-Connect-ExchangeOnline -SkipLoadingCmdletHelp
-Connect-MgGraph -NoWelcome
+# V1.0 5-Sep-2024
+
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-CopilotInteractions.PS1
+
+# Note that if you want to run the code in application mode to collect data from multiple mailboxes, 
+# the signed-in account must hold the Exchange administrator role.
+[array]$Modules = Get-Module | Select-Object -ExpandProperty Name
+If ('ExchangeOnlineManagement' -notin $Modules) {
+    Write-Host "Connecting to Exchange Online..."
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp
+}
+
+# Scopes needed 
+# User.Read - read user profiles
+# Mail.Read - read 
+# These are application permissions
+Connect-MgGraph -NoWelcome User.Read, Mail.Read
+
+# The example code runs with delegated permissions. To run in application mode to extract data from
+# multiple mailboxes, use an Entra ID app with a certificate to authenticate or run the code in Azure
+# Automation with a managed identity.
 
 $CP0 = "Microsoft 365 Chat"
 $CP1 = "Copilot in Word"
@@ -46,17 +70,19 @@ For($i=0; $i -lt $entryIdHexString.Length; $i+=2){
 # convert bytes to base64 string
 $entryIdBase64 = [Convert]::ToBase64String($entryIdBytes)
 
-# count how many '=' contains base64 entry id
+# count how many '=' contained in base64 entry id
 $equalCharCount = $entryIdBase64.Length - $entryIdBase64.Replace('=','').Length
 
 # trim '=', replace '/' with '-', replace '+' with '_' and add number of '=' at the end
 $EntryId = $entryIdBase64.TrimEnd('=').Replace('/','_').Replace('+','-')+$equalCharCount
 
+# Now convert the entryId to be a RestId using the translateExchangeIds API
 $Body = @{}
 [array]$InputId = $EntryId
 $Body.Add("inputIds", $InputId)
 $Body.Add("sourceIdType", "entryId")
 $Body.Add("targetIdType", "restid")
+$Uri = ("https://graph.microsoft.com/V1.0/users/{0}/translateExchangeIds" -f $User.Id)
 [array]$Data = Invoke-MgGraphRequest -Method post -Uri $Uri -Body $Body
 $FolderId = $Data.value.targetId
 
@@ -86,5 +112,6 @@ ForEach ($Item in $Items) {
     $Report.Add($ReportLine)
 }
 
+# Output what we found
 $Report | Out-GridView -Title "Copilot Interactions" 
 $Report | Group-Object -Property Sender | Select-Object Name, Count | Sort-Object Count -Descending | Out-GridView -Title "Copilot Interactions by Sender"
