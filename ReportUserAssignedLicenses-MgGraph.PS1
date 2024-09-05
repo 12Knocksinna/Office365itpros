@@ -20,6 +20,7 @@
 #                     custom attribute for Exchange mailboxes that's synchronized to Entra ID. The custom attribute
 #                     to use is held in $CostCenterAttribute. If this variable is undefined or $null, the report
 #                     script ignores cost centers
+# V1.93 05-Sep-2024   Add analysis of costs by company name
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
@@ -49,7 +50,7 @@ Function Get-LicenseCosts {
 
 [datetime]$RunDate = Get-Date
 [string]$ReportRunDate = Get-Date ($RunDate) -format 'dd-MMM-yyyy HH:mm'
-$Version = "1.92"
+$Version = "1.32"
 
 # Default currency - can be overwritten by a value read into the $ImportSkus array
 [string]$Currency = "USD"
@@ -128,9 +129,12 @@ Else {
   Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) 
 }
 
+# These are the properties used to create analyses for.
 [array]$Departments = $Users.Department | Sort-Object -Unique
 [array]$Countries = $Users.Country | Sort-Object -Unique
 [array]$CostCenters = $Users.OnPremisesExtensionAttributes.($CostCenterAttribute) | Sort-Object -Unique
+[array]$Companies = $Users.CompanyName | Sort-Object -Unique
+
 $OrgName = (Get-MgOrganization).DisplayName
 $DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0; $LicenseErrorCount = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
@@ -397,7 +401,7 @@ If ($PricingInfoAvailable) {
   ForEach ($Department in $Departments) {
     [array]$DepartmentRecords = $Report | Where-Object {$_.Department -eq $Department}
     $DepartmentReportLine = [PSCustomObject][Ordered]@{
-      Department    = $Depatment
+      Department    = $Department
       Accounts      = $DepartmentRecords.count
       Costs       = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DepartmentRecords | Measure-Object UserCosts -Sum).Sum))
       AverageCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DepartmentRecords | Measure-Object UserCosts -Average).Average))
@@ -405,7 +409,7 @@ If ($PricingInfoAvailable) {
     $DepartmentReport.Add($DepartmentReportLine)
   }
   $DepartmentHTML = $DepartmentReport | ConvertTo-HTML -Fragment
-  # Anyone without a depaertment?
+  # Anyone without a department?
   [array]$NoDepartment = $Report | Where-Object { $null -eq $_.Department }
   If ($NoDepartment) {
     $NoDepartmentCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoDepartment | Measure-Object UserCosts -Sum).Sum))
@@ -454,6 +458,27 @@ If ($PricingInfoAvailable) {
         $NoCostCenterCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoCostCenter | Measure-Object UserCosts -Sum).Sum))
     } Else {
         $NoCostCenterCosts = "Zero"
+    }
+
+      # Generate the company analysis
+    $CompanyReport = [System.Collections.Generic.List[Object]]::new()
+    ForEach ($Company in $Companies) {
+    [array]$CompanyRecords = $Report | Where-Object {$_.Company -eq $Company}
+    $CompanyReportLine = [PSCustomObject][Ordered]@{
+      Company     = $Company
+      Accounts    = $CompanyRecords.count
+      Costs       = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CompanyRecords | Measure-Object UserCosts -Sum).Sum))
+      AverageCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CompanyRecords | Measure-Object UserCosts -Average).Average))
+    } 
+    $CompanyReport.Add($CompanyReportLine)
+  }
+    $CompanyHTML = $CompanyReport | ConvertTo-HTML -Fragment
+  # Anyone without an assigned company?
+    [array]$NoCompany = $Report | Where-Object { $null -eq $_.Company }
+    If ($NoCompany) {
+      $NoCompanyCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoCompany | Measure-Object UserCosts -Sum).Sum))
+    } Else {
+      $NoCompanyCosts = "Zero"
     }
 
   # Inactive user accounts - these are accounts that have never signed in or whose last sign-in was more than 60 days ago
@@ -572,7 +597,9 @@ If ($PricingInfoAvailable) {
   "<p><h2>License Costs by Country</h2></p>         " + $CountryHTML +
   "<p>License costs for users without a country:    " + $NoCountryCosts +
   "<p><h2>License Costs by Department</h2></p>      " + $DepartmentHTML +
-  "<p>License costs for users without a department: " + $NoDepartmentCosts 
+  "<p>License costs for users without a department: " + $NoDepartmentCosts +
+  "<p><h2>License Costs by Company</h2></p>         " + $CompanyHTML +
+  "<p>License costs for users without a department: " + $NoCompanyCosts
 }
 
 # Add cost center information if we've been asked to generate it
@@ -621,7 +648,6 @@ If (Get-Module ImportExcel -ListAvailable) {
   $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
 }
 
-$Report | Export-CSV -NoTypeInformation $CSVOutputFile -Encoding UTF8
 Write-Host ""
 Write-Host "Microsoft 365 Licensing Report complete"
 Write-Host "---------------------------------------"
