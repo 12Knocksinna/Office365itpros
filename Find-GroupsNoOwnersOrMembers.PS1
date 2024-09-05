@@ -83,7 +83,7 @@ If ($NoMembers.Count -eq 0) {
             }
             $NoMembersReport.Add($ReportLine)
         }
-        $NoOwnersReport | Export-Csv -Path $NoMembersCSVFile -NoTypeInformation -Encoding utf8
+        $NoMembersReport | Export-Csv -Path $NoMembersCSVFile -NoTypeInformation -Encoding utf8
         Write-Host ("Report for groups with no members written to {0}" -f $NoMembersCSVFile)
 }
 
