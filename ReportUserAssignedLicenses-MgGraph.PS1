@@ -476,15 +476,14 @@ If ($PricingInfoAvailable) {
 
   # Generate cost center analysis
   If ($PricingInfoAvailable -and $null -ne $CostCenterAttribute) { 
-    Write-Host "Generating cost center analysis..."
     $CostCenterReport = [System.Collections.Generic.List[Object]]::new()
     ForEach ($CostCenter in $CostCenters) {
       [array]$CostCenterRecords = $Report | Where-Object {$_.'Cost Center' -eq $CostCenter}
       $CostCenterReportLine = [PSCustomObject][Ordered]@{
-        'Cost Center'  = $CostCenter
-        Accounts    = $CostCenterRecords.count
-        Costs       = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CostCenterRecords | Measure-Object UserCosts -Sum).Sum))
-        AverageCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CostCenterRecords | Measure-Object UserCosts -Average).Average))
+        'Cost Center' = $CostCenter
+        Accounts      = $CostCenterRecords.count
+        Costs         = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CostCenterRecords | Measure-Object UserCosts -Sum).Sum))
+        AverageCost   = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CostCenterRecords | Measure-Object UserCosts -Average).Average))
       } 
       $CostCenterReport.Add($CostCenterReportLine)
     }
@@ -498,7 +497,6 @@ If ($PricingInfoAvailable) {
     }
   }
 
-  Write-Host "Generating company analysis..."
   # Generate the company analysis
   $CompanyReport = [System.Collections.Generic.List[Object]]::new()
   ForEach ($Company in $Companies) {
@@ -546,7 +544,7 @@ If ($PricingInfoAvailable) {
       # Report the set of people assigned this SKU      
       $AssignedSkusHTML = $AssignedSkus | ConvertTo-HTML -fragment
       $CompanySKUDetailHTML = $SkuHeader + "<p>" + $AssignedSkusHTML + "<p>"
-      $SkuHTMLFooter = ("<p>Annual cost for {0} licenses: {1}</p>" -f $AssignedSKUs.count, $AnnualCostLicenseFormatted)
+      $SkuHTMLFooter = ("<p>Annual cost for {0} license(s): {1}</p>" -f $AssignedSKUs.count, $AnnualCostLicenseFormatted)
       $CompanyAnalysisHTML = $CompanyAnalysisHTML + "</p>" + $CompanySKUDetailHTML + $SkuHTMLFooter
     }
     $CompanyAnalysisHTML =  "<p>" + $CompanyAnalysisHTML + "</p>" + $CompanyHTMLFooter
@@ -717,7 +715,7 @@ If (Get-Module ImportExcel -ListAvailable) {
   $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Microsoft 365 Licensing Report" -Title ("Microsoft 365 Licensing Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Microsoft365LicensingReport" 
   If ($DetailedCompanyAnalyis) {
     $DetailedExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Detailed Microsoft 365 Licensing Report.xlsx"
-    $DetailedLicenseReport | Export-Excel -Path $DetailedExcelOutputFile -WorksheetName "Detailed Microsoft 365 Licensing Report" `
+    $DetailedLicenseReport | Export-Excel -Path $DetailedExcelOutputFile -WorksheetName "Detailed Microsoft 365 Licensing" `
     	  -Title ("Detailed Microsoft 365 Licensing Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "DetailedMicrosoft365LicensingReport" 
   }
   } Else {
