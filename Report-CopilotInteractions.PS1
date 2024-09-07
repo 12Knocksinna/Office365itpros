@@ -40,7 +40,7 @@ $CP5 = "Copilot in Teams"
 
 $User = (Get-MgContext).Account
 $User = Get-MgUser -UserId $User
-[array]$Folders = Get-MailboxFolderStatistics -Identity $User.Id -FolderScope NonIPMRoot -ResultSize Unlimited | Select-Object Name, FolderId 
+[array]$Folders = Get-ExoMailboxFolderStatistics -Identity $User.Id -FolderScope NonIPMRoot | Select-Object Name, FolderId 
 $TeamsMessagesData = $Folders | Where-Object {$_.Name -eq "TeamsMessagesData"}
 If ($TeamsMessagesData) {
     $FolderId = $TeamsMessagesData.FolderId
@@ -83,30 +83,33 @@ $Body = @{}
 $Body.Add("inputIds", $InputId)
 $Body.Add("sourceIdType", "entryId")
 $Body.Add("targetIdType", "restid")
-$Uri = ("https://graph.microsoft.com/V1.0/users/{0}/translateExchangeIds" -f $User.Id)
-[array]$Data = Invoke-MgGraphRequest -Method post -Uri $Uri -Body $Body
-$FolderId = $Data.value.targetId
 
+$Data = Invoke-MgTranslateUserExchangeId -UserId $User.Id -BodyParameter $Body
+#$Uri = ("https://graph.microsoft.com/V1.0/users/{0}/translateExchangeIds" -f $User.Id)
+#[array]$Data = Invoke-MgGraphRequest -Method post -Uri $Uri -Body $Body
+$FolderId = $Data.targetId
+
+Set-MgRequestContext -MaxRetry 10 -RetryDelay 15
 If ($FolderId) {
     Write-Host "Fetching messages from the TeamsMessagesData folder"
-    [array]$Items = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId $RestId -All -PageSize 999  `
+    # Find messages sent by Copilot
+    [array]$Items = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId $RestId -All -PageSize 500  `
         -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
         and (sender/emailAddress/name eq '$CP0' or sender/emailAddress/name eq '$CP1' or sender/emailAddress/name eq '$CP2' `
-        or sender/emailAddress/name eq '$CP3' or sender/emailAddress/name eq '$CP4' or sender/emailAddress/name eq '$CP5')" `
-        -Property Sender, SentDateTime, BodyPreview, From
-} Else {
+        or sender/emailAddress/name eq '$CP3' or sender/emailAddress/name eq '$CP4' or sender/emailAddress/name eq '$CP5') "
+        -Property Sender, SentDateTime, BodyPreview, ToRecipients
     Write-Host "Failed to find folder identifier for the TeamsMessagesData folder"
     Break
 }
 
 Write-Host ("Found {0} messages in the TeamsMessagesData folder" -f $Items.Count)
-$Report = [System.Collections.Generic.List[Object]]::new()
 
+$Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Item in $Items) {
    
     $ReportLine = [PSCustomObject][Ordered]@{ 
         Sender = $Item.Sender.emailaddress.Name
-        From = $Item.from.emailaddress.name
+        To = $Item.Torecipients.emailaddress.name -join ","
         Sent = $Item.SentDateTime
         Body = $Item.BodyPreview
     }

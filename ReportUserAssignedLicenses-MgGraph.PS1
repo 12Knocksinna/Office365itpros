@@ -21,6 +21,7 @@
 #                     to use is held in $CostCenterAttribute. If this variable is undefined or $null, the report
 #                     script ignores cost centers
 # V1.93 05-Sep-2024   Add analysis of costs by company name
+# V1.94 08-Sep-2024   Remove licenses assigned for expired subscriptions from the report
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
@@ -50,7 +51,7 @@ Function Get-LicenseCosts {
 
 [datetime]$RunDate = Get-Date
 [string]$ReportRunDate = Get-Date ($RunDate) -format 'dd-MMM-yyyy HH:mm'
-$Version = "1.32"
+$Version = "1.94"
 
 # Default currency - can be overwritten by a value read into the $ImportSkus array
 [string]$Currency = "USD"
@@ -136,8 +137,17 @@ Else {
 [array]$Companies = $Users.CompanyName | Sort-Object -Unique
 
 $OrgName = (Get-MgOrganization).DisplayName
+
+# Current subscriptions in the tenant. We use this table to remove expired licenses from the calculation
+[array]$CurrentSubscriptions = Get-MgSubscribedSku
+$CurrentSubscriptionsHash = @{}
+ForEach ($S in $CurrentSubscriptions) {
+  $CurrentSubscriptionsHash.Add($S.SkuId, $S.SkuPartNumber) 
+}
+
 $DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0; $LicenseErrorCount = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
+$DetailedLicenseReport = [System.Collections.Generic.List[Object]]::new()
 $i = 0
 [float]$TotalUserLicenseCosts = 0
 [float]$TotalBoughtLicenseCosts = 0
@@ -152,7 +162,7 @@ ForEach ($User in $Users) {
     #  Find out if any of the user's licenses are assigned via group-based licensing
     [array]$GroupAssignments = $User.licenseAssignmentStates | `
       Where-Object { $null -ne $_.AssignedByGroup -and $_.State -eq "Active" }
-    #  Find out if any of the user's licenses are assigned via group-based licensing and having an error
+    #  Find out if any of the user's licenses are assigned via group-based licensing have an error
     [array]$GroupErrorAssignments = $User.licenseAssignmentStates | `
       Where-Object { $Null -ne $_.AssignedByGroup -and $_.State -eq "Error" }
     [array]$GroupLicensing = $Null
@@ -160,7 +170,7 @@ ForEach ($User in $Users) {
     If ([string]::IsNullOrWhiteSpace($User.licenseAssignmentStates.lastupdateddatetime) -eq $False) {
       $LastLicenseChange = Get-Date(($user.LicenseAssignmentStates.lastupdateddatetime | Measure-Object -Maximum).Maximum) -format g
     }
-    # Figure out group-based licensing assignments if any exist
+    # Figure out the details of group-based licensing assignments if any exist
     ForEach ($G in $GroupAssignments) {
       $GroupName = (Get-MgGroup -GroupId $G.AssignedByGroup).DisplayName
       $GroupProductName = $SkuHashTable[$G.SkuId]
@@ -210,22 +220,32 @@ ForEach ($User in $Users) {
     # Build a list of assigned SKUs
     $SkuUserReport = [System.Collections.Generic.List[Object]]::new()
     ForEach ($S in $DirectAssignments) {
-      $ReportLine = [PSCustomObject][Ordered]@{ 
-        User   = $User.Id
-        Name   = $User.DisplayName 
-        Sku    = $S.SkuId
-        Method = "Direct" 
+      If ($CurrentSubscriptionsHash[$S.SkuId]) {
+        $ReportLine = [PSCustomObject][Ordered]@{ 
+          User        = $User.Id
+          Name        = $User.DisplayName 
+          Sku         = $S.SkuId
+          Method      = "Direct"  
+          Country     = $User.Country
+          Department  = $User.Department
+          Company     = $User.CompanyName
+        }
+        $SkuUserReport.Add($ReportLine)
       }
-      $SkuUserReport.Add($ReportLine)
     }
     ForEach ($S in $GroupAssignments) {
-      $ReportLine = [PSCustomObject][Ordered]@{ 
-        User   = $User.Id
-        Name   = $User.DisplayName
-        Sku    = $S.SkuId
-        Method = "Group" 
+      If ($CurrentSubscriptionsHash[$S.SkuId]) {
+        $ReportLine = [PSCustomObject][Ordered]@{ 
+          User        = $User.Id
+          Name        = $User.DisplayName
+          Sku         = $S.SkuId
+          Method      = "Group" 
+          Country     = $User.Country
+          Department  = $User.Department
+          Company     = $User.CompanyName
+        }
+        $SkuUserReport.Add($ReportLine)
       }
-      $SkuUserReport.Add($ReportLine)
     }
 
     # Check if any duplicates exist
@@ -311,7 +331,7 @@ ForEach ($User in $Users) {
       Title                      = $User.JobTitle
       Company                    = $User.companyName
       "Direct assigned licenses" = $LicenseInfo
-      "Disabled Plans"           = $DisabledPlans 
+      "Disabled Plans"           = $DisabledPlans.Trim() 
       "Group based licenses"     = $GroupLicensingAssignments
       "Annual License Costs"     = ("{0} {1}" -f $Currency, ($UserCosts.toString('F2')))
       "Last license change"      = $LastLicenseChange
@@ -334,7 +354,7 @@ ForEach ($User in $Users) {
       Title                      = $User.JobTitle
       Company                    = $User.companyName
       "Direct assigned licenses" = $LicenseInfo
-      "Disabled Plans"           = $DisabledPlans 
+      "Disabled Plans"           = $DisabledPlans.Trim() 
       "Group based licenses"     = $GroupLicensingAssignments
       "Last license change"      = $LastLicenseChange
       "Account created"          = $AccountCreatedDate
@@ -346,7 +366,26 @@ ForEach ($User in $Users) {
     }
   }  
   $Report.Add($ReportLine)
+
+  # Populate the detailed license assignment report
+  $SkuUserReport = $SkuUserReport | Sort-Object Sku -Unique
+  ForEach ($Item in $SkuUserReport) {
+    $SkuReportLine = [PSCustomObject][Ordered]@{  
+      User        = $Item.User
+      Name        = $Item.name
+      Sku         = $Item.Sku
+      SkuName     = ($SkuHashTable[$Item.Sku])
+      Method      = $Item.Method
+      Country     = $Item.Country
+      Department  = $Item.Department
+      Company     = $Item.Company    
+    }
+  $DetailedLicenseReport.Add($SkuReportLine)
+  }
 } # End ForEach Users
+
+# License SKUs assigned to users in the organization
+[array]$AssignedSkus = $DetailedLicenseReport.Sku | Sort-Object -Unique
 
 $UnderusedAccounts = $Report | Where-Object { $_.Status -ne "OK" }
 $PercentUnderusedAccounts = ($UnderUsedAccounts.Count / $Report.Count).toString("P")
@@ -463,15 +502,15 @@ If ($PricingInfoAvailable) {
       # Generate the company analysis
     $CompanyReport = [System.Collections.Generic.List[Object]]::new()
     ForEach ($Company in $Companies) {
-    [array]$CompanyRecords = $Report | Where-Object {$_.Company -eq $Company}
-    $CompanyReportLine = [PSCustomObject][Ordered]@{
-      Company     = $Company
-      Accounts    = $CompanyRecords.count
-      Costs       = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CompanyRecords | Measure-Object UserCosts -Sum).Sum))
-      AverageCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CompanyRecords | Measure-Object UserCosts -Average).Average))
-    } 
-    $CompanyReport.Add($CompanyReportLine)
-  }
+      [array]$CompanyRecords = $Report | Where-Object {$_.Company -eq $Company}
+      $CompanyReportLine = [PSCustomObject][Ordered]@{
+        Company     = $Company
+        Accounts    = $CompanyRecords.count
+        Costs       = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CompanyRecords | Measure-Object UserCosts -Sum).Sum))
+        AverageCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CompanyRecords | Measure-Object UserCosts -Average).Average))
+      } 
+      $CompanyReport.Add($CompanyReportLine)
+    }
     $CompanyHTML = $CompanyReport | ConvertTo-HTML -Fragment
   # Anyone without an assigned company?
     [array]$NoCompany = $Report | Where-Object { $null -eq $_.Company }
@@ -600,6 +639,10 @@ If ($PricingInfoAvailable) {
   "<p>License costs for users without a department: " + $NoDepartmentCosts +
   "<p><h2>License Costs by Company</h2></p>         " + $CompanyHTML +
   "<p>License costs for users without a department: " + $NoCompanyCosts
+
+  If ($DetailedCompanyAnalyis) {
+    # Generate 
+  }
 }
 
 # Add cost center information if we've been asked to generate it
