@@ -98,6 +98,8 @@ If ($FolderId) {
         and (sender/emailAddress/name eq '$CP0' or sender/emailAddress/name eq '$CP1' or sender/emailAddress/name eq '$CP2' `
         or sender/emailAddress/name eq '$CP3' or sender/emailAddress/name eq '$CP4' or sender/emailAddress/name eq '$CP5') "
         -Property Sender, SentDateTime, BodyPreview, ToRecipients
+    # Find messages received by Copilot
+} Else {
     Write-Host "Failed to find folder identifier for the TeamsMessagesData folder"
     Break
 }

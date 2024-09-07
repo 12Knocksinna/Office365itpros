@@ -31,7 +31,7 @@ Function Get-LicenseCosts {
   ForEach ($License in $Licenses) {
     Try {
       [string]$LicenseCost = $PricingHashTable[$License]
-      # Monthly cost in cents (because some licenses cost sums like 16.40)
+      # Convert monthly cost to cents (because some licenses cost sums like 16.40)
       [float]$LicenseCostCents = [float]$LicenseCost * 100
       If ($LicenseCostCents -gt 0) {
         # Compute annual cost for the license
@@ -51,7 +51,7 @@ Function Get-LicenseCosts {
 
 [datetime]$RunDate = Get-Date
 [string]$ReportRunDate = Get-Date ($RunDate) -format 'dd-MMM-yyyy HH:mm'
-$Version = "1.94"
+$Version = "1.95"
 
 # Default currency - can be overwritten by a value read into the $ImportSkus array
 [string]$Currency = "USD"
@@ -384,9 +384,6 @@ ForEach ($User in $Users) {
   }
 } # End ForEach Users
 
-# License SKUs assigned to users in the organization
-[array]$AssignedSkus = $DetailedLicenseReport.Sku | Sort-Object -Unique
-
 $UnderusedAccounts = $Report | Where-Object { $_.Status -ne "OK" }
 $PercentUnderusedAccounts = ($UnderUsedAccounts.Count / $Report.Count).toString("P")
 
@@ -479,6 +476,7 @@ If ($PricingInfoAvailable) {
 
   # Generate cost center analysis
   If ($PricingInfoAvailable -and $null -ne $CostCenterAttribute) { 
+    Write-Host "Generating cost center analysis..."
     $CostCenterReport = [System.Collections.Generic.List[Object]]::new()
     ForEach ($CostCenter in $CostCenters) {
       [array]$CostCenterRecords = $Report | Where-Object {$_.'Cost Center' -eq $CostCenter}
@@ -498,35 +496,66 @@ If ($PricingInfoAvailable) {
     } Else {
         $NoCostCenterCosts = "Zero"
     }
+  }
 
-      # Generate the company analysis
-    $CompanyReport = [System.Collections.Generic.List[Object]]::new()
-    ForEach ($Company in $Companies) {
-      [array]$CompanyRecords = $Report | Where-Object {$_.Company -eq $Company}
-      $CompanyReportLine = [PSCustomObject][Ordered]@{
-        Company     = $Company
-        Accounts    = $CompanyRecords.count
-        Costs       = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CompanyRecords | Measure-Object UserCosts -Sum).Sum))
-        AverageCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CompanyRecords | Measure-Object UserCosts -Average).Average))
-      } 
-      $CompanyReport.Add($CompanyReportLine)
+  Write-Host "Generating company analysis..."
+  # Generate the company analysis
+  $CompanyReport = [System.Collections.Generic.List[Object]]::new()
+  ForEach ($Company in $Companies) {
+    [array]$CompanyRecords = $Report | Where-Object {$_.Company -eq $Company}
+    $CompanyReportLine = [PSCustomObject][Ordered]@{
+      Company     = $Company
+      Accounts    = $CompanyRecords.count
+      Costs       = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CompanyRecords | Measure-Object UserCosts -Sum).Sum))
+      AverageCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($CompanyRecords | Measure-Object UserCosts -Average).Average))
     }
-    $CompanyHTML = $CompanyReport | ConvertTo-HTML -Fragment
+    $CompanyReport.Add($CompanyReportLine)
+  }
+  $CompanyHTML = $CompanyReport | ConvertTo-HTML -Fragment
   # Anyone without an assigned company?
-    [array]$NoCompany = $Report | Where-Object { $null -eq $_.Company }
-    If ($NoCompany) {
-      $NoCompanyCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoCompany | Measure-Object UserCosts -Sum).Sum))
-    } Else {
-      $NoCompanyCosts = "Zero"
-    }
+  [array]$NoCompany = $Report | Where-Object { $null -eq $_.Company }
+  If ($NoCompany) {
+    $NoCompanyCosts = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($NoCompany | Measure-Object UserCosts -Sum).Sum))
+  } Else {
+    $NoCompanyCosts = "Zero"
+  }
 
-  # Inactive user accounts - these are accounts that have never signed in or whose last sign-in was more than 60 days ago
-  $InactiveUserAccounts = $Report | Where-Object {($_."Days since last signin" -ge 60) -or ($_.'Days since last signin' -eq "Unknown")}
-  $InactiveUserAccountsCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($InactiveUserAccounts | Measure-Object UserCosts -Sum).Sum))
-  # Disabled user accounts
-  $DisabledUserAccounts = $Report | Where-Object { $_."Account status" -eq "disabled" }
-  $DisabledUserAccountsCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DisabledUserAccounts | Measure-Object UserCosts -Sum).Sum)) 
-}
+  $CompanyAnalysisHTML = $null
+  # Detailed company analysis - example of breaking down costs by SKU for each company
+  ForEach ($Company in $Companies) {
+    [array]$CompanyAssignments = $DetailedLicenseReport | Where-Object {$_.Company -eq $Company}
+    $CompanyAnalysisHTML = $CompanyAnalysisHTML + ("<h2>Company Analysis: Product Licenses for {0}</h2><p>" -f $Company)
+    [array]$Skus = $CompanyAssignments.Sku | Sort-Object -Unique
+      
+    ForEach ($Sku in $Skus) {
+      [float]$AnnualCost = 0; [float]$AnnualCostLicense = 0; $AnnualCostLicenseFormatted = $null
+      $SkuHTMLFooter = $null; [float]$AnnualCost = $null; $AnnualCostLicense = $null
+      $SkuHeader = ("<h3>{0}</h3>" -f $SkuHashTable[$Sku])
+      $AssignedSkus = $CompanyAssignments | Where-Object {$_.Sku -eq $Sku} | Select-Object Sku, Name, SkuName, Country, Department, Company 
+      $LicenseCostSKU = $PricingHashTable[$Sku]
+      [float]$LicenseCostCents = [float]$LicenseCostSKU * 100
+      If ($LicenseCostCents -gt 0) {
+        # Compute annual cost for the license
+        [float]$AnnualCost = $LicenseCostCents * 12
+        # Compute cost for this SKU assigned to this company
+        $AnnualCostLicense = ($AnnualCost * $AssignedSkus.count)/100
+        $AnnualCostLicenseFormatted = ("{0} {1}" -f $Currency, ('{0:N2}' -f $AnnualCostLicense))
+      } Else {
+        $AnnualCostLicenseFormatted = ("{0} {1}" -f $Currency, ('{0:N2}' -f 0))
+      }
+      # Report the set of people assigned this SKU      
+      $AssignedSkusHTML = $AssignedSkus | ConvertTo-HTML -fragment
+      $CompanySKUDetailHTML = $SkuHeader + "<p>" + $AssignedSkusHTML + "<p>"
+      $SkuHTMLFooter = ("<p>Annual cost for {0} licenses: {1}</p>" -f $AssignedSKUs.count, $AnnualCostLicenseFormatted)
+      $CompanyAnalysisHTML = $CompanyAnalysisHTML + "</p>" + $CompanySKUDetailHTML + $SkuHTMLFooter
+    }
+    $CompanyAnalysisHTML =  "<p>" + $CompanyAnalysisHTML + "</p>" + $CompanyHTMLFooter
+} 
+
+# Inactive user accounts - these are accounts that have never signed in or whose last sign-in was more than 60 days ago  $InactiveUserAccounts = $Report | Where-Object {($_."Days since last signin" -ge 60) -or ($_.'Days since last signin' -eq "Unknown")}
+$InactiveUserAccountsCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($InactiveUserAccounts | Measure-Object UserCosts -Sum).Sum)) # Disabled user accounts
+$DisabledUserAccounts = $Report | Where-Object { $_."Account status" -eq "disabled" }
+$DisabledUserAccountsCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DisabledUserAccounts | Measure-Object UserCosts -Sum).Sum)) 
 
 # Cost spans for license comparison
 $LowCost = $AverageCostPerUser * 0.8
@@ -641,7 +670,7 @@ If ($PricingInfoAvailable) {
   "<p>License costs for users without a department: " + $NoCompanyCosts
 
   If ($DetailedCompanyAnalyis) {
-    # Generate 
+    $HTMLTail = $HTMLTail + $CompanyAnalysisHTML
   }
 }
 
@@ -686,9 +715,14 @@ If (Get-Module ImportExcel -ListAvailable) {
   Import-Module ImportExcel -ErrorAction SilentlyContinue
   $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.xlsx"
   $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Microsoft 365 Licensing Report" -Title ("Microsoft 365 Licensing Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Microsoft365LicensingReport" 
-} Else {
-  $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.CSV"
-  $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+  If ($DetailedCompanyAnalyis) {
+    $DetailedExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Detailed Microsoft 365 Licensing Report.xlsx"
+    $DetailedLicenseReport | Export-Excel -Path $DetailedExcelOutputFile -WorksheetName "Detailed Microsoft 365 Licensing Report" `
+    	  -Title ("Detailed Microsoft 365 Licensing Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "DetailedMicrosoft365LicensingReport" 
+  }
+  } Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.CSV"
+    $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
 }
 
 Write-Host ""
