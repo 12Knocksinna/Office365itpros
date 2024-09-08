@@ -36,7 +36,7 @@ $CP5 = "Copilot in Teams"
 
 [datetime]$StartDate = (Get-Date).AddDays(-365)
 [string]$StartDate = Get-Date $StartDate -Format "yyyy-MM-ddTHH:mm:ssZ"
-[string]$EndDate = Get-Date $EndDate -Format "yyyy-MM-ddTHH:mm:ssZ"
+[string]$EndDate = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
 
 $User = (Get-MgContext).Account
 $User = Get-MgUser -UserId $User
@@ -87,16 +87,16 @@ $Body.Add("targetIdType", "restid")
 $Data = Invoke-MgTranslateUserExchangeId -UserId $User.Id -BodyParameter $Body
 #$Uri = ("https://graph.microsoft.com/V1.0/users/{0}/translateExchangeIds" -f $User.Id)
 #[array]$Data = Invoke-MgGraphRequest -Method post -Uri $Uri -Body $Body
-$FolderId = $Data.targetId
+$RestId = $Data.targetId
 
 Set-MgRequestContext -MaxRetry 10 -RetryDelay 15
-If ($FolderId) {
-    Write-Host "Fetching messages from the TeamsMessagesData folder"
+If ($RestIdId) {
+    Write-Host "Fetching messages sent by Copilot from the TeamsMessagesData folder"
     # Find messages sent by Copilot
     [array]$Items = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId $RestId -All -PageSize 500  `
         -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
         and (sender/emailAddress/name eq '$CP0' or sender/emailAddress/name eq '$CP1' or sender/emailAddress/name eq '$CP2' `
-        or sender/emailAddress/name eq '$CP3' or sender/emailAddress/name eq '$CP4' or sender/emailAddress/name eq '$CP5') "
+        or sender/emailAddress/name eq '$CP3' or sender/emailAddress/name eq '$CP4' or sender/emailAddress/name eq '$CP5')" `
         -Property Sender, SentDateTime, BodyPreview, ToRecipients
     # Find messages received by Copilot
 } Else {
@@ -104,7 +104,7 @@ If ($FolderId) {
     Break
 }
 
-Write-Host ("Found {0} messages in the TeamsMessagesData folder" -f $Items.Count)
+Write-Host ("Found {0} messages sent by Copilot in the TeamsMessagesData folder" -f $Items.Count)
 
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Item in $Items) {
