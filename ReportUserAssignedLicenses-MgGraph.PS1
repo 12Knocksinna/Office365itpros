@@ -1,6 +1,6 @@
 # ReportUserAssignedLicenses-MgGraph.PS1
 # Create a report of licenses assigned to Entra ID user accounts using the Microsoft Graph PowerShell SDK cmdlets
-# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUserAssignedLicenses-MgGraph.PS1
+# Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUserAssignedLicenses-MgGraph.PS1
 # See https://practical365.com/create-licensing-report-microsoft365-tenant/ for an article describing how to run the report and 
 # https://practical365.com/report-user-license-costs/ for information about how to include licensing cost information
 # in the output
@@ -135,6 +135,12 @@ Else {
 [array]$Countries = $Users.Country | Sort-Object -Unique
 [array]$CostCenters = $Users.OnPremisesExtensionAttributes.($CostCenterAttribute) | Sort-Object -Unique
 [array]$Companies = $Users.CompanyName | Sort-Object -Unique
+
+# Control whether to use the detailed license report information to generate a line-by-line
+# report of license assignments to users. This report is useful to detect duplicate licenses and
+# to help allocate license costs to operating units within an organization. Set the value to false
+# if you don't want to generate the detailed report.
+$DetailedCompanyAnalyis = $true
 
 $OrgName = (Get-MgOrganization).DisplayName
 
