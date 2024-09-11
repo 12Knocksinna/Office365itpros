@@ -33,6 +33,9 @@ $CP2 = "Copilot in Outlook"
 $CP3 = "Copilot in PowerPoint"
 $CP4 = "Copilot in Excel"
 $CP5 = "Copilot in Teams"
+$CP6 = "Copilot in Stream"
+$CP7 = "Copilot in OneNote"
+$CP8 = "Copilot in Loop"
 
 [datetime]$StartDate = (Get-Date).AddDays(-365)
 [string]$StartDate = Get-Date $StartDate -Format "yyyy-MM-ddTHH:mm:ssZ"
@@ -89,22 +92,46 @@ $Data = Invoke-MgTranslateUserExchangeId -UserId $User.Id -BodyParameter $Body
 #[array]$Data = Invoke-MgGraphRequest -Method post -Uri $Uri -Body $Body
 $RestId = $Data.targetId
 
-Set-MgRequestContext -MaxRetry 10 -RetryDelay 15
-If ($RestIdId) {
-    Write-Host "Fetching messages sent by Copilot from the TeamsMessagesData folder"
-    # Find messages sent by Copilot
-    [array]$Items = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId $RestId -All -PageSize 500  `
-        -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
-        and (sender/emailAddress/name eq '$CP0' or sender/emailAddress/name eq '$CP1' or sender/emailAddress/name eq '$CP2' `
-        or sender/emailAddress/name eq '$CP3' or sender/emailAddress/name eq '$CP4' or sender/emailAddress/name eq '$CP5')" `
-        -Property Sender, SentDateTime, BodyPreview, ToRecipients
-    # Find messages received by Copilot
-} Else {
+Set-MgRequestContext -MaxRetry 10 -RetryDelay 15 | Out-Null
+Write-Host "Fetching messages sent by Copilot from the TeamsMessagesData folder"
+# Find messages sent by Copilot
+[array]$Items = $null
+[array]$Items = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId 'TeamsMessagesData' -All -PageSize 500  `
+    -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
+    and (sender/emailAddress/name eq '$CP0' or sender/emailAddress/name eq '$CP1' or sender/emailAddress/name eq '$CP2' `
+    or sender/emailAddress/name eq '$CP3' or sender/emailAddress/name eq '$CP4' or sender/emailAddress/name eq '$CP5' `
+    or sender/emailAddress/name eq '$CP6' or sender/emailAddress/name eq '$CP7' or sender/emailAddress/name eq '$CP8')" `
+    -Property Sender, SentDateTime, BodyPreview, ToRecipients
+   
+If (!($Items)) {
     Write-Host "Failed to find folder identifier for the TeamsMessagesData folder"
     Break
 }
 
-Write-Host ("Found {0} messages sent by Copilot in the TeamsMessagesData folder" -f $Items.Count)
+Write-Host "Finding messages received by Copilot..."
+# Now try and find messages received by Copilot
+[array]$ItemsReceived = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId 'TeamsMessagesData' `
+    -All -PageSize 500  -Property Sender, SentDateTime, BodyPreview, ToRecipients `
+    -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
+    AND (singleValueExtendedProperties/any(ep:ep/id eq 'String 0x0E04' and contains(ep/value,'Copilot in')))" 
+   
+
+# And because we have some prompts received by "Microsoft 365 Chat", we need to find them too
+
+[array]$ItemsChat = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId 'TeamsMessagesData' `
+    -All -PageSize 500  -Property Sender, SentDateTime, BodyPreview, ToRecipients `
+    -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
+    AND (singleValueExtendedProperties/any(ep:ep/id eq 'String 0x0E04' and ep/value eq 'Microsoft 365 Chat'))" 
+   
+
+If ($ItemsReceived) {
+    $Items = $Items + $ItemsReceived
+}
+If ($ItemsChat) {
+    $Items = $Items + $ItemsChat
+}
+
+Write-Host ("Found {0} messages sent and received by Copilot in the TeamsMessagesData folder" -f $Items.Count)
 
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Item in $Items) {
@@ -119,5 +146,6 @@ ForEach ($Item in $Items) {
 }
 
 # Output what we found
-$Report | Select-Object Sender, Sent, Body | Out-GridView -Title "Copilot Interactions" 
-$Report | Group-Object -Property Sender | Select-Object Name, Count | Sort-Object Count -Descending | Out-GridView -Title "Copilot Interactions by App"
+$Report | Sort-Object {$_.Sent -as [datetime]} | Out-GridView -Title "Copilot Interactions" 
+$ReportCopilot = $Report | Where-Object {$_.Sender -ne $User.displayName}
+$ReportCopilot | Group-Object -Property Sender | Select-Object Name, Count | Sort-Object Count -Descending | Out-GridView -Title "Copilot Interactions by App"
