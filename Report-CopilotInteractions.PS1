@@ -88,9 +88,9 @@ $Body.Add("sourceIdType", "entryId")
 $Body.Add("targetIdType", "restid")
 
 $Data = Invoke-MgTranslateUserExchangeId -UserId $User.Id -BodyParameter $Body
-#$Uri = ("https://graph.microsoft.com/V1.0/users/{0}/translateExchangeIds" -f $User.Id)
-#[array]$Data = Invoke-MgGraphRequest -Method post -Uri $Uri -Body $Body
 $RestId = $Data.targetId
+
+Write-Host ("The RestId for the TeamsMessagesData folder is {0}" -f $RestId)
 
 Set-MgRequestContext -MaxRetry 10 -RetryDelay 15 | Out-Null
 Write-Host "Fetching messages sent by Copilot from the TeamsMessagesData folder"
