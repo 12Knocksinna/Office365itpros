@@ -47,7 +47,7 @@ $TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint -NoWelcome
 
 Write-Host "Scanning for mailboxes..."
-[array]$NoReportFolders = @("Audits", "Calendar Logging", "SubstrateHolds")
+[array]$NoReportFolders = @("Audits", "Calendar Logging")
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | Sort-Object DisplayName
 If (!($Mbx)) {
     Write-Host "No mailboxes found - exiting!"; break
