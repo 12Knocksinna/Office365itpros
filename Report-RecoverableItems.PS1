@@ -1,4 +1,8 @@
 # Report-RecoverableItems.PS1
+# A script to show how to use the Microsoft Graph PowerShell SDK to report details of items in
+# the Recoverable Items structure
+
+# Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RecoverableItems.PS1
 
 function FormatFileSize {
     # Format File Size nicely
@@ -27,13 +31,24 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
     Write-Host "Connecting to Exchange Online..."
     Connect-ExchangeOnline -SkipLoadingCmdletHelp
 }
-# Connect to the Graph with an Entra ID app that has the Mail.Read permission. These values must be defined for youe
-# tenant
-Connect-MgGraph -AppId $AppId -Scopes $Scopes -TenantId $TenantId -CertificateThumbprint $Thumbprint
+
+# Values to use with Connect-MgGraph. These will be different for your tenant. The app identifier is for
+# an app registered in Entra ID. The thumbprint is for a certificate loaded into the app.
+$Thumbprint = 'F79286DB88C21491110109A0222348FACF694CBD'
+$AppId = 'd58578ac-7cb4-4b5a-a296-f19218a03f11'
+$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+
+# Define the search period. In this example, we look back 365 days.
+[datetime]$StartDate = (Get-Date).AddDays(-365)
+[string]$StartDate = Get-Date $StartDate -Format "yyyy-MM-ddTHH:mm:ssZ"
+[string]$EndDate = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
+
+# Connect to the Graph with an Entra ID app that has the Mail.Read permission.
+Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint -NoWelcome
 
 Write-Host "Scanning for mailboxes..."
 [array]$NoReportFolders = @("Audits", "Calendar Logging", "SubstrateHolds")
-[array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited
+[array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | Sort-Object DisplayName
 If (!($Mbx)) {
     Write-Host "No mailboxes found - exiting!"; break
 }  
@@ -41,7 +56,7 @@ If (!($Mbx)) {
 Write-Host ("Processing {0} mailboxes..." -f $Mbx.Count)
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($M in $Mbx) {
-    Write-Host ("Processing mailbox {0}" -f $M.UserPrincipalName)
+    Write-Host ("Processing mailbox {0}" -f $M.UserPrincipalName) -ForegroundColor Yellow
    # Graph request 
    # $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/RecoverableItemsRoot/childfolders" -f $M.ExternalDirectoryObjectId)
 
@@ -54,7 +69,7 @@ ForEach ($M in $Mbx) {
         Continue
     }
   
-    Write-Host ("Found {0} folders in  Recoverable Items" -f $Folders.Count)
+    Write-Host ("Found {0} folders in Recoverable Items" -f $Folders.Count)
     
     ForEach ($Folder in $Folders){
         # Ignore the folders used for mailbox auditing and calendar logging
@@ -69,7 +84,9 @@ ForEach ($M in $Mbx) {
        
             [array]$Items = Get-MgUserMailFolderMessage -UserId $M.ExternalDirectoryObjectId -MailFolderId $Folder.id -All `
                 -Property sender,createdDateTime,subject -PageSize 999 `
-                -ExpandProperty "singleValueExtendedProperties(`$filter=Id eq 'LONG 0x0E08')"
+                -ExpandProperty "singleValueExtendedProperties(`$filter=Id eq 'LONG 0x0E08')" `
+                -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate)"
+
             # If some items are returned, report them
             Write-Host ("Found {0} items in folder {1}" -f $Items.Count, $Folder.displayName)
             ForEach ($Item in $Items) {
@@ -88,6 +105,8 @@ ForEach ($M in $Mbx) {
     }
 }
 
+$Report | Out-GridView -Title ("Items found in Recoverable Items folder from {0}" -f $StartDate)
+$Report | Export-CSV -Encoding utf8 c:\temp\RecoverableItemsFiles.csv
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
