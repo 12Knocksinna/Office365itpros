@@ -35,8 +35,8 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
 # Values to use with Connect-MgGraph. These will be different for your tenant. The app identifier is for
 # an app registered in Entra ID. The thumbprint is for a certificate loaded into the app.
 $Thumbprint = 'F79286DB88C21491110109A0222348FACF694CBD'
-$AppId = 'd58578ac-7cb4-4b5a-a296-f19218a03f11'
-$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$AppId = '1d58578ac-7cb4-4b5a-a296-f19218a03f11'
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 
 # Define the search period. In this example, we look back 365 days.
 [datetime]$StartDate = (Get-Date).AddDays(-365)
@@ -81,7 +81,7 @@ ForEach ($M in $Mbx) {
             Write-Host ("Processing folder {0} in mailbox" -f $Folder.displayName, $M.displayName)
         # Graph API request 
         # $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/mailfolders/{1}/Messages/?`$select=sender,createdDateTime,subject&`$expand=singleValueExtendedProperties(`$filter=Id%20eq%20'LONG%200x0E08')" -f $M.ExternalDirectoryObjectId, $Folder.id)
-       
+            # Consider adding BodyPreview to the set of properties for eDiscovery use
             [array]$Items = Get-MgUserMailFolderMessage -UserId $M.ExternalDirectoryObjectId -MailFolderId $Folder.id -All `
                 -Property sender,createdDateTime,subject -PageSize 999 `
                 -ExpandProperty "singleValueExtendedProperties(`$filter=Id eq 'LONG 0x0E08')" `
