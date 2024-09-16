@@ -105,8 +105,10 @@ ForEach ($M in $Mbx) {
     }
 }
 
+Write-Host ("Details of {0} items from Recoverable Items folders reported from {1} mailboxes" -f $Report.count, $Mbx.count)
 $Report | Out-GridView -Title ("Items found in Recoverable Items folder from {0}" -f $StartDate)
 $Report | Export-CSV -Encoding utf8 c:\temp\RecoverableItemsFiles.csv
+Write-Host "Output CSV file available in c:\temp\RecoverableItemsFiles.csv"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
