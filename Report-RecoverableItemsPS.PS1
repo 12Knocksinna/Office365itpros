@@ -3,7 +3,7 @@
 # Other version which uses the Microsoft Graph PowerShell SDK is described in https://office365itpros.com/2024/09/17/report-recoverable-items/
 
 # 17-Sep-2024
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RecoverableItemsPS.PS1
 
 # Connect to Exchange Online, if we're not already connected
 $Modules = Get-Module | Select-Object -ExpandProperty Name
