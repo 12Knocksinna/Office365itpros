@@ -2,7 +2,8 @@
 # Script to find Guest User Accounts in an Office 365 Tenant that are older than 365 days and the groups they belong to
 # V2.0 10-Oct-2022
 # V3.0 13-Jan-2023 - Removed the Exchange Online management module and do everything with the Graph
-# V3.1 9-Jul-2023 Updated for SDK V2.0
+# V3.1 9-Jul-2023    Updated for SDK V2.0
+# V3.2 18-Sep-2024   Checked against SDK V2.22 and updated to use the SDK to find groups a guest belongs to
 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindOldGuestAccounts.PS1
 
@@ -19,29 +20,33 @@ $i = 0; $Report = [System.Collections.Generic.List[Object]]::new()
 # Loop through the guest accounts looking for old accounts 
 Clear-Host
 ForEach ($Guest in $GuestUsers) {
+
 # Check the age of the guest account, and if it's over the threshold for days, report it
-   $AADAccountAge = ($Guest.CreatedDateTime | New-TimeSpan).Days
    $i++
+   Write-Host ("Processing Guest {0} ({1} of {2})" -f $Guest.DisplayName, $i, $GuestUsers.Count)
+   $AADAccountAge = ($Guest.CreatedDateTime | New-TimeSpan).Days
+
    If ($AADAccountAge -gt $AgeThreshold) {
       $ProgressBar = "Processing Guest " + $Guest.DisplayName + " " + $AAdAccountAge + " days old " +  " (" + $i + " of " + $GuestUsers.Count + ")"
       Write-Progress -Activity "Checking Guest Account Information" -Status $ProgressBar -PercentComplete ($i/$GuestUsers.Count*100)
-      $GroupNames = $Null
+      $GroupNames = $null; $RealGroups = $null
      
 # Find what Microsoft 365 Groups the guest belongs to... if any
-$NumberOfGroups = 0
-$Uri = ("https://graph.microsoft.com/V1.0/users/{0}/memberOf/microsoft.graph.group?`$filter=groupTypes/any(a:a eq 'unified')&`$top=200&$`orderby=displayName&`$count=true" -f $Guest.Id)
-[array]$Data = Invoke-MgGraphRequest -Uri $Uri
-[array]$GuestGroups = $Data.Value
+   [array]$GuestGroups = Get-MgUserMemberOf -UserId $Guest.id
+#$Uri = ("https://graph.microsoft.com/V1.0/users/{0}/memberOf/microsoft.graph.group?`$filter=groupTypes/any(a:a eq 'unified')&`$top=200&$`orderby=displayName&`$count=true" -f $Guest.Id)
+#[array]$Data = Invoke-MgGraphRequest -Uri $Uri
+#[array]$GuestGroups = $Data.Value
 
-If ($GuestGroups) { 
-   $GroupNames = $Data.Value.displayName -join ", " 
-   $NumberOfGroups = $GuestGroups.count
-} 
+   If ($GuestGroups) { 
+      # Exclude administrative units
+      $RealGroups = $GuestGroups | Where-Object {$_.additionalproperties.'@odata.type' -eq '#microsoft.graph.group'}
+      $GroupNames = $RealGroups.additionalProperties.displayName -join ", " 
+   } 
 
-$DaysSinceSignIn = "N/A"; $Year = $Null
-# Some Azure AD accounts without sign in data return a sign in date of Monday 1 January 0001 00:00:00
+   $DaysSinceSignIn = "N/A"; $Year = $Null
+# Some Entra ID accounts without sign in data return a sign in date of Monday 1 January 0001 00:00:00
 # which makes it difficult to assess how many days since the last sign in
-If ($Guest.SignInActivity.LastSignInDateTime) {
+   If ($Guest.SignInActivity.LastSignInDateTime) {
    [datetime]$UserLastSignInDate = $Guest.SignInActivity.LastSignInDateTime
    $Year = (Get-Date($UserLastSignInDate) -format "yyyy") 
 }
@@ -58,26 +63,26 @@ Switch ($Year) {
      $DaysSinceSignIn = ($UserLastLogonDate | New-TimeSpan).Days }
   }
 
- $Staleness = "Acceptable"
- If (($AADAccountAge -ge 365) -and ($AADAccountAge -le 730) -and ($NumberOfGroups -eq 0)) {
-    $Staleness = "Stale" 
- } Elseif ($AADAccountAge -gt 730 -and $NumberOfGroups -eq 0) {
-    $Staleness = "Very Stale" }
+      $Staleness = "Acceptable"
+   If (($AADAccountAge -ge 365) -and ($AADAccountAge -le 730) -and ($NumberOfGroups -eq 0)) {
+      $Staleness = "Stale" 
+   } Elseif ($AADAccountAge -gt 730 -and $NumberOfGroups -eq 0) {
+      $Staleness = "Very Stale" 
+   }
 
- $ReportLine = [PSCustomObject][Ordered]@{
+   $ReportLine = [PSCustomObject][Ordered]@{
       UPN                  = $Guest.UserPrincipalName
       Name                 = $Guest.DisplayName
       Age                  = $AADAccountAge
       "Account created"    = $Guest.CreatedDateTime
       "Last sign in"       = $UserLastLogonDate 
       "Days since sign in" = $DaysSinceSignIn
-      "Number of groups"   = $NumberOfGroups
+      "Number of groups"   = $RealGroups.Count
       Groups               = $GroupNames 
       "Staleness"          = $Staleness 
       Id                   = $Guest.Id }      
      $Report.Add($ReportLine) 
-
- } #End if guest age met threshold
+   } #End if guest age met threshold
 } #End Foreach guest
 
 $Report | Export-CSV -NoTypeInformation $OutputReport
