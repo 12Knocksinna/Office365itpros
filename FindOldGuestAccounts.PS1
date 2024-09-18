@@ -14,7 +14,7 @@ Connect-MgGraph  -Scopes AuditLog.Read.All, Directory.Read.All -NoWelcome
 $OutputReport = "c:\Temp\OldGuestAccounts.csv"
 # Get all guest accounts in the tenant
 Write-Host "Finding Guest Accounts..."
-[Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All -PageSize 999 Property id, displayName, userPrincipalName, userType, SignInaActivity, createdDateTime
+[Array]$GuestUsers = Get-MgUser -Filter "userType eq 'Guest'" -All -PageSize 999 -Property id, displayName, userPrincipalName, userType, SignInActivity, createdDateTime
 $i = 0; $Report = [System.Collections.Generic.List[Object]]::new()
 # Loop through the guest accounts looking for old accounts 
 Clear-Host
