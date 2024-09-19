@@ -1,165 +1,72 @@
-# ReportRoomMailboxUsage.PS1
-# A script to report how busy room mailboxes are
-# V1.1 8-Feb-2023 - Updated to include daily usage pattern statistics
+# Report-RoomMailboxUsage.PS1
+# A version of the original ReportRoomMailboxUsage script converted to replace Graph API requests 
+# with cmdlets from the Microsoft Graph PowerShell SDK
 
-# Requires the Graph Calendar.Read.All and Place.Read.All application permissions
+# V1.0 19-Sep-2024  Conversion from Graph API to Graph SDK cmdlets
 
-# Some functions to get going
+# GitHub Link: 
 
-function Get-GraphData {
-# Based on https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
-# GET data from Microsoft Graph.
-    param (
-        [parameter(Mandatory = $true)]
-        $AccessToken,
-
-        [parameter(Mandatory = $true)]
-        $Uri
-    )
-
-    # Check if authentication was successful.
-    if ($AccessToken) {
-    $Headers = @{
-         'Content-Type'  = "application\json"
-         'Authorization' = "Bearer $AccessToken" 
-         'ConsistencyLevel' = "eventual"  }
-
-        # Create an empty array to store the result.
-        $QueryResults = @()
-
-        # Invoke REST method and fetch data until there are no pages left.
-        do {
-            $Results = ""
-            $StatusCode = ""
-
-            do {
-                try {
-                    $Results = Invoke-RestMethod -Headers $Headers -Uri $Uri -UseBasicParsing -Method "GET" -ContentType "application/json"
-
-                    $StatusCode = $Results.StatusCode
-                } catch {
-                    $StatusCode = $_.Exception.Response.StatusCode.value__
-
-                    if ($StatusCode -eq 429) {
-                        Write-Warning "Got throttled by Microsoft. Sleeping for 45 seconds..."
-                        Start-Sleep -Seconds 45
-                    }
-                    else {
-                        Write-Error $_.Exception
-                    }
-                }
-            } while ($StatusCode -eq 429)
-
-            if ($Results.value) {
-                $QueryResults += $Results.value
-            }
-            else {
-                $QueryResults += $Results
-            }
-
-            $uri = $Results.'@odata.nextlink'
-        } until (!($uri))
-
-        # Return the result.
-        $QueryResults
-    }
-    else {
-        Write-Error "No Access Token"
-    }
-}
-
-function GetAccessToken {
-# function to return an Oauth access token
-
-# Define the values applicable for the application used to connect to the Graph
-$AppId = "a6a7d55c-a847-443d-b7b9-f24b67ec4709"
-$TenantId = "c662313f-14fc-43a2-9a7a-d2e27f4f3478"
-$AppSecret = '_O28Q~.QZNE5QJ4pOCaxqTSx13dbkDI2_2Ns5blI'
-
-# Construct URI and body needed for authentication
-$uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
-$body = @{
-    client_id     = $AppId
-    scope         = "https://graph.microsoft.com/.default"
-    client_secret = $AppSecret
-    grant_type    = "client_credentials"
-}
-
-# Get OAuth 2.0 Token
-$tokenRequest = Invoke-WebRequest -Method Post -Uri $uri -ContentType "application/x-www-form-urlencoded" -Body $body -UseBasicParsing
-# Unpack Access Token
-$Global:Token = ($tokenRequest.Content | ConvertFrom-Json).access_token
-
-Return $Token
-}
-
-Function Generate-DayString {
-  [cmdletbinding()]
-    Param(
+Function New-DateString {
+    [cmdletbinding()]
+      Param(
         [string]$InputDay,
         [int]$DayEvents,  
         [int]$TotalEvents)
-
-   $Balls = ($DayEvents/$TotalEvents) * 100
-   $PercentEvents = ($DayEvents/$TotalEvents).toString("P")
-   [int]$P = ($Balls/2)
-   If ($Balls -eq 0) { $G = $Null 
+  
+    $Balls = ($DayEvents/$TotalEvents) * 100
+    $PercentEvents = ($DayEvents/$TotalEvents).toString("P")
+    [int]$P = ($Balls/2)
+    If ($Balls -eq 0) { 
+        $G = $Null 
     } Else {     
-    [int]$i = 0; [string]$G = $Null
-    Do {
-      
-      $G = $G + "o"; $i++
- 
-    } While ($i -lt $P)
-   }
-     
-   $OutputString = ("{0} events: {1} ({2}) `t{3}>" -f $InputDay, $DayEvents, $PercentEvents, $G)
-
-Return $OutputString
+        [int]$i = 0; [string]$G = $Null
+        Do {    
+            $G = $G + "o"; $i++ 
+      } While ($i -lt $P)
+     }
+       
+    $OutputString = ("{0} events: {1} ({2}) `t{3}>" -f $InputDay, $DayEvents, $PercentEvents, $G)
+  
+  Return $OutputString
 }
+  
+# Values to connect to the Graph in app-only mode. The Entra ID app must have 
+# the Graph Calendar.Read.All and Place.Read.All application permissions
+$AppId = '66a7d55c-a847-443d-b7b9-f24b67ec4709'
+$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$Thumbprint = 'F79286DB88C21491110109A0222348FACF694CBD'
+Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint
 
-# End functions - start doing some real work
-#
+# Start and end dates for the reporting period
+$StartDate = (Get-date).AddDays(-1060).toString('dd-MMM-yyyy')
+$EndDate = (Get-Date).AddDays(1).toString('dd-MMM-yyyy')
+  
+[datetime]$Start = Get-Date($StartDate) -format s
+[datetime]$End = Get-Date($EndDate) -format s
+$ReportingPeriodDays = (($End - $Start).Days)-1
 
-$Token = GetAccessToken
-If (!($Token)) {
-    Write-Host "Can't get a valid Entra ID access token - exiting" ; break 
+Write-Host "Looking for room mailboxes and workspaces..."
+[Array]$RoomMailboxes = Get-MgPlaceAsRoom -All -PageSize 500
+If (!($RoomMailboxes)) {
+    Write-Host "No room mailboxes found - exiting" ; break
 }
-
-$Headers = @{
-            'Content-Type'  = "application\json"
-            'Authorization' = "Bearer $Token" 
-            'ConsistencyLevel' = "eventual" }
-
-$StartDate = (Get-Date).AddDays(-60)
-$EndDate = (Get-Date).AddDays(1)
-
-$Start = Get-Date($StartDate) -format s
-$End = Get-Date($EndDate) -format s
-$ReportingPeriodDays = (($EndDate - $StartDate).Days)-1
-
-# Find room mailboxes - this ignores room mailboxes marked as workspaces
-$Uri = "https://graph.microsoft.com/V1.0/places/microsoft.graph.room"
-[Array]$RoomMailboxes = Get-GraphData -Uri $Uri -AccessToken $Token
-If (!($RoomMailboxes)) {Write-Host "No room mailboxes found - exiting" ; break}
-
-# Find workspaces
+# No SDK cmdlet available for workspaces, so we need to run a Graph API request
 $Uri = "https://graph.microsoft.com/beta/places/microsoft.graph.workspace"
-[array]$WorkSpaces = Get-GraphData -Uri $Uri -AccessToken $Token
+[array]$WorkSpaces = Invoke-MgGraphRequest -Uri $Uri -Method GET
 
+$WorkSpaces = $WorkSpaces.Value
 # Combine workspaces with room mailboxes if any are found
 If ($WorkSpaces) { 
-    $RoomMailboxes = $RoomMailboxes + $WorkSpaces 
+    $RoomMailboxes = $RoomMailboxes + $WorkSpaces
 }
-
-$RoomMailboxes = $RoomMailboxes | Where-Object {$_.EmailAddress -ne $Null}
+# Eliminate any room mailboxes or workspaces that don't have an email address
+$RoomMailboxes = $RoomMailboxes | Where-Object {$_.EmailAddress -ne $Null} | Sort-Object DisplayName
 
 Write-Host ("Scanning room mailboxes for calendar events from {0} to {1}" -f $StartDate, $EndDate)
 $CalendarInfo = [System.Collections.Generic.List[Object]]::new() 
 ForEach ($Room in $RoomMailboxes) {
     $Data = $false # Assume no data in the targeted range
-    $Uri = ("https://graph.microsoft.com/V1.0/users/{0}/calendar/calendarView?startDateTime={1}&endDateTime={2}" -f $Room.emailAddress, $Start, $End)
-    [array]$CalendarData = Get-GraphData -Uri $Uri -AccessToken $Token
+    [array]$CalendarData = Get-MgUserCalendarView -UserId $Room.emailAddress -StartDateTime $Start -EndDateTime $End -All -PageSize 250
     # Drop cancelled events - if you want to exclude private events from the set, use Where-Object {$_.isCancelled -eq $False -and $_.sensitivity -ne "private"}
     $CalendarData = $CalendarData | Where-Object {$_.isCancelled -eq $False}
     # This code makes sure that we only attempg to report data when the Graph returns some calendar data for the room
@@ -177,9 +84,9 @@ ForEach ($Room in $RoomMailboxes) {
         # Calculate meeting duration in minutes. If it's an all-day event, use 480 minutes
         If ($Event.IsAllDay -eq $False) {
             $Duration =  ($MeetingEnd - $MeetingStart).TotalMinutes 
-         }  Else { 
+        } Else { 
             $Duration = 480 
-         }
+        }
      
         [array]$AllAttendees = ($Event.Attendees | Where-Object {$_.Type -ne "resource"} )
         [array]$RequiredAttendees = ($Event.Attendees | Where-Object {$_.Type -eq "required"}) 
@@ -244,13 +151,13 @@ ForEach ($Room in $Rooms) {
    [array]$Saturday = $RoomData | Where-Object {$_.Day -eq "Saturday"}
    [array]$Sunday = $RoomData | Where-Object {$_.Day -eq "Sunday"}
    # Generate a basic graph for the room usage per day
-   $MondayOutput = Generate-DayString -InputDay "Monday" -DayEvents $Monday.Count -TotalEvents $RoomData.Count
-   $TuesdayOutput = Generate-DayString -InputDay "Tuesday" -DayEvents $Tuesday.Count -TotalEvents $RoomData.Count
-   $WednesdayOutput = Generate-DayString -InputDay "Wednesday" -DayEvents $Wednesday.Count -TotalEvents $RoomData.Count
-   $ThursdayOutput = Generate-DayString -InputDay "Thursday" -DayEvents $Thursday.Count -TotalEvents $RoomData.Count
-   $FridayOutput = Generate-DayString -InputDay "Friday" -DayEvents $Friday.Count -TotalEvents $RoomData.Count
-   $SaturdayOutput = Generate-DayString -InputDay "Saturday" -DayEvents $Saturday.Count -TotalEvents $RoomData.Count
-   $SundayOutput = Generate-DayString -InputDay "Sunday" -DayEvents $Sunday.Count -TotalEvents $RoomData.Count
+   $MondayOutput = New-DayString -InputDay "Monday" -DayEvents $Monday.Count -TotalEvents $RoomData.Count
+   $TuesdayOutput = New-DayString -InputDay "Tuesday" -DayEvents $Tuesday.Count -TotalEvents $RoomData.Count
+   $WednesdayOutput = New-DayString -InputDay "Wednesday" -DayEvents $Wednesday.Count -TotalEvents $RoomData.Count
+   $ThursdayOutput = New-DayString -InputDay "Thursday" -DayEvents $Thursday.Count -TotalEvents $RoomData.Count
+   $FridayOutput = New-DayString -InputDay "Friday" -DayEvents $Friday.Count -TotalEvents $RoomData.Count
+   $SaturdayOutput = New-DayString -InputDay "Saturday" -DayEvents $Saturday.Count -TotalEvents $RoomData.Count
+   $SundayOutput = New-DayString -InputDay "Sunday" -DayEvents $Sunday.Count -TotalEvents $RoomData.Count
          
    $RoomDataLine = [PSCustomObject] @{   
        Room                 = $Room
@@ -291,8 +198,8 @@ $SaturdayOutput = Generate-DayString -InputDay "Saturday" -DayEvents $Saturday.C
 $SundayOutput = Generate-DayString -InputDay "Sunday" -DayEvents $Sunday.Count -TotalEvents $TotalEvents
 
 Write-Host ""
-Write-Host ("Meeting Room Statistics from {0} to {1}" -f $StartDate, $EndDate)
-Write-Host "-----------------------------------------------------------------------"
+Write-Host ("Meeting Room Statistics from {0} to {1}" -f (Get-Date($Start) -format 'dd-MMM-yyyy'), (Get-Date($End) -format 'dd-MMM-yyyy'))
+Write-Host "-------------------------------------------------------"
 Write-Host ""
 Write-Host "Total events found: " $TotalEvents
 Write-Host "Online events:      " $OnlineMeetings.Count "" $PercentOnline
@@ -330,6 +237,30 @@ ForEach ($Room in $Rooms) {
    $RoomSummary | Where-Object {$_.Room -eq $Room} | Select-Object -ExpandProperty Sunday
    Write-Host ""
 }
+
+Write-Host ""
+Write-Host "Analysis complete. Generating output files..."
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $RoomSummaryOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Room Mailboxes Usage Report.xlsx"
+    $RoomSummary | Export-Excel -Path $RoomSummaryOutputFile -WorksheetName "Room Mailboxes Usage" `
+        -Title ("Room Mailboxes Usage Report from {0} to {1}" -f (Get-Date($Start) -format 'dd-MMM-yyyy'), (Get-Date($End) -format 'dd-MMM-yyyy')) -TitleBold -TableName "RoomMailboxesUsage"  
+    $TopOrganizersOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Top Room Organizers.xlsx"
+    $TopOrganizers | Export-Excel -Path $TopOrganizersOutputFile -WorksheetName "Top Room Organizers" `
+        -Title ("Top Room Organizers Report from {0} to {1}" -f (Get-Date($Start) -format 'dd-MMM-yyyy'), (Get-Date($End) -format 'dd-MMM-yyyy')) -TitleBold -TableName "TopRoomOrganizers" 
+} Else {
+    $RoomSummaryCSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Room Mailboxes Usage Report.CSV"
+    $RoomSummary | Export-Csv -Path $RoomSummaryCSVOutputFile -NoTypeInformation -Encoding Utf8
+    $TopOrganizersCSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Top Room Organizers Report.CSV"
+    $TopOrganizers | Export-Csv -Path $TopOrganizersCSVOutputFile -NoTypeInformation -Encoding Utf8
+}
+
+If ($ExcelGenerated) {
+    Write-Host ("Excel worksheets generated in your Downloads folder: {0}, {1}" -f $RoomSummaryOutputFile, $TopOrganizersOutputFile)
+} Else {
+    Write-Host ("CSV files generated in your Downloads folder: {0}, {1}" -f $RoomSummaryCSVOutputFile, $TopOrganizersCSVOutputFile)
+} 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
