@@ -144,7 +144,7 @@ $Uri = "https://graph.microsoft.com/V1.0/places/microsoft.graph.room"
 If (!($RoomMailboxes)) {Write-Host "No room mailboxes found - exiting" ; break}
 
 # Find workspaces
-$Uri = "https://graph.microsoft.com/V1.0/places/microsoft.graph.workspace"
+$Uri = "https://graph.microsoft.com/beta/places/microsoft.graph.workspace"
 [array]$WorkSpaces = Get-GraphData -Uri $Uri -AccessToken $Token
 
 # Combine workspaces with room mailboxes if any are found
