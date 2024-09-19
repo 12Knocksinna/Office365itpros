@@ -32,8 +32,8 @@ Function New-DateString {
   
 # Values to connect to the Graph in app-only mode. The Entra ID app must have 
 # the Graph Calendar.Read.All and Place.Read.All application permissions
-$AppId = '66a7d55c-a847-443d-b7b9-f24b67ec4709'
-$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$AppId = 'x66a7d55c-a847-443d-b7b9-f24b67ec4709'
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $Thumbprint = 'F79286DB88C21491110109A0222348FACF694CBD'
 Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint
 
