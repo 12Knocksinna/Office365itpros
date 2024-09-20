@@ -1,8 +1,7 @@
 # Add-ContactsToMailboxes.PS1
 # Demonstration of how to add contacts to user mailboxes with the Microsoft Graph PowerShell SDK
 # V1.0 14-Aug-2024
-# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Add-ContactsToMailboxes.PS1
-
+# GitHub link: 
 $CertThumbPrint = "F79286DB88C21491110109A0222348FACF694CBD"
 $AppId = "0c75253c-3c01-43ed-adcf-1415c68ff455"
 $TenantId = "22e90715-3da6-4a78-9ec6-b3282389492b"
@@ -68,8 +67,11 @@ ForEach ($User in $Users) {
     [array]$Contacts = Get-MgUserContact -UserId $User.Id -All -PageSize 999 | Select-Object -ExpandProperty $EmailAddresses
     $ContactsHash = @{}
     ForEach ($Contact in $Contacts) {
+        # Before adding, check that the contact has an email address and that it's not already in the hash
         $EmailAddress = $Contact.emailAddresses[0].address
-        $ContactsHash.Add($EmailAddress,$Contact.displayName)
+        If ($EmailAddress -and $null -eq $ContactsHash[$EmailAddress]) {
+            $ContactsHash.Add($EmailAddress,$Contact.displayName)
+        }
     }
 
     ForEach ($Item in $ItemData) {
