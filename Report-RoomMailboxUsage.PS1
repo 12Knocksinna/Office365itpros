@@ -38,7 +38,7 @@ $Thumbprint = 'F79286DB88C21491110109A0222348FACF694CBD'
 Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint
 
 # Start and end dates for the reporting period
-$StartDate = (Get-date).AddDays(-1060).toString('dd-MMM-yyyy')
+$StartDate = (Get-date).AddDays(-60).toString('dd-MMM-yyyy')
 $EndDate = (Get-Date).AddDays(1).toString('dd-MMM-yyyy')
   
 [datetime]$Start = Get-Date($StartDate) -format s
