@@ -382,9 +382,9 @@ ForEach ($Group in $Groups) {
     } # Get rid of mucky SharePoint error  308 
 
    # Get Member and Guest member counts
-   $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Guest'"
+   $Uri = "https://graph.microsoft.com/V1.0/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Guest'"
    $GuestMemberCount = Get-GraphData -AccessToken $Token -Uri $uri
-   $Uri = "https://graph.microsoft.com/beta/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Member'"
+   $Uri = "https://graph.microsoft.com/V1.0/groups/" + $Group.Id + "/Members/Microsoft.Graph.User/`$count?`$filter=UserType eq 'Member'"
    $GroupMemberCount = Get-GraphData -AccessToken $Token -Uri $uri  
    # Update list with group information
    $ReportLine = [PSCustomObject][Ordered]@{

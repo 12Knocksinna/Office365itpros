@@ -21,10 +21,10 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReport.ps1
 # The Graph-based version of this script (much faster) is available in https://github.com/12Knocksinna/Office365itpros/blob/master/TeamsGroupsActivityReportV5.PS1
 #
-CLS
+Clear-Host
 # Check that we are connected to Exchange Online, SharePoint Online, and Teams
 Write-Host "Checking that prerequisite PowerShell modules are loaded..."
-$ModulesLoaded = Get-Module | Select Name
+$ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 If (!($ModulesLoaded -match "Microsoft.Online.SharePoint.PowerShell")) {Write-Host "Please connect to the SharePoint Online module and then restart the script"; break}
 
@@ -39,7 +39,7 @@ $OrgName = (Get-OrganizationConfig).Name
 Write-Host "Checking Microsoft 365 Groups and Teams in the tenant:" $OrgName
 # Setup some stuff we use
 $WarningDate = (Get-Date).AddDays(-90); $WarningEmailDate = (Get-Date).AddDays(-365); $Today = (Get-Date); $Date = $Today.ToShortDateString()
-$TeamsGroups = 0;  $TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0
+$TeamsEnabled = $False; $ObsoleteSPOGroups = 0; $ObsoleteEmailGroups = 0
 $Report = [System.Collections.Generic.List[Object]]::new(); $ReportFile = "c:\temp\GroupsActivityReport.html"
 $CSVFile = "c:\temp\GroupsActivityReport.csv"
 $htmlhead="<html>
@@ -77,12 +77,15 @@ If ($GroupsCount -eq 0) { #
 
 Write-Host "Populating list of Teams..."
 If ($UsedGroups -eq $False) { # Populate the Teams hash table with a call to Get-UnifiedGroup
-   Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) } }
-Else { # We already have the $Groups variable populated with data, so extract the Teams from that data
-   $Groups | ? {$_.ResourceProvisioningOptions -eq "Team"} | ForEach { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) } }
+   Get-UnifiedGroup -Filter {ResourceProvisioningOptions -eq "Team"} -ResultSize Unlimited | `
+      ForEach-Object { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) } 
+} Else { # We already have the $Groups variable populated with data, so extract the Teams from that data
+   $Groups | Where-Object {$_.ResourceProvisioningOptions -eq "Team"} | `
+      ForEach-Object { $TeamsList.Add($_.ExternalDirectoryObjectId, $_.DisplayName) } 
+}
 $TeamsCount = $TeamsList.Count
 
-CLS
+Clear-Host
 # Set up progress bar
 $ProgDelta = 100/($GroupsCount); $CheckCount = 0; $GroupNumber = 0
 
@@ -94,7 +97,7 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
    Write-Progress -Activity "Checking group" -Status $GroupStatus -PercentComplete $CheckCount
    $CheckCount += $ProgDelta;  $ObsoleteReportLine = $G.DisplayName;    $SPOStatus = "Normal"
    $SPOActivity = "Document library in use"; $SPOStorage = 0
-   $NumberWarnings = 0;   $NumberofChats = 0;  $TeamChatData = $Null;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $MailboxStatus = $Null; $ObsoleteReportLine = $Null
+   $NumberWarnings = 0;   $NumberofChats = 0;  $TeamsEnabled = $False;  $LastItemAddedtoTeams = "N/A";  $MailboxStatus = $Null; $ObsoleteReportLine = $Null
 # Check who manages the group
   $ManagedBy = $G.ManagedBy
   If ([string]::IsNullOrWhiteSpace($ManagedBy) -and [string]::IsNullOrEmpty($ManagedBy)) {
@@ -126,13 +129,13 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
       }
 
 # Loop to check audit records for activity in the group's SharePoint document library
-   If ($G.SharePointSiteURL -ne $Null) {
+   If ($null -ne $G.SharePointSiteURL) {
       $SPOStorage = (Get-SPOSite -Identity $G.SharePointSiteUrl).StorageUsageCurrent
       $SPOStorage = [Math]::Round($SpoStorage/1024,2) # SharePoint site storage in GB
       $AuditCheck = $G.SharePointDocumentsUrl + "/*"
       $AuditRecs = $Null
       $AuditRecs = (Search-UnifiedAuditLog -RecordType SharePointFileOperation -StartDate $WarningDate -EndDate $Today -ObjectId $AuditCheck -ResultSize 1)
-      If ($AuditRecs -eq $Null) {
+      If ($null -eq $AuditRecs) {
          #Write-Host "No audit records found for" $SPOSite.Title "-> Potentially obsolete!"
          $ObsoleteSPOGroups++   
          $ObsoleteReportLine = $ObsoleteReportLine + " No SPO activity detected in the last 90 days." }          
@@ -151,12 +154,14 @@ ForEach ($Group in $Groups) { #Because we fetched the list of groups with Get-Re
      Write-Host $ObsoleteReportLine 
      }
 # Generate the number of warnings to decide how obsolete the group might be...   
-  If ($AuditRecs -eq $Null) {
+  If ($null -eq $AuditRecs) {
        $SPOActivity = "No SPO activity detected in the last 90 days"
-       $NumberWarnings++ }
-   If ($G.SharePointDocumentsUrl -eq $Null) {
+       $NumberWarnings++ 
+}
+   If ($null -eq $G.SharePointDocumentsUrl) {
        $SPOStatus = "Document library never created"
-       $NumberWarnings++ }
+       $NumberWarnings++
+   }
   
     $Status = "Pass"
     If ($NumberWarnings -eq 1)
@@ -175,7 +180,8 @@ If ($TeamsList.ContainsKey($G.ExternalDirectoryObjectId) -eq $True) {
     $CountOldTeamsData = $False
 
 # Start by looking in the new location (TeamsMessagesData in Non-IPMRoot)
-    $TeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot | ? {$_.FolderType -eq "TeamsMessagesData" })
+    $TeamsChatData = (Get-ExoMailboxFolderStatistics -Identity $G.ExternalDirectoryObjectId -IncludeOldestAndNewestItems -FolderScope NonIPMRoot | `
+      Where-Object {$_.FolderType -eq "TeamsMessagesData" })
     If ($TeamsChatData.ItemsInFolder -gt 0) {$LastItemAddedtoTeams = Get-Date ($TeamsChatData.NewestItemReceivedDate) -Format g}
     $NumberOfChats = $TeamsChatData.ItemsInFolder
     
@@ -243,7 +249,7 @@ $htmlreport | Out-File $ReportFile  -Encoding UTF8
 $Report | Export-CSV -NoTypeInformation $CSVFile
 $Report | Out-GridView
 # Summary note
-CLS
+Clear-Host
 Write-Host " "
 Write-Host "Results"
 Write-Host "-------"
