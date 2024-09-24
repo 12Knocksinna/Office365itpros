@@ -1,4 +1,4 @@
-# Report-SharingOneDriveSites.PS1
+# Report-SharingOneDriveFiles.PS1
 # A script to show how to report the permissions for shared files found in OneDrive for Business accounts
 # V1.0 24-Sep-2024
 
