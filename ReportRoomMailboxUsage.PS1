@@ -1,6 +1,7 @@
 # ReportRoomMailboxUsage.PS1
 # A script to report how busy room mailboxes are
 # V1.1 8-Feb-2023 - Updated to include daily usage pattern statistics
+# A version that uses the Graph SDK is available at https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RoomMailboxUsage.PS1
 
 # Requires the Graph Calendar.Read.All and Place.Read.All application permissions
 
