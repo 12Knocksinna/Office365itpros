@@ -55,7 +55,7 @@ function Get-DriveItems {
                 $Role = ($Permission.Roles -join ",").trim()
                 Switch ($Role) {
                     "read" {
-                        $Scope = "View"
+                        $Scope = "View only"
                     }
                     "write" {
                         $Scope = "Edit"
