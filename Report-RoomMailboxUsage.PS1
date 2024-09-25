@@ -189,13 +189,13 @@ ForEach ($Room in $Rooms) {
 [array]$Friday = $CalendarInfo | Where-Object {$_.Day -eq "Friday"}
 [array]$Saturday = $CalendarInfo | Where-Object {$_.Day -eq "Saturday"}
 [array]$Sunday = $CalendarInfo | Where-Object {$_.Day -eq "Sunday"}
-$MondayOutput = Generate-DayString -InputDay "Monday" -DayEvents $Monday.Count -TotalEvents $TotalEvents
-$TuesdayOutput = Generate-DayString -InputDay "Tuesday" -DayEvents $Tuesday.Count -TotalEvents $TotalEvents
-$WednesdayOutput = Generate-DayString -InputDay "Wednesday" -DayEvents $Wednesday.Count -TotalEvents $TotalEvents
-$ThursdayOutput = Generate-DayString -InputDay "Thursday" -DayEvents $Thursday.Count -TotalEvents $TotalEvents
-$FridayOutput = Generate-DayString -InputDay "Friday" -DayEvents $Friday.Count -TotalEvents $TotalEvents
-$SaturdayOutput = Generate-DayString -InputDay "Saturday" -DayEvents $Saturday.Count -TotalEvents $TotalEvents
-$SundayOutput = Generate-DayString -InputDay "Sunday" -DayEvents $Sunday.Count -TotalEvents $TotalEvents
+$MondayOutput = New-DayString -InputDay "Monday" -DayEvents $Monday.Count -TotalEvents $TotalEvents
+$TuesdayOutput = New-DayString -InputDay "Tuesday" -DayEvents $Tuesday.Count -TotalEvents $TotalEvents
+$WednesdayOutput = New-DayString -InputDay "Wednesday" -DayEvents $Wednesday.Count -TotalEvents $TotalEvents
+$ThursdayOutput = New-DayString -InputDay "Thursday" -DayEvents $Thursday.Count -TotalEvents $TotalEvents
+$FridayOutput = New-DayString -InputDay "Friday" -DayEvents $Friday.Count -TotalEvents $TotalEvents
+$SaturdayOutput = New-DayString -InputDay "Saturday" -DayEvents $Saturday.Count -TotalEvents $TotalEvents
+$SundayOutput = New-DayString -InputDay "Sunday" -DayEvents $Sunday.Count -TotalEvents $TotalEvents
 
 Write-Host ""
 Write-Host ("Meeting Room Statistics from {0} to {1}" -f (Get-Date($Start) -format 'dd-MMM-yyyy'), (Get-Date($End) -format 'dd-MMM-yyyy'))
