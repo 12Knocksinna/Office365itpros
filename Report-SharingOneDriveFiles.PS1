@@ -276,9 +276,15 @@ If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
     Import-Module ImportExcel -ErrorAction SilentlyContinue
     $SummaryOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\OneDrive Files Sharing Summary Report.xlsx"
+    If (Get-Item $SummaryOutputFile -ErrorAction SilentlyContinue) {
+        Remove-Item $SummaryOutputFile -ErrorAction SilentlyContinue
+    }
     $UsersWhoShare | Export-Excel -Path $SummaryOutputFile -WorksheetName "OneDrive Files Sharing Summary" `
         -Title "OneDrive Files Sharing Summary Report" -TitleBold -TableName "OneDriveSharingSummary"  
     $DetailedOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\OneDrive Files Sharing Report.xlsx"
+    If (Get-Item $DetailedOutputFile -ErrorAction SilentlyContinue) {
+        Remove-Item $DetailedOutputFile -ErrorAction SilentlyContinue
+    }
     $Report | Export-Excel -Path $DetailedOutputFile -WorksheetName "OneDrive Files Sharing Details" `
         -Title "OneDrive for Business Files Sharing Details" -TitleBold -TableName "OneDriveSharingDetails" 
 } Else {
