@@ -6,7 +6,7 @@
 
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RoomMailboxUsage.PS1
 
-Function New-DateString {
+Function New-DayString {
     [cmdletbinding()]
       Param(
         [string]$InputDay,

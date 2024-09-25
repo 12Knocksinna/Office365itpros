@@ -8,7 +8,7 @@
 # Group.Read.All        Read all groups (to resolve group information in sharing links)
 # GroupMember.Read.All  Read all group members (to resolve group information in sharing links)
 
-# GitHub link
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-SharingOneDriveFiles.PS1
 
 function Get-DriveItems {
     [CmdletBinding()]
