@@ -28,9 +28,14 @@ function Get-DriveItems {
     $TotalFiles = $TotalFiles + $Files.Count
     [array]$SharedItems = $Files | Where-Object {$null -ne $_.Shared.Scope}
 
+    If ($null -eq $Folder.Name) {
+        $FolderName = "the OneDrive account root"
+    } Else {
+        $FolderName = ("folder: {0}" -f $Folder.Name)
+    }
     # Process the files
     If (!($SharedItems)) {
-        Write-Host ("No shared files found in folder {0}" -f $Folder.Name)
+        Write-Host ("No shared files found in {0}" -f $FolderName)
         Return
     }
     ForEach ($File in $SharedItems) {  
@@ -47,7 +52,7 @@ function Get-DriveItems {
         [array]$GrantedPermissions = $Permissions | Where-Object {$_.Roles[0] -ne 'owner'}
         If ($GrantedPermissions) {
             ForEach ($Permission in $GrantedPermissions) {
-                $Role = $Permission.Roles -join ","
+                $Role = ($Permission.Roles -join ",").trim()
                 Switch ($Role) {
                     "read" {
                         $Scope = "View"
@@ -55,10 +60,10 @@ function Get-DriveItems {
                     "write" {
                         $Scope = "Edit"
                     }
-                }
-                If ([string]::IsNullOrEmpty($Role)) {
-                    $Role = "Unknown"
-                }                   
+                    default {
+                        $Scope = "View only"
+                    }
+                }                  
                 $GrantedTo = $null; $GrantedToId = $null
                 # Use GrantToV2 if it's available
                 If ($Permission.GrantedToV2.User.DisplayName) {
@@ -69,12 +74,15 @@ function Get-DriveItems {
                     $GrantedToId = $Permission.GrantedTo.User.Id
                 }
                 # Handle the different types of sharing link
+                $LinkExpired = $null
                 If ($Permission.link.scope) {
                     If ($Permission.ExpirationDateTime) {
                         If ($Permission.ExpirationDateTime -lt [datetime]::Now) {
                             $ExpirationDate = ("Link expired on: {0}" -f $Permission.ExpirationDateTime)
+                            $LinkExpired = $true
                         } Else { 
                             $ExpirationDate = ("Link expires on: {0}" -f $Permission.ExpirationDateTime) 
+                            $LinkExpired = $false
                         }
                     } Else {
                         $ExpirationDate = $null
@@ -83,9 +91,11 @@ function Get-DriveItems {
                     Switch ($Permission.link.scope) {
                         "anonymous" {
                             $GrantedTo = "Anyone link"
+                            $GrantedToId = "Anyone with the link"
                         }
                         "organization" {
                             $GrantedTo = "Organization link"
+                            $GrantedToId = "Anyone in the tenant"
                         } 
                         "existingAccess" {
                             $GrantedTo = "Existing access link"
@@ -117,26 +127,33 @@ function Get-DriveItems {
                         $GrantedToId = $GroupMembersNames
                     }
                 }
+                If ($Permission.Link.PreventDownload) {
+                    $PreventDownload = $true
+                } Else {
+                    $PreventDownload = $false
+                }
                 If ($null -ne $GrantedTo) {
                     $ReportLine = [PSCustomObject]@{
                         Account             = $Site.DisplayName
                         ItemName            = $File.Name
                         Folder              = $File.parentreference.name
-                        GrantedTo           = $GrantedTo
-                        GrantedToId         = $GrantedToId
+                        'Access granted to' = $GrantedTo
+                        'Effective scope'   = $GrantedToId
+                        Permission          = $Scope.trim()
                         Size                = (FormatFileSize $File.Size)
                         Created             = $FileCreatedDateTime
                         Author              = $File.CreatedBy.User.DisplayName
+                        HasPassword         = $Permission.HasPassword
+                        'Expiration date'   = $ExpirationDate
+                        'Link Expired'      = $LinkExpired
+                        'Prevents Download' = $PreventDownload
                         LastModified        = $LastModifiedDateTime
                         'Last modified by'  = $File.LastModifiedBy.User.DisplayName
-                        Permissions         = $Scope.trim()
-                        HasPassword         = $Permission.HasPassword
-                        Expiration          = $ExpirationDate
-                        PreventsDownload    = $Permission.Link.PreventDownload
                         ItemUrl             = $File.WebUrl
                         SiteUrl             = $Site.WebUrl
                     }
                     $Report.Add($ReportLine)
+                    Start-Sleep -Milliseconds 50
                 }
             }
         }
@@ -179,12 +196,12 @@ function Test-Numeric ($Value) {
     return $Value -match "^[\d\.]+$"
 }
 
-
 # Define the values required to connect. These are for the Entra ID app used to authentciate with the Graph
 # You must replace these values with your own.
 $AppId = "72bd89d6-060a-43c9-8063-c281d8f8b685"
 $Tenantid = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
-$Thumbprint = "F79286DB88C21491110109A0222348FACF694CBD"
+# Make sure that the certificate is in date and won't expire soon!
+$Thumbprint = "32C9529B1FFD08BCD483A5D98807E47A472C5318"
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint -NoWelcome
 
 # Find SharePoint sites (use Get-MgAllSite to handle multi-geo tenants)
@@ -197,7 +214,7 @@ If ($OneDriveSites.Count -eq 0) {
     Break
 } Else {
     Write-Host ("Found {0} OneDrive for Business sites" -f $OneDriveSites.Count)
-    Write-Host "Some of the sites might be for users who have been removed from the tenant. These sites will be skipped."
+    Write-Host "Some of the sites might be for users who have been removed from the tenant. The script will skip these sites during processing."
 }
 
 Write-Host "Finding user account information to validate OneDrive sites..."
@@ -244,8 +261,8 @@ ForEach ($U in $UsersWhoShare) {
     [int]$NumberFiles = 0
     [int]$AnyOneLinks = 0
     $NumberFiles = $Report | Where-Object {$_.Account -eq $U.Account} | Sort-Object ItemName -Unique | Measure-Object | Select-Object -ExpandProperty Count
-    $AnyOneLinks = $Report | Where-Object {$_.Account -eq $U.Account -and $_.GrantedTo -eq "Anyone link"} | Measure-Object | Select-Object -ExpandProperty Count
-    $OrganizationLinks = $Report | Where-Object {$_.Account -eq $U.Account -and $_.GrantedTo -eq "Organization link"} | Measure-Object | Select-Object -ExpandProperty Count
+    $AnyOneLinks = $Report | Where-Object {$_.Account -eq $U.Account -and $_.'Access granted to' -eq "Anyone link"} | Measure-Object | Select-Object -ExpandProperty Count
+    $OrganizationLinks = $Report | Where-Object {$_.Account -eq $U.Account -and $_.'Access granted to' -eq "Organization link"} | Measure-Object | Select-Object -ExpandProperty Count
     Add-Member -InputObject $U -MemberType NoteProperty -Name "Shared Files" -Value $NumberFiles
     Add-Member -InputObject $U -MemberType NoteProperty -Name "Anyone Links" -Value $AnyoneLinks
     Add-Member -InputObject $U -MemberType NoteProperty -Name "Organization Links" -Value $OrganizationLinks
