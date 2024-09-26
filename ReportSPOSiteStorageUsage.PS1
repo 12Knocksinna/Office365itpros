@@ -25,7 +25,7 @@ If ($DeletedGroup -eq $False) {
 }
 
 If ($Null -eq $Owners) { # Got nothing back, maybe because of an error
-      $SiteOwners = "Possibly deleted Office 365 Group"
+      $SiteOwners = "Possibly deleted Microsoft 365 Group"
    } Else { # We have some owners, now format them
       $Owners = $Owners | Select-Object -ExpandProperty DisplayName
       ForEach ($Owner in $Owners)  {
