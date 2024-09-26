@@ -199,9 +199,9 @@ function Test-Numeric ($Value) {
 # Define the values required to connect. These are for the Entra ID app used to authentciate with the Graph
 # You must replace these values with your own.
 $AppId = "72bd89d6-060a-43c9-8063-c281d8f8b685"
-$Tenantid = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$Tenantid = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 # Make sure that the certificate is in date and won't expire soon!
-$Thumbprint = "32C9529B1FFD08BCD483A5D98807E47A472C5318"
+$Thumbprint = "2C9529B1FFD08BCD483A5D98807E47A472C5318"
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint -NoWelcome
 
 # Find SharePoint sites (use Get-MgAllSite to handle multi-geo tenants)
