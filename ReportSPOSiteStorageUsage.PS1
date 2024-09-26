@@ -3,7 +3,7 @@
 # Session must be connected to an admin account
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSPOSiteStorageUsage.PS1
 
-Function ReturnO365GroupOwners([String]$SiteURL) {
+Function Get-Microsoft365GroupOwners([String]$SiteURL) {
 # Function to return the owners of an Office 365 Group identified by the group GUID
 $Owners = $Null; $DeletedGroup = $False; $i = 0; $SiteOwners = $Null
 # Get the site properties. We need a separate call here because Get-SPOSite doesn't return all properties when it fetches a set of sites
@@ -37,7 +37,8 @@ If ($Null -eq $Owners) { # Got nothing back, maybe because of an error
       }
    }
 
-Return $SiteOwners }
+Return $SiteOwners 
+}
 
 # Check that we are connected to Exchange Online and SharePoint Online
 $ModulesLoaded = Get-Module | Select-Object Name
@@ -60,11 +61,12 @@ Clear-Host
 $ProgressDelta = 100/($Sites.count); $PercentComplete = 0; $SiteNumber = 0
 $Report = [System.Collections.Generic.List[Object]]::new() 
 ForEach ($Site in $Sites) {
-   $SiteOwners = $Null ; $Process = $True; $NoCheckGroup = $False
+   $SiteOwners = $Null ; $Process = $True
    $SiteNumber++
    $SiteStatus = $Site.Title + " ["+ $SiteNumber +"/" + $Sites.Count + "]"
    Write-Progress -Activity "Processing site" -Status $SiteStatus -PercentComplete $PercentComplete
    $PercentComplete += $ProgressDelta
+   $NoCheckGroup = $False
    Switch ($Site.Template) {  #Figure out the type of site and if we should process it - this might not be an exhaustive set of site templates
       "RedirectSite#0"            {$SiteType = "Redirect"; $Process = $False }
       "GROUP#0"                   {$SiteType = "Group-enabled team site"}
@@ -81,8 +83,8 @@ ForEach ($Site in $Sites) {
       "POINTPUBLISHINGPERSONAL#0" {$SiteType = "OneDrive for Business"; $Process = $False}
       "POINTPUBLISHINGTOPIC#0"    {$SiteType = "Office 365 Video"; $NoCheckGroup = $True; $SiteOwners = "System"} }
 
-   If ($NoCheckGroup -eq $False) { # Get owner information if it's an Office 365 Group
-      $SiteOwners = ReturnO365GroupOwners($Site.URL)
+   If ($NoCheckGroup -eq $False) { # Get owner information if it's a Microsoft 365 Group
+      $SiteOwners = Get-Microsoft365GroupOwners($Site.URL)
    }
 
    $UsedGB = [Math]::Round($Site.StorageUsageCurrent/1024,2) 
@@ -109,7 +111,7 @@ $Report | Export-CSV -NoTypeInformation $CSVOutputFile -Encoding utf8
 Write-Host ("Current SharePoint Online storage consumption is {0} GB. Report is in {1}" -f $TotalSPOStorageUsed, $CSVOutputFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
