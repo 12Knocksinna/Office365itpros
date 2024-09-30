@@ -142,6 +142,46 @@ ForEach ($File in $SPOFiles) {
 $FilesReport = $FilesReport | Sort-Object {$_.'Last modified' -as [datetime]} -Descending
 $FilesReport | Out-GridView -Title "SPO File Versions Report"
 
+# Create some output files
+If ($Report.count -gt 10000) {
+    $TimeWarning = "This report is large and might take some time to process"
+} ELse {
+    $TimeWarning = $null
+}
+}
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    Write-Host "Saving output Excel worksheets in your Downloads folder"
+    If ($TimeWarning) {
+        Write-Host $TimeWarning
+    }
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $SummaryOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\SPO File Versions Summary Report.xlsx"
+    If (Get-Item $SummaryOutputFile -ErrorAction SilentlyContinue) {
+        Remove-Item $SummaryOutputFile -ErrorAction SilentlyContinue
+    }
+    $FilesReport | Export-Excel -Path $SummaryOutputFile -WorksheetName "SPO File Versions Detail" `
+        -Title "SPO File Versions Summary Report" -TitleBold -TableName "SPOFileVersions"  
+    $DetailedOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\SPO File Versions Detailed Report.xlsx"
+    If (Get-Item $DetailedOutputFile -ErrorAction SilentlyContinue) {
+        Remove-Item $DetailedOutputFile -ErrorAction SilentlyContinue
+    }
+    $Report | Export-Excel -Path $DetailedOutputFile -WorksheetName "SPO File Versions Details" `
+        -Title "SPO File Versions Details" -TitleBold -TableName "SPOFileVersionsDetails" 
+} Else {
+    Write-Host "Saving output CSV files in your Downloads folder"
+    $SummaryCSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\SPO File Versions Summary Report.CSV"
+    $FilesReport | Export-Csv -Path $SummaryCSVOutputFile -NoTypeInformation -Encoding Utf8
+    $DetailedCSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\SPO File Versions Detailed Report.CSV"
+    $Report | Export-Csv -Path $DetailedCSVOutputFile -NoTypeInformation -Encoding Utf8
+}
+
+If ($ExcelGenerated) {
+    Write-Host ("Excel worksheets generated in your Downloads folder: {0}, {1}" -f $SummaryOutputFile, $DetailedOutputFile)
+} Else {
+    Write-Host ("CSV files generated in your Downloads folder: {0}, {1}" -f $SummaryCSVOutputFile, $DetailedCSVOutputFile)
+}
+
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
