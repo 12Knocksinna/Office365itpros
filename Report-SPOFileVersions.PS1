@@ -121,18 +121,19 @@ ForEach ($File in $SPOFiles) {
         | Select-Object -First 1 |Select-Object -ExpandProperty 'Last Modified By'
 
     $ReportLine = [PSCustomObject] @{ 
-        DocId                               = $File
+        Folder                              = $FileData[0].Folder
+        Document                            = $FileData[0].Document
         'Count of versions'                 = $FileData.Count
         'First modified'                    = Get-Date $FirstModifiedDate -format 'dd-MMM-yyyy HH:mm'
         'Last modified'                     = Get-Date $LastModifiedDate -format 'dd-MMM-yyyy HH:mm'
         'Average version size'              = Get-FileSize -InFileSize $Sizes.Average
         'Total versions size'               = Get-FileSize -InFileSize $Sizes.Sum
-        Site                                = $WebURL
-        FileURL                             = $FileURL
-        Folder                              = $FileData[0].Folder
-        Document                            = $FileData[0].Document
         'Last Modified by'                  = $LastModifiedBy
         'Last SnapShot Date'                = Get-Date $FileData[0].SnapShotDate -format 'dd-MMM-yyyy HH:mm'
+        DocId                               = $File
+        Site                                = $WebURL
+        FileURL                             = $FileURL
+        TotalSizeBytes                      = $Sizes.Sum
 
     }
     $FilesReport.Add($ReportLine)
@@ -140,15 +141,35 @@ ForEach ($File in $SPOFiles) {
 }
 
 $FilesReport = $FilesReport | Sort-Object {$_.'Last modified' -as [datetime]} -Descending
-$FilesReport | Out-GridView -Title "SPO File Versions Report"
+$FilesReport | Out-GridView -Title ("SPO File Versions Report for the {0} site" -f $WebURL)
+
+$MostVersions = ($FilesReport | Sort-Object {'Count of versions'} -Descending | Select-Object -First 1)
+$MostStorage = ($FilesReport | Sort-Object {[int]($_.'TotalSizeBytes') } -Descending | Select-Object -First 1)
+[array]$Folders = $FilesReport | Group-Object -Property Folder -NoElement | Sort-Object Count -Descending
+$TotalStorageUsed = Get-FileSize -InFileSize ($FilesReport | Measure-Object -Property 'TotalSizeBytes' -Sum).Sum
+
+# Display some details of what we found
+
+Write-Host ""
+Write-Host ("Summary of the SPO File Versions Report for the {0} site" -f $WebURL)
+Write-Host ""
+Write-Host ("Individual files processed: {0}" -f $SPOFiles.Count)
+Write-Host ("File versions processed:    {0}" -f $Report.Count)
+Write-Host ("Total storage used:         {0}" -f $TotalStorageUsed)
+Write-Host ("File with most versions     {0}/{1} ({2})" -f $MostVersions.Folder, $MostVersions.Document, $MostVersions.'Count of versions')
+Write-Host ("File using most storage:    {0}/{1} ({2})" -f $MostStorage.Folder, $MostStorage.Document, $MostStorage.'Total Versions Size')
+Write-Host ""
+Write-Host "Folders including files with versions"
+Write-Host "-------------------------------------"
+$Folders | Format-Table Name, Count -AutoSize
 
 # Create some output files
 If ($Report.count -gt 10000) {
-    $TimeWarning = "This report is large and might take some time to process"
-} ELse {
+    $TimeWarning = "The detailed report is large and might take some time to process"
+} Else {
     $TimeWarning = $null
 }
-}
+
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
     Write-Host "Saving output Excel worksheets in your Downloads folder"
@@ -175,6 +196,23 @@ If (Get-Module ImportExcel -ListAvailable) {
     $DetailedCSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\SPO File Versions Detailed Report.CSV"
     $Report | Export-Csv -Path $DetailedCSVOutputFile -NoTypeInformation -Encoding Utf8
 }
+
+
+# Display some details of what we found
+
+Write-Host ""
+Write-Host ("Summary of the SPO File Versions Report for the {0} site" -f $WebURL)
+Write-Host ""
+Write-Host ("Individual files processed: {0}" -f $SPOFiles.Count)
+Write-Host ("File versions processed:    {0}" -f $Report.Count)
+Write-Host ("Total storage used:         {0}" -f $TotalStorageUsed)
+Write-Host ("File with most versions     {0}/{1} ({2})" -f $MostVersions.Folder, $MostVersions.Document, $MostVersions.'Count of versions')
+Write-Host ("File using most storage:    {0}/{1} ({2})" -f $MostStorage.Folder, $MostStorage.Document, $MostStorage.'Total Versions Size')
+Write-Host ""
+Write-Host "Folders including files with versions"
+Write-Host "-------------------------------------"
+$Folders | Format-Table Name, Count -AutoSize
+Write-Host ""
 
 If ($ExcelGenerated) {
     Write-Host ("Excel worksheets generated in your Downloads folder: {0}, {1}" -f $SummaryOutputFile, $DetailedOutputFile)
