@@ -5,7 +5,8 @@
 # modified date, the average size of a version, the total size of all versions, the last person to modify the file, and
 # the last snapshot date for the file. The script then displays the new report in a grid view.
 
-
+# V1.0 30-Sep-2024
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-SPOFileVersions.PS1
 function Get-FileSize {
     # Format File Size nicely
     param (
