@@ -30,25 +30,38 @@ ForEach ($M in $Mbx) {
     $UserId = $M.ExternalDirectoryObjectId
     [array]$Logs = Get-MgAuditLogSignIn -Filter "userid eq '$UserId'" -All -Top 1
     If ($Logs) {
-        $LogsFound = "Yes"
-        Write-Host ("Sign-in records found for shared mailbox {0}" -f $M.DisplayName) -ForegroundColor Red
-        # Check if the shared mailbox is licensed
-        $User = Get-MgUser -UserId $M.ExternalDirectoryObjectId -Property UserPrincipalName, AccountEnabled, Id, DisplayName, assignedPlans
-        [array]$ExoPlans = $User.AssignedPlans | Where-Object {$_.Service -eq 'exchange' -and $_.capabilityStatus -eq 'Enabled'}
-        If ($ExoServicePlan1 -in $ExoPlans.ServicePlanId) {
-            $ExoPlan1Found = $true
-
-        } ElseIf ($ExoServicePlan2 -in $ExoPlans.ServicePlanId) {
-            $ExoPlan2Found = $true
+        
+        # Check if there are successful sign-in records (at least one), otherwise, don't keep track of them (these could be attack attempts)
+        Write-Output ("Checking for successful sign-in records for {0}" -f $M.DisplayName)
+        [array]$search4SuccessfulLogins = Get-MgAuditLogSignIn -Filter "userid eq '$UserId'" -All
+        $search4SuccessfulLogins | ForEach-Object {
+            If ($_.Status.ErrorCode -eq "0") {
+                $LogsFound = "Yes"
+            }
         }
-    
-        If ($ExoPlan1Found -eq $true) {
-            Write-Output ("Shared mailbox {0} has Exchange Online (Plan 1) license" -f $M.DisplayName)
-        } ElseIf ($ExoPlan2Found -eq $true) {
-            Write-Output ("Shared mailbox {0} has Exchange Online (Plan 2) license" -f $M.DisplayName)
-        }  Else {
-            Write-Host ("Shared mailbox {0} has no Exchange Online license" -f $M.DisplayName) -ForegroundColor Yellow
-        }  
+        
+        If ($LogsFound -eq "Yes") {
+            Write-Host ("Sign-in records found for shared mailbox {0}" -f $M.DisplayName) -ForegroundColor Red
+            # Check if the shared mailbox is licensed
+            $User = Get-MgUser -UserId $M.ExternalDirectoryObjectId -Property UserPrincipalName, AccountEnabled, Id, DisplayName, assignedPlans
+            [array]$ExoPlans = $User.AssignedPlans | Where-Object {$_.Service -eq 'exchange' -and $_.capabilityStatus -eq 'Enabled'}
+            If ($ExoServicePlan1 -in $ExoPlans.ServicePlanId) {
+                $ExoPlan1Found = $true
+
+            } ElseIf ($ExoServicePlan2 -in $ExoPlans.ServicePlanId) {
+                $ExoPlan2Found = $true
+            }
+        
+            If ($ExoPlan1Found -eq $true) {
+                Write-Output ("Shared mailbox {0} has Exchange Online (Plan 1) license" -f $M.DisplayName)
+            } ElseIf ($ExoPlan2Found -eq $true) {
+                Write-Output ("Shared mailbox {0} has Exchange Online (Plan 2) license" -f $M.DisplayName)
+            }  Else {
+                Write-Host ("Shared mailbox {0} has no Exchange Online license" -f $M.DisplayName) -ForegroundColor Yellow
+            }   
+        } else {
+            Write-Host ("No successful sign-in records found for shared mailbox {0}" -f $M.DisplayName) -ForegroundColor Green
+        }
     } 
 
     $ReportLine = [PSCustomObject] @{ 
