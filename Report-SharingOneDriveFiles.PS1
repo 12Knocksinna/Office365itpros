@@ -1,7 +1,7 @@
 # Report-SharingOneDriveFiles.PS1
 # A script to show how to report the permissions for shared files found in OneDrive for Business accounts
 # V1.0 24-Sep-2024
-# V1.1 8-Oct-2024 Some upgrades after publishing article at https://practical365.com/onedrive-file-sharing-report/
+# V1.1 8-Oct-2024   Some fixes/upgrades after publishing article at https://practical365.com/onedrive-file-sharing-report/
 
 # Requires an Entra ID app with the following application permissions:
 # User.Read.All         Read User Profiles 
@@ -193,6 +193,24 @@ function FormatFileSize {
 function Test-Numeric ($Value) {
     return $Value -match "^[\d\.]+$"
 }
+function Get-BaseUrl {
+    param (
+        [string]$Url
+    )
+    $LastSlashIndex = $Url.LastIndexOf('/')
+    if ($LastSlashIndex -gt -1) {
+        return $Url.Substring(0, $LastSlashIndex+1)
+    } else {
+        return $Url
+    }
+}
+
+function Convert-UPNToOneDrive {
+    param (
+        [string]$UPN
+    )
+    $UPN.ToLower() -replace '\.', '_' -replace '@', '_' -replace '\.', '_'
+}
 
 # Define the values required to connect. These are for the Entra ID app used to authentciate with the Graph
 # You must replace these values with your own.
@@ -214,14 +232,19 @@ If ($OneDriveSites.Count -eq 0) {
     Write-Host ("Found {0} OneDrive for Business sites" -f $OneDriveSites.Count)
     Write-Host "Some of the sites might be for users who have been removed from the tenant. The script will skip these sites during processing."
 }
+# Find the base URL for OneDrive sites. It will be something like https://contoso-my.sharepoint.com/personal/
+$BaseUrl = Get-BaseURL $Sites[0].WebUrl
 
 Write-Host "Finding user account information to validate OneDrive sites..."
 # Fetch licensed users so that we can check OneDrive sites to find ones for current users
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
     -ConsistencyLevel eventual -CountVariable Records -All -PageSize 999 | Sort-Object displayName
 $UserHash = @{}
+# The hash table contains an entry for each user with their UPN (value) and the converted OneDrive URL (name).
+# The URL is used to match the OneDrive site with the user.
 ForEach ($User in $Users) {
-    $UserHash.Add($User.DisplayName, $User.UserPrincipalName)
+    $OneDriveURL = $BaseURL + (Convert-UPNToOneDrive -UPN $User.UserPrincipalName)
+    $UserHash.Add($OneDriveURL, $User.UserPrincipalName)
 }
 
 # Set up the report variables
@@ -231,10 +254,10 @@ $Global:GroupsHash = @{}
 
 # Go and process
 ForEach ($Site in $OneDriveSites) {
-    If ($UserHash[$Site.name]) {
+    If ($UserHash[$Site.WebURL]) {
         $Global:TotalFiles = 0
         $i++
-        Write-Host ("Processing OneDrive site for {0} {1}/{2}" -f $Site.DisplayName, $i, $OneDriveSites.Count) -ForegroundColor Yellow
+        Write-Host ("Processing OneDrive site for {0} {1}/{2}" -f $Site.DisplayName, $i, $Users.Count) -ForegroundColor Yellow
         Try {
             [array]$Drives = Get-MgSiteDrive -SiteId $Site.id
             $Drive = $Drives | Where-Object {$_.Name -like "OneDrive*"}
