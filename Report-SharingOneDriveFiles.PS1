@@ -237,7 +237,7 @@ ForEach ($Site in $OneDriveSites) {
         Write-Host ("Processing OneDrive site for {0} {1}/{2}" -f $Site.DisplayName, $i, $OneDriveSites.Count) -ForegroundColor Yellow
         Try {
             [array]$Drives = Get-MgSiteDrive -SiteId $Site.id
-            $Drive = $Drives | Where-Object {$_.Name -eq "OneDrive"}
+            $Drive = $Drives | Where-Object {$_.Name -like "OneDrive*"}
             Get-DriveItems -Drive $Drive.Id -FolderId "root"
         }
         Catch {
