@@ -1,6 +1,7 @@
 # Report-SharingOneDriveFiles.PS1
 # A script to show how to report the permissions for shared files found in OneDrive for Business accounts
 # V1.0 24-Sep-2024
+# V1.1 8-Oct-2024 Some upgrades after publishing article at https://practical365.com/onedrive-file-sharing-report/
 
 # Requires an Entra ID app with the following application permissions:
 # User.Read.All         Read User Profiles 
@@ -239,7 +240,7 @@ ForEach ($Site in $OneDriveSites) {
         Write-Host ("Processing OneDrive site for {0} {1}/{2}" -f $Site.DisplayName, $i, $OneDriveSites.Count) -ForegroundColor Yellow
         Try {
             [array]$Drives = Get-MgSiteDrive -SiteId $Site.id
-            $Drive = $Drives[0]
+            $Drive = $Drives | Where-Object {$_.Name -eq "OneDrive"}
             Get-DriveItems -Drive $Drive.Id -FolderId "root"
         }
         Catch {

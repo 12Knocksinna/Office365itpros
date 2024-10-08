@@ -100,7 +100,6 @@ ForEach ($Item in $SPOData) {
     $Report.Add($ReportLine)
 }
 
-
 [array]$SPOFiles = $Report | Sort-Object DocId -unique | Select-Object -ExpandProperty DocId
 Write-Host ("Found {0} unique files from {1} records in the report" -f $SPOFiles.Count, $Report.count)
 
