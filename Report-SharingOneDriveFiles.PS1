@@ -35,10 +35,7 @@ function Get-DriveItems {
         $FolderName = ("folder: {0}" -f $Folder.Name)
     }
     # Process the files
-    If (!($SharedItems)) {
-        Write-Host ("No shared files found in {0}" -f $FolderName)
-        Return
-    }
+   
     ForEach ($File in $SharedItems) {  
         If ($File.LastModifiedDateTime) {
             $LastModifiedDateTime = Get-Date $File.LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
