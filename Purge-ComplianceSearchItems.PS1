@@ -1,11 +1,106 @@
 # Purge-ComplianceSearchItems.PS1
 # An example script to show how to purge items found by a compliance search
 
+function Get-RecoverableItemsFolderId ([string]$MailboxId) {
+    # Function to return folder identifiers for the Recoverable Items folders in a mailbox
+    # The types of folders we want to exclude from the search
+    $FolderExclusions = [System.Collections.Generic.List[Object]]::new()
+    [array]$RecoverableFolders = 'RecoverableItemsVersions', 'RecoverableItemsDeletions', 'RecoverableItemsPurges'
+    
+    # Process Recoverable Items folders in the primary mailbox
+    $Folders = Get-ExoMailboxFolderStatistics $MailboxId
+    Foreach ($Folder in $Folders) {
+        If ($Folder.FolderType -in $RecoverableFolders) {           
+            $encoding= [System.Text.Encoding]::GetEncoding("us-ascii")
+            $nibbler= $encoding.GetBytes("0123456789ABCDEF")
+            $folderIdBytes = [Convert]::FromBase64String($Folder.FolderId)
+            $indexIdBytes = New-Object byte[] 48
+            $indexIdIdx=0
+            $folderIdBytes | Select-Object -skip 23 -First 24 | ForEach-Object{$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -shr 4];$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -band 0xF]}
+            $folderQuery = "folderid:$($encoding.GetString($indexIdBytes))"
+            $ReportLine = [PSCustomObject][Ordered]@{ 
+                FolderPath = $Folder.FolderPath
+                FolderQuery = $folderQuery
+            }
+            $FolderExclusions.Add($ReportLine)
+        }
+    }
+    
+    # Process Recoverable Items folders in the archive mailbox (if enabled)
+    If ((Get-Mailbox -Identity $MailboxId).ArchiveGuid) {
+        $Folders = Get-ExoMailboxFolderStatistics $MailboxId
+        Foreach ($Folder in $Folders) {
+            If ($Folder.FolderType -in $RecoverableFolders) {           
+                $encoding= [System.Text.Encoding]::GetEncoding("us-ascii")
+                $nibbler= $encoding.GetBytes("0123456789ABCDEF")
+                $folderIdBytes = [Convert]::FromBase64String($Folder.FolderId)
+                $indexIdBytes = New-Object byte[] 48
+                $indexIdIdx=0
+                $folderIdBytes | Select-Object -skip 23 -First 24 | ForEach-Object{$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -shr 4];$indexIdBytes[$indexIdIdx++]=$nibbler[$_ -band 0xF]}
+                $folderQuery = "folderid:$($encoding.GetString($indexIdBytes))"
+                $ReportLine = [PSCustomObject][Ordered]@{ 
+                    FolderPath = $Folder.FolderPath
+                    FolderQuery = $folderQuery
+                }
+                $FolderExclusions.Add($ReportLine)
+            }
+        }
+    }
+    
+        Return $FolderExclusions
+}
+
+# Start of processing - clear the screen and ask which mailbox to search, what to look for, and so on.
 Clear-Host
-$SearchName = 'Compliance Search Test October 2024'
+$SearchAllMailboxes = $false
+[string]$Mbx = Read-Host "Enter the mailbox to search"
+If (Get-Mailbox -Identity $Mbx -ErrorAction SilentlyContinue) {
+    $MailboxId = Get-Mailbox -Identity $Mbx
+    $MailboxesToSearch = $MailboxId.UserPrincipalName
+    $MailboxDisplayName = ("the {0} mailbox" -f $MailboxId.DisplayName)
+} ElseIf ($Mbx -eq "All") {
+    # Checking all mailboxes...
+    $MailboxId = $null
+    $SearchAllMailboxes = $true
+    $RecoverableItemsOption = "N"
+    $MailboxesToSearch = "All"
+    $MailboxDisplayName = "All mailboxes"
+} Else {    
+    Write-Host "Mailbox $Mbx not found" -ForegroundColor Red
+    Break
+}
+
+[string]$SearchString = Read-Host "Enter the message subject to search for"
+
+# If we search all mailboxes, we won't exclude Recoverable Items, but if the flag is false, ask if we should exclude these folders
+If ($SearchAllMailboxes -eq $false) {
+    $RecoverableItemsOption = Read-Host "Exclude Recoverable Items folders [Y] Yes [N] No (default is `"N`")"
+    If ($RecoverableItemsOption.ToUpper() -eq "Y") {
+        Write-Host "Recoverable Items folders will be excluded..."
+    }
+}
+
+Write-Host "Computing query criteria"
+$StartDate =  Get-Date (Get-Date).AddDays(-30) -format yyyy-MM-dd
+$EndDate = Get-Date -format yyyy-MM-dd
+#$KQLQuery = "subject: 'Your Weekly WPForms Summary for office365itpros.com'"
+$KQLQuery = ("subject: '{0}'" -f $SearchString)
+$DateRange = ("(c:c)(sent={0}..{1})" -f $StartDate, $EndDate)
+$FormattedFolderIds = $null
+If ($RecoverableItemsOption.ToUpper() -eq "Y") {
+    Write-Host "Fetching folder identifiers to exclude Recoverable Items folders from the search"
+    $FoldersToExclude = Get-RecoverableItemsFolderId -MailboxId $MailboxId.ExternalDirectoryObjectId
+    $FormattedFolderIds = " NOT ((" + ($FoldersToExclude.FolderQuery -join ") OR (") + "))"
+}
+$KQLQuery = ("{0}{1}{2}" -f $KQLQuery, $DateRange, $FormattedFolderIds)
+
+Write-Host ("Compliance search will run against {0} using query {1}" -f $MailboxDisplayName, $KQLQuery)
+
+$SearchName = ("Compliance Purge {0} {1}" -f $MailboxesToSearch, $EndDate)
+
 Remove-ComplianceSearch -Identity $SearchName -Confirm:$False -ErrorAction SilentlyContinue
 Write-Host ("Creating and running new compliance search ({0})" -f $SearchName) -ForegroundColor Yellow 
-New-ComplianceSearch -Name $SearchName -ExchangeLocation All -ContentMatchQuery "A new comment on the post" -Description 'Compliance Search Test' | Out-Null
+New-ComplianceSearch -Name $SearchName -ExchangeLocation $MailboxesToSearch -ContentMatchQuery $KQLQuery -Description 'Compliance Search Test' | Out-Null
 Start-ComplianceSearch -Identity $SearchName
 
 Write-Host "Waiting for compliance search to finish..."
@@ -43,7 +138,11 @@ foreach ($Match in $LocationsWithEmail) {
 
 # Figure out how many loops might be needed to remove all items
 [int]$LocationsGT10 = 0; [int]$HighestValue = 0
-ForEach ($Item in $LocationsWithItems) {
+If ($LocationsWithItems.Count -eq 1) {
+    $HighestLocation = $LocationsWithItems[0].Email
+    $HighestValue = $LocationsWithItems[0].ItemCount
+} Else {
+    ForEach ($Item in $LocationsWithItems) {
        $ItemCount = $Item.ItemCount
        If ($ItemCount -gt 10) {
             $LocationsGT10++
@@ -51,10 +150,14 @@ ForEach ($Item in $LocationsWithItems) {
             $HighestValue = $ItemCount
             $HighestLocation = $Item.Email
         }
+        }
     }
 }
+
 $LoopsNeeded = [math]::ceiling($HighestValue/10)
+$TotalResults = 0
 Write-Host ("Compliance search completed. {0} items found in {1} locations. {2} iterations are required to remove these items. The mailbox with most items is {3} with {4}." -f $ItemsFound, $Locations.Count, $LoopsNeeded, $HighestLocation, $HighestValue) -ForeGroundColor Yellow
+$SearchNameAction = $ComplianceSearch.Name + "_Purge"
 
 While ($Count -lt $LoopsNeeded) {
     $Count++ 
