@@ -1,5 +1,11 @@
 # Purge-ComplianceSearchItems.PS1
 # An example script to show how to purge items found by a compliance search
+# V1.0 15-Oct-2024
+
+# The script will ask some questions to perform a compliance search against one or all mailboxes, do the search, report what it finds
+# and ask the administrator if they want to proceed with purging the items found by the search. The script will then purge the items.
+
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Purge-ComplianceSearchItems.PS1
 
 function Get-RecoverableItemsFolderId ([string]$MailboxId) {
     # Function to return folder identifiers for the Recoverable Items folders in a mailbox
@@ -50,10 +56,13 @@ function Get-RecoverableItemsFolderId ([string]$MailboxId) {
         Return $FolderExclusions
 }
 
-function Get-EmailDetails {
+function Get-EmailDetailsFromPreviewResults {
     param (
         [string]$Line
     )
+
+    # function to extract email details from the format used by the preview results
+
     $Pattern = "Location: (?<Location>.*?); Sender: (?<Sender>.*?); Subject: (?<Subject>.*?); Type: .*?; Size: .*?; Received Time: (?<ReceivedTime>.*?); Data Link: .*"
     if ($Line -match $Pattern) {
         return [PSCustomObject]@{
@@ -72,6 +81,9 @@ function Get-ComplianceSearchPreview {
     Param (
         [string]$SearchName
     )
+
+    # function to return the set of preview items for a compliance search
+
     Write-Host "Finding preview items for review..."
     $SearchNamePreview = ("{0}_Preview" -f $SearchName)
     Remove-ComplianceSearchAction -Identity $SearchNamePreview -Confirm:$False | Out-Null
@@ -89,7 +101,7 @@ function Get-ComplianceSearchPreview {
         Write-Host "Formatting preview results..."
         $PreviewItems = $PreviewState.Results -replace "{" -replace "}" -split ".eml," -replace "`n"
         ForEach ($Item in $PreviewItems) {
-            $PreviewItem = Get-EmailDetails -Line $Item
+            $PreviewItem = Get-EmailDetailsFromPreviewResults -Line $Item
             $ReportLine = [PSCustomObject][Ordered]@{ 
                 Recipient       = $PreviewItem.Location
                 Sender          = $PreviewItem.Sender
@@ -105,15 +117,22 @@ function Get-ComplianceSearchPreview {
    
 }
 
+[array]$Modules = Get-Module | Select-Object Name
+If ("ExchangeOnlineManagement" -notin $Modules) {
+    Write-Host "Connecting to Exchange Online..."
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp
+    Connect-IPPSSession
+}
+
 # Start of processing - clear the screen and ask which mailbox to search, what to look for, and so on.
 Clear-Host
 $SearchAllMailboxes = $false
-[string]$Mbx = Read-Host "Enter the mailbox to search"
+[string]$Mbx = Read-Host "Enter the mailbox to search or type All to search all mailboxes"
 If (Get-Mailbox -Identity $Mbx -ErrorAction SilentlyContinue) {
     $MailboxId = Get-Mailbox -Identity $Mbx
     $MailboxesToSearch = $MailboxId.UserPrincipalName
     $MailboxDisplayName = ("the {0} mailbox" -f $MailboxId.DisplayName)
-} ElseIf ($Mbx -eq "All") {
+} ElseIf ($Mbx.ToLower() -eq "all") {
     # Checking all mailboxes...
     $MailboxId = $null
     $SearchAllMailboxes = $true
@@ -127,7 +146,7 @@ If (Get-Mailbox -Identity $Mbx -ErrorAction SilentlyContinue) {
 
 [string]$SearchString = Read-Host "Enter the message subject to search for"
 
-# If we search all mailboxes, we won't exclude Recoverable Items, but if the flag is false, ask if we should exclude these folders
+# If we search all mailboxes, we won't exclude Recoverable Items, but if the flag is false, ask if we should exclude the RI folders
 If ($SearchAllMailboxes -eq $false) {
     $RecoverableItemsOption = Read-Host "Exclude Recoverable Items folders [Y] Yes [N] No (default is `"N`")"
     If ($RecoverableItemsOption.ToUpper() -eq "Y") {
@@ -136,11 +155,15 @@ If ($SearchAllMailboxes -eq $false) {
 }
 
 Write-Host "Computing query criteria"
-$StartDate =  Get-Date (Get-Date).AddDays(-530) -format yyyy-MM-dd
+# start and end date for the query. The default search goes back 60 days from today. Obviously, it can be any value you want.
+$StartDate =  Get-Date (Get-Date).AddDays(-60) -format yyyy-MM-dd
 $EndDate = Get-Date -format yyyy-MM-dd
-#$KQLQuery = "subject: 'Your Weekly WPForms Summary for office365itpros.com'"
+
+# Construct the KQL query for the compliance search
 $KQLQuery = ("(c:c)(subjecttitle: '{0}')" -f $SearchString)
 $DateRange = ("(sent={0}..{1})" -f $StartDate, $EndDate)
+
+# add the folder identifiers for the Recoverable Items folders to the query if the option is set
 $FormattedFolderIds = $null
 If ($RecoverableItemsOption.ToUpper() -eq "Y") {
     Write-Host "Fetching folder identifiers to exclude Recoverable Items folders from the search"
@@ -149,10 +172,11 @@ If ($RecoverableItemsOption.ToUpper() -eq "Y") {
 }
 $KQLQuery = ("{0}{1}{2}" -f $KQLQuery, $DateRange, $FormattedFolderIds)
 
+# Tell the administrator what we are going to do
 Write-Host ("Compliance search will run against {0} using query {1}" -f $MailboxDisplayName, $KQLQuery)
-
 $SearchName = ("Compliance Purge {0} {1}" -f $MailboxesToSearch, $EndDate)
 
+# remove any old search of the same name and create and start a new search
 Remove-ComplianceSearch -Identity $SearchName -Confirm:$False -ErrorAction SilentlyContinue
 Write-Host ("Creating and running new compliance search ({0})" -f $SearchName) -ForegroundColor Yellow 
 New-ComplianceSearch -Name $SearchName -ExchangeLocation $MailboxesToSearch -ContentMatchQuery $KQLQuery -Description 'Compliance Search Test' | Out-Null
@@ -172,11 +196,11 @@ If (!($ItemsFound)) {
     break 
 }
 
-# Use regex to find all instances where item count is greater than zero
+# Use regex to find all instances of the search results where item count is greater than zero
 $LocationsWithItemCount = [regex]::Matches($ComplianceSearch.SuccessResults, "Item count: (\d+)")
 [array]$Locations = $LocationsWithItemCount | Where-Object { $_.Groups[1].Value -gt 0 }
 
-# Use regex to extract email addresses, item counts, and total sizes
+# Use regex to extract email addresses, item counts, and total sizes from the search results
 $LocationsWithEmail = [regex]::Matches($ComplianceSearch.SuccessResults, "Location: (\S+@\S+\.\S+), Item count: (\d+), Total size: (\d+)")
 # Extract email addresses and item counts where item count is greater than 0
 [array]$LocationsWithItems = $null
@@ -201,11 +225,11 @@ If ($LocationsWithItems.Count -eq 1) {
        $ItemCount = $Item.ItemCount
        If ($ItemCount -gt 10) {
             $LocationsGT10++
-        If ($ItemCount -gt $HighestValue) {
+       }
+       If ($ItemCount -gt $HighestValue) {
             $HighestValue = $ItemCount
             $HighestLocation = $Item.Email
-        }
-        }
+       }
     }
 }
 
