@@ -86,7 +86,7 @@ function Get-ComplianceSearchPreview {
 
     Write-Host "Finding preview items for review..."
     $SearchNamePreview = ("{0}_Preview" -f $SearchName)
-    Remove-ComplianceSearchAction -Identity $SearchNamePreview -Confirm:$False | Out-Null
+    Remove-ComplianceSearchAction -Identity $SearchNamePreview -Confirm:$False -ErrorAction SilentlyContinue | Out-Null
     New-ComplianceSearchAction -SearchName $SearchName -Preview -ErrorAction SilentlyContinue -Confirm:$false | Out-Null
 
     $PreviewState = Get-ComplianceSearchAction -Identity $SearchNamePreview
@@ -117,12 +117,14 @@ function Get-ComplianceSearchPreview {
    
 }
 
-[array]$Modules = Get-Module | Select-Object Name
+[array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -notin $Modules) {
     Write-Host "Connecting to Exchange Online..."
-    Connect-ExchangeOnline -SkipLoadingCmdletHelp
-    Connect-IPPSSession
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp -ShowBanner:$false
 }
+
+Write-Host "Connecting to Security & Compliance Center endpoint..."
+Connect-IPPSSession -ShowBanner:$false
 
 # Start of processing - clear the screen and ask which mailbox to search, what to look for, and so on.
 Clear-Host
@@ -184,9 +186,9 @@ Start-ComplianceSearch -Identity $SearchName
 
 Write-Host "Waiting for compliance search to finish..."
 Do { 
-    $ComplianceSearch = Get-ComplianceSearch $SearchName
+    $ComplianceSearch = Get-ComplianceSearch $SearchName -ErrorAction SilentlyContinue
     $Status = $ComplianceSearch.Status 
-    Start-Sleep 3 
+    Start-Sleep -Seconds 3 
 } While ($Status -ne 'Completed') 
 [int]$Count = 0 
 
