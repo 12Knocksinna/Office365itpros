@@ -50,6 +50,61 @@ function Get-RecoverableItemsFolderId ([string]$MailboxId) {
         Return $FolderExclusions
 }
 
+function Get-EmailDetails {
+    param (
+        [string]$Line
+    )
+    $Pattern = "Location: (?<Location>.*?); Sender: (?<Sender>.*?); Subject: (?<Subject>.*?); Type: .*?; Size: .*?; Received Time: (?<ReceivedTime>.*?); Data Link: .*"
+    if ($Line -match $Pattern) {
+        return [PSCustomObject]@{
+            Location     = $matches['Location']
+            Sender       = $matches['Sender']
+            Subject      = $matches['Subject']
+            ReceivedTime = $matches['ReceivedTime']
+        }
+    } else {
+        Write-Host "Line does not match the expected format."
+        return $null
+    }
+}
+
+function Get-ComplianceSearchPreview {
+    Param (
+        [string]$SearchName
+    )
+    Write-Host "Finding preview items for review..."
+    $SearchNamePreview = ("{0}_Preview" -f $SearchName)
+    Remove-ComplianceSearchAction -Identity $SearchNamePreview -Confirm:$False | Out-Null
+    New-ComplianceSearchAction -SearchName $SearchName -Preview -ErrorAction SilentlyContinue -Confirm:$false | Out-Null
+
+    $PreviewState = Get-ComplianceSearchAction -Identity $SearchNamePreview
+
+    If ($null -ne $PreviewState){
+        While ($PreviewState.Status -ne "Completed") {
+            Start-Sleep -Seconds 5
+            $PreviewState = Get-ComplianceSearchAction -Identity $SearchNamePreview
+        }
+    }
+    If ($PreviewState.Results) {
+        Write-Host "Formatting preview results..."
+        $PreviewItems = $PreviewState.Results -replace "{" -replace "}" -split ".eml," -replace "`n"
+        ForEach ($Item in $PreviewItems) {
+            $PreviewItem = Get-EmailDetails -Line $Item
+            $ReportLine = [PSCustomObject][Ordered]@{ 
+                Recipient       = $PreviewItem.Location
+                Sender          = $PreviewItem.Sender
+                Subject         = $PreviewItem.Subject
+                'Received Date' = $PreviewItem.ReceivedTime
+            }
+            $PreviewReport.Add($ReportLine)
+        }
+        $PreviewReport = $PreviewReport | Sort-Object {$_.'Received Date' -as [datetime]} -Descending
+    }
+        
+        Return $PreviewReport
+   
+}
+
 # Start of processing - clear the screen and ask which mailbox to search, what to look for, and so on.
 Clear-Host
 $SearchAllMailboxes = $false
@@ -81,11 +136,11 @@ If ($SearchAllMailboxes -eq $false) {
 }
 
 Write-Host "Computing query criteria"
-$StartDate =  Get-Date (Get-Date).AddDays(-30) -format yyyy-MM-dd
+$StartDate =  Get-Date (Get-Date).AddDays(-530) -format yyyy-MM-dd
 $EndDate = Get-Date -format yyyy-MM-dd
 #$KQLQuery = "subject: 'Your Weekly WPForms Summary for office365itpros.com'"
-$KQLQuery = ("subject: '{0}'" -f $SearchString)
-$DateRange = ("(c:c)(sent={0}..{1})" -f $StartDate, $EndDate)
+$KQLQuery = ("(c:c)(subjecttitle: '{0}')" -f $SearchString)
+$DateRange = ("(sent={0}..{1})" -f $StartDate, $EndDate)
 $FormattedFolderIds = $null
 If ($RecoverableItemsOption.ToUpper() -eq "Y") {
     Write-Host "Fetching folder identifiers to exclude Recoverable Items folders from the search"
@@ -156,7 +211,36 @@ If ($LocationsWithItems.Count -eq 1) {
 
 $LoopsNeeded = [math]::ceiling($HighestValue/10)
 $TotalResults = 0
+# Let the administrator know what we have found 
 Write-Host ("Compliance search completed. {0} items found in {1} locations. {2} iterations are required to remove these items. The mailbox with most items is {3} with {4}." -f $ItemsFound, $Locations.Count, $LoopsNeeded, $HighestLocation, $HighestValue) -ForeGroundColor Yellow
+Write-Host ""
+If ($LocationsWithItems.count -gt 1) {
+    Write-Host "Locations with items found by the search" -ForegroundColor Yellow
+    Write-Host "----------------------------------------" 
+    $LocationsWithItems | Sort-Object -Property ItemCount -Descending | Format-Table -AutoSize
+    Write-Host ""
+}
+
+# Section to find preview and show some times to user to check
+$Global:PreviewReport = [System.Collections.Generic.List[Object]]::new()
+$PreviewReport = Get-ComplianceSearchPreview -SearchName $SearchName
+
+If ($PreviewReport) {
+    Write-Host "Preview of items found by the search" -ForegroundColor Yellow
+    Write-Host "------------------------------------" 
+    $PreviewReport | Select-Object -First 10 | Format-Table -AutoSize
+    Write-Host ""
+} Else {
+    Write-Host "No preview items found" -ForegroundColor Red
+}
+
+$OKToProceed = Read-Host "Do you want to proceed with the purge? [Y] Yes [N] No"
+If ($OKToProceed.ToUpper() -eq "N") {
+    Write-Host "Exiting without purging items" -ForegroundColor Red
+    Break
+}
+
+Write-Host "Setting up to purge items..."
 $SearchNameAction = $ComplianceSearch.Name + "_Purge"
 
 While ($Count -lt $LoopsNeeded) {
