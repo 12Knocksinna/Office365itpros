@@ -117,12 +117,10 @@ Write-Host "Finding messages received by Copilot..."
    
 
 # And because we have some prompts received by "Microsoft 365 Chat", we need to find them too
-
 [array]$ItemsChat = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId 'TeamsMessagesData' `
     -All -PageSize 500 -Property Sender, SentDateTime, BodyPreview, ToRecipients `
     -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
     AND (singleValueExtendedProperties/any(ep:ep/id eq 'String 0x0E04' and ep/value eq 'Microsoft 365 Chat'))" 
-   
 
 If ($ItemsReceived) {
     $Items = $Items + $ItemsReceived
@@ -137,10 +135,10 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Item in $Items) {
    
     $ReportLine = [PSCustomObject][Ordered]@{ 
-        Sender = $Item.Sender.emailaddress.Name
-        To = $Item.Torecipients.emailaddress.name -join ","
-        Sent = $Item.SentDateTime
-        Body = $Item.BodyPreview
+        Sender  = $Item.Sender.emailaddress.Name
+        To      = $Item.Torecipients.emailaddress.name -join ","
+        Sent    = $Item.SentDateTime
+        Body    = $Item.BodyPreview
     }
     $Report.Add($ReportLine)
 }
