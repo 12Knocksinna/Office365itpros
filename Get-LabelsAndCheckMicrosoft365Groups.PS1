@@ -143,12 +143,3 @@ If ($Report) {
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
-
-[array]$GroupsWithLabels = $Groups | Where-Object { $_.assignedLabels -ne $null} | Sort-Object DisplayName
-[array]$GroupsNoLabels = $Groups | Where-Object { $_.assignedLabels.displayName -eq $null} | Sort-Object DisplayName
-If ($GroupsNoLabels) {
-    Write-Host ("{0} Microsoft 365 Groups found without a container management label" -f $GroupsNoLabels.Count)
-    $GroupsNoLabels | Format-Table DisplayName, Id
-} Else {
-    Write-Host "All Microsoft 365 Groups have a container management label"
-}
