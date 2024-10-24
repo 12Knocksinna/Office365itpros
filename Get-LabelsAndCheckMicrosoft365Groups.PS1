@@ -10,6 +10,7 @@
 
 Connect-MgGraph -Scopes Group.ReadWrite.All
 
+# Add values for the defaulkt container management label - these will be different for your tenant
 $DefaultSensitivityLabel = "e42fd42e-7240-4df0-9d8f-d14658bcf7ce" # Guid for General Access
 $DefaultSensitivityLabelName = "General Access"
 [int]$LabelsAssigned = 0
