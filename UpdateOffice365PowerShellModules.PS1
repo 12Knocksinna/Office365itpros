@@ -14,7 +14,7 @@
 # Define the set of modules installed and updated from the PowerShell Gallery that we want to maintain - edit this set of modules to include the modules 
 # you want to process.
 [int]$InstalledModules = 0; [int]$UpdatedModules = 0; [int]$RemovedModules = 0
-$O365Modules = @("MicrosoftTeams", "Microsoft.Graph", "Microsoft.Graph.Beta", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA", "Az.Accounts", "Az.Automation", "AIPService", "Az.Keyvault", "Pnp.PowerShell", "MSCommerce", "Microsoft365DSC", "MSAL.PS", "Pnp.PowerShell", "WhiteboardAdmin", "ImportExcel")
+$O365Modules = @("MicrosoftTeams", "Microsoft.Graph", "Microsoft.Graph.Beta", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", "ORCA", "Az.Accounts", "Az.Automation", "AIPService", "Az.Keyvault", "Pnp.PowerShell", "MSCommerce", "Microsoft365DSC", "MSAL.PS", "WhiteboardAdmin", "ImportExcel")
 $O365Modules = $O365Modules | Sort-Object
 Write-Host ("Starting up and preparing to process these modules: {0}" -f ($O365Modules -join ", ")) -foregroundcolor Yellow
 [int]$UpdatedModules = 0; [int]$RemovedModules = 0; [int]$InstalledModules = 0

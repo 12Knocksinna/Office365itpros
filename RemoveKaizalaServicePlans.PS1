@@ -13,49 +13,63 @@ $Office365E1 = "18181a46-0d4e-45cd-891e-60aabd171b4e"
 
 # Find and process licensed Azure AD users
 $LicenseUsers = [System.Collections.Generic.List[Object]]::new() ; $i =0
-Write-Host "Searching for licensed Azure AD accounts"
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All | Sort DisplayName
-If (!($Users)) { Write-Host "Oddly, we can't find any licensed Azure AD users... exiting!" ; break }
-
-ForEach ($User in $Users) {
- $i++
- Write-Host ("Checking licenses assigned to account {0} {1}/{2}" -f $User.Displayname, $i, $Users.count)
- $License = $Null; $LicenseSkuId = $Null
- # Find out what SKU the account has
- If ($Office365E3 -in $User.AssignedLicenses.SkuId) { $LicenseSkuId = $Office365E3 }
- If ($Office365E5NoConf -in $User.AssignedLicenses.SkuId)  { $LicenseSkuId = $Office365E5NoConf }
- If ($Office365E5 -in $User.AssignedLicenses.SkuId) { $LicenseSkuId = $Office365E5 }
- If ($Office365E1 -in $User.AssignedLicenses.SkuId) { $LicenseSkuId = $Office365E1 }
-
- # Examine service plans assigned to the account to see if they include Kaizala
- [array]$AllLicenses = Get-MgUserLicenseDetail -UserId $User.Id | Select-Object -ExpandProperty ServicePlans | Sort-Object ServicePlanId -Unique
- [array]$Licenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Success'}
- [array]$DisabledLicenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Disabled'}
- # Set the appropriate value for the Kaizala service plan appropriate for the license
- If ($KaizalaPlan2 -in $Licenses.ServicePlanId) { $License = "Office 365 E1"; $ServicePlanId = $KaizalaPlan2 }
- If ($KaizalaPlan3 -in $Licenses.ServicePlanId) { $License = "Office 365 E3"; $ServicePlanId = $KaizalaPlan3 }
- If ($KaizalaStandalone -in $Licenses.ServicePlanId) { $License = "Office 365 E5"; $ServicePlanId = $KaizalaStandalone }
-   
- If ($License) { # Update the assigned license on the account
-
- # Add any previously disabled license if they exist to the Kaizala service plan and compose the license options
- [array]$DisabledSPs = $DisabledLicenses.ServicePlanId
- $DisabledSPs += $ServicePlanId
-
- $LicenseOptions = @{SkuId = $LicenseSkuId ; DisabledPlans = $DisabledSPs} 
-
- Write-Host ("Removing the Kaizala service plan from the {0} license for account {1}" -f $License, $User.DisplayName) -foregroundcolor Red
- $Status = Set-MgUserLicense -UserId $User.Id -AddLicenses $LicenseOptions -RemoveLicenses @()
- $ReportLine  = [PSCustomObject] @{
-       User       = $User.DisplayName 
-       UPN        = $User.UserPrincipalName
-       Department = $User.Department
-       Country    = $User.Country
-       License    = $License } 
-    $LicenseUsers.Add($ReportLine) }
+Write-Host "Searching for licensed accounts"
+[array]$Users = Get-MgUser -PageSize 250 -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All | Sort-Object DisplayName
+If (!($Users)) { 
+    Write-Host "Oddly, we can't find any licensed users... exiting!" ; break 
 }
 
-CLS
+ForEach ($User in $Users) {
+    $i++
+    Write-Host ("Checking licenses assigned to account {0} {1}/{2}" -f $User.Displayname, $i, $Users.count)
+    $License = $Null; $LicenseSkuId = $Null
+    # Find out what SKU the account has
+    If ($Office365E3 -in $User.AssignedLicenses.SkuId) { $LicenseSkuId = $Office365E3 }
+    If ($Office365E5NoConf -in $User.AssignedLicenses.SkuId)  { $LicenseSkuId = $Office365E5NoConf }
+    If ($Office365E5 -in $User.AssignedLicenses.SkuId) { $LicenseSkuId = $Office365E5 }
+    If ($Office365E1 -in $User.AssignedLicenses.SkuId) { $LicenseSkuId = $Office365E1 }
+
+    # Examine service plans assigned to the account to see if they include Kaizala
+    [array]$AllLicenses = Get-MgUserLicenseDetail -UserId $User.Id | Select-Object -ExpandProperty ServicePlans | Sort-Object ServicePlanId -Unique
+    [array]$Licenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Success'}
+    [array]$DisabledLicenses = $AllLicenses | Where-Object {$_.ProvisioningStatus -eq 'Disabled'}
+    # Set the appropriate value for the Kaizala service plan appropriate for the license
+    If ($KaizalaPlan2 -in $Licenses.ServicePlanId) { 
+        $License = "Office 365 E1"; $ServicePlanId = $KaizalaPlan2 
+    }
+    If ($KaizalaPlan3 -in $Licenses.ServicePlanId) { 
+        $License = "Office 365 E3"; $ServicePlanId = $KaizalaPlan3 
+    }
+    If ($KaizalaStandalone -in $Licenses.ServicePlanId) { 
+        $License = "Office 365 E5"; $ServicePlanId = $KaizalaStandalone 
+    }
+   
+    If ($License) { # Update the assigned license on the account
+
+    # Add any previously disabled license if they exist to the Kaizala service plan and compose the license options
+        [array]$DisabledSPs = $DisabledLicenses.ServicePlanId
+        $DisabledSPs += $ServicePlanId
+
+        $LicenseOptions = @{SkuId = $LicenseSkuId ; DisabledPlans = $DisabledSPs} 
+
+        Write-Host ("Removing the Kaizala service plan from the {0} license for account {1}" -f $License, $User.DisplayName) -foregroundcolor Red
+        Try {
+            Set-MgUserLicense -UserId $User.Id -AddLicenses $LicenseOptions -RemoveLicenses @() | Out-Null
+            $ReportLine  = [PSCustomObject] @{
+                User       = $User.DisplayName 
+                UPN        = $User.UserPrincipalName
+                Department = $User.Department
+                Country    = $User.Country
+                License    = $License 
+            } 
+            $LicenseUsers.Add($ReportLine) 
+        } Catch {
+            Write-Host ("Failed to remove the Kaizala service plan from the {0} license for account {1}" -f $License, $User.DisplayName) -foregroundcolor Red
+        }
+    }  
+} 
+
+Clear-Host
 Write-Host ("{0} Kaizala licenses were found and removed from these accounts:" -f $LicenseUsers.count)
 $LicenseUsers.User
 

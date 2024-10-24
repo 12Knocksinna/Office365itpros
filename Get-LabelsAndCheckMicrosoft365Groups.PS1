@@ -53,7 +53,7 @@ ForEach ($Group in $Groups) {
         $CurrentLabelName = $Group.assignedLabels.DisplayName
         $CurrentLabelId = $Group.assignedLabels.LabelId
         $DateLabelUpdated = Get-Date -format 'yyyy-MM-ddTHH:mm:ssZ'
-        $LabelSchemaSettings  = @{}
+        $LabelSchemaSettings = @{}
         $LabelSchemaSettings.Add("LabelId", $CurrentLabelId)
         $LabelSchemaSettings.Add("LabelDisplayName", $CurrentLabelName)
         $LabelSchemaSettings.Add("DateLabelUpdated", $DateLabelUpdated)
