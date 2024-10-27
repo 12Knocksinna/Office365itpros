@@ -3,13 +3,25 @@
 # V2.0 4-Dec-2022
 # V2.1 9-Apr-2023
 # V2.2 28-Apr-2023
-# V2.3 9-Jul-2023 (include support for Microsoft Graph PowerShell SDK V2.0)
-# V2.4 12-Aug (make sure that everything works well for PowerShell V5 and V7 )
+# V2.3 9-Jul-2023 include support for Microsoft Graph PowerShell SDK V2.0
+# V2.4 12-Aug-2023 Make sure that everything works well for PowerShell V5 and V7
+# V2.5 25-Oct-2024 Add check for admin rights and PowerShell 7
 # https://github.com/12Knocksinna/Office365itpros/blob/master/UpdateOffice365PowerShellModules.PS1
 # Very simple script to check for updates to a defined set of PowerShell modules used to manage Office 365 services
 # If an update for a module is found, it is downloaded and applied.
 # Once all modules are checked for updates, we remove older versions that might be present on the workstation. V2.1 improves the processing of Microsoft Graph SDK sub-modules
 #  
+
+# Check that we have administrator rights to install and update modules
+$IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+If (!$IsAdmin) {
+    Write-Host "You must be signed in as an administrator to update modules" -ForegroundColor Red
+    Break
+}
+If ($Host.Version.Major -lt 7) {
+    Write-Host ("Current version is {0}. This script requires PowerShell 7" -f $Host.Version) -ForegroundColor Red
+    Break
+}
 
 # Define the set of modules installed and updated from the PowerShell Gallery that we want to maintain - edit this set of modules to include the modules 
 # you want to process.
