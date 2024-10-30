@@ -36,6 +36,7 @@ $CP5 = "Copilot in Teams"
 $CP6 = "Copilot in Stream"
 $CP7 = "Copilot in OneNote"
 $CP8 = "Copilot in Loop"
+$CP9 = "Copilot in SharePoint"
 
 [datetime]$StartDate = (Get-Date).AddDays(-365)
 [string]$StartDate = Get-Date $StartDate -Format "yyyy-MM-ddTHH:mm:ssZ"
@@ -100,11 +101,11 @@ Write-Host "Fetching messages sent by Copilot from the TeamsMessagesData folder"
     -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
     and (sender/emailAddress/name eq '$CP0' or sender/emailAddress/name eq '$CP1' or sender/emailAddress/name eq '$CP2' `
     or sender/emailAddress/name eq '$CP3' or sender/emailAddress/name eq '$CP4' or sender/emailAddress/name eq '$CP5' `
-    or sender/emailAddress/name eq '$CP6' or sender/emailAddress/name eq '$CP7' or sender/emailAddress/name eq '$CP8')" `
-    -Property Sender, SentDateTime, BodyPreview, ToRecipients
+    or sender/emailAddress/name eq '$CP6' or sender/emailAddress/name eq '$CP7' or sender/emailAddress/name eq '$CP8'
+    or sender/emailAddress/name eq '$CP9')" -Property Sender, SentDateTime, BodyPreview, ToRecipients
    
 If (!($Items)) {
-    Write-Host "Failed to find folder identifier for the TeamsMessagesData folder"
+    Write-Host "Failed to find Copilot interactions in the TeamsMessagesData folder"
     Break
 }
 
@@ -115,7 +116,6 @@ Write-Host "Finding messages received by Copilot..."
     -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
     AND (singleValueExtendedProperties/any(ep:ep/id eq 'String 0x0E04' and contains(ep/value,'Copilot in')))" 
    
-
 # And because we have some prompts received by "Microsoft 365 Chat", we need to find them too
 [array]$ItemsChat = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId 'TeamsMessagesData' `
     -All -PageSize 500 -Property Sender, SentDateTime, BodyPreview, ToRecipients `
