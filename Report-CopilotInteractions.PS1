@@ -14,14 +14,17 @@
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ('ExchangeOnlineManagement' -notin $Modules) {
     Write-Host "Connecting to Exchange Online..."
-    Connect-ExchangeOnline -SkipLoadingCmdletHelp
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp -NoBanner
 }
 
 # Scopes needed 
 # User.Read - read user profiles
 # Mail.Read - read 
 # These are application permissions
-Connect-MgGraph -NoWelcome User.Read, Mail.Read
+If (!(Get-MgContext).Account) {
+    Write-Host "Connecting to Microsoft Graph..."
+    Connect-MgGraph -NoWelcome User.Read, Mail.Read
+}
 
 # The example code runs with delegated permissions. To run in application mode to extract data from
 # multiple mailboxes, use an Entra ID app with a certificate to authenticate or run the code in Azure
