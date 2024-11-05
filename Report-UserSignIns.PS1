@@ -2,7 +2,7 @@
 # Report user sign ins with information about what apps are used based on what is available in the Entra Audit Sign-in Log
 
 # V1.0 5-Nov-2024
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-UserSignIns.PS1
 
 Write-Host "Checking connections..."
 $Modules = Get-Module | Select-Object -ExpandProperty Name
