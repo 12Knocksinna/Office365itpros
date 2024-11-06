@@ -8,7 +8,7 @@ Write-Host "Checking connections..."
 $Modules = Get-Module | Select-Object -ExpandProperty Name
 If ('ExchangeOnlineManagement' -notin $Modules) {
     Write-Host "Connecting to Exchange Online..."
-    Connect-ExchangeOnline -SkipLoadingCmdletHelp -NoBanner
+    Connect-ExchangeOnline -SkipLoadingCmdletHelp -ShowBanner:$false
 }       
 If (!(Get-MgContext).Account) {
     Write-Host "Connecting to Microsoft Graph..."
