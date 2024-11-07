@@ -10,8 +10,14 @@ If (!(Get-MgContext).Account) {
     Connect-MgGraph -NoWelcome -Scopes Reports.Read.All, ReportSettings.ReadWrite.All, User.Read.All
 }   
 
+# Define the score that marks a user as underusing Microsoft 365 Copilot
+[double]$MicrosoftCopilotScore = 30
+
+# Sku Id for the Microsoft 365 Copilot license
+[guid]$CopilotSKUId = "639dec6b-bb19-468b-871c-c5c441c4b0cb"
+
 Write-Host "Scanning for user accounts with Microsoft 365 Copilot licenses..."
-[array]$Users = Get-MgUser -Filter "usertype eq 'Member' and assignedLicenses/any(s:s/skuId eq 639dec6b-bb19-468b-871c-c5c441c4b0cb)" `
+[array]$Users = Get-MgUser -Filter "usertype eq 'Member' and assignedLicenses/any(s:s/skuId eq $CopilotSkuId)" `
     -ConsistencyLevel Eventual -CountVariable Licenses -All -Sort 'displayName' `
     -Property Id, displayName, signInActivity, userPrincipalName -PageSize 999
 
@@ -28,9 +34,6 @@ If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $true) {
     Update-MgAdminReportSetting -BodyParameter $Parameters
     $ConcealedNames = $false
 }
- 
-# Define the score that marks a user as underusing Microsoft 365 Copilot
-[double]$MicrosoftCopilotScore = 30
 
 # Fetch usage data for Copilot
 Write-Host "Fetching Microsoft 365 Copilot usage data..."
@@ -170,13 +173,35 @@ If (!($UnderusedCopilot)) {
     [string]$Decision = Read-Host "Do you want to remove the licenses from these users"
     If ($Decision.Substring(0,1).toUpper() -eq "Y") {
         ForEach ($User in $UnderusedCopilot) {
-            Write-Host ("Removing Microsoft 365 Copilot license from {0}" -f $User.User)
-            Try {
-                Set-MgUserLicense -UserId $User.UserPrincipalName -AddLicenses @{} -RemoveLicenses "639dec6b-bb19-468b-871c-c5c441c4b0cb" -ErrorAction Stop | Out-Null
-                $RemovedLicenses++
-            } Catch {
-                Write-Host ("Failed to remove Microsoft 365 Copilot license from {0}: {1}" -f $User.User, $_.Exception.Message)
+            # Check that the user still has a Copilot license...      
+            $UserLicenseData = $User = Get-MgUser -Userid $User.UserPrincipalName -Property Id, displayName, userPrincipalName, assignedLicenses, licenseAssignmentStates
+            If ($CopilotSKUId -notin $UserLicenseData.assignedLicenses.skuId) {
+                Write-Host ("The {0} account does not have a Microsoft 365 Copilot license" -f $UserLicenseData.displayName)
+                Continue
             }
+            # Direct assigned license or group-assigned license?
+            [array]$CopilotLicense = $User.LicenseAssignmentStates | Where-Object {$_.skuId -eq $CopilotSkuId}
+            If ($null -eq $CopilotLicense[0].assignedByGroup) {
+                # Process the removal of a direct-assigned license
+                Try {
+                    Write-Host ("Removing direct-assigned Microsoft 365 Copilot license from {0}" -f $UserLicenseData.displayName) -ForegroundColor Yellow
+                    Set-MgUserLicense -UserId $UserLicenseData.Id -AddLicenses @{} -RemoveLicenses @($CopilotSKUId) -ErrorAction Stop | Out-Null
+                    $RemovedLicenses++
+                } Catch {
+                    Write-Host ("Failed to remove Microsoft 365 Copilot license from {0}: {1}" -f $UserLicenseData.displayName, $_.Exception.Message) -ForegroundColor Red
+                }
+            } Else {
+                # Process the removal of a group-assigned license
+                Write-Host ("Removing group-assigned Microsoft 365 Copilot license from {0}" -f $UserLicenseData.displayName) -ForegroundColor Yellow
+                $GroupId = $CopilotLicense[0].assignedByGroup
+                Try {
+                    Remove-MgGroupMemberDirectoryObjectByRef -DirectoryObjectId $UserLicenseData.Id -GroupId $GroupId -ErrorAction Stop
+                    $RemovedLicenses++
+                } Catch {
+                    Write-Host ("Failed to remove Microsoft 365 Copilot license for {0} from group {1}: {2}" -f $UserLicenseData.displayName, $GroupId, $_.Exception.Message) -ForegroundColor Red
+                }
+            }
+            
         }
         Write-Host ("{0} licenses removed" -f $RemovedLicenses)
     } Else {
