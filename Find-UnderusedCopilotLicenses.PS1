@@ -167,7 +167,7 @@ ForEach ($User in $Users) {
 If (!($UnderusedCopilot)) {
     Write-Host "No users found to be underusing an assigned Microsoft 365 Copilot license"
 } Else {
-    [int]$RemovedLicenses = 0
+    $LicenseReport = [System.Collections.Generic.List[Object]]::new()
     Write-Host ("The folllowing {0} users are underusing their assigned Microsoft 365 Copilot license" -f $UnderusedCopilot.Count)
     $UnderusedCopilot | Sort-Object {$_.'Overall Score' -as [double]} | Select-Object User, UserPrincipalName, 'Number active apps', 'Overall Score' | Format-Table -AutoSize
     [string]$Decision = Read-Host "Do you want to remove the licenses from these users"
@@ -186,7 +186,14 @@ If (!($UnderusedCopilot)) {
                 Try {
                     Write-Host ("Removing direct-assigned Microsoft 365 Copilot license from {0}" -f $UserLicenseData.displayName) -ForegroundColor Yellow
                     Set-MgUserLicense -UserId $UserLicenseData.Id -AddLicenses @{} -RemoveLicenses @($CopilotSKUId) -ErrorAction Stop | Out-Null
-                    $RemovedLicenses++
+                    $LicenseReportLine = = [PSCustomObject][Ordered]@{ 
+                        UserPrincipalName   = $UserLicenseData.UserPrincipalName
+                        User                = $UserLicenseData.displayName
+                        Action              = "Removed direct assigned Copilot license"
+                        SkuId               = $CopilotSKUId
+                        Timestamp           = Get-Date -format s
+                    }
+                    $LicenseReport.Add($LicenseReportLine)
                 } Catch {
                     Write-Host ("Failed to remove Microsoft 365 Copilot license from {0}: {1}" -f $UserLicenseData.displayName, $_.Exception.Message) -ForegroundColor Red
                 }
@@ -196,25 +203,58 @@ If (!($UnderusedCopilot)) {
                 $GroupId = $CopilotLicense[0].assignedByGroup
                 Try {
                     Remove-MgGroupMemberDirectoryObjectByRef -DirectoryObjectId $UserLicenseData.Id -GroupId $GroupId -ErrorAction Stop
-                    $RemovedLicenses++
+                    $LicenseReportLine = [PSCustomObject][Ordered]@{ 
+                        UserPrincipalName   = $UserLicenseData.UserPrincipalName
+                        User                = $UserLicenseData.displayName
+                        Action              = ("Removed group assigned Copilot license from {0}" -f $GroupId)
+                        SkuId               = $CopilotSKUId
+                        Timestamp           = Get-Date -format s
+                    }
+                    $LicenseReport.Add($LicenseReportLine)
                 } Catch {
                     Write-Host ("Failed to remove Microsoft 365 Copilot license for {0} from group {1}: {2}" -f $UserLicenseData.displayName, $GroupId, $_.Exception.Message) -ForegroundColor Red
                 }
             }
             
         }
-        Write-Host ("{0} licenses removed" -f $RemovedLicenses)
+        Write-Host ("{0} licenses removed" -f $LicemseReport.Count)
     } Else {
         Write-Host "No licenses removed"
     }
 }
+
+If ($LicenseReport) {
+    Write-Host ""
+    Write-Host "License removal report"
+    $LicenseReport | Select-Object Timestamp, User, UserPrincipalName, Action | Sort-Object Timestamp | Format-Table -AutoSize
+}
+
+Write-Host "Generating report..."
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Underused Copilot Licenses.xlsx"
+    If (Test-Path $ExcelOutputFile) {
+        Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+    }
+    $UnderusedCopilot | Export-Excel -Path $ExcelOutputFile -WorksheetName "Copilot License Report" -Title ("Underused Copilot License Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "UnderusedCopilot" 
+} Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Underused Copilot License.CSV"
+    $UnderusedCopilot | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+}
+ 
+If ($ExcelGenerated) {
+    Write-Host ("An Excel report of underused Microsoft 365 Copilot licenses is available in {0}" -f $ExcelOutputFile)
+} Else {    
+    Write-Host ("A CSV report of underused Microsoft 365 Copilot licenses is available in {0}" -f $CSVOutputFile)
+}  
 
 
 # Reset tenant obfuscation settings to True if we switched the setting earlier
 If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $false -and $ConcealedNames) {
     $Parameters = @{ displayConcealedNames = $True }
     Update-MgAdminReportSetting -BodyParameter $Parameters
- }
+}
  
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.

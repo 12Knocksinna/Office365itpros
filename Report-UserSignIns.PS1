@@ -90,12 +90,15 @@ Write-Host "Generating report..."
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
     Import-Module ImportExcel -ErrorAction SilentlyContinue
+    If (Test-Path $ExcelOutputFile) {
+        Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+    }
     $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\User SignIn Report.xlsx"
     $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "User Sign In Report" -Title ("User Sign In Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "UserSignIns" 
    
 } Else {
-      $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\User SignIn Report.CSV"
-      $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\User SignIn Report.CSV"
+    $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
 }
  
 If ($ExcelGenerated) {
