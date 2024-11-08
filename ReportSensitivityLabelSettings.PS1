@@ -1,58 +1,70 @@
 # ReportSensitivityLabelSettings.PS1
 # A script to report the settings of sensitivity labels
 # V1.0 15-Feb-2023
+# V2.0 8-Nov-2024  Added note if label blocks content analysis services
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSensitivityLabelSettings.PS1
 
 Function CheckRightsIdentity {
  [cmdletbinding()]
     Param([string]$RightsIdentity)
 
-  $RightsCheck = $False
-  If ($RightsIdentity -eq "AuthenticatedUsers") {
-     $RightsCheck = $True
-     Return $RightsCheck }
+   $RightsCheck = $false
+   If ($RightsIdentity -eq "AuthenticatedUsers") {
+      $RightsCheck = $true
+      Return $RightsCheck 
+   }
 
- If ($RightsIdentity -like "*@*")  {
-   $Domain = $RightsIdentity.Split("@")[1].toLower()
-   If ($Domain -in $Domains) { # It's an email address belonging to our tenant
-      $CheckUser = Get-ExoRecipient -Identity $RightsIdentity -ErrorAction SilentlyContinue
-      If (!($CheckUser)) { $RightsCheck = $False; Return $RightsCheck 
-      } Else { $RightsCheck = $True; Return $RightsCheck }
-   } 
- }
+   If ($RightsIdentity -like "*@*")  {
+      $Domain = $RightsIdentity.Split("@")[1].toLower()
+      If ($Domain -in $Domains) { # It's an email address belonging to our tenant
+         $CheckUser = Get-ExoRecipient -Identity $RightsIdentity -ErrorAction SilentlyContinue
+         If (!($CheckUser)) { 
+            $RightsCheck = $False; Return $RightsCheck 
+         } Else { 
+            $RightsCheck = $True; Return $RightsCheck
+         }
+      } 
+   }
 
  # Check a domain name https://learn.microsoft.com/en-gb/archive/blogs/tip_of_the_day/cloud-tip-of-the-day-use-powershell-to-check-domain-availability-for-office-365-and-azure
  # Don't bother for Outlook.com or microsoft.com - always Unmanaged for some reason
- Switch ($RightsIdentity) {
-  "outlook.com"  {
-     $RightsCheck = $True 
-     $Global:CheckMessage = "consumer domain"
-     break }
-  "microsoft.com" {
-     $RightsCheck = $True; break }
+   Switch ($RightsIdentity) {
+   "outlook.com"  {
+      $RightsCheck = $True 
+      $Global:CheckMessage = "consumer domain"
+      break 
+   }
+   "microsoft.com" {
+      $RightsCheck = $True
+      break 
+   }
   "gmail.com" { 
      $RightsCheck = $True 
      $Global:CheckMessage = "consumer domain" 
-     break }
+     break 
+   }
   "google.com"  {
      $RightsCheck = $True 
      $Global:CheckMessage = "consumer domain" 
-     break }
-  "yandex.com"  {
+     break 
+   }
+   "yandex.com"  {
      $RightsCheck = $True 
      $Global:CheckMessage = "consumer domain" 
-     break }
-  default {
-     $Uri =  ('https://login.microsoftonline.com/getuserrealm.srf?login=user@{0}&xml=1' -f $RightsIdentity)
-     $CheckDomain = Invoke-WebRequest -Uri $Uri
-     If ($CheckDomain.StatusCode -eq 200) {
-       $NamespaceType = ([xml]($CheckDomain.Content)).RealmInfo.NameSpaceType
-       If ($NameSpaceType -eq "Managed") { # Azure AD domain
-         $RightsCheck = $True; Return $RightsCheck 
-       } Else {
-         $RightsCheck = $False; Return $RightsCheck }
-      }}
-   } #End Switch
+     break 
+   }
+   default {
+      $Uri =  ('https://login.microsoftonline.com/getuserrealm.srf?login=user@{0}&xml=1' -f $RightsIdentity)
+      $CheckDomain = Invoke-WebRequest -Uri $Uri
+      If ($CheckDomain.StatusCode -eq 200) {
+         $NamespaceType = ([xml]($CheckDomain.Content)).RealmInfo.NameSpaceType
+         If ($NameSpaceType -eq "Managed") { # Entra ID domain
+         $  RightsCheck = $True; Return $RightsCheck 
+         } Else {
+            $RightsCheck = $False; Return $RightsCheck }
+         }
+   }
+} #End Switch
        
 Return $RightsCheck
 }
@@ -83,9 +95,12 @@ $HtmlReportFile = "c:\temp\SenstivityLabelSettings.html"
 $CSVReportFile = "c:\temp\LabelInfo.CSV"
 
 $Modules = Get-Module | Select-Object -ExpandProperty Name
-If ("ExchangeOnlineManagement" -notin $Modules) { Write-Host "Please connect to Exchange Online management before running the script" ; break }
-# Connect to compliance endpoint
-Connect-IPPSSession
+If ("ExchangeOnlineManagement" -notin $Modules) { 
+   Write-Host "Connecting to Exchange Online..."
+   Connect-ExchangeOnline -ShowBanner:$False -SkipLoadingCmdletHelp
+   # Connect to compliance endpoint
+   Connect-IPPSSession -ShowBanner:$False
+}
 
 [array]$Global:Domains = (Get-AcceptedDomain).DomainName
 
@@ -95,39 +110,51 @@ If (!($Labels)) { Write-Host "Can't get details of sensitivity labels - exiting"
 Write-Host ("Processing details for {0} sensitivity labels" -f $Labels.count)
 
 $LabelInfo = [System.Collections.Generic.List[Object]]::new() 
+$LabelSettingsInfo = [System.Collections.Generic.List[Object]]::new()
 $NewLine = "`r`n"
 [int]$i = 0
 ForEach ($Label in $Labels) {
- $i++
- Write-Host ("Processing label: {0} ({1}/{2})" -f $Label.DisplayName, $i, $Labels.count)
- $LabelActions = (Get-Label -Identity $Label.ImmutableId).LabelActions | Convertfrom-JSON
- ForEach ($Section in $LabelActions) {
-    $SectionSettings = $Section.Settings
-      ForEach ($Setting in $SectionSettings) { 
-        $Value = $Null; $DisplayName = $Null
-        Switch ($Setting.Key) {
-         "rightsdefinitions" {
-          [array]$Rights = $Setting.Value | ConvertFrom-Json
-          [int]$r = 0
-          ForEach ($Right in $Rights) {
-           $r++
-           $RightsCheck = $False; $CheckMessage = $Null
-           $RightsCheck = CheckRightsIdentity($Right.Identity)
-           $RightsFormat = ("{0} rights: {1}" -f $Right.Identity, $Right.Rights)
-           If ($RightsCheck -eq $False) { $RightsFormat = $RightsFormat + " (Warning: Rights assigned to unverified holder)" }
-           If ($CheckMessage) { $RightsFormat = ("{0} (Warning: {1})" -f $RightsFormat, $CheckMessage) }
-           if ($r -lt $Rights.count) { $RightsFormat = $RightsFormat + $Newline }
-           $Value += $RightsFormat } 
+   $i++
+   Write-Host ("Processing label: {0} ({1}/{2})" -f $Label.DisplayName, $i, $Labels.count)
+   $LabelActions = (Get-Label -Identity $Label.ImmutableId).LabelActions | Convertfrom-JSON
+   ForEach ($Section in $LabelActions) {
+      $SectionSettings = $Section.Settings
+         ForEach ($Setting in $SectionSettings) { 
+         $Value = $Null; $DisplayName = $Null
+         Switch ($Setting.Key) {
+            "rightsdefinitions" {
+            [array]$Rights = $Setting.Value | ConvertFrom-Json
+            [int]$r = 0
+            ForEach ($Right in $Rights) {
+               $r++
+               $RightsCheck = $False; $CheckMessage = $Null
+               $RightsCheck = CheckRightsIdentity($Right.Identity)
+               $RightsFormat = ("{0} rights: {1}" -f $Right.Identity, $Right.Rights)
+               If ($RightsCheck -eq $False) { 
+                  $RightsFormat = $RightsFormat + " (Warning: Rights assigned to unverified holder)" 
+               }
+               If ($CheckMessage) { 
+                  $RightsFormat = ("{0} (Warning: {1})" -f $RightsFormat, $CheckMessage) 
+               }
+               If ($r -lt $Rights.count) { 
+                  $RightsFormat = $RightsFormat + $Newline 
+               }
+               $Value += $RightsFormat 
+               } 
+            }
+            "protectionlevel" {
+               $Protection = $Setting.Value | ConvertFrom-Json
+               $Value = ("Id {0} {1} ({2})" -f $Protection.Id, $Protection.DisplayName, $Protection.Description)
+            }
+            Default {
+               $Value = $Setting.Value 
+            }
          }
-         "protectionlevel" {
-          $Protection = $Setting.Value | ConvertFrom-Json
-          $Value = ("Id {0} {1} ({2})" -f $Protection.Id, $Protection.DisplayName, $Protection.Description)
-         }
-          Default {
-           $Value = $Setting.Value }
-         }
-         If ($Label.ParentLabelDisplayName) { $DisplayName = ("{0}/{1}" -f $Label.ParentLabelDisplayName, $Label.DisplayName) 
-          } Else { $DisplayName = $Label.DisplayName }          
+         If ($Label.ParentLabelDisplayName) { 
+            $DisplayName = ("{0}/{1}" -f $Label.ParentLabelDisplayName, $Label.DisplayName) 
+         } Else { 
+            $DisplayName = $Label.DisplayName 
+         }        
          $DataLine  = [PSCustomObject] @{
             Label    = $DisplayName
             Applies  = $Label.ContentType
@@ -137,8 +164,21 @@ ForEach ($Label in $Labels) {
             Key      = $Setting.Key
             Value    = $Value }
          $LabelInfo.Add($DataLine)
-      } #End ForEach setting
-   } #End ForEach section
+      } #End of processing the individual settings
+   } #End of processng the label actions
+   # Check overall label settings and extract values
+   $LabelSettings = $Label.Settings  
+   $SettingsArray = $LabelSettings -split "`n"
+   ForEach ($Setting in $SettingsArray) {
+      $Key, $Value = $Setting -split ",", 2
+      $Value = $Value.trim()
+      $DataLine = [PSCustomObject]@{
+         Label    = $Label.DisplayName
+         Key      = $Key.substring(1,$Key.length -1).trim()
+         Value    = $Value = $Value.Substring(0, $Value.length-1)
+      }
+      $LabelSettingsInfo.Add($DataLine)
+   }
 } #End ForEach label
 
 $LabelInfo | Out-GridView
@@ -152,6 +192,11 @@ $LabelInfo | Export-CSV -NoTypeInformation $CSVReportFile
 ForEach ($L in $LabelNames) {
    $DataToReport = $LabelInfo | Where-Object {$_.Label -eq $L} 
    $HtmlHeading = ("<p><h1>Settings for Sensitivity label <b>{0}</b></h1></p><p><h2>Label Scope: <i>{1}</i>  Label Priority: <i>{2}</i></p></h2>" -f $L, $DataToReport[0].Applies, $DataToReport[0].Priority)
+   
+   If (($LabelSettingsInfo | Where-Object {$_.Label -eq $L -and $_.Key -eq 'blockcontentanalysisservices'} | Select-Object -ExpandProperty Value) -eq 'True') {
+      $HtmlHeading = $HtmlHeading + "<p><h3><b>This label blocks access to content analysis services</b></h3></p>"
+   }
+   
    $DataToReport = $DataToReport | Select-Object Section, Subtype, Key, Value
    $HtmlData = $DataToReport | ConvertTo-Html -Fragment
    $HtmlReport = $HtmlReport + $HtmlHeading + $HtmlData 
@@ -165,12 +210,14 @@ $Htmltail = "<p>Report created for: " + ((Get-OrganizationConfig).DisplayName) +
 $HtmlReport = $HtmlHead + $HtmlReport + $HtmlTail
 $HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
 Write-Host ("The sensitivity Labels settings report files are available in {0} (HTML) and {1} (CSV)" -f $HtmlReportFile, $CSVReportFile)
+
 # Check if any warnings are found
 [array]$Warnings = $LabelInfo | Where-Object {$_.Value -like "*warning: rights*"} | Select-Object Label, Applies, Priority, Value
 If ($Warnings) {
-Write-Host " "
-Write-Host "You should check these warnings flagged for rights assignments:"
-$Warnings | Format-List }
+   Write-Host ""
+   Write-Host "You should check these warnings flagged for labels with rights assignments to unverified or consumer domains"
+   $Warnings | Format-List
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
