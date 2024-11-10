@@ -2,6 +2,7 @@
 # Example script to show how to report Entra ID role assignments (PIM or direct) using the 
 # Microsoft Graph PowerShell SDK
 # V1.0 14-Aug-2024  Tested with SDK V2.22. Based on some original code tweeted by Nathan McNulty
+# V2.0 10-Nov-2024  Updated to use the unifiedRoleDefinition API
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RoleAssignments.PS1
 
 Connect-MgGraph -Scopes RoleAssignmentSchedule.Read.Directory, RoleEligibilitySchedule.Read.Directory, Group.Read.All, GroupMember.Read.All -NoWelcome
@@ -172,27 +173,46 @@ ForEach ($Assignment in $EligibleAssignments) {
 
 $PIMAssignments = $ActiveAssignments.count + $EligibleAssignments.count
 If ($PIMAssignments -eq 0) {
-    # Tenant must not be using PIM, so let's do directory roles instead
-    [array]$DirectoryRoles = Get-MgDirectoryRole -All
+    # Tenant must not be using PIM, so let's interrogate the unified directory roles for direct permanent assignments instead
+    [array]$DirectoryRoles = Get-MgRoleManagementDirectoryRoleDefinition -All
 
     ForEach ($Role in $DirectoryRoles) {
-   
-        [array]$RoleMembers = Get-MgDirectoryRoleMember -DirectoryRoleId $Role.Id
+        $RoleId = $Role.Id
+        [array]$RoleMembers = Get-MgRoleManagementDirectoryRoleAssignment -Filter "roleDefinitionId eq '$RoleId'" -ExpandProperty "principal"
         If ($RoleMembers) {
             $RoleName = $Role.DisplayName      
             ForEach ($Member in $RoleMembers) {
-                $User = Get-MgUser -UserId $Member.Id
+                $MemberDetails = Get-MgUser -UserId $Member.PrincipalId -ErrorAction SilentlyContinue
+                If ($MemberDetails) {
+                    If ($User.OnPremisesSyncEnabled) {
+                        $OnPremisesStatus = $User.OnPremisesSyncEnabled
+                    } Else {
+                        $OnPremisesStatus = "N/A"
+                    }
                     $ReportLine = [PSCustomObject][Ordered]@{
                         RoleName            = $RoleName
-                        UserPrincipalName   = $User.UserPrincipalName
-                        DirectoryScope      = "Complete directory"
-                        OnPremisesUser      = $User.OnPremisesSyncEnabled
+                        UserPrincipalName   = $MemberDetails.UserPrincipalName
+                        DirectoryScope      = "Entire Directory"
+                        OnPremisesUser      = $OnPremisesStatus
                         AssignmentType      = "User"  
                         MemberType          = "Direct (non-PIM)"
                     }
+                } Else {
+                    $MemberDetails = Get-MgServicePrincipal -ServicePrincipalId $Member.PrincipalId -ErrorAction SilentlyContinue
+                    If ($MemberDetails) {
+                        $ReportLine = [PSCustomObject][Ordered]@{
+                            RoleName            = $RoleName
+                            UserPrincipalName   = $MemberDetails.DisplayName
+                            DirectoryScope      = "Entire directory"
+                            OnPremisesUser      = "N/A"
+                            AssignmentType      = "Service Principal"  
+                            MemberType          = "Direct (non-PIM)"
+                        }
+                    }   
+                }
                 $Report.Add($ReportLine)
             }
-        }
+        }   
     }
 }
 
