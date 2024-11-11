@@ -178,7 +178,7 @@ If ($PIMAssignments -eq 0) {
 
     ForEach ($Role in $DirectoryRoles) {
         $RoleId = $Role.Id
-        [array]$RoleMembers = Get-MgRoleManagementDirectoryRoleAssignment -Filter "roleDefinitionId eq '$RoleId'" -ExpandProperty "principal"
+        [array]$RoleMembers = Get-MgRoleManagementDirectoryRoleAssignment -Filter "roleDefinitionId eq '$RoleId'" 
         If ($RoleMembers) {
             $RoleName = $Role.DisplayName      
             ForEach ($Member in $RoleMembers) {
@@ -197,19 +197,31 @@ If ($PIMAssignments -eq 0) {
                         AssignmentType      = "User"  
                         MemberType          = "Direct (non-PIM)"
                     }
-                } Else {
-                    $MemberDetails = Get-MgServicePrincipal -ServicePrincipalId $Member.PrincipalId -ErrorAction SilentlyContinue
-                    If ($MemberDetails) {
-                        $ReportLine = [PSCustomObject][Ordered]@{
-                            RoleName            = $RoleName
-                            UserPrincipalName   = $MemberDetails.DisplayName
-                            DirectoryScope      = "Entire directory"
-                            OnPremisesUser      = "N/A"
-                            AssignmentType      = "Service Principal"  
-                            MemberType          = "Direct (non-PIM)"
-                        }
-                    }   
+                    Continue
                 }
+                $MemberDetails = Get-MgServicePrincipal -ServicePrincipalId $Member.PrincipalId -ErrorAction SilentlyContinue
+                If ($MemberDetails) {
+                    $ReportLine = [PSCustomObject][Ordered]@{
+                        RoleName            = $RoleName
+                        UserPrincipalName   = $MemberDetails.DisplayName
+                        DirectoryScope      = "Entire directory"
+                        OnPremisesUser      = "N/A"
+                        AssignmentType      = "Service Principal"  
+                        MemberType          = "Direct (non-PIM)"
+                    }
+                    Continue
+                }   
+                $MemberDetails = Get-MgGroup -GroupId $Member.PrincipalId -ErrorAction SilentlyContinue
+                If ($MemberDetails) {
+                    $ReportLine = [PSCustomObject][Ordered]@{
+                        RoleName            = $RoleName
+                        UserPrincipalName   = $MemberDetails.DisplayName
+                        DirectoryScope      = "Entire directory"
+                        OnPremisesUser      = "N/A"
+                        AssignmentType      = "Group"  
+                        MemberType          = "Direct (non-PIM)"
+                    }
+                }   
                 $Report.Add($ReportLine)
             }
         }   
