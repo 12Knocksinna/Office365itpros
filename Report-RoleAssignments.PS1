@@ -3,6 +3,7 @@
 # Microsoft Graph PowerShell SDK
 # V1.0 14-Aug-2024  Tested with SDK V2.22. Based on some original code tweeted by Nathan McNulty
 # V2.0 10-Nov-2024  Updated to use the unifiedRoleDefinition API
+# V2.1 12-Nov-2024  Changed to V1.0 endpoint and added group name for group assignments
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RoleAssignments.PS1
 
 Connect-MgGraph -Scopes RoleAssignmentSchedule.Read.Directory, RoleEligibilitySchedule.Read.Directory, Group.Read.All, GroupMember.Read.All -NoWelcome
@@ -19,8 +20,8 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 
 Write-Host "Checking for PIM active assignments..."
 # Get active assignments
-[array]$ActiveAssignments = Get-MgBetaRoleManagementDirectoryRoleAssignmentSchedule `
-    -ExpandProperty RoleDefinition, Principal, DirectoryScope -All 
+[array]$ActiveAssignments = Get-MgRoleManagementDirectoryRoleAssignmentSchedule `
+    -ExpandProperty RoleDefinition, Principal -All 
 
 Write-Host ("Found {0} PIM active assignments" -f $ActiveAssignments.Count)
 
@@ -58,6 +59,7 @@ ForEach ($Assignment in $ActiveAssignments) {
             
             [array]$Members = (Get-MgGroupMember -GroupId $Assignment.Principal.Id)
             If ($Members) { 
+                $GroupName = (Get-MgGroup -GroupId $Assignment.Principal.Id).DisplayName
                 ForEach ($Member in $Members) {
                     $ReportLine = [PSCustomObject][Ordered]@{
                         RoleName            = $RoleName
@@ -66,7 +68,7 @@ ForEach ($Assignment in $ActiveAssignments) {
                         DirectoryScope      = $AdminUnitName
                         OnPremisesUser      = $OnPremisesUser
                         AssignmentType      = "Active (PIM)"
-                        AssignmentVia       = "Group"
+                        AssignmentVia       = ("{0} (Group)" -f $GroupName)
                         MemberType          = $Assignment.MemberType
                     }
                     $Report.Add($ReportLine)
@@ -97,8 +99,8 @@ ForEach ($Assignment in $ActiveAssignments) {
 Write-Host "Checking for PIM eligible assignments..."
 
 # Get eligible assignments
-[array]$EligibleAssignments = Get-MgBetaRoleManagementDirectoryRoleEligibilitySchedule `
-    -ExpandProperty RoleDefinition,Principal,DirectoryScope -All 
+[array]$EligibleAssignments = Get-MgRoleManagementDirectoryRoleEligibilitySchedule `
+    -ExpandProperty RoleDefinition, Principal  -All 
 Write-Host ("Found {0} PIM eligible assignments" -f $EligibleAssignments.Count)
 
 ForEach ($Assignment in $EligibleAssignments) {
@@ -136,6 +138,7 @@ ForEach ($Assignment in $EligibleAssignments) {
             
             [array]$Members = (Get-MgGroupMember -GroupId $Assignment.Principal.Id)
             If ($Members) { 
+                $GroupName = (Get-MgGroup -GroupId $Assignment.Principal.Id).DisplayName
                 ForEach ($Member in $Members) {
                     $ReportLine = [PSCustomObject][Ordered]@{
                         RoleName            = $RoleName
@@ -144,7 +147,7 @@ ForEach ($Assignment in $EligibleAssignments) {
                         DirectoryScope      = $AdminUnitName
                         OnPremisesUser      = $OnPremisesUser
                         AssignmentType      = "Eligible"
-                        AssignmentVia       = "Group"
+                        AssignmentVia       = ("{0} (Group)" -f $GroupName)
                         MemberType          = $Assignment.MemberType
                     }
                     $Report.Add($ReportLine)
