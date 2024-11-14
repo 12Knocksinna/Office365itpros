@@ -48,7 +48,11 @@ ForEach ($Rec in $Records) {
     $_.Folder -notlike '*Shared Documents/Forms*'
 }
 
+# Eliminate events for AllItems.aspx
 $UserFileOperations = $UserFileOperations | Where-Object {$_.File -ne 'AllItems.aspx'}
+# Eliminate odd entries for SharePoint background operations
+$FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'eba15bfd-c28e-4433-a20e-0278888c5825'}
+$FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'bdc6105c-4e11-4050-82e6-6549f9b99b89'}
 
 Write-Host "Files found with audit records for file operations"
 $UserFileOperations | Group-Object File -NoElement | Sort-Object Count -Descending | Format-Table -AutoSize
@@ -59,9 +63,7 @@ Write-Host ""
 
 Write-Host "Latest file access for each file"
 [array]$FilesAccessed = $UserFileOperations | Where-Object {$_.Operation -eq 'FileAccessed'} | Sort-Object File, {$_.Timestamp -as [DateTime]} -Descending
-# Eliminate odd entries for SharePoint background operations
-$FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'eba15bfd-c28e-4433-a20e-0278888c5825'}
-$FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'bdc6105c-4e11-4050-82e6-6549f9b99b89'}
+
 [array]$LatestFileAccess = $null
 
 $FilesAccessed | Group-Object File | ForEach-Object {
@@ -70,6 +72,7 @@ $FilesAccessed | Group-Object File | ForEach-Object {
 
 $LatestFileAccess | Format-Table File, User, TimeStamp -AutoSize
 
+$FilesAccessed | Out-GridView -Title "SharePoint Files Accessed"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
