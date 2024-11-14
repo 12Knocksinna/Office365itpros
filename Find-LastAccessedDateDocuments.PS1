@@ -2,7 +2,7 @@
 # An example of finding the last accessed date for documents in a SharePoint Online site using audit records
 # V1.0 14-Nov-2024
 
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-LastAccessedDateDocuments.PS1
 
 # Connect to Exchange Online if necessary
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
@@ -59,6 +59,9 @@ Write-Host ""
 
 Write-Host "Latest file access for each file"
 [array]$FilesAccessed = $UserFileOperations | Where-Object {$_.Operation -eq 'FileAccessed'} | Sort-Object File, {$_.Timestamp -as [DateTime]} -Descending
+# Eliminate odd entries for SharePoint background operations
+$FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'eba15bfd-c28e-4433-a20e-0278888c5825'}
+$FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'bdc6105c-4e11-4050-82e6-6549f9b99b89'}
 [array]$LatestFileAccess = $null
 
 $FilesAccessed | Group-Object File | ForEach-Object {
