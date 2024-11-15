@@ -53,6 +53,7 @@ $UserFileOperations = $UserFileOperations | Where-Object {$_.File -ne 'AllItems.
 # Eliminate odd entries for SharePoint background operations
 $FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'eba15bfd-c28e-4433-a20e-0278888c5825'}
 $FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'bdc6105c-4e11-4050-82e6-6549f9b99b89'}
+$FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'app@sharepoint'}
 
 Write-Host "Files found with audit records for file operations"
 $UserFileOperations | Group-Object File -NoElement | Sort-Object Count -Descending | Format-Table -AutoSize
