@@ -7,11 +7,11 @@ Connect-MgGraph -Scopes Directory.Read.All, AuditLog.Read.All -NoWelcome
 
 $CSVOutputFile = "c:\temp\CheckAuditRecordsMFA.csv"
 $TenantId = (Get-MgOrganization).Id
-$StartDate = (Get-Date).AddDays(-15)
+$StartDate = (Get-Date).AddDays(-30)
 $StartDateS = (Get-Date $StartDate -Format s) + "Z"
 
 Write-Host "Looking for sign-in records..."
-[array]$AuditRecords = Get-MgBetaAuditLogSignIn -Top 5000 `
+[array]$AuditRecords = Get-MgBetaAuditLogSignIn -Top 10000 -PageSize 500 `
   -Filter "(CreatedDateTime ge $StartDateS) and (signInEventTypes/any(t:t eq 'interactiveuser')) and (usertype eq 'Member')"
 If (!$AuditRecords) {
     Write-Host "No sign-in records found - exiting"
@@ -75,7 +75,7 @@ ForEach ($User in $Users) {
     $Report.Add($ReportLine)
 }
 
-$Report | Out-GridView
+$Report | Out-GridView -Title 'MFA Usage by User'
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
 [float]$MFACheck = ($MFAUsers/$Users.Count)*100
 $PercentMFAUsers = ($MFAUsers/$Users.Count).toString('P')
@@ -85,7 +85,6 @@ If ($MFACheck -gt 38) {
 } Else {
     Write-Host ("Oh dear! Tenant MFA usage percentage {0} is worse than Entra ID norm (38%)" -f $PercentMFAUsers)
 }
-
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
