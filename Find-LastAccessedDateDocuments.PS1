@@ -12,7 +12,7 @@ If ("ExchangeOnlineManagement" -notin $Modules ) {
 }
 
 # Change the site URL here to match your tenant and the site you want to search
-[string]$TargetSite = "https://yourtenant.sharepoint.com/sites/confidentialstuff/"
+[string]$TargetSite = Read-Host "Enter the URL of the SharePoint site to search. An example is https://yourtenant.sharepoint.com/sites/confidentialstuff/"
 [string]$TargetSearchSite = $TargetSite + "*"
 $StartDate = (Get-Date).AddDays(-180)
 $EndDate = (Get-Date).AddDays(1)
@@ -51,10 +51,13 @@ ForEach ($Rec in $Records) {
 
 # Eliminate events for AllItems.aspx
 $UserFileOperations = $UserFileOperations | Where-Object {$_.File -ne 'AllItems.aspx'}
+
 # Eliminate odd entries for SharePoint background operations
-$FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'eba15bfd-c28e-4433-a20e-0278888c5825'}
-$FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'bdc6105c-4e11-4050-82e6-6549f9b99b89'}
-$FilesAccessed = $FilesAccessed | Where-Object {$_.User -ne 'app@sharepoint'}
+$UserFileOperations = $UserFileOperations | Where-Object {$_.User -ne 'eba15bfd-c28e-4433-a20e-0278888c5825'}
+$UserFileOperations = $UserFileOperations | Where-Object {$_.User -ne 'bdc6105c-4e11-4050-82e6-6549f9b99b89'}
+$UserFileOperations = $UserFileOperations | Where-Object {$_.User -ne '5fe32787-b1cf-46b2-a569-5cb8fe643755'}
+$UserFileOperations = $UserFileOperations | Where-Object {$_.User -ne 'd3223827-5d85-4bd7-96d2-2579d3d0bf7a'}
+$UserFileOperations = $UserFileOperations | Where-Object {$_.User -ne 'app@sharepoint'}
 
 Write-Host "Files found with audit records for file operations"
 $UserFileOperations | Group-Object File -NoElement | Sort-Object Count -Descending | Format-Table -AutoSize
