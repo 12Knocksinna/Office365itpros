@@ -1,7 +1,7 @@
 # Find-LastAccessedDateDocuments.PS1
 # An example of finding the last accessed date for documents in a SharePoint Online site using audit records
 # V1.0 14-Nov-2024
-# V1.1 15-Nov-2024   Added some extra filters for strange GUIDs found in audit records
+# V1.1 15-Nov-2024   Added some extra filters for strange GUIDs found in audit records. Added FileModified records to get a better idea of file activity.
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-LastAccessedDateDocuments.PS1
 
@@ -53,7 +53,7 @@ ForEach ($Rec in $Records) {
 # Eliminate events for AllItems.aspx
 $UserFileOperations = $UserFileOperations | Where-Object {$_.File -ne 'AllItems.aspx'}
 
-# Eliminate odd entries for SharePoint background operations
+# Eliminate odd entries for SharePoint background operations and the SharePoint app
 $UserFileOperations = $UserFileOperations | Where-Object {$_.User -ne 'eba15bfd-c28e-4433-a20e-0278888c5825'}
 $UserFileOperations = $UserFileOperations | Where-Object {$_.User -ne 'bdc6105c-4e11-4050-82e6-6549f9b99b89'}
 $UserFileOperations = $UserFileOperations | Where-Object {$_.User -ne '5fe32787-b1cf-46b2-a569-5cb8fe643755'}
@@ -68,15 +68,23 @@ $UserFileOperations | Group-Object User -NoElement | Sort-Object Count -Descendi
 Write-Host ""
 
 Write-Host "Latest file access for each file"
-[array]$FilesAccessed = $UserFileOperations | Where-Object {$_.Operation -eq 'FileAccessed'} | Sort-Object File, {$_.Timestamp -as [DateTime]} -Descending
+[array]$FilesAccessed = $UserFileOperations | Where-Object {$_.Operation -eq 'FileAccessed' -or $_.Operation -eq  'FileModified'} | Sort-Object File, {$_.Timestamp -as [DateTime]} -Descending
 
-[array]$LatestFileAccess = $null
+# Find set of unique files
+[array]$UniqueFiles = $FilesAccessed | Sort-Object File -Unique | Select-Object -ExpandProperty File
 
-$FilesAccessed | Group-Object File | ForEach-Object {
-    $LatestFileAccess += $_.Group | Sort-Object Timestamp -Descending | Select-Object -First 1
+$LastAccessReport = [System.Collections.Generic.List[Object]]::new()
+ForEach ($File in $UniqueFiles) {
+    $FileAccessInfo =  $FilesAccessed | Where-Object {$_.File -eq $File} | Sort-Object {$_.TimeStamp -as [datetime]} -Descending | Select-Object -First 1
+    $ReportLine2 = [PSCustomObject]@{
+        File        = $FileAccessInfo.File
+        User        = $FileAccessInfo.User
+        TimeStamp   = $FileAccessInfo.Timestamp
+    }
+    $LastAccessReport.Add($ReportLine2)
 }
 
-$LatestFileAccess | Format-Table File, User, TimeStamp -AutoSize
+$LastAccessReport | Format-Table File, User, TimeStamp -AutoSize
 
 $FilesAccessed | Out-GridView -Title "SharePoint Files Accessed"
 
