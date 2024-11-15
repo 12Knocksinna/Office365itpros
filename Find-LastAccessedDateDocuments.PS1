@@ -11,7 +11,8 @@ If ("ExchangeOnlineManagement" -notin $Modules ) {
     Connect-ExchangeOnline -ShowBanner:$false
 }
 
-[string]$TargetSite = "https://redmondassociates.sharepoint.com/sites/confidentialstuff/"
+# Change the site URL here to match your tenant and the site you want to search
+[string]$TargetSite = "https://yourtenant.sharepoint.com/sites/confidentialstuff/"
 [string]$TargetSearchSite = $TargetSite + "*"
 $StartDate = (Get-Date).AddDays(-180)
 $EndDate = (Get-Date).AddDays(1)
