@@ -1,6 +1,7 @@
 # Find-LastAccessedDateDocuments.PS1
 # An example of finding the last accessed date for documents in a SharePoint Online site using audit records
 # V1.0 14-Nov-2024
+# V1.1 15-Nov-2024   Added some extra filters for strange GUIDs found in audit records
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-LastAccessedDateDocuments.PS1
 
