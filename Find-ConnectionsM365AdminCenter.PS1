@@ -2,7 +2,7 @@
 # Find the set of user accounts that have signed into the Microsoft 365 admin center in the last 30 days and
 # report on their MFA status.
 
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-ConnectionsM365AdminCenter.PS1
 
 Connect-MgGraph -Scope AuditLogs.Read.All
 
