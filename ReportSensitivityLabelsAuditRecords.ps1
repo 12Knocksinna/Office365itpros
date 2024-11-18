@@ -17,7 +17,7 @@ $Labels.ForEach( {
        $TenantLabels.Add([String]$_.ImmutableId, $_.DisplayName) } )
 
 # Search the Office 365 Audit Log for Sensitivity Label events
-Write-Host "Searching Office 365 Audit Log to find audit records for sensitivity labels"
+Write-Host "Searching Microsoft 365 Audit Log to find audit records for sensitivity labels"
 $StartDate = (Get-Date).AddDays(-90); $EndDate = (Get-Date) 
 $OutputCSVFile = "C:\temp\SensitivityLabelsAuditRecords.csv"
 $Operations = "SensitivityLabeledFileOpened", "SensitivityLabeledFileRenamed", "SensitivityLabelRemoved", "SensitivityLabelApplied", "FileSensitivityLabelApplied", "FileSensitivityLabelRemoved", "FileSensitivityLabelChanged", "Assign label to group."
@@ -112,7 +112,7 @@ Else {
                  $Reason       = "Label removed from file with " + $AuditData.Application }
             "Assign label to group." { # Azure Active Directory notes label assignment
                  $GroupLabels++
-                 $Reason      = "Label assigned to Azure Active Directory Group"
+                 $Reason      = "Label assigned to Entra ID Group"
                  $Target      = $AuditData.Target[3].Id
                  $Application = $AuditData.Actor.Id[0]
                  $LabelId     = $AuditData.ModifiedProperties[2].NewValue }
