@@ -211,6 +211,10 @@ If ($RetentionLabels) {
 
 $Global:Site = ("https://graph.microsoft.com/v1.0/users/{0}/drive/" -f $Account)
 [array]$OneDriveInfo = Invoke-MgGraphRequest -Uri $Site -Method Get
+
+# Could also do:
+# $User = Get-MgUser -UserId $Account
+# $OneDriveInfo = Get-MgUserDrive -UserId $User.id | Where-Object {$_.Name -like "*OneDrive*"}
 If (!($OneDriveInfo)) { # Nothing found
     Write-Host "No matching OneDrive found - exiting"; break 
 } Else {
