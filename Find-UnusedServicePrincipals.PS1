@@ -1,4 +1,9 @@
 # Find-UnusedServicePrincipals.PS1
+# Find service principals that have not signed in to Microsoft 365 in the last year and generate some statistics
+# about the service principals in the tenant.
+
+# V1.0 20-Nov-2024
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-UnusedServicePrincipals.PS1
 
 Connect-MgGraph -Scopes AuditLog.Read.All, Application.Read.All
 
@@ -32,7 +37,7 @@ ForEach ($SPSignIn in $SPSignInLogs) {
 }
 
 $TenantReport = [System.Collections.Generic.List[Object]]::new()
-$HomeTenantId = (Get-MgOrganization).Id
+$HomeTenant = (Get-MgOrganization).DisplayName
 [array]$TenantIds = $ServicePrincipals | Sort-Object AppOwnerOrganizationId -Unique | Select-Object -ExpandProperty AppOwnerOrganizationId
 ForEach ($TenantId in $TenantIds) {
     $NumberApps = ($ServicePrincipals | Where-Object {$_.AppOwnerOrganizationId -eq $TenantId}).Count
@@ -49,22 +54,22 @@ ForEach ($TenantId in $TenantIds) {
 $TenantReport = $TenantReport | Sort-Object 'Number of apps' -Descending
 [array]$AppsNoName = $Report | Where-Object {$_.'Service Principal Name' -eq $null}
 
-Write-Host "Some statistics to note"
-Write-Host "------------------------"
+Write-Host ("Some notes about service principals for the {0} tenant" -f $HomeTenant)
+Write-Host "------------------------------------------------------------------------"
 Write-Host ""
-Write-Host "Service Principals by tenant"
+Write-Host "Service Principals by owning tenant"
 $TenantReport | Format-Table -AutoSize
 Write-Host ""
 Write-Host ("Total Service Principals {0}" -f $ServicePrincipals.Count)
 Write-Host ("Service Principals with no sign-ins in the last year {0}" -f $Report.Count)
 Write-Host ("Service Principals with sign-ins in the last year {0}" -f ($ServicePrincipals.Count - $Report.Count))
 Write-Host ("Number of apps with no service principal {0}" -f $AppsNoName.Count)
+Write-Host ""
 
-
-
+# Generate some reports
 $Report | Out-GridView -Title "Service Principals with no sign-ins in the last year"
 $Report | Export-CSV -Path ServicePrincpalsNoSignIn.csv -NoTypeInformation -Encoding UTF8
-Write-Host "Report written to ServicePrincipalsNoSignIn.csv"
+Write-Host "Report detailing service principals with last sign-in longer than a year written to ServicePrincipalsNoSignIn.csv"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
