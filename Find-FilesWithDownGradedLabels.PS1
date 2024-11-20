@@ -41,6 +41,8 @@ Write-Host "Analyzing audit records..."
 ForEach ($Rec in $Records) {
     $LabelDisplayName = $null; $LabelAction = $null; $OldLabelDisplayName = $null; [int]$Priority = $null; [int]$OldPriority = $null
     $AuditData = $Rec.AuditData | ConvertFrom-Json
+    # Figure out what happened... Note thatg the $AuditData.Sensitivitylabeleventdata.LabelEventType contains codes that are not documented
+    # to indicate the kind of change. 1 = Upgraded, 2 = Downgraded, 3 = Removed. We use the priority of the labels to determine the change
     Switch ($Rec.Operations) {
         'FileSensitivityLabelRemoved' {
             $LabelAction = "Removed"
@@ -76,6 +78,7 @@ ForEach ($Rec in $Records) {
         NewLabel        = $LabelDisplayName
         NewPriority     = $Priority
         URL             = $AuditData.ObjectId
+        EventCode       = $AuditData.Sensitivitylabeleventdata.LabelEventType
     }
     $Report.Add($ReportLine)
 }
