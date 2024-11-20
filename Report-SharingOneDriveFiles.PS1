@@ -212,6 +212,8 @@ function Convert-UPNToOneDrive {
     $UPN.ToLower() -replace '\.', '_' -replace '@', '_' -replace '\.', '_'
 }
 
+# ==== Start of processing ====
+
 # Define the values required to connect. These are for the Entra ID app used to authentciate with the Graph
 # You must replace these values with your own.
 $AppId = "72bd89d6-060a-43c9-8063-c281d8f8b685"
@@ -287,6 +289,14 @@ ForEach ($U in $UsersWhoShare) {
     Add-Member -InputObject $U -MemberType NoteProperty -Name "Shared Files" -Value $NumberFiles
     Add-Member -InputObject $U -MemberType NoteProperty -Name "Anyone Links" -Value $AnyoneLinks
     Add-Member -InputObject $U -MemberType NoteProperty -Name "Organization Links" -Value $OrganizationLinks
+}
+
+If (!($UsersWhoShare)) {
+    Write-Host "No sharing activity found in OneDrive for Business sites"
+    Break
+} Else {
+    Write-Host ("Found {0} users who share files in OneDrive for Business sites" -f $UsersWhoShare.Count)
+    Write-Host ""
 }
 
 Write-Host "Summary of sharing activity in OneDrive for Business sites"
