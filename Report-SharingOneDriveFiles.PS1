@@ -5,7 +5,8 @@
 # OneDrive account for the user.
 
 # V1.0 24-Sep-2024
-# V1.1 8-Oct-2024   Some fixes/upgrades after publishing article at https://practical365.com/onedrive-file-sharing-report/
+# V1.1 8-Oct-2024       Some fixes/upgrades after publishing article at https://practical365.com/onedrive-file-sharing-report/
+# V1.2 20-Nov0=2024     Changed computation of base URL for OneDrive sites
 
 # Requires an Entra ID app with the following application permissions:
 # User.Read.All         Read User Profiles 
@@ -239,7 +240,7 @@ If ($OneDriveSites.Count -eq 0) {
     Write-Host "Some of the sites might be for users who have been removed from the tenant. The script will skip these sites during processing."
 }
 # Find the base URL for OneDrive sites. It will be something like https://contoso-my.sharepoint.com/personal/
-$BaseUrl = Get-BaseURL $Sites[0].WebUrl
+$BaseUrl = Get-BaseURL $OneDriveSites[0].WebUrl
 
 Write-Host "Finding user account information to validate OneDrive sites..."
 # Fetch licensed users so that we can check OneDrive sites to find ones for current users
