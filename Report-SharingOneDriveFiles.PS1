@@ -1,5 +1,9 @@
 # Report-SharingOneDriveFiles.PS1
-# A script to show how to report the permissions for shared files found in OneDrive for Business accounts
+# A script to show how to report the permissions for shared files found in OneDrive for Business accounts. The script
+# works by finding the set of OneDrive sites and then processing the files in each site to report on the sharing permissions.
+# Another approach would be to find the set of licensed user accounts and use the Get-MgUserDrive cmdlet to find the
+# OneDrive account for the user.
+
 # V1.0 24-Sep-2024
 # V1.1 8-Oct-2024   Some fixes/upgrades after publishing article at https://practical365.com/onedrive-file-sharing-report/
 
