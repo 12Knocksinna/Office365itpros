@@ -56,7 +56,11 @@ $Version = "1.95"
 # Default currency - can be overwritten by a value read into the $ImportSkus array
 [string]$Currency = "USD"
 
-# Connect to the Graph. This connection uses the delegated permissions and roles available to the signed-in user
+# Connect to the Graph. This connection uses the delegated permissions and roles available to the signed-in user. The
+# signed-in account must hold a role like Exchange administrator to access user and group details.
+# See https://practical365.com/connect-microsoft-graph-powershell-sdk/ for information about connecting to the Graph.
+# In a production environment, it's best to use a registered Entra ID app to connect (app-only mode) to avoid the need for
+# the signed-in user to have any administrative roles, like Exchange administrator.
 Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog.Read.All" -NoWelcome
 
 <#
