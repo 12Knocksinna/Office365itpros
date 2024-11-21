@@ -56,10 +56,11 @@ $Version = "1.95"
 # Default currency - can be overwritten by a value read into the $ImportSkus array
 [string]$Currency = "USD"
 
-# Connect to the Graph, specifing the tenant and profile to use - Add your tenant identifier here
+# Connect to the Graph. This connection uses the delegated permissions and roles available to the signed-in user
 Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog.Read.All" -NoWelcome
 
 <#
+Add your tenant identifier here
 Alternative: Use Application ID and Secured Password for authentication (you could also pass a certificate thumbprint)
 $ApplicationId = "<applicationId>"
 $SecuredPassword = "<securedPassword>"
