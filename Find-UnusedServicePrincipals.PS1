@@ -7,14 +7,16 @@
 
 Connect-MgGraph -Scopes AuditLog.Read.All, Application.Read.All
 
+Write-Host "Finding service principals..."
 [array]$ServicePrincipals = Get-MgServicePrincipal -All -PageSize 500 | Sort-Object AppId
 $SPHash = @{}
 ForEach ($SP in $ServicePrincipals) {
     $SPHash.Add($SP.AppId, $SP.DisplayName)
 }
 
-$CheckDate = (Get-Date).AddDays(-365).toString('yyyy-MM-ddTHH:mm:ssZ')
+$CheckDate = (Get-Date).AddYears(-1).toString('yyyy-MM-ddTHH:mm:ssZ')
 # Output report
+Write-Host "Fetching service principal sign-in activity data..."
 $Report = [System.Collections.Generic.List[Object]]::new()
 [array]$SPSignInLogs = Get-MgBetaReportServicePrincipalSignInActivity -Filter "(lastSignInActivity/lastSignInDateTime lt $CheckDate)" -All -PageSize 500
 If (!($SPSignInLogs)) {
@@ -24,6 +26,7 @@ If (!($SPSignInLogs)) {
     Write-Host ("Found {0} sign-ins for service principals" -f $SPSignInLogs.Count)
 }
 
+Write-Host "Analyzing data..."
 ForEach ($SPSignIn in $SPSignInLogs) {
     $SPName = $SPHash[$SPSignIn.appId]
     $DaysSince = (New-TimeSpan $SPSignIn.lastSignInActivity.lastSignInDateTime).Days
