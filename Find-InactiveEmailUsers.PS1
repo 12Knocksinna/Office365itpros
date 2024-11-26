@@ -1,7 +1,7 @@
 # Find-InactiveEmailUsers.PS1
 # Find inactive email users based on the message trace information, which means we can only go back ten days...
 
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-InactiveEmailUsers.PS1
 
 # V1.0 26-Nov-2024
 
