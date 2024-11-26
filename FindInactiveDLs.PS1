@@ -3,6 +3,11 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindInactiveDLs.PS1
 
 # Updated 28-Oct-2023
+[array]$Modules = Get-Module | Select-Object -ExpandProperty Name
+If ($Modules -notcontains "ExchangeOnlineManagement") {
+    Write-Host "Connecting to Exchange Online..."
+    Connect-ExchangeOnline -ShowBanner:$False
+}
 
 $EndDate = Get-Date
 $StartDate = $EndDate.AddDays(-10)
