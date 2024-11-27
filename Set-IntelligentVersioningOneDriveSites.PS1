@@ -2,7 +2,7 @@
 # Set intelligent (automatic) versioning for OneDrive for Business sites for user accounts with SharePoint Online Plan 1 or Plan 2 licenses
 # 
 # V1.0 27-Nov-2024
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Set-IntelligentVersioningOneDriveSites.PS1
 
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All
 
@@ -57,6 +57,7 @@ ForEach ($User in $Users.UserPrincipalName) {
 }
 
 Write-Host ("OneDrive accounts enabled with intelligent versioning: {0}" -f ($Report | Where-Object {$_.Status -eq "Updated with intelligent versioning"}).Count)
+$Report | Out-GridView -Title "OneDrive sites updated with intelligent versioning"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
