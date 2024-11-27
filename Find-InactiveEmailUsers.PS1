@@ -44,10 +44,15 @@ ForEach ($M in $Mbx) {
         $ActiveStatus = "Inactive"
         Write-Host ("{0} is inactive" -f $M.DisplayName) -Foregroundcolor Red 
     }
+    If ($null -ne $LastActiveDate) {
+        $LastActiveDate = Get-Date ($LastActiveDate) -format 'dd-MMM-yyyy HH:mm:ss'
+    }
     $Reportline = [pscustomobject]@{
-        Name = $M.DisplayName 
-        Active = $ActiveStatus 
-        LastActiveDate = $LastActiveDate
+        Name                = $M.DisplayName 
+        UPN                 = $M.UserPrincipalName
+        PrimarySMTPAddress  = $M.PrimarySMTPAddress
+        Active              = $ActiveStatus 
+        'Last sent message' = $LastActiveDate
     }
     $Report.Add($ReportLine)
     $Text = ("Mailbox state checked on {0} and determined as {1}. Last message addressed on {2}" `
