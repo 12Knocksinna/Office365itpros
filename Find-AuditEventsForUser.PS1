@@ -40,6 +40,7 @@ $RecordsSummary | Format-Table Name, Count -AutoSize
 [array]$Records1 = $Records | Where-Object {$_.Operations -ne "UserLoggedIn"}
 $Report = [System.Collections.Generic.List[Object]]::new()
 
+Write-Host ("Processing {0} audit records for {1} between {2} and {3}" -f $Records1.Count, $User, $StartDate, $EndDate)
 # Process each audit record and attempt to make sense of the audit data payload
 ForEach ($Rec in $Records1) {
     $Action = $null; $Object = $null; $Location = $null; $Workload = $null
@@ -260,6 +261,7 @@ ForEach ($Rec in $Records1) {
     $Report.Add($ReportLine)
 }
 
+# Show what we've done...
 $Report | Out-GridView -Title "Audit events for $User between $StartDate and $EndDate"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
@@ -267,4 +269,3 @@ $Report | Out-GridView -Title "Audit events for $User between $StartDate and $En
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
-
