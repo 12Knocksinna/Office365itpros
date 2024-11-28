@@ -3,7 +3,7 @@
 
 # Demo for ESPC 2024 in Stockholm
 # V1.0 28-Nov-2024
-# GitHub Link: 
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-AuditEventsForUser.PS1
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ($Modules -notcontains "ExchangeOnlineManagement") {
