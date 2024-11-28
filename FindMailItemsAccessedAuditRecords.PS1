@@ -9,29 +9,31 @@ Write-Host "Finding MailItemsAccessed records..."
 $SearchStartDate = (Get-Date).AddDays(-10)  #For Message Trace
 $SearchEndDate = (Get-Date).AddDays(+1)
 # Edit this line to use whatever search terms you wnat to find audit records
-$Records = (Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-4) -EndDate $SearchEndDate -Operations MailItemsAccessed -ResultSize 3000) 
+[array]$Records = (Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-4) -EndDate $SearchEndDate -Operations MailItemsAccessed -SessionCommand ReturnLargeSet -ResultSize 5000) 
 If ($Records.Count -eq 0) {
-    Write-Host "No audit records for mail access found." }
-Else {
-    CLS
-    $ProgressDelta = 100/($Records.count); $PercentComplete = 0; $RecordNumber = 0; 
-    Write-Host "Processing" $Records.Count "MailItemsAccessed audit records..."
-    $Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
-    # Scan each audit record to extract information
-    ForEach ($Rec in $Records) {
-      $RecordNumber++
-      $AuditData = ConvertFrom-Json $Rec.Auditdata
-      $TimeStamp   = Get-Date($AuditData.CreationTime) -format g
-      $Status = "Audit record for " + $AuditData.MailboxOwnerUPN + " " + $Timestamp + " ["+ $RecordNumber +"/" + $Records.Count + "]"
-      Write-Progress -Activity "Checking audit record" -Status $Status -PercentComplete $PercentComplete
-      $PercentComplete += $ProgressDelta
-      Switch ($AuditData.LogonType) { #Easier to read than to remember logon type codes
+    Write-Host "No audit records for mail access found." 
+    Break
+} 
+Clear-Host
+# Remove any duplicates
+$Records = $Records | Sort-Object Identity -Unique
+$ProgressDelta = 100/($Records.count); $PercentComplete = 0; $RecordNumber = 0; 
+Write-Host "Processing" $Records.Count "MailItemsAccessed audit records..."
+$Report = [System.Collections.Generic.List[Object]]::new() # Create output file 
+# Scan each audit record to extract information
+ForEach ($Rec in $Records) {
+   $RecordNumber++
+   $AuditData = ConvertFrom-Json $Rec.Auditdata
+   $TimeStamp   = Get-Date($AuditData.CreationTime) -format 'dd-MMM-yyyy HH:mm:ss'
+   Write-Output ("Checking audit record {0}" -f $RecordNumber)
+   $PercentComplete += $ProgressDelta
+   Switch ($AuditData.LogonType) { #Easier to read than to remember logon type codes
           "0" {$LogonType = "User"}
           "1" {$LogonType = "Admin"}
           "2" {$LogonType = "Delegate"}
-      } # End Switch
-      $RecordType =  $Auditdata.OperationProperties |?{$_.Name -eq "MailAccessType"}
-      $DaysSince = New-TimeSpan(Get-Date($AuditData.CreationTime))
+    } # End Switch
+    $RecordType =  $Auditdata.OperationProperties | Where-Object {$_.Name -eq "MailAccessType"}
+    $DaysSince = New-TimeSpan(Get-Date($AuditData.CreationTime))
       $i = 0
       Switch ($RecordType.Value) { #Figure out the folder names and extract message information for Bind events
         "Bind" { $FolderId = $AuditData.Folders.Id; $Folder = $AuditData.Folders.Path.Split("\")[1]
@@ -54,7 +56,7 @@ Else {
                  $Messages = $Null }
       } #End Switch
       $Throttled = $Null
-      $Throttled = $Auditdata.OperationProperties |?{$_.Name -eq "IsThrottled"}    
+      $Throttled = $Auditdata.OperationProperties |Where-Object {$_.Name -eq "IsThrottled"}    
          
       $ReportLine = [PSCustomObject] @{
            TimeStamp   = $TimeStamp
@@ -71,13 +73,14 @@ Else {
            SessionId   = $AuditData.SessionId
            Operations  = $AuditData.OperationCount
            Messages    = $Messages }        
-      $Report.Add($ReportLine) }
+      $Report.Add($ReportLine) 
 }
-$Report | Sort {$_.TimeStamp -as [DateTime]} |Out-GridView
-$Report | Sort {$_.TimeStamp -as [DateTime]} | Export-CSV -NoTypeInformation c:\temp\MailItemsAccessed.csv
+
+$Report | Sort-Object {$_.TimeStamp -as [DateTime]} |Out-GridView
+$Report | Sort-Object {$_.TimeStamp -as [DateTime]} | Export-CSV -NoTypeInformation c:\temp\MailItemsAccessed.csv
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.pracical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
