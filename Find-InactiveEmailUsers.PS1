@@ -46,7 +46,10 @@ ForEach ($M in $Mbx) {
     }
     If ($null -ne $LastActiveDate) {
         $LastActiveDate = Get-Date ($LastActiveDate) -format 'dd-MMM-yyyy HH:mm:ss'
+    } Else {
+        $LastActiveDate = "N/A"
     }
+
     $Reportline = [pscustomobject]@{
         Name                = $M.DisplayName 
         UPN                 = $M.UserPrincipalName
