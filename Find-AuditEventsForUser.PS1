@@ -21,7 +21,7 @@ If (!(Get-ExoMailbox -Identity $User)) {
 
 $EndDate = (Get-Date $StartDate).AddDays(1)
 
-Write-Host ("Searching the audit log for actions for {0} between {1} and {2}" -f $User, $StartDate, $EndDate)
+Write-Host ("Searching the audit log for actions for {0} between {1} and {2}" -f $User, $StartDate, (Get-Date $EndDate -format 'dd-MMM-yyyy'))
 [array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -UserIds $User -ResultSize 5000 -SessionCommand ReturnLargeSet
 If ($Records.Count -eq 0) {
     Write-Host "No audit records found for $User between $StartDate and $EndDate"
@@ -32,7 +32,7 @@ $Records = $Records | Sort-Object {$_.CreationDate -as [datetime]}
 Write-Host ("Found {0} audit records for {1}. First record from {2}. Last record at {3}" -f $Records.Count, $User, $Records[0].CreationDate, $Records[-1].CreationDate) 
 
 # Overall summary
-$RecordsSummary = $Records | Group-Object Operation -NoElement | Sort-Object Count -Descending
+$RecordsSummary = $Records | Group-Object Operations -NoElement | Sort-Object Count -Descending
 Write-Host "Summary of actions taken by $User"
 $RecordsSummary | Format-Table Name, Count -AutoSize
 
@@ -94,6 +94,12 @@ ForEach ($Rec in $Records1) {
             $Location = $AuditData.ObjectId
             $Workload = "SharePoint Online"
         }
+        "FileSensitivityLabelApplied" {
+            $Action = 'Sensitivity label applied to file'
+            $Object = $AuditData.SourceFileName
+            $Location = $AuditData.ObjectId
+            $Workload = "SharePoint Online"
+        }
         "MailItemsAccessed" {
             $Action = 'Mail item accessed'
             If ($AuditData[0].Item.ParentFolder.Name) {
@@ -146,18 +152,54 @@ ForEach ($Rec in $Records1) {
             $Location = ("Posted to {0} in {1}" -f $AuditData.ChannelName, $AuditData.TeamName) 
             $Workload = "Microsoft Teams" 
         }
+        "TaskCreated" {
+            $Action = 'Task created'
+            $Object = $AuditData.ObjectId
+            $Location = $AuditData.Workload
+            $Workload = "Planner"
+        }
+        "TaskModified" {
+            $Action = 'Task modified'
+            $Object = $AuditData.ObjectId
+            $Location = $AuditData.Workload
+            $Workload = "Planner"
+        }
+        "TaskRead" {
+            $Action = 'Task read'
+            $Object = $AuditData.ObjectId
+            $Location = $AuditData.Workload
+            $Workload = "Planner"
+        }
         "TaskListRead" {
             $Action = 'Task list read'
             $Object = $AuditData.ObjectId
             $Location = $AuditData.Workload
             $Workload = "Planner"
         }
+        "PlanRead" {
+            $Action = 'Plan read'
+            $Object = $AuditData.ObjectId
+            $Location = $AuditData.Workload
+            $Workload = "Planner"
+        }
+        "NewRetentionCompliancePolicy" {
+            $Action = 'Retention policy created'
+            $Object = $Auditdata.Parameters.Value.Split("-A")[0].Split('"')[1]
+            $Location = $AuditData.Workload
+            $Workload = "Data lifecycle management"
+        }
+        "NewRetentionComplianceRule" {
+            $Action = 'Retention rule created'
+            $Object = $Auditdata.Parameters.value[0].Split("-Expiration")[1]
+            $Location = $Auditdata.Parameters.Value.Split("-A")[0].Split('"')[1]
+            $Workload = "Data lifecycle management"
+        }
         "Get-ComplianceSearch" {
             $Action = 'Compliance search retrieved'
             If ($AuditData.Parameters -eq '-ResultSize "Unlimited"' ) {
                 $Object = "All results"
             } Else {
-                $Object =  [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String( $AuditData.Parameters.Split('"')[1].SubString(0,32)))
+                $Object = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String( $AuditData.Parameters.Split('"')[1].SubString(0,32)))
             }
             $Location = $AuditData.Workload
             $Workload = 'eDiscovery'
