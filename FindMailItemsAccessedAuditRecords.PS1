@@ -3,7 +3,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindMailItemsAccessedAuditRecords.PS1
 # A script to process Office 365 "MailItemsAccessed" audit log records and put them into a more digestible format.
 # Tony Redmond 
-CLS
+Clear-Host
 $Now = Get-Date
 Write-Host "Finding MailItemsAccessed records..."
 $SearchStartDate = (Get-Date).AddDays(-10)  #For Message Trace
@@ -26,7 +26,6 @@ ForEach ($Rec in $Records) {
    $AuditData = ConvertFrom-Json $Rec.Auditdata
    $TimeStamp   = Get-Date($AuditData.CreationTime) -format 'dd-MMM-yyyy HH:mm:ss'
    Write-Output ("Checking audit record {0}" -f $RecordNumber)
-   $PercentComplete += $ProgressDelta
    Switch ($AuditData.LogonType) { #Easier to read than to remember logon type codes
           "0" {$LogonType = "User"}
           "1" {$LogonType = "Admin"}
