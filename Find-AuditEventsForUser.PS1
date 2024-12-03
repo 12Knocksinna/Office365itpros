@@ -199,7 +199,11 @@ ForEach ($Rec in $Records1) {
             If ($AuditData.Parameters -eq '-ResultSize "Unlimited"' ) {
                 $Object = "All results"
             } Else {
-                $Object = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String( $AuditData.Parameters.Split('"')[1].SubString(0,32)))
+                Try {
+                    $Object = $AuditData.Parameters.Split('"')[1]               
+                } Catch {
+                    $Object = "Unknown"
+                }
             }
             $Location = $AuditData.Workload
             $Workload = 'eDiscovery'
