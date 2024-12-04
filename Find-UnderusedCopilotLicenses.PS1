@@ -1,5 +1,6 @@
 # Find-UnderusedCopilotLicenses.PS1
-# a script to check users with Microsfot 365 Copilot licenses who might not be using the features as they should
+# A script to check users with Microsfot 365 Copilot licenses who might not be using the features as they should
+# And if we find any underused licenses, we can give them to someone else...
 # V1.0 5-Nov-2024
 # GitHub link:
 
