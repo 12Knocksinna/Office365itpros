@@ -125,6 +125,22 @@ Write-Host ("{0} of the {1} interactions are automatic ({2})" -f $NumberOfAutoma
 Write-Host ("{0} of the interactions are user prompts ({1})" -f $UserInteractions, $PerecentUserInteractions)
 Write-Host ("{0} of the interactions are Copilot responses to user prompts" -f $PercentCopilotResponses)
 
+# Generate reports
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $OutputXLSXFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\CopilotInteractions.xlsx"
+    $Report | Export-Excel -Path $OutputXLSXFile -WorksheetName "Copilot Interactions" -Title ("Copilot Interactions {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "CopilotInteractions" 
+} Else {
+    $OutputCSVFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\CopilotInteractions.csv"
+    $Report | Export-Csv -Path $OutputCSVFile -NoTypeInformation -Encoding Utf8
+}
+  
+If ($ExcelGenerated) {
+    Write-Host ("An Excel report is available in {0}" -f $OutputXLSXFile)
+} Else {
+    Write-Host ("A CSV report is available in {0}" -f $OutputCSVFile)
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.

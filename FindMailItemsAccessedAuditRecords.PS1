@@ -75,7 +75,7 @@ ForEach ($Rec in $Records) {
       $Report.Add($ReportLine) 
 }
 
-$Report | Sort-Object {$_.TimeStamp -as [DateTime]} |Out-GridView
+$Report | Sort-Object {$_.TimeStamp -as [DateTime]} | Out-GridView
 $Report | Sort-Object {$_.TimeStamp -as [DateTime]} | Export-CSV -NoTypeInformation c:\temp\MailItemsAccessed.csv
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/

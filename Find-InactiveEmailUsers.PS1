@@ -79,13 +79,13 @@ If (Get-Module ImportExcel -ListAvailable) {
 } Else {
     $OutputCSVFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveMailUsers.csv"
     $Report | Export-Csv -Path $OutputCSVFile -NoTypeInformation -Encoding Utf8
-  }
+}
   
-  If ($ExcelGenerated) {
-    Write-Host ("An Excel report is available in {0}" -f $OutputXLSXFile)
-  } Else {
-    Write-Host ("A CSV report is available in {0}" -f $OutputCSVFile)
-  }
+If ($ExcelGenerated) {
+  Write-Host ("An Excel report is available in {0}" -f $OutputXLSXFile)
+} Else {
+  Write-Host ("A CSV report is available in {0}" -f $OutputCSVFile)
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
