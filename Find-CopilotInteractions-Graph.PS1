@@ -5,10 +5,15 @@
 
 $StartDate = (Get-Date).AddDays(-30).toString('yyyy-MM-ddT00:00:00Z')
 $EndDate = (Get-Date).AddDays(1).toString('yyyy-MM-ddT00:00:00Z')
-$User = Get-MgUser -UserId Tony.Redmond@redmondassociates.org
-
 $StartDateForReport = Get-Date $StartDate -format 'dd-MMM-yyyy'
 $EndDateForReport = Get-Date $EndDate -format 'dd-MMM-yyyy'
+
+$UserPrincipalName = Read-Host "Enter the user principal name for the user to search for" 
+$User = Get-MgUser -UserId $UserPrincipalName -ErrorAction SilentlyContinue
+If (!$User) {
+    Write-Host ("User {0} not found" -f $UserPrincipalName)
+    Break
+}
 
 $Uri = ("https://graph.microsoft.com/beta/copilot/users/{0}/interactionHistory/getAllEnterpriseInteractions?`$filter=createdDateTime gt {1} and createdDateTime lt {2}" `
     -f $User.Id, $StartDate, $EndDate)
