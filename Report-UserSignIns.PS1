@@ -84,7 +84,8 @@ ForEach ($User in $Users) {
 }
 
 # Output what we found
-$Report | Sort-Object {$_.'Days since sign in' -as [int]} | Out-GridView -Title "User Sign-ins"
+$Report = $Report | Sort-Object {$_.'Last sign in' -as [datetime]} -Descending 
+$Report | Out-GridView -Title "User Sign-ins"
 
 Write-Host "Generating report..."
 If (Get-Module ImportExcel -ListAvailable) {
