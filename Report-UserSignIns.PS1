@@ -25,6 +25,17 @@ If ($SharedMailboxes) {
     }
 }
 
+$AppDataAvailable = $false
+$AppDataFile = 'C:\temp\AppInfo.csv'
+If (Test-path $AppDataFile) {
+    $AppDataAvailable = $true
+    [array]$AppDataInfo = Import-CSV $AppDataFile
+    $AppDataHash = @{}
+    ForEach ($App in $AppDataInfo) {
+        $AppDataHash.Add($App.App, $App.Name)
+    }
+}   
+
 # Find User accounts to process
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -PageSize 500 `
     -Property Id, displayName, userPrincipalName, userType, assignedLicenses, signInActivity `
@@ -56,21 +67,36 @@ ForEach ($User in $Users) {
         $LastSignIn = "Never"
         $DaysSinceSignIn = "N/A"
     } Else {
-        # Is it more than 30 days since a sign-in?
+        # Is it less than 30 days since a sign-in?
         $LastSignIn = Get-Date $LastSignIn -format 'dd-MMM-yyyy HH:mm:ss'
         $DaysSinceSignIn = (New-TimeSpan ($LastSignIn)).Days
         If ($DaysSinceSignIn -lt 30) {
             # We can search audit logs to find out what apps the user has used
             $UserId = $User.Id
-            [array]$AuditSignIns = Get-MgAuditLogSignIn -Filter "userId eq '$UserId'" -Top 25
-            [array]$Apps = $AuditSignIns.AppDisplayName | Select-Object -Unique
+            [array]$AuditSignIns = Get-MgAuditLogSignIn -Filter "userId eq '$UserId'" -Top 50
+            # If we are using a custom app name list, we need to look up each app name
+            If ($AppDataAvailable) {
+                [array]$UserApps = $AuditSignIns.AppId | Select-Object -Unique
+                [array]$AppNames = $null
+                ForEach ($UserApp in $UserApps) {
+                    $UserAppName = $AppDataHash[$UserApp]
+                    If ($UserAppName) {
+                        $AppNames += $UserAppName
+                    } Else {
+                        $AppNames += "Unknown app"
+                    }
+                }
+            } Else {
+                [array]$Apps = $AuditSignIns.AppDisplayName | Select-Object -Unique
+                $AppNames = $Apps.AppDisplayName
+            }
         } Else {
-            $Apps = "N/A"
+            $AppNames = "N/A"
         }
     }
     # Handle the situation where the audit logs don't have any non-interactive sign-ins (use the beta cmdlet if you want to include these)
     If (!($Apps)) {
-        $Apps = "non-interactive apps"
+        $AppNames = "non-interactive apps"
     }
 
     $ReportLine = [PSCustomObject]@{
@@ -78,7 +104,7 @@ ForEach ($User in $Users) {
         User                    = $User.DisplayName
         'Last sign in'          = $LastSignIn
         'Days since sign in'    = $DaysSinceSignIn
-        'Apps used'             = $Apps -join ", "
+        'Apps used'             = $AppNames -join ", "
     }
     $Report.Add($ReportLine)
 }
