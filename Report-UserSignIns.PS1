@@ -68,6 +68,7 @@ ForEach ($User in $Users) {
         $DaysSinceSignIn = "N/A"
     } Else {
         # Is it less than 30 days since a sign-in?
+        [array]$AppNames = $null
         $LastSignIn = Get-Date $LastSignIn -format 'dd-MMM-yyyy HH:mm:ss'
         $DaysSinceSignIn = (New-TimeSpan ($LastSignIn)).Days
         If ($DaysSinceSignIn -lt 30) {
@@ -75,9 +76,11 @@ ForEach ($User in $Users) {
             $UserId = $User.Id
             [array]$AuditSignIns = Get-MgAuditLogSignIn -Filter "userId eq '$UserId'" -Top 50
             # If we are using a custom app name list, we need to look up each app name
+            If ($AuditSignIns.count -eq 0) {
+                $AppNames = "No sign-ins"
+            }
             If ($AppDataAvailable) {
                 [array]$UserApps = $AuditSignIns.AppId | Select-Object -Unique
-                [array]$AppNames = $null
                 ForEach ($UserApp in $UserApps) {
                     $UserAppName = $AppDataHash[$UserApp]
                     If ($UserAppName) {
