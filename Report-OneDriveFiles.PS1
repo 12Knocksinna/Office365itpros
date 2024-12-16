@@ -22,6 +22,7 @@ function Get-DriveItems {
 
     ForEach ($File in $Files) {
     # Write-Output ("Processing file {0}" -f $File.Name) 
+        $FileExtension = ($File.Name.Split('.')[-1]).ToUpper()
         # Only check for sensitivity labels if they are available
         If ($SensitivityLabelsAvailable -eq $true) {        
             $FileType = $File.Name.Split(".")[1]
@@ -78,7 +79,6 @@ function Get-DriveItems {
             [string]$RetentionLabelName = $RetentionLabelName.Trim()
         }
        
-        $FileExtension = ($File.Name.Split('.')[-1]).ToUpper()
         Switch ($FileExtension) {
             "DOCX"      { $FileType = "Word document" }
             "DOC"       { $FileType = "Older Word document" }
