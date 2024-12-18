@@ -1,6 +1,6 @@
 # Enable-AllExchangeAuditEvents.PS1
 # A script to update all user and shared mailboxes with the maximum level of auditing
-# V1.0 December 2024
+# V1.0 December 2024 after addition of the PreservedMailItemProactively event
 
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Enalble-AllExchangeAuditEvents.PS1
 
