@@ -2,7 +2,7 @@
 # A script to update all user and shared mailboxes with the maximum level of auditing
 # V1.0 December 2024
 
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Enalble-AllExchangeAuditEvents.PS1
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -notin $Modules) {
