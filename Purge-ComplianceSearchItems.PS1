@@ -130,6 +130,7 @@ Connect-IPPSSession -ShowBanner:$false
 Clear-Host
 $SearchAllMailboxes = $false
 [string]$Mbx = Read-Host "Enter the mailbox to search or type All to search all mailboxes"
+$RecoverableItemsOption = "Y"
 If (Get-Mailbox -Identity $Mbx -ErrorAction SilentlyContinue) {
     $MailboxId = Get-Mailbox -Identity $Mbx
     $MailboxesToSearch = $MailboxId.UserPrincipalName
@@ -168,7 +169,7 @@ $DateRange = ("(sent={0}..{1})" -f $StartDate, $EndDate)
 # add the folder identifiers for the Recoverable Items folders to the query if the option is set
 $FormattedFolderIds = $null
 If ($RecoverableItemsOption.ToUpper() -eq "Y") {
-    Write-Host "Fetching folder identifiers to exclude Recoverable Items folders from the search"
+    Write-Host "Fetching folder identifiers from the target mailbox to exclude Recoverable Items folders from the search"
     $FoldersToExclude = Get-RecoverableItemsFolderId -MailboxId $MailboxId.ExternalDirectoryObjectId
     $FormattedFolderIds = " NOT ((" + ($FoldersToExclude.FolderQuery -join ") OR (") + "))"
 }
@@ -190,7 +191,6 @@ Do {
     $Status = $ComplianceSearch.Status 
     Start-Sleep -Seconds 3 
 } While ($Status -ne 'Completed') 
-[int]$Count = 0 
 
 [int]$ItemsFound = $ComplianceSearch.Items
 If (!($ItemsFound)) { 
@@ -235,8 +235,7 @@ If ($LocationsWithItems.Count -eq 1) {
     }
 }
 
-$LoopsNeeded = [math]::ceiling($HighestValue/10)
-$TotalResults = 0
+$LoopsNeeded = [math]::ceiling($HighestValue/100)
 # Let the administrator know what we have found 
 Write-Host ("Compliance search completed. {0} items found in {1} locations. {2} iterations are required to remove these items. The mailbox with most items is {3} with {4}." -f $ItemsFound, $Locations.Count, $LoopsNeeded, $HighestLocation, $HighestValue) -ForeGroundColor Yellow
 Write-Host ""
@@ -268,6 +267,8 @@ If ($OKToProceed.ToUpper() -eq "N") {
 
 Write-Host "Setting up to purge items..."
 $SearchNameAction = $ComplianceSearch.Name + "_Purge"
+$TotalResults = 0
+[int]$Count = 0 
 
 While ($Count -lt $LoopsNeeded) {
     $Count++ 
@@ -275,7 +276,7 @@ While ($Count -lt $LoopsNeeded) {
     Write-Host "Removing previous compliance search action (if one exists)" -ForegroundColor Yellow 
     Remove-ComplianceSearchAction $SearchNameAction -Confirm:$False -ErrorAction SilentlyContinue
     Write-Host ("Submitting search purge action for run {0}" -f $Count)
-    New-ComplianceSearchAction -SearchName $SearchName -Purge -PurgeType SoftDelete -Confirm:$False | Out-Null
+    New-ComplianceSearchAction -SearchName $SearchName -Purge -PurgeType HardDelete -Confirm:$False | Out-Null
     Write-Host "Waiting for compliance purge action to finish..."
     Do { 
         $Action = Get-ComplianceSearchAction $SearchNameAction 
@@ -287,12 +288,12 @@ While ($Count -lt $LoopsNeeded) {
     
     # Parse the purge action results to extract the results of all locations where items were found
     If ($Action.Results -match "Item count: (\d+);") {
-        $Results = [int]$matches[1]
+        [int]$Results = [int]$matches[1]
     } Else {
         Write-Host "No items were removed by the purge"
     }
     $TotalResults = $TotalResults + $Results
-    Write-Host ("Loop {0} purged {1} items" -f $Count, $Results) -ForegroundColor Green
+    Write-Host ("Loop {0} purged {1} items (well, ten items maybe)" -f $Count, $Results) -ForegroundColor Green
     $Action = $null; $Status = $null; $Results = $null
 }
 
