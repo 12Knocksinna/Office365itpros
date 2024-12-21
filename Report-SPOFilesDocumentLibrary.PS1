@@ -249,14 +249,14 @@ Write-Host "Generating report..."
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
     Import-Module ImportExcel -ErrorAction SilentlyContinue
-    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Retention Labeling.xlsx"
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\SharePpint Files Report.xlsx"
     If (Test-Path $ExcelOutputFile) {
         Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
     }
-    $ReportData | Export-Excel -Path $ExcelOutputFile -WorksheetName "Retention Labeling Report" -Title ("Retention Labeling Report") -TitleBold -TableName "RetentionLabels" 
+    $ReportData | Export-Excel -Path $ExcelOutputFile -WorksheetName "SharePoint Files Report" -Title ("SharePoint Files Report") -TitleBold -TableName "SPOFiles" 
    
 } Else {
-    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Retention Labeling.CSV"
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\SharePoint Fils Report.CSV"
     $ReportDtra | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
 }
  
