@@ -244,6 +244,28 @@ $ReportData | Out-GridView -Title ("Files in {0} document library for the {1} si
 $ReportData | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
 Write-Host ("Report data saved to {0}" -f $CSVOutputFile)
 
+Write-Host ""
+Write-Host "Generating report..."
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Retention Labeling.xlsx"
+    If (Test-Path $ExcelOutputFile) {
+        Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+    }
+    $ReportData | Export-Excel -Path $ExcelOutputFile -WorksheetName "Retention Labeling Report" -Title ("Retention Labeling Report") -TitleBold -TableName "RetentionLabels" 
+   
+} Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Retention Labeling.CSV"
+    $ReportDtra | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+}
+ 
+If ($ExcelGenerated) {
+    Write-Host ("An Excel report is available in {0}" -f $ExcelOutputFile)
+} Else {    
+    Write-Host ("A CSV report is available in {0}" -f $CSVOutputFile)
+}  
+
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.

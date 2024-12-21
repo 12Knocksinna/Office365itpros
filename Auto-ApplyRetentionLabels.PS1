@@ -91,7 +91,7 @@ function Get-DriveItems {
     }
 }
 
-# Need to run in app-only mode
+# Start of real work
 Connect-MgGraph -Scopes RecordsManagement.ReadWrite.All
 
 $LocationsFile = 'c:\temp\FilesLocations.csv'
