@@ -63,10 +63,10 @@ function Get-DriveItems {
         }
         If ([string]::IsNullOrEmpty($FileInfo.Name)) {
             # Attempt to apply the defined retention label
-            #$Status = Update-MgDriveItemRetentionLabel -DriveId $Drive -DriveItemId $File.Id -BodyParameter $RetentionLabel
-            #If ($Status.Name) { 
-            #    Write-Host ("Retention label assigned to {0}" -f $File.Name)
-            #}
+            $Status = Update-MgDriveItemRetentionLabel -DriveId $Drive -DriveItemId $File.Id -BodyParameter $RetentionLabel
+            If ($Status.Name) { 
+                Write-Host ("Retention label assigned to {0}" -f $File.Name) -ForegroundColor DarkGrey
+            }
             $ReportLine = [PSCustomObject]@{
                 TimeStamp               = (Get-Date -format s)
                 FileName                = $File.Name
