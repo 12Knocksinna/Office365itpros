@@ -1,10 +1,12 @@
 # Auto-ApplyRetentionLabels.PS1
 # An example of how to apply retention labels to files in SharePoint Online and OneDrive for Account sites
+
 # V1.0 December 2024
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Auto-ApplyRetentionLabels.PS1
 
-# Permissions RecordsManagement.ReadWrite.All (retention labels)
-
+# Requires the following permissions 
+# RecordsManagement.ReadWrite.All (retention labels)
+# Sites.Read.All (to access sites)
 
 function Get-DriveItems {
     [CmdletBinding()]
@@ -23,6 +25,36 @@ function Get-DriveItems {
     # Process the files
     ForEach ($File in $Files) {   
         # Get retention label information
+        $FileExtension = $File.Name.Split(".")[1].ToUpper()
+        If ($FileExtension -notin $SupportedFileTypes) {
+            continue
+        }
+        If ($File.CreatedDateTime) {
+            $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
+        }
+        # Is the file already older than the retention period? If so, we leave it alone
+        If ($File.LastModifiedDateTime) {
+            [datetime]$LastModifiedDateTime = Get-Date $File.LastModifiedDateTime 
+            If ($LastModifiedDateTime -lt $RetentionDuration) {
+                Write-Host ("File {0} last modified {1} is older than retention period" -f $File.Name, $LastModifiedDateTime)
+                $ReportLine = [PSCustomObject]@{
+                    TimeStamp               = (Get-Date -format s)
+                    FileName                = $File.Name
+                    Folder                  = $File.parentreference.name
+                    Created                 = $FileCreatedDateTime
+                    Author                  = $File.CreatedBy.User.DisplayName
+                    LastModified            = Get-Date $LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
+                    'Last modified by'      = $File.LastModifiedBy.User.DisplayName
+                    'Retention label'       = $RetentionLabel['Name']
+                    Path                    = $Site.WebUrl
+                    Action                  = "Retention label not applied - modified date older than retention period"
+                }
+                $ReportData.Add($ReportLine)
+                Continue
+            }
+        } Else {
+            $LastModifiedDateTime = $null
+        }
         Try {
             $FileInfo =  Get-MgDriveItemRetentionLabel -DriveId $Drive -DriveItemId $File.Id -ErrorAction Stop
         } Catch {
@@ -35,41 +67,32 @@ function Get-DriveItems {
             #If ($Status.Name) { 
             #    Write-Host ("Retention label assigned to {0}" -f $File.Name)
             #}
-        }    
-        If ($File.LastModifiedDateTime) {
-            $LastModifiedDateTime = Get-Date $File.LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
-        } Else {
-            $LastModifiedDateTime = $null
-        }
-        If ($File.CreatedDateTime) {
-            $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
-        }
-    
-        $ReportLine = [PSCustomObject]@{
-            TimeStamp               = (Get-Date -format s)
-            FileName                = $File.Name
-            Folder                  = $File.parentreference.name
-            Created                 = $FileCreatedDateTime
-            Author                  = $File.CreatedBy.User.DisplayName
-            LastModified            = $LastModifiedDateTime
-            'Last modified by'      = $File.LastModifiedBy.User.DisplayName
-            'Retention label'       = $RetentionLabel['Name']
-        }
-        $ReportData.Add($ReportLine)
+            $ReportLine = [PSCustomObject]@{
+                TimeStamp               = (Get-Date -format s)
+                FileName                = $File.Name
+                Folder                  = $File.parentreference.name
+                Created                 = $FileCreatedDateTime
+                Author                  = $File.CreatedBy.User.DisplayName
+                LastModified            = Get-Date $LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
+                'Last modified by'      = $File.LastModifiedBy.User.DisplayName
+                'Retention label'       = $RetentionLabel['Name']
+                Path                    = $Site.WebUrl
+                Action                  = "Retention label applied"
+            }
+            $ReportData.Add($ReportLine)
+        }     
+       
     }
 
-    # Process the folders
+    # Process the folders found in the root
     ForEach ($Folder in $Folders) {
-        Write-Host ("Processing folder {0}" -f $Folder.Name)
+        Write-Host ("Processing folder {0}" -f $Folder.Name) -ForegroundColor Green
         Get-DriveItems -Drive $Drive -FolderId $Folder.Id
     }
 }
 
 # Need to run in app-only mode
 Connect-MgGraph -Scopes RecordsManagement.ReadWrite.All
-
-$User = Get-MgUser -UserId (Get-MgContext).Account
-
 
 $LocationsFile = 'c:\temp\FilesLocations.csv'
 If (!(Test-Path $LocationsFile)) {
@@ -82,17 +105,32 @@ If (!(Test-Path $LocationsFile)) {
 
 # Define default retention label to apply
 $Global:RetentionLabel = @{}
-$RetentionLabel.Add("Name","Approved")
+$RetentionLabel.Add("Name","General Purpose Information")
+$Global:RetentionDuration = (Get-Date).AddYears(-3)
 # Output PowerShell list for report
+$Global:SupportedFileTypes = "DOCX", "PPTX", "XLSX", "PDF"
 $Global:ReportData = [System.Collections.Generic.List[Object]]::new()
+$Global:ProblemSites = [System.Collections.Generic.List[Object]]::new()
 
 # Try to access each site. If we can gain access, look for unlabeled files
 ForEach ($Location in $Locations) {
-    $URI = $Location.Location
+    $Uri = $Location.Location; $Site = $null; $LookupUri = $null
+    # Create a value that we can find with a call to Get-MgSite. The resulting value will be something like
+    # office365itpros.sharepoint.com:/sites/SeniorTeam
+   # $LookUpUri = $Uri.Split('//')[1].split("/")[0] + ":/sites/" + $Uri.Split('//')[1].split("/")[2]
     Try {
-        $Site = Get-MgSite -Search $URI -ErrorAction Stop
+        $Global:Site = Get-MgSite -Search $Uri -ErrorAction Stop
     } Catch {
         Write-Host ("Unable to access site {0} {1}" -f $URI, $_.Exception.Message) -ForegroundColor Red
+        # Log the problem site  
+        $ReportLine = [PSCustomObject]@{
+            TimeStamp               = (Get-Date -format s)
+            Site                    = $Site.Name
+            URI                     = $Uri
+            Path                    = $Site.WebUrl
+            Action                  = "Unable to access site"
+        }
+        $ProblemSites.Add($ReportLine)
         Continue
     }
     If (!$Site) {
@@ -115,10 +153,27 @@ ForEach ($Location in $Locations) {
     }
     # Process each drive
     ForEach ($Drive in $Drives) {
-        Write-Host ("Processing drive {0} in site {1}" -f $Drive.Name, $Site.DisplayName)
+        Write-Host ("Processing drive {0} in site {1}" -f $Drive.Name, $Site.DisplayName) -ForegroundColor Cyan
         Get-DriveItems -Drive $Drive.Id -FolderId "root"
     }
 }
+
+Write-Host "The following sites could not be processed"
+$ProblemSites | Format-Table Name, Path -AutoSize
+[array]$SitesWithLabeledFiles = $ReportData | Where-Object {$_.Action -eq 'Retention label applied'} | Select-Object -ExpandProperty Path | Sort-Object -Unique
+
+Write-Host ""
+Write-Host "Retention Labeling Run Statistics"
+Write-Host "---------------------------------"
+Write-Host ""
+Write-Host ("Retention label used: {0}" -f $RetentionLabel['Name'])
+Write-Host ("Retention date threshold: {0} ({1} days)" -f $RetentionDuration, (New-TimeSpan -Start $RetentionDuration).Days)
+Write-Host ("Total {0} of files processed in {1} locations" -f $ReportData.Count, ($Locations.count - $ProblemSites.count))
+Write-Host ("Retention labels applied: {0}" -f ($ReportData | Where-Object {$_.Action -eq "Retention label applied"}).Count)
+Write-Host ("Files too old to apply retention label: {0}" -f ($ReportData | Where-Object {$_.Action -eq "Retention label not applied - modified date older than retention period"}).Count)
+Write-Host ""
+Write-Host "Sites where labels were applied:"
+$SitesWithLabeledFiles
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
