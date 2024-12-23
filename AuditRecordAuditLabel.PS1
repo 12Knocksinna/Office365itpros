@@ -3,7 +3,7 @@
 # A script to look for audit records for the application of retention labels and report those which
 # are applied by an auto-label policy. 
 
-$ModulesLoaded = Get-Module | Select-Object Name
+$ModulesLoaded = Get-Module | Select-Object -ExpandProperty Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
 
 # Retention label to check for - change this to your preferred label name
@@ -11,13 +11,18 @@ $RetentionLabel = "Teams recordings"
 $TotalSeconds = 0
 
 # Start and end date for the audit scan. By default, we look for 14 days, but you can choose any value you like up to 365 (assuming Office 365 E5)
-$StartDate = (Get-Date).AddDays(-14); $EndDate = (Get-Date) 
+$StartDate = (Get-Date).AddDays(-14); $EndDate = (Get-Date).AddDays(1)
 $OutputCSVFile = "C:\temp\TaggedTeamsRecordings.csv"
 
 # Find the audit records
-[array]$Records = (Search-UnifiedAuditLog -Operations TagApplied -StartDate $StartDate -EndDate $EndDate -Formatted -ResultSize 2000)
+[array]$Records = Search-UnifiedAuditLog -Operations TagApplied -StartDate $StartDate -EndDate $EndDate -Formatted -ResultSize 5000 -SessionCommand ReturnLargeSet
 
-If (!($Records)) {Write-Host "No audit records found - exiting!"; break}
+If (!$Records) {
+   Write-Host "No audit records found - exiting!"; break
+}
+
+# Sort to remove duplicate audit records
+$Records = $Records | Sort-Object Identity -Unique
 
 # Check the audit records for those for auto-label policies which applied the retention label we're interested in
 $TaggedRecordings = [System.Collections.Generic.List[Object]]::new() 	
