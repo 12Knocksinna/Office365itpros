@@ -7,6 +7,7 @@
 # Requires the following permissions 
 # RecordsManagement.ReadWrite.All (retention labels)
 # Sites.Read.All (to access sites)
+# Files.Read.All (to access files) (Sites.Read.All includes Files.Read.All)
 
 function Get-DriveItems {
     [CmdletBinding()]
@@ -16,7 +17,8 @@ function Get-DriveItems {
         [Parameter()]
         $FolderId
     )
-    # Get data for a folder and its children
+    # Get data for a folder and its children, check each file to see if it has a retention label. If it has, and the
+    # retention threshold is not met, apply the default retention label defined in the script
     [array]$Data = Get-MgDriveItemChild -DriveId $Drive -DriveItemId $FolderId -All
     # Split the data into files and folders
     [array]$Folders = $Data | Where-Object {$_.folder.childcount -gt 0} | Sort-Object Name
@@ -63,25 +65,44 @@ function Get-DriveItems {
         }
         If ([string]::IsNullOrEmpty($FileInfo.Name)) {
             # Attempt to apply the defined retention label
-            $Status = Update-MgDriveItemRetentionLabel -DriveId $Drive -DriveItemId $File.Id -BodyParameter $RetentionLabel
-            If ($Status.Name) { 
-                Write-Host ("Retention label assigned to {0}" -f $File.Name) -ForegroundColor DarkGrey
-            }
-            $ReportLine = [PSCustomObject]@{
-                TimeStamp               = (Get-Date -format s)
-                FileName                = $File.Name
-                Folder                  = $File.parentreference.name
-                Created                 = $FileCreatedDateTime
-                Author                  = $File.CreatedBy.User.DisplayName
-                LastModified            = Get-Date $LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
-                'Last modified by'      = $File.LastModifiedBy.User.DisplayName
-                'Retention label'       = $RetentionLabel['Name']
-                Path                    = $Site.WebUrl
-                Action                  = "Retention label applied"
-            }
-            $ReportData.Add($ReportLine)
+            If (!$PreviewMode) {
+                $Status = Update-MgDriveItemRetentionLabel -DriveId $Drive -DriveItemId $File.Id -BodyParameter $RetentionLabel
+                If ($Status.Name) { 
+                    Write-Host ("Retention label assigned to {0}" -f $File.Name) -ForegroundColor DarkGray
+                    $ReportLine = [PSCustomObject]@{
+                        TimeStamp               = (Get-Date -format s)
+                        FileName                = $File.Name
+                        Folder                  = $File.parentreference.name
+                        Created                 = $FileCreatedDateTime
+                        Author                  = $File.CreatedBy.User.DisplayName
+                        LastModified            = Get-Date $LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
+                        'Last modified by'      = $File.LastModifiedBy.User.DisplayName
+                        'Retention label'       = $RetentionLabel['Name']
+                        Path                    = $Site.WebUrl
+                        Action                  = "Retention label applied"
+                    }
+                    $ReportData.Add($ReportLine)
+                } Else {    
+                    Write-Host ("Unable to assign retention label to {0}" -f $File.Name) -ForegroundColor Red
+                    Continue
+                }
+            } Else {
+                # Preview Mode, so just log the fact that we would have applied the label
+                $ReportLine = [PSCustomObject]@{
+                    TimeStamp               = (Get-Date -format s)
+                    FileName                = $File.Name
+                    Folder                  = $File.parentreference.name
+                    Created                 = $FileCreatedDateTime
+                    Author                  = $File.CreatedBy.User.DisplayName
+                    LastModified            = Get-Date $LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
+                    'Last modified by'      = $File.LastModifiedBy.User.DisplayName
+                    'Retention label'       = $RetentionLabel['Name']
+                    Path                    = $Site.WebUrl
+                    Action                  = "Retention label not applied (preview mode)"
+                }
+                $ReportData.Add($ReportLine)
+            }        
         }     
-       
     }
 
     # Process the folders found in the root
@@ -91,10 +112,19 @@ function Get-DriveItems {
     }
 }
 
-# Start of real work
-Connect-MgGraph -Scopes RecordsManagement.ReadWrite.All
+# Start of Main Script
 
-$LocationsFile = 'c:\temp\FilesLocations.csv'
+param (
+    [switch]$Global:PreviewMode
+)
+
+if ($PreviewMode) {
+    Write-Host "Running in preview mode. No changes will be made."
+}
+# Start of real work
+Connect-MgGraph -Scopes RecordsManagement.ReadWrite.All, Sites.Read.All
+
+$LocationsFile = 'c:\temp\Locations.csv'
 If (!(Test-Path $LocationsFile)) {
     Write-Host "Locations file for unlabeled files not found - exiting"
     Break
@@ -107,11 +137,17 @@ If (!(Test-Path $LocationsFile)) {
 $Global:RetentionLabel = @{}
 $RetentionLabel.Add("Name","General Purpose Information")
 $Global:RetentionDuration = (Get-Date).AddYears(-3)
-# Output PowerShell list for report
+
+# Supported file types that we will apply retention labels to
 $Global:SupportedFileTypes = "DOCX", "PPTX", "XLSX", "PDF"
+# Output PowerShell lists for reports
 $Global:ReportData = [System.Collections.Generic.List[Object]]::new()
 $Global:ProblemSites = [System.Collections.Generic.List[Object]]::new()
 
+# Let people know what we plan to do
+If ($PreviewMode) {
+    Write-Host "Running in preview mode. No retention labels will be applied to files."
+}
 # Try to access each site. If we can gain access, look for unlabeled files
 ForEach ($Location in $Locations) {
     $Uri = $Location.Location; $Site = $null; $LookupUri = $null
@@ -121,20 +157,23 @@ ForEach ($Location in $Locations) {
     Try {
         $Global:Site = Get-MgSite -Search $Uri -ErrorAction Stop
     } Catch {
-        Write-Host ("Unable to access site {0} {1}" -f $URI, $_.Exception.Message) -ForegroundColor Red
-        # Log the problem site  
-        $ReportLine = [PSCustomObject]@{
-            TimeStamp               = (Get-Date -format s)
-            Site                    = $Site.Name
-            URI                     = $Uri
-            Path                    = $Site.WebUrl
-            Action                  = "Unable to access site"
+        # Try to find the site with the site name
+        Try {
+            $Global:Site = Get-MgSite -Search $Uri.Split("/sites/")[1] -ErrorAction Stop
+        } Catch {
+            Write-Host ("Unable to access site {0} {1}" -f $Uri, $_.Exception.Message) -ForegroundColor Red
+            # Log the problem site  
+            $ProblemSiteReportLine = [PSCustomObject]@{
+                TimeStamp               = (Get-Date -format s)
+                Site                    = $Uri
+                Action                  = "Unable to access site"
+            }
+            $ProblemSites.Add($ProblemSiteReportLine)
+            Continue
         }
-        $ProblemSites.Add($ReportLine)
-        Continue
     }
     If (!$Site) {
-        Write-Host "Site $URI not found"
+        Write-Host ("Site {0} not found" -f $Uri) -ForegroundColor Red
         Continue
     } Else {
         Write-Host ("Processing site {0} to look for unlabeled files" -f $Site.DisplayName) -ForegroundColor Yellow
@@ -142,7 +181,13 @@ ForEach ($Location in $Locations) {
     Try {
         [array]$AllDrives = Get-MgSiteDrive -SiteId $Site.Id -ErrorAction Stop
     } Catch {
-        Write-Host ("Unable to access site {0} ({1}) {2}" -f $Site.DisplayName, $URI, $_.Exception.Message) -ForegroundColor Red
+        Write-Host ("Unable to access drives in site {0} ({1}) {2}" -f $Site.DisplayName, $URI, $_.Exception.Message) -ForegroundColor Red
+        $ProblemSiteReportLine = [PSCustomObject]@{
+            TimeStamp               = (Get-Date -format s)
+            Site                    = $Uri
+            Action                  = "Unable to access drives"
+        }
+        $ProblemSites.Add($ProblemSiteReportLine)
         Continue
     }
 
@@ -159,18 +204,27 @@ ForEach ($Location in $Locations) {
 }
 
 Write-Host "The following sites could not be processed"
-$ProblemSites | Format-Table Name, Path -AutoSize
+$ProblemSites | Format-Table Site, Action -AutoSize
 [array]$SitesWithLabeledFiles = $ReportData | Where-Object {$_.Action -eq 'Retention label applied'} | Select-Object -ExpandProperty Path | Sort-Object -Unique
 
 Write-Host ""
-Write-Host "Retention Labeling Run Statistics"
-Write-Host "---------------------------------"
+If ($PreviewMode) {
+    Write-Host "Retention Labeling Run Statistics (Preview mode)"
+    Write-Host "------------------------------------------------"
+} Else {
+    Write-Host "Retention Labeling Run Statistics"
+    Write-Host "--------------------------------"
+}
 Write-Host ""
 Write-Host ("Retention label used: {0}" -f $RetentionLabel['Name'])
 Write-Host ("Retention date threshold: {0} ({1} days)" -f $RetentionDuration, (New-TimeSpan -Start $RetentionDuration).Days)
 Write-Host ("Total {0} of files processed in {1} locations" -f $ReportData.Count, ($Locations.count - $ProblemSites.count))
-Write-Host ("Retention labels applied: {0}" -f ($ReportData | Where-Object {$_.Action -eq "Retention label applied"}).Count)
-Write-Host ("Files too old to apply retention label: {0}" -f ($ReportData | Where-Object {$_.Action -eq "Retention label not applied - modified date older than retention period"}).Count)
+If ($PreviewMode) {
+    Write-Host ("Retention labels not applied because of preview mode: {0}" -f ($ReportData | Where-Object {$_.Action -eq "Retention label not applied (preview mode)"}).Count)
+} Else {
+    Write-Host ("Retention labels applied: {0}" -f ($ReportData | Where-Object {$_.Action -eq "Retention label applied"}).Count)
+}
+Write-Host ("Files older than the threshold to apply retention label: {0}" -f ($ReportData | Where-Object {$_.Action -eq "Retention label not applied - modified date older than retention period"}).Count)
 Write-Host ""
 Write-Host "Sites where labels were applied:"
 $SitesWithLabeledFiles
