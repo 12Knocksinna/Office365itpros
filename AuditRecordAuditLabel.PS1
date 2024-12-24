@@ -3,8 +3,11 @@
 # A script to look for audit records for the application of retention labels and report those which
 # are applied by an auto-label policy. 
 
-$ModulesLoaded = Get-Module | Select-Object -ExpandProperty Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+[array]$Modules = Get-Module | Select-Object -ExpandProperty Name
+If ("ExchangeOnlineManagement" -notin $Modules) {
+    Write-Host "Please connect to the Exchange Online Management module and then restart the script" 
+    break
+}
 
 # Retention label to check for - change this to your preferred label name
 $RetentionLabel = "Teams recordings"
@@ -45,8 +48,8 @@ ForEach ($Rec in $Records) {
          Workload            = $AuditData.Workload
          Recording           = $AuditData.DestinationFileName
          "Retention Label"   = $AuditData.DestinationLabel
-         "Tagging Date"      = Get-Date($AuditData.CreationTime) -format g
-         "Recording date"    = Get-Date($RecordingDate) -format g
+         "Tagging Date"      = Get-Date($AuditData.CreationTime) -format 'dd-MMM-yyyy HH:mm:ss'
+         "Recording date"    = Get-Date($RecordingDate) -format 'dd-MMM-yyy HH:mm:ss'
          "Days to label"     = $TimeToTagFormatted
          Site                = $AuditData.SiteURL
          FullURL             = $AuditData.ObjectId }
