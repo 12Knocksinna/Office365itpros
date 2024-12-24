@@ -1,5 +1,8 @@
 # Get-AuditRecordsTaggedSPOFiles.PS1
 # Show how to report audit records generated when SharePoint Online files are tagged with a retention label
+# V1.0 24 December 2024
+
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Get-AuditRecordsTaggedSPOFiles.PS1
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -notin $Modules) {
@@ -7,8 +10,8 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
     break
 }
 
-# Start and end date for the audit scan. By default, we look for 7 days, but you can choose any value you like up to 365 (assuming Office 365 E5)
-$StartDate = (Get-Date).AddDays(-7); $EndDate = (Get-Date).AddDays(1)
+# Start and end date for the audit scan. By default, we look for 3 days, but you can choose any value you like up to 365 (assuming Office 365 E5)
+$StartDate = (Get-Date).AddDays(-3); $EndDate = (Get-Date).AddDays(1)
 # AppId for the Microsoft Graph PowerShell SDK
 $AppId = '14d82eec-204b-4c2f-b7e8-296a70dab67e'
 
