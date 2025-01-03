@@ -29,8 +29,10 @@ If (!$Users) {
 }
 
 # Make sure that we can fetch usage data that isn't obfuscated
+Write-Host "Checking tenant settings for usage data obfuscation..."
 If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $true) {
     $Parameters = @{ displayConcealedNames = $false }
+    Write-Host "Switching tenant settings to allow access to unobfuscated usage data..."
     Update-MgAdminReportSetting -BodyParameter $Parameters
     $ConcealedNames = $false
 }
@@ -133,7 +135,11 @@ ForEach ($User in $Users) {
     
     # Compute a score for the user
     $Score = $OutlookDays + $TeamsDays + $OneNoteDays + $ExcelDays + $WordDays + $ChatDays + $PowerPointDays
-    [double]$UserScore = ($Score / $ScoreApps)
+    If ($ScoreApps -gt 0) { 
+        [double]$UserScore = ($Score / $ScoreApps)
+    } Else {
+        [double]$UserScore = 0
+    }
 
     $ReportLine = [PSCustomObject][Ordered]@{ 
         UserPrincipalName       = $User.UserPrincipalName
@@ -162,7 +168,7 @@ ForEach ($User in $Users) {
 }
 
 # Extract the set of users who should be considered as underusing Copilot
-[array]$UnderusedCopilot = $CopilotReport | Where-Object {$_.'Overall Score' -gt $MicrosoftCopilotScore}
+[array]$UnderusedCopilot = $CopilotReport | Where-Object {$_.'Overall Score' -gt $MicrosoftCopilotScore -or $_.'Overall Score' -eq 0}
 # If there are no underused Copilot users, say so - and if we have, give the administrator the chance to remove the licenses
 If (!($UnderusedCopilot)) {
     Write-Host "No users found to be underusing an assigned Microsoft 365 Copilot license"
@@ -170,7 +176,7 @@ If (!($UnderusedCopilot)) {
     $LicenseReport = [System.Collections.Generic.List[Object]]::new()
     Write-Host ("The folllowing {0} users are underusing their assigned Microsoft 365 Copilot license" -f $UnderusedCopilot.Count)
     $UnderusedCopilot | Sort-Object {$_.'Overall Score' -as [double]} | Select-Object User, UserPrincipalName, 'Number active apps', 'Overall Score' | Format-Table -AutoSize
-    [string]$Decision = Read-Host "Do you want to remove the licenses from these users"
+    [string]$Decision = Read-Host "Do you want to remove the Microsoft 365 Copilot licenses from these users"
     If ($Decision.Substring(0,1).toUpper() -eq "Y") {
         ForEach ($User in $UnderusedCopilot) {
             # Check that the user still has a Copilot license...      
@@ -217,9 +223,9 @@ If (!($UnderusedCopilot)) {
             }
             
         }
-        Write-Host ("{0} licenses removed" -f $LicemseReport.Count)
+        Write-Host ("{0} Microsoft 365 Copilot licenses removed" -f $LicenseReport.Count)
     } Else {
-        Write-Host "No licenses removed"
+        Write-Host "No Microsoft 365 Copilot licenses removed"
     }
 }
 
@@ -252,6 +258,7 @@ If ($ExcelGenerated) {
 
 # Reset tenant obfuscation settings to True if we switched the setting earlier
 If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $false -and $ConcealedNames) {
+    Write-Host "Resetting tenant settings to obfuscate usage data..."
     $Parameters = @{ displayConcealedNames = $True }
     Update-MgAdminReportSetting -BodyParameter $Parameters
 }
