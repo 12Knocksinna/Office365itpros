@@ -2,8 +2,7 @@
 # A script to check users with Microsfot 365 Copilot licenses who might not be using the features as they should
 # And if we find any underused licenses, we can give them to someone else...
 # V1.0 5-Nov-2024
-# GitHub link:
-
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-UnderusedCopilotLicenses.PS1
 
 # Connect to Microsoft Graph
 If (!(Get-MgContext).Account) {
