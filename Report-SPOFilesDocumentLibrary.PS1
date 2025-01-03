@@ -1,3 +1,12 @@
+#Requires -Modules Microsoft.Graph.Files
+#Requires -Modules Microsoft.Graph.Applications
+#Requires -Modules Microsoft.Graph.Identity.DirectoryManagement
+#Requires -Modules Microsoft.Graph.Beta.Security
+#Requires -Modules Microsoft.Graph.Authentication
+#Requires -Modules Microsoft.Graph.Beta.Users
+#Requires -Modules Microsoft.Graph.Security
+#Requires -Modules Microsoft.Graph.Sites
+
 # Report-SPOFilesDocumentLibrary.PS1
 # A version of the script to report files from a SharePoint Online document library that uses cmdlets from
 # the Microsoft Graph SDK instead of Graph API requests (see ReportFilesSPOSite.PS1 for that version). 
@@ -249,15 +258,15 @@ Write-Host "Generating report..."
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
     Import-Module ImportExcel -ErrorAction SilentlyContinue
-    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\SharePpint Files Report.xlsx"
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\SharePoint Files Report.xlsx"
     If (Test-Path $ExcelOutputFile) {
         Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
     }
     $ReportData | Export-Excel -Path $ExcelOutputFile -WorksheetName "SharePoint Files Report" -Title ("SharePoint Files Report") -TitleBold -TableName "SPOFiles" 
    
 } Else {
-    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\SharePoint Fils Report.CSV"
-    $ReportDtra | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\SharePoint Files Report.CSV"
+    $ReportData | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
 }
  
 If ($ExcelGenerated) {
