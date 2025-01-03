@@ -3,7 +3,7 @@
 #Requires -Modules Microsoft.Graph.Identity.DirectoryManagement
 #Requires -Modules Microsoft.Graph.Beta.Security
 #Requires -Modules Microsoft.Graph.Authentication
-#Requires -Modules Microsoft.Graph.Beta.Users
+#Requires -Modules Microsoft.Graph.Users
 #Requires -Modules Microsoft.Graph.Security
 #Requires -Modules Microsoft.Graph.Sites
 
