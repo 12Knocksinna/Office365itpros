@@ -7,7 +7,10 @@
 # Connect to Microsoft Graph
 If (!(Get-MgContext).Account) {
     Write-Host "Connecting to Microsoft Graph..."
-    Connect-MgGraph -NoWelcome -Scopes Reports.Read.All, ReportSettings.ReadWrite.All, User.Read.All
+    Connect-MgGraph -NoWelcome -Scopes Reports.Read.All, ReportSettings.ReadWrite.All, User.ReadWrite.All
+    # Reports.Read.All is needed to fetch usage data
+    # ReportSettings.ReadWrite.All is needed to change the tenant settings to allow access to unobfuscated usage data
+    # User.ReadWrite.All is needed to read license data for user accounts and to remove licenses from accounts. Also to read sign-in data for users.
 }   
 
 # Define the score that marks a user as underusing Microsoft 365 Copilot
@@ -173,6 +176,7 @@ ForEach ($User in $Users) {
 If (!($UnderusedCopilot)) {
     Write-Host "No users found to be underusing an assigned Microsoft 365 Copilot license"
 } Else {
+    Clear-Host
     $LicenseReport = [System.Collections.Generic.List[Object]]::new()
     Write-Host ("The folllowing {0} users are underusing their assigned Microsoft 365 Copilot license" -f $UnderusedCopilot.Count)
     $UnderusedCopilot | Sort-Object {$_.'Overall Score' -as [double]} | Select-Object User, UserPrincipalName, 'Number active apps', 'Overall Score' | Format-Table -AutoSize
