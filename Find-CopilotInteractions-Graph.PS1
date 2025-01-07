@@ -9,7 +9,7 @@
 Disconnect-MgGraph | Out-Null
 $AppId = '9107c646-b5a3-4a64-a06d-8509df0f00a4'
 $Thumbprint = '32C9529B1FFD08BCD483A5D98807E47A472C5318'
-$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint -NoWelcome
 
 $StartDate = (Get-Date).AddDays(-30).toString('yyyy-MM-ddT00:00:00Z')
