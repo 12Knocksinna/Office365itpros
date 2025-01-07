@@ -14,7 +14,7 @@ $AuditQueryStart = (Get-Date $StartDate -format s)
 $AuditQueryEnd = (Get-Date $EndDate -format s)
 [array]$AuditQueryOperations = "FileModified", "FileUploaded"
 $AuditQueryParameters = @{}
-$AuditQueryParameters.Add("@odata.type","#microsoft.graph.security.auditLogQuery")
+#$AuditQueryParameters.Add("@odata.type","#microsoft.graph.security.auditLogQuery")
 $AuditQueryParameters.Add("displayName", $AuditQueryName)
 $AuditQueryParameters.Add("OperationFilters", $AuditQueryOperations)
 $AuditQueryParameters.Add("filterStartDateTime", $AuditQueryStart)
