@@ -4,13 +4,21 @@
 # Requires an app with User.Read.All and AiEnterpriseInteraction.Read.All permissions
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-CopilotInteractions-Graph.PS1
 
+# disconnect any previous Graph session so that we can run in app-only mode using the AiEnterpriseInteraction.Read.All permission
+# will also need the User.Read.All permission to run Get-MgUser. These values will be different for your tenant...
+Disconnect-MgGraph | Out-Null
+$AppId = '9107c646-b5a3-4a64-a06d-8509df0f00a4'
+$Thumbprint = '32C9529B1FFD08BCD483A5D98807E47A472C5318'
+$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint -NoWelcome
+
 $StartDate = (Get-Date).AddDays(-30).toString('yyyy-MM-ddT00:00:00Z')
 $EndDate = (Get-Date).AddDays(1).toString('yyyy-MM-ddT00:00:00Z')
 $StartDateForReport = Get-Date $StartDate -format 'dd-MMM-yyyy'
 $EndDateForReport = Get-Date $EndDate -format 'dd-MMM-yyyy'
 
 $UserPrincipalName = Read-Host "Enter the user principal name for the user to search for" 
-$User = Get-MgUser -UserId $UserPrincipalName -ErrorAction SilentlyContinue
+$User = Get-MgUser -UserId $UserPrincipalName.trim() -ErrorAction SilentlyContinue
 If (!$User) {
     Write-Host ("User {0} not found" -f $UserPrincipalName)
     Break
@@ -38,7 +46,7 @@ $Nextlink = $Data.'@odata.nextLink'
 While ($null -ne $Nextlink) {
     Write-Host ("Fetching more records - currently at {0}" -f $CopilotData.count)
     [array]$Data = Invoke-MgGraphRequest -Uri $Nextlink -Method Get
-    $Users = $CopilotData += $Data.Value
+    $CopilotData += $Data.Value
     $Nextlink = $Data.'@odata.nextLink'
 }
 # Remove any null records

@@ -36,7 +36,7 @@ If (!($Operations)) {
     Break
 }
 
-$SearchName = ("Audit Search {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
+$SearchName = ("Audit Search created {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
 
 $SearchParameters = @{
     "displayName"           = $SearchName
