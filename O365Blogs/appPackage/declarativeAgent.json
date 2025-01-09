@@ -1,7 +1,7 @@
 {
     "$schema": "https://developer.microsoft.com/json-schemas/copilot/declarative-agent/v1.2/schema.json",
     "version": "v1.2",
-    "name": "Office 365 for IT Pros Blogs",
+    "name": "Office 365 for IT Pros",
     "description": "Declarative agent for the Office 365 IT Pros Blog created with Teams Toolkit",
     "instructions": "$[file('instruction.txt')]",
     "capabilities": [
@@ -14,12 +14,18 @@
         {
           "name": "WebSearch",
                 "sites": [
+                    {
+                        "url": "https://www.office365itpros.com"
+                    },
                     {   
                         "url": "https://practical365.com"
                     },
                     {
-                        "url": "https://www.office365itpros.com"
-                    }
+                        "url": "https://www.thelazyadministrator.com"
+                    },
+                    {
+                        "url": "https://www.petri.com"
+                    }    
                 ]
         },
         {
