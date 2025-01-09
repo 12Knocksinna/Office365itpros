@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Preview in Copilot (Edge)",
+            "type": "msedge",
+            "request": "launch",
+            "url": "https://www.office.com/chat?auth=2",
+            "presentation": {
+                "group": "remote",
+                "order": 1
+            },
+            "internalConsoleOptions": "neverOpen"
+        },
+        {
+            "name": "Preview in Copilot (Chrome)",
+            "type": "chrome",
+            "request": "launch",
+            "url": "https://www.office.com/chat?auth=2",
+            "presentation": {
+                "group": "remote",
+                "order": 2
+            },
+            "internalConsoleOptions": "neverOpen"
+        }
+    ]
+}

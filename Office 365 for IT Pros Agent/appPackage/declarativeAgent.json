@@ -1,0 +1,40 @@
+{
+    "$schema": "https://developer.microsoft.com/json-schemas/copilot/declarative-agent/v1.2/schema.json",
+    "version": "v1.2",
+    "name": "Office 365 for IT Pros Agent",
+    "description": "Declarative agent created with Teams Toolkit",
+    "instructions": "$[file('instruction.txt')]",
+    "capabilities": [
+        {
+        "name": "CodeInterpreter"
+        },
+        {
+            "name": "GraphicArt"
+        },
+        {
+          "name": "WebSearch",
+                "sites": [
+                    {
+                        "url": "https://www.office365itpros.com"
+                    },
+                    {   
+                        "url": "https://practical365.com"
+                    },
+                    {
+                        "url": "https://www.thelazyadministrator.com"
+                    },
+                    {
+                        "url": "https://www.petri.com"
+                    }    
+                ]
+        },
+        {
+            "name": "OneDriveAndSharePoint",
+            "items_by_url": [
+                {
+                    "url": "https://redmondassociates.sharepoint.com/sites/BlogsAndProjects/Shared%20Documents/Blog%20Posts"
+                }
+            ]
+        }
+    ]
+}
