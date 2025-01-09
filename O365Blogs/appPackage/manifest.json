@@ -2,7 +2,7 @@
     "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
     "manifestVersion": "1.19",
     "version": "1.1.0",
-    "id": "${{TEAMS_APP_ID}}",
+    "id": "0b1b6bb9-47d9-403d-86f5-d03db875089c",
     "developer": {
         "name": "Office 365 for IT Pros",
         "websiteUrl": "https://www.office365itpros.com",
@@ -18,7 +18,7 @@
         "full": "Office 365 for IT Pros Blog Agent"
     },
     "description": {
-        "short": "An agent to work with O365Blogs",
+        "short": "An agent to work with Office 365 for IT Pros Blogs",
         "full": "An agent to work with articles published on the Office 365 for IT Pros site"
     },
     "accentColor": "#FFFFFF",
