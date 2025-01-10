@@ -1,7 +1,7 @@
 {
     "$schema": "https://developer.microsoft.com/json-schemas/copilot/declarative-agent/v1.2/schema.json",
     "version": "v1.2",
-    "name": "Office 365 for IT Pros Agent",
+    "name": "Office 365 for IT Pros",
     "description": "Declarative agent created with Teams Toolkit",
     "instructions": "$[file('instruction.txt')]",
     "capabilities": [
@@ -37,4 +37,5 @@
             ]
         }
     ]
+
 }

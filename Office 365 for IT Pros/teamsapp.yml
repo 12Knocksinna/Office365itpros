@@ -11,7 +11,7 @@ provision:
   - uses: teamsApp/create
     with:
       # Teams app name
-      name: Office 365 for IT Pros Agent${{APP_NAME_SUFFIX}}
+      name: Office 365 for IT Pros${{APP_NAME_SUFFIX}}
     # Write the information of created resources into environment file for
     # the specified environment variable(s).
     writeToEnvironmentFile:
@@ -78,4 +78,4 @@ publish:
     # the specified environment variable(s).
     writeToEnvironmentFile:
       publishedAppId: TEAMS_APP_PUBLISHED_APP_ID
-projectId: 1de66573-c655-4168-8c07-12c1b674f293
+projectId: db937ed8-210c-4ece-898c-ab8ff29bb228

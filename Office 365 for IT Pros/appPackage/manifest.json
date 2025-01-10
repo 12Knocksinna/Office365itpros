@@ -1,0 +1,39 @@
+{
+    "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
+    "manifestVersion": "1.19",
+    "version": "1.2.0",
+    "id": "42651821-d8d7-47fc-96a0-67bf2f20ce3f",
+    "developer": {
+        "name": "Office 365 for IT Pros",
+        "websiteUrl": "https://office365itpros.com",
+        "privacyUrl": "https://office365itpros.com/privacy",
+        "termsOfUseUrl": "https://office365itpros.com/termofuse"
+    },
+    "icons": {
+        "color": "color.png",
+        "outline": "outline.png"
+    },
+    "name": {
+        "short": "O365 IT Pros V2",
+        "full": "An agent to help people find information in Office 365 for IT Pros"
+    },
+    "description": {
+        "short": "An agent to help reuse Office 365 for IT Pros",
+        "full": "An agent to help people reuse knowledge held in Office 365 for IT Pros articles"
+    },
+    "accentColor": "#FFFFFF",
+    "composeExtensions": [],
+    "permissions": [
+        "identity",
+        "messageTeamMembers"
+    ],
+    "copilotAgents": {
+        "declarativeAgents": [            
+            {
+                "id": "declarativeAgent",
+                "file": "declarativeAgent.json"
+            }
+        ]
+    },
+    "validDomains": []
+}
