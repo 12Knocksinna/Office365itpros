@@ -1,8 +1,8 @@
-# Overview of the basic declarative agent template
+# Testing how to Build a Declarative Agent
 
-## Build a basic declarative agent
+## Building an Agent to Reason Over Office 365 for IT Pros and Practical 365 Content
 
-With the declarative agent, you can build a custom version of Copilot that can be used for specific scenarios, such as for specialized knowledge, implementing specific processes, or simply to save time by reusing a set of AI prompts. For example, a grocery shopping Copilot declarative agent can be used to create a grocery list based on a meal plan that you send to Copilot.
+This is my attempt to build a simple declarative agent that reasons over articles about Microsoft 365 published in https://Office365itpros.com and https://practical365.com. It's built using the Teams Toolkit in Visual Studio Code.
 
 ## Get started with the template
 
