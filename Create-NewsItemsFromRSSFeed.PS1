@@ -11,8 +11,11 @@
 # Disconnect-MgGraph
 # Connect-MgGraph -CertificateThumbprint $Thumbprint -ApplicationId $ApplicationId -TenantId $TenantId
 
+# News items created when in app-only mode are shown as created by the SharePoint app
+
 # If you're using delegated permissions, this script runs in the context of the signed-in user and can 
-# create news items in any site that the user can create files in.
+# create news items in any site that the user can create files in. Items created when using delegated
+# permissions are shown as created by the signed-in user.
 
 # Set up the script parameters
 Param (
