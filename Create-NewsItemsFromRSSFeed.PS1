@@ -2,11 +2,17 @@
 # An example of using the SharePoint Pages API to create and publish news items from an RSS feed
 # V1.0 15-Jan-2025
 
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Create-NewsItemsFromRSSFeed.PS1
 
-# Requires Sites.ReadWrite.All permission to read and create pages in the target site
-# Needs to run in app-only mode to use application permissions to access any site. If
-# you're using delegated permissions, you can run this script in the context of the signed-in user.
+# Requires the Graph Sites.ReadWrite.All permission to read and create pages in the target site
+# Needs to run in app-only mode to use application permissions to access any site. The best way to do this
+# is to create a registered app, consent for the app to use the Sites.ReadWrite.All permission, and 
+# use a certificate to authenticate the app. You can then sign into the Graph as follows:
+# Disconnect-MgGraph
+# Connect-MgGraph -CertificateThumbprint $Thumbprint -ApplicationId $ApplicationId -TenantId $TenantId
+
+# If you're using delegated permissions, this script runs in the context of the signed-in user and can 
+# create news items in any site that the user can create files in.
 
 # Set up the script parameters
 Param (
@@ -52,11 +58,10 @@ ForEach ($Item in $Feed.Item){
         Author       = $Item.creator.'#cdata-section'
         Link         = $Item.link
     }
- 
     $Report.Add($ReportLine)
 }
 
-# Now that we know what items we have from the RSS feed, we can create news items in SharePoint
+# Now that we have a set of data from the RSS feed, we can create news items in SharePoint
 # First, connect to the SharePoint site
 # $Uri = "https://redmondassociates.sharepoint.com/sites/IndustryNews"
 $SiteId = $SiteURL.Split('//')[1].split("/")[0] + ":/sites/" + $SiteURL.Split('//')[1].split("/")[2]
