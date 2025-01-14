@@ -80,7 +80,7 @@ ForEach ($NewPost in $Report) {
     $PostSuccess = $true
     $Link = ('<a href="{0}" target="_blank"> Read full article</a>' -f $NewPost.Link)
     $PostTitle = $NewPost.Title
-    $PostName = ("News Post {0}.aspx" -f (Get-Date -format 'MMddyyy-HHmmsstt'))
+    $PostName = ("News Post {0}.aspx" -f (Get-Date -format 'MMddyyy-HHmmss'))
     #$PostImage = "https://i0.wp.com/office365itpros.com/wp-content/uploads/2025/01/Top-Five-SharePoint-Features.png"
     $PostContent = $NewPost.Description + "<p><p>" + "by: " + $NewPost.Author + "</p><p>" + $Link + "</p>"
 
@@ -133,7 +133,7 @@ ForEach ($NewPost in $Report) {
 
     $Post = New-MgSitePage -SiteId $site.Id -BodyParameter $Params
     If ($Post) { 
-        Write-Host ("Post {0} successful" -f $PostTitle) 
+        Write-Host ("Successfully created new page {0} for " -f $PostTitle) 
 }   Else {
         Write-Host ("Post {0} failed" -f $PostTitle) 
         $PostSuccess = $false
@@ -176,6 +176,7 @@ ForEach ($NewPost in $Report) {
 }
 
 Write-Host ("{0} posts processed and posted to {1}" -f $PostLog.Count, $Site.DisplayName)
+$PostLog | Format-Table -AutoSize Timestamp, Title, Site
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
