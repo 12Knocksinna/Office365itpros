@@ -1,7 +1,7 @@
 {
     "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
     "manifestVersion": "1.19",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "id": "42651821-d8d7-47fc-96a0-67bf2f20ce3f",
     "developer": {
         "name": "Office 365 for IT Pros",
@@ -14,7 +14,7 @@
         "outline": "outline.png"
     },
     "name": {
-        "short": "O365 IT Pros V2",
+        "short": "O365 IT Pros Agent",
         "full": "An agent to help people find information in Office 365 for IT Pros"
     },
     "description": {
