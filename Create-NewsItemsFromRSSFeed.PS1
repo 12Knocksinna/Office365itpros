@@ -64,6 +64,9 @@ ForEach ($Item in $Feed.Item){
     $Report.Add($ReportLine)
 }
 
+# Sort the report so that we create the news items in the correct order
+$Report = $Report | Sort-Object LastUpdated
+
 # Now that we have a set of data from the RSS feed, we can create news items in SharePoint
 # First, connect to the SharePoint site
 # $Uri = "https://redmondassociates.sharepoint.com/sites/IndustryNews"
