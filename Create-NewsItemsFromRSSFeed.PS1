@@ -77,8 +77,16 @@ If ($Site) {
     Break
 }
 
+# Get the current set of site pages so that we can check if a news item already exists
+[array]$SitePages =  Get-MgSitePage -SiteId $Site.Id -Top 100
+
 $PostLog = [System.Collections.Generic.List[Object]]::new()
 ForEach ($NewPost in $Report) {
+
+    If ($SitePages.Title -contains $NewPost.Title) {
+        Write-Host ("News item {0} already exists in {1}" -f $NewPost.Title, $Site.DisplayName)
+        Continue
+    }
 
     $PostSuccess = $true
     $Link = ('<a href="{0}" target="_blank"> Read full article</a>' -f $NewPost.Link)
@@ -136,7 +144,7 @@ ForEach ($NewPost in $Report) {
 
     $Post = New-MgSitePage -SiteId $site.Id -BodyParameter $Params
     If ($Post) { 
-        Write-Host ("Successfully created new page {0} for " -f $PostTitle) 
+        Write-Host ("Successfully created new page {0}" -f $PostTitle) 
 }   Else {
         Write-Host ("Post {0} failed" -f $PostTitle) 
         $PostSuccess = $false
@@ -178,6 +186,7 @@ ForEach ($NewPost in $Report) {
 
 }
 
+Write-Host ""
 Write-Host ("{0} posts processed and posted to {1}" -f $PostLog.Count, $Site.DisplayName)
 $PostLog | Format-Table -AutoSize Timestamp, Title, Site
 
