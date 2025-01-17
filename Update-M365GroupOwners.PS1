@@ -50,21 +50,31 @@ $NewOwnerId = $Mbx2.ExternalDirectoryObjectId
 
 ForEach ($Group in $Groups) {
     Write-Host ("Processing group {0}" -f $Group.additionalProperties.displayName) -ForegroundColor Yellow
-    # Add the new owner as a member
-    Try {
-        New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $NewOwnerId -ErrorAction Stop
-    } Catch {
-        Write-Host ("Failed to add {0} as a member of {1}" -f $Mbx2.DisplayName, $Group.additionalProperties.displayName)
-        Continue
+    [array]$GroupMembers = Get-MgGroupMember -GroupId $Group.Id
+    [array]$GroupOwners = Get-MgGroupOwner -GroupId $Group.Id
+    If ($NewOwnerId -in $GroupMembers.Id) {
+        Write-Host ("{0} is already a member of {1}" -f $Mbx2.DisplayName, $Group.additionalProperties.displayName)
+    } Else {
+        # Add the new owner as a member
+        Try {
+            New-MgGroupMember -GroupId $Group.Id -DirectoryObjectId $NewOwnerId -ErrorAction Stop
+        } Catch {
+            Write-Host ("Failed to add {0} as a member of {1}" -f $Mbx2.DisplayName, $Group.additionalProperties.displayName)
+            Continue
+        }
     }
-    # And now as an owner. We do this to avoid any problems with attempting to remove the last owner
-    $NewOwnerURL = ("https://graph.microsoft.com/v1.0/users/{0}" -f $NewOwnerId)
-    $NewOwnerParameters = @{"@odata.id"=$NewOwnerURL}
-    Try {
-        New-MgGroupOwnerByRef -GroupId $Group.Id -BodyParameter $NewOwnerParameters -ErrorAction Stop
-    } Catch {
-        Write-Host ("Failed to add {0} as an owner of {1}" -f $Mbx2.DisplayName, $Group.additionalProperties.displayName)
-        Continue
+    If ($NewOwnerId -in $GroupOwners.Id) {
+        Write-Host ("{0} is already an owner of {1}" -f $Mbx2.DisplayName, $Group.additionalProperties.displayName)
+    } Else {
+        # And now add the user as an owner. We do this before removing the old owner to avoid any problems with attempting to remove the last owner
+        $NewOwnerURL = ("https://graph.microsoft.com/v1.0/users/{0}" -f $NewOwnerId)
+        $NewOwnerParameters = @{"@odata.id"=$NewOwnerURL}
+        Try {
+            New-MgGroupOwnerByRef -GroupId $Group.Id -BodyParameter $NewOwnerParameters -ErrorAction Stop
+        } Catch {
+            Write-Host ("Failed to add {0} as an owner of {1}" -f $Mbx2.DisplayName, $Group.additionalProperties.displayName)
+            Continue
+        }
     }
 
     # Remove the user from the group membership. This cmdlet removes the user as both a member and owner
@@ -81,7 +91,11 @@ ForEach ($Group in $Groups) {
         OldOwner  = $Mbx.DisplayName
         NewOwner  = $Mbx2.DisplayName
     }
+    $Report.Add($ReportLine)
 }
+
+Write-Host "All groups processed"
+$Report | Format-Table -AutoSize
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
