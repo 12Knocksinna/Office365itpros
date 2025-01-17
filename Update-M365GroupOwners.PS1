@@ -1,6 +1,9 @@
 # Update-M365GroupOwners.PS1
 # Script showing how to remove a user as the owner of Microsoft 365 groups and replace them with another user
 
+# Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/Update-M365GroupOwners.PS1
+# V1.0 17-Jan-2025
+
 # Connect to the Graph - Directory.ReadWrite.All allows the script to update group owners
 Connect-MgGraph -Scopes Directory.ReadWrite.All
 [array]$Modules = Get-Modules | Select-Object -ExpandProperty Name
