@@ -28,28 +28,27 @@ Param (
 # Date threshold to check for recent posts
 $RSSDateThreshold = (Get-Date).AddDays(-7)
 
-# Populate a temporary file to hold the RSS feed
-$RSSOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\RSSFeed.xml"
-
 Write-Host ("Processing RSS feed {0} to find recent posts" -f $RSSFeed)
 Try {
-    Invoke-WebRequest -Uri $RssFeed -OutFile $RSSOutputFile -ErrorAction Stop
+    [xml]$Content = Invoke-WebRequest -Uri $RSSFeed -ErrorAction Stop
 } Catch {
     Write-Host ("Failed to download RSS feed {0}" -f $RSSFeed)
     Break
 }
 
-[xml]$Content = Get-Content $RSSOutputFile
-$Feed = $Content.rss.channel
+$Feed = $Content.RSS.channel
 
 If ($Feed.Item.Count -eq 0) {
     Write-Host "No items found in the RSS feed"
     Break
+} Else {
+    # Extract the items from the feed. This isn't stricly necessary, but it makes the code easier to read
+    $Feed = $Feed.Item
 }
 
 # Build an input list based on the posts from the RSS feed
 $Report = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Item in $Feed.Item){
+ForEach ($Item in $Feed){
 
     [datetime]$LastUpdate = $Item.pubdate.split('+')[0].trim()
     If ($LastUpdate -lt $RSSDateThreshold) { Continue }
@@ -186,7 +185,6 @@ ForEach ($NewPost in $Report) {
         Site            = $Site.DisplayName
     }
     $PostLog.Add($PostLine)
-
 }
 
 Write-Host ""
