@@ -79,7 +79,7 @@ ForEach ($Group in $Groups) {
 
     # Remove the user from the group membership. This cmdlet removes the user as both a member and owner
     Try {
-    Remove-MgGroupOwnerDirectoryObjectByRef -DirectoryObjectId $OldOwnerId -GroupId $Group.Id -ErrorAction Stop
+        Remove-MgGroupOwnerDirectoryObjectByRef -DirectoryObjectId $OldOwnerId -GroupId $Group.Id -ErrorAction Stop
     } Catch {
         Write-Host ("Failed to remove {0} as an owner of {1}" -f $Mbx.DisplayName, $Group.additionalProperties.displayName)
         Continue
