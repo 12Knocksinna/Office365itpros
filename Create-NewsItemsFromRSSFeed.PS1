@@ -1,6 +1,6 @@
 # Create-NewsItemsFromRSSFeed.PS1
 # An example of using the SharePoint Pages API to create and publish news items from an RSS feed
-# V1.0 15-Jan-2025
+# V1.0 19-Jan-2025
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Create-NewsItemsFromRSSFeed.PS1
 
@@ -77,7 +77,7 @@ If ($Site) {
 }
 
 # Get the current set of site pages so that we can check if a news item already exists
-[array]$SitePages =  Get-MgSitePage -SiteId $Site.Id -Top 100
+[array]$SitePages = Get-MgSitePage -SiteId $Site.Id -Top 100
 
 $PostLog = [System.Collections.Generic.List[Object]]::new()
 ForEach ($NewPost in $Report) {
