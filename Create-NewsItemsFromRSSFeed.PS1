@@ -36,14 +36,11 @@ Try {
     Break
 }
 
-$Feed = $Content.RSS.channel
+[array]$Feed = $Content.RSS.channel.item
 
-If ($Feed.Item.Count -eq 0) {
+If ($Feed.Count -eq 0) {
     Write-Host "No items found in the RSS feed"
     Break
-} Else {
-    # Extract the items from the feed. This isn't stricly necessary, but it makes the code easier to read
-    $Feed = $Feed.Item
 }
 
 # Build an input list based on the posts from the RSS feed
@@ -147,7 +144,7 @@ ForEach ($NewPost in $Report) {
     $Post = New-MgSitePage -SiteId $site.Id -BodyParameter $Params
     If ($Post) { 
         Write-Host ("Successfully created new page {0}" -f $PostTitle) 
-}   Else {
+    } Else {
         Write-Host ("Post {0} failed" -f $PostTitle) 
         $PostSuccess = $false
         Continue
