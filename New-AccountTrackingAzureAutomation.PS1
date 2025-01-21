@@ -2,7 +2,7 @@
 # Test script to show how to use Azure Automation with the Microsoft Graph PowerShell SDK
 # Used with this article: https://office365itpros.com/2025/01/21/azure-automation-runbook-primer/
 
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/New-AccountTrackingAzureAutomation.PS1
 
 # An Azure Automation runbook to report recently created user accounts
 # Requires User.Read.All permission to access information about user accounts
@@ -66,3 +66,26 @@ If ($NewItem) {
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
 # the Internet without first validating the code in a non-production environment.
+
+
+# Add Graph permissions to the service principal for the automation account
+$GraphApp = Get-MgServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'"
+$TargetSP = Get-MgServicePrincipal -filter "displayname eq 'M365Automation'"
+
+[array]$Permissions = "Group.Read.All", "Sites.ReadWrite.All"
+
+ForEach ($Permission in $Permissions){
+    $Role = $GraphApp.AppRoles | Where-Object {$_.Value -eq $Permission}
+
+    # Create the parameters for the new assignment
+    $AppRoleAssignment = @{}
+    $AppRoleAssignment.Add("PrincipalId",$TargetSP.Id)
+    $AppRoleAssignment.Add("ResourceId",$GraphApp.Id)
+    $AppRoleAssignment.Add("AppRoleId",$Role.Id)
+
+    $RoleAssignment = New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $TargetId -BodyParameter $AppRoleAssignment
+    If ($RoleAssignment.AppRoleId) {
+        Write-Host ("{0} permission granted to {1}" -f $Role.Value, $TargetSP.DisplayName)
+    }
+}
+
