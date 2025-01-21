@@ -80,20 +80,20 @@ ForEach ($User in $Users) {
 Write-Host ("{0} users selected for nagging because they use the SMS MFA method" -f $UsersToNag.Count)
 Write-Host ("{0} users selected for nagging because their account has no MFA method" -f $UsersNoMFA.Count)
 
-# Send Email to the users with SMS MFA method
+# Send Email to the users with SMS MFA method - first define the message sender, which can be the SMTP address for a user or shared mailbox
 $MsgFrom = 'Customer.Services@office365itpros.com'
 # Define some variables used to construct the HTML content in the message body
 #HTML header with styles
-$htmlhead="<html>
+$HtmlHead="<html>
     <style>
     BODY{font-family: Arial; font-size: 10pt;}
 	H1{font-size: 22px;}
 	H2{font-size: 18px; padding-top: 10px;}
 	H3{font-size: 16px; padding-top: 8px;}
-    H4{font-size: 14px; padding-top: 4px;}
+    H4{font-size: 8px; padding-top: 4px;}
 </style>"
 
-$MsgSubject = "Please upgrade your MFA method"
+$MsgSubject = "Important: Please upgrade your MFA method"
 
 ForEach ($User in $UsersToNag) {
     Write-Host ("Sending email to {0} to ask them to change their MFA method" -f $User.UserPrincipalName)
@@ -115,17 +115,18 @@ ForEach ($User in $UsersToNag) {
     <p><h4>Generated:</strong> $(Get-Date -Format g)</h4></p>"
     $HtmlMsg = "</body></html>" + $HtmlHead + $Htmlheaderuser + $HtmlBody + "<p>"
     # Construct the message body
-    $MsgBody = @{
-        Content = "$($HtmlMsg)"
-        ContentType = 'html'   
-    }
+    $MsgBody = @{}
+    $MsgBody.Add('Content', "$($HtmlMsg)")
+    $MsgBody.Add('ContentType','html')
 
-    $Message =  @{subject           = $MsgSubject}
-    $Message += @{toRecipients      = $MsgTo}  
-    $Message += @{body              = $MsgBody}
-    $Params   = @{'message'         = $Message}
-    $Params  += @{'saveToSentItems' = $True}
-    $Params  += @{'isDeliveryReceiptRequested' = $True}
+    $Message = @{}
+    $Message.Add('subject', $MsgSubject)
+    $Message.Add('toRecipients', $MsgTo)
+    $Message.Add('body', $MsgBody)
+    $Params = @{}
+    $Params.Add('message', $Message)
+    $Params.Add('saveToSentItems', $true)
+    $Params.Add('isDeliveryReceiptRequested', $true)    
 
     Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
 
