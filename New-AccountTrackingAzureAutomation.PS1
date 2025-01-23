@@ -7,7 +7,7 @@
 # An Azure Automation runbook to report recently created user accounts
 # Requires User.Read.All permission to access information about user accounts
 # Requires Group.Read.All permission to access information about groups
-# Requires Sites.ReadWrite.All to update a list
+# Requires Sites.ReadWrite.All to update a list (or use Sites.Selected to restrict access to the specific target site)
 
 Connect-MgGraph -Identity -NoWelcome
 
