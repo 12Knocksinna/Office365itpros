@@ -45,7 +45,7 @@ If ($RecentUserAccounts.length -gt 255) {
 
 $NewItemParameters = @{
 	fields = @{
-	    Title               = Get-Date ($Date) -format s
+	    Title               = 'Azure Automation Check'
         Rundate             = $RunDate
         NumberM365Groups    = $M365Groups.Count
         NumberUserAccounts  = $UserAccounts.Count

@@ -8,12 +8,12 @@
 Connect-MgGraph -Identity
 
 Set-MgRequestContext -MaxRetry 10 -RetryDelay 15
-$AuditQueryName = ("Azure Automation Runbook Scan created at {0}" -f (Get-Date))
+$AuditQueryName = ("Azure Automation Runbook Scan created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
 $StartDate = (Get-Date).AddDays(-7)
 $EndDate = (Get-Date).AddDays(1)
 $AuditQueryStart = (Get-Date $StartDate -format s)
 $AuditQueryEnd = (Get-Date $EndDate -format s)
-[array]$AuditQueryOperations = "Add group.", "TeamCreated"
+[array]$AuditQueryOperations = "Update user."
 $AuditQueryParameters = @{}
 #$AuditQueryParameters.Add("@odata.type","#microsoft.graph.security.auditLogQuery")
 $AuditQueryParameters.Add("displayName", $AuditQueryName)
