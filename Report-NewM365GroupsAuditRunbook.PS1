@@ -104,15 +104,15 @@ $HtmlHead="<html>
     H4{font-size: 8px; padding-top: 4px;}
 </style>"
 
-$MsgSubject = "Accounts to Look at"
+$MsgSubject = "Audit Events for Review"
 
 $ToRecipients = @{}
 $ToRecipients.Add("emailAddress",@{'address'='tony.redmond@office365itpros.com'})
 [array]$MsgTo = $ToRecipients
 # Customize the message 
-$HtmlHeaderUser = "<h2>Administrative alert</h2>"   
-    #Content for the message - obviously, this is very customizable and should reflect what you want to say about the data being reported
-$HtmlBody = "<body> <h1>Please Check these audit events</h1><p><h3>These audit events should be checked</h3></p>"
+$HtmlHeaderUser = "<h2>Administrative alert: User Principal Name Updates in the last week</h2>"   
+# Add some content for the message - obviously, this is very customizable and should reflect what you want to say about the data being reported
+$HtmlBody = "<body> <h1>Please Check these audit events</h1><p></p>"
 $HtmlBody = $HtmlBody + ($Report | ConvertTo-Html -Fragment)
 $HtmlBody = $HtmlBody + "<p>These audit records are highlighted because of the impact a change to a user principal name can have on systems.</p>"
 $HtmlBody = $HtmlBody + "<p><h4>Generated:</strong> $(Get-Date -Format g)</h4></p>"
