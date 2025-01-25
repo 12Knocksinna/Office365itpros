@@ -67,15 +67,26 @@ While ($null -ne $NextLink) {
 Write-Host ("Audit query {0} returned {1} records" -f $AuditQueryName, $AuditRecords.Count)
 
 $Report = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Record in $AuditRecords) {
-    If ($Record.AuditData.ObjectId -eq $Record.UserPrincipalName) {
-    $ReportLine = [PSCustomObject][Ordered]@{
-        Service          = $Record.Service
-        Timestamp        = $Record.CreatedDateTime 
-        UPN              = $Record.userPrincipalName
-        Operation        = $Record.operation
-    } 
-    $Report.Add($ReportLine)
+ForEach ($Rec in $AuditRecords) {
+    $AuditData = $Rec.AuditData
+    If ('UserPrincipalName' -in $rec.AuditData.ModifiedProperties.Name) {
+        # Extract the values for the old and new UPNs from the Auditdata payload
+        $OldUPN = $AuditData.ModifiedProperties | Where-Object {$_.Name -eq 'UserPrincipalName'} | Select-Object -ExpandProperty OldValue
+        $EmailAddress = $OldUPN -match '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b' | Out-Null
+        $OldUPN = $Matches[0]
+        $NewUPN = $AuditData.ModifiedProperties | Where-Object {$_.Name -eq 'UserPrincipalName'} | Select-Object -ExpandProperty NewValue
+        $EmailAddress = $NewUPN -match '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b' | Out-Null
+        $NewUPN = $Matches[0]
+        If ($OldUPN -ne $NewUPN) {
+            $ReportLine = [PSCustomObject][Ordered]@{
+                Timestamp        = $Rec.CreatedDateTime 
+                Actor            = $Rec.userPrincipalName
+                Operation        = $Rec.operation
+                OldValue         = $OldUPN
+                NewValue         = $NewUPN
+            } 
+            $Report.Add($ReportLine)
+        }
     }
 }
 
@@ -100,9 +111,10 @@ $ToRecipients.Add("emailAddress",@{'address'='tony.redmond@office365itpros.com'}
 [array]$MsgTo = $ToRecipients
 # Customize the message 
 $HtmlHeaderUser = "<h2>Administrative alert</h2>"   
-    #Content for the message - obviously, this is very customizable and should reflect what you want to say to new users
-$HtmlBody = "<body> <h1>Please Check these audit events</h1><p><h3>These audit events need to be checked</h3></p>"
+    #Content for the message - obviously, this is very customizable and should reflect what you want to say about the data being reported
+$HtmlBody = "<body> <h1>Please Check these audit events</h1><p><h3>These audit events should be checked</h3></p>"
 $HtmlBody = $HtmlBody + ($Report | ConvertTo-Html -Fragment)
+$HtmlBody = $HtmlBody + "<p>These audit records are highlighted because of the impact a change to a user principal name can have on systems.</p>"
 $HtmlBody = $HtmlBody + "<p><h4>Generated:</strong> $(Get-Date -Format g)</h4></p>"
 $HtmlMsg = "</body></html>" + $HtmlHead + $Htmlheaderuser + $HtmlBody + "<p>"
 # Construct the message body
@@ -112,7 +124,7 @@ $MsgBody.Add('ContentType','html')
 
 $Message = @{}
 $Message.Add('subject', $MsgSubject)
-$Message.Add('toRecipients', $MsgTo)
+$Message.Add('toRecipients', $MsgTo)    
 $Message.Add('body', $MsgBody)
 $Params = @{}
 $Params.Add('message', $Message)
