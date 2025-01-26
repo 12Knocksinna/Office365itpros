@@ -107,7 +107,7 @@ $HtmlHead="<html>
     H4{font-size: 8px; padding-top: 4px;}
 </style>"
 
-$MsgSubject = "Audit Events for Review"
+$MsgSubject = "Audit Events for Your Review"
 
 $ToRecipients = @{}
 $ToRecipients.Add("emailAddress",@{'address'='tony.redmond@office365itpros.com'})
@@ -135,8 +135,6 @@ $Params.Add('saveToSentItems', $true)
 $Params.Add('isDeliveryReceiptRequested', $true)    
 
 Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
-
-
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
