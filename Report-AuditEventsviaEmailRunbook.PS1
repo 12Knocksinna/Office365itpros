@@ -1,10 +1,11 @@
-# Report-NewM365GroupsAuditRunbook.PS1
+# Report-AuditEventsViaEmailRunbook.PS1
 # an Azure Automation runbook to show how to send email about an audit event
 
 # GitHub link:
 # V1.0 22-Jan-2025
 
-# Requires Mail.Send and AuditLogsQuery.Read.All 
+# Requires Mail.Send and AuditLogsQuery.Read.All. Alternatively, consider using RBAC for Applications to limit
+# access for the managed identity to specific mailboxes. See https://practical365.com/rbac-for-applications-azure-automation/
 Connect-MgGraph -Identity
 
 Set-MgRequestContext -MaxRetry 10 -RetryDelay 15
