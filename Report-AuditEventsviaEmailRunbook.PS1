@@ -1,8 +1,10 @@
 # Report-AuditEventsViaEmailRunbook.PS1
-# an Azure Automation runbook to show how to send email about an audit event
+# an Azure Automation runbook to show how to send email about an audit event. You can run the script
+# interactively using an app-only session. This means that you'll connect to the Graph SDK with an
+# appId, tenantId, and certificate. The app must have consent for the required application permissions.
 
-# GitHub link:
-# V1.0 22-Jan-2025
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-AuditEventsviaEmailRunbook.PS1
+# V1.0 27-Jan-2025
 
 # Requires Mail.Send and AuditLogsQuery.Read.All. Alternatively, consider using RBAC for Applications to limit
 # access for the managed identity to specific mailboxes. See https://practical365.com/rbac-for-applications-azure-automation/
