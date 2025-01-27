@@ -49,7 +49,7 @@ If ($WebPage.RawContent -match $pattern) {
 # Build some HTML content
 $HTMLContent = ("We detected that a new version of the <b>Office 365 for IT Pros ebook</b> was released on {0}" -f $DateNewVersion)
 $HTMLContent = $HTMLContent + "<p> You can download the latest version from your Gumroad account or by using the link in the receipt received by email after you subcribed to the book."
-$HTMLContent = $HTMLContent + "<p> More information about the book, including how to download updated files, is available from <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>the FAQ</a></p>"
+$HTMLContent = $HTMLContent + "<p> More information about the book, including how to download updated files, is available from <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>the FAQ.</a></p>"
 
 # Create the HVE parameters
 $SendHVEMessageParams = @{}
