@@ -52,18 +52,17 @@ $HTMLContent = $HTMLContent + "<p> You can download the latest version from your
 $HTMLContent = $HTMLContent + "<p> More information about the book, including how to download updated files, is available from <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>the FAQ</a></p>"
 
 # Create the HVE parameters
-$SendHVEMessageParams = @{
-    From = $UserName
-    To = $DistributionListAddress
-    Bcc = 'Customer.Services@office365itpros.com'
-    Subject = "New version of the Office 365 for IT Pros eBook is available"
-    Body = $HTMLContent
-    Credential = $HVECredentials
-    UseSsl = $true
-    SmtpServer = 'smtp-hve.office365.com'
-    Port = 587
-    BodyAsHtml = $True
-} 
+$SendHVEMessageParams = @{}
+$SendHVEMessageParams.Add('From', $UserName)
+$SendHVEMessageParams.Add('To', $DistributionListAddress)  
+$SendHVEMessageParams.Add('Bcc', 'Customer.Services@office365itpros.com')
+$SendHVEMessageParams.Add('Subject', "New version of the Office 365 for IT Pros eBook is available")
+$SendHVEMessageParams.Add('Body', $HTMLContent)
+$SendHVEMessageParams.Add('UseSsl', $true)
+$SendHVEMessageParams.Add('Credential', $HVECredentials)
+$SendHVEMessageParams.Add('SmtpServer', 'smtp-hve.office365.com')
+$SendHVEMessageParams.Add('Port', 587)
+$SendHVEMessageParams.Add('BodyAsHtml', $True)
 
 # And send the message
 Try {
