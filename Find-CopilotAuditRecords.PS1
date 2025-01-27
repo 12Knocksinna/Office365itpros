@@ -52,14 +52,14 @@ ForEach ($Rec in $Records) {
 
     If ($Auditdata.copiloteventdata.contexts.id -like "*https://teams.microsoft.com/*") {
         $CopilotApp = "Teams"
-    } ElseIf ($AuditData.CopiloteventData.AppHost -eq "bizchat") {
+    } ElseIf ($AuditData.CopiloteventData.AppHost -eq "bizchat" -or $AuditData.CopiloteventData.AppHost -eq "Office") {
         $CopilotApp = "Copilot for Microsoft 365 Chat"
     }
 
-    If ($Auditdata.copiloteventdata.contexts.id) {
-        $Context = $Auditdata.copiloteventdata.contexts.id
-    } ElseIf ($Auditdata.copiloteventdata.threadid) {
-        $Context = $Auditdata.copiloteventdata.threadid
+    If ($Auditdata.CopilotEventData.contexts.id) {
+        $Context = $Auditdata.CopilotEventData.contexts.id
+    } ElseIf ($Auditdata.CopilotEventData.threadid) {
+        $Context = $Auditdata.CopilotEventData.threadid
        # $CopilotApp = "Teams"
     }
 
