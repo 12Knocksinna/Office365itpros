@@ -3,7 +3,7 @@
 # HVE service. See https://practical365.com/exchange-online-hve/ for a description of how HVE works.
 
 # V1.0 27-Jan-2025
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Send-HVEEmailRunbook.PS1
 
 # Connect to Azure with a managed identity
 Connect-AzAccount -Identity
