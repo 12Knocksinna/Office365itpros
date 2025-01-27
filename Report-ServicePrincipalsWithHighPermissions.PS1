@@ -2,6 +2,12 @@
 # An example of how to scan the assignments for highly-privileged Entra ID roles and report the service principals (apps)
 # and groups that have these roles assigned.
 
+# V1.0 27-Jan-2025
+
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ServicePrincipalsWithHighPermissions.PS1
+
+Connect-MgGraph -NoWelcome -Scopes RoleManagement.Read.Directory, Group.Read.All, ServicePrincipal.Read.All
+
 # Find the Entra roles marked as highly privileged
 [array]$PrivilegedRoles = Get-MgBetaRoleManagementDirectoryRoleDefinition -Filter "isPrivileged eq true" -All -PageSize 500
 If (!$HighlyPrivilegedRoles) {
@@ -59,3 +65,10 @@ ForEach ($Assignment in $RoleAssignments) {
 }
 
 $Report | Format-table ServicePrincipalId, ServicePrincipalName, RoleDefinitionName, ServicePrincipalType, Members -AutoSize
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
+# the Internet without first validating the code in a non-production environment.
