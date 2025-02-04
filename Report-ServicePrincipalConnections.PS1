@@ -52,16 +52,15 @@ ForEach ($Record in $AuditRecords) {
 
     # Generate the report line
     $ReportLine = [PSCustomObject][Ordered]@{ 
-        Application         = $Record.AppDisplayName
-        AppId               = $Record.AppId
-        ServicePrincipalId  = $Record.ServicePrincipalId
-        Credential          = $Record.ClientCredentialType
         Timestamp           = $Record.CreatedDateTime
+        Application         = $Record.AppDisplayName
+        Credential          = $Record.ClientCredentialType
+        Status              = $SignInStatus
         IPAddress           = $Record.IPAddress
         FromLocation        = $Record.Location.City
-        MSI                 = $Record.managedserviceidentity.msitype
         Resource            = $Record.ResourceDisplayName
-        Status              = $SignInStatus
+        AppId               = $Record.AppId
+        ServicePrincipalId  = $Record.ServicePrincipalId
         OwningTenantId      = $TenantId
         OwningTenant        = $TenantName
     }
