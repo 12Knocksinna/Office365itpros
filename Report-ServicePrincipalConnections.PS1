@@ -12,7 +12,7 @@ $Tenant = Get-MgOrganization
 
 # Get the last 5000 sign-ins for service principals (going back a maximum of 30 days)
 Write-Host "Finding service principal sign-ins..."
-[array]$AuditRecords = Get-MgBetaAuditLogSignIn -Filter "(signInEventTypes/any(t:t eq 'servicePrincipal'))" -Top 5000 -PageSize 500 -Sort "createdDateTime DESC"
+[array]$AuditRecords = Get-MgBetaAuditLogSignIn -Filter "(signInEventTypes/any(t:t eq 'servicePrincipal'))" -Top 5000 -Sort "createdDateTime DESC"
 If ($!AuditRecords) { 
     Write-Host "Unable to find audit records - exiting" ; break 
 }   Else {
