@@ -51,7 +51,7 @@ ForEach ($C in $NoCompany) {
     $Report.Add($ReportLine) 
 }
 
-[array]$NoState = $Directory | Where-Obbject {([string]::IsNullOrEmpty($_.StateOrProvince))}
+[array]$NoState = $Directory | Where-Object {([string]::IsNullOrEmpty($_.StateOrProvince))}
 ForEach ($C in $NoState) {
    $ReportLine = [PSCustomObject] @{
        User        = $C.UserPrincipalName
