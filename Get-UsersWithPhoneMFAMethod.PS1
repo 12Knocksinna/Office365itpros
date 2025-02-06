@@ -1,6 +1,6 @@
 # Get-UsersWithPhoneMFAMethod.PS1
 # Find user accounts with a phone-based MFA method so that we can send them a nagging email
-# V1.0 10-Jan-2025
+# V1.0 6-Feb-2025
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Get-UsersWithPhoneMFAMethod.PS1
 
 # Requires Users.Read.All and UserAuthenticationMethod.Read.All and Mail.Send
@@ -23,7 +23,7 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
     Write-Host ("Checking MFA methods for {0}" -f $User.UserPrincipalName)
     $Method = $null; $SystemPreferred = $false
-    $Methods =  Get-MgBetaUserAuthenticationSignInPreference -UserId $User.Id
+    $Methods = Get-MgBetaUserAuthenticationSignInPreference -UserId $User.Id
     If ($Methods.IsSystemPreferredAuthenticationMethodEnabled) {
         Write-Host ("User {0} has system preferred method enabled" -f $User.UserPrincipalName)
         $SystemPreferred = $true
@@ -72,7 +72,7 @@ ForEach ($User in $Users) {
 
 # Define domains and specific users that we don't want to send nagging emails to
 [array]$UserNoNag = 'Azure.Management.Account@office365itpros.com'
-[array]$DomainsNoNag = 'redmondassociates.org'
+[array]$DomainsNoNag = 'office365itpros.org','contoso.com'
 
 [array]$UsersToNag = $Report | Where-Object {($_.Method -eq 'SMS') -and ($_.UserPrincipalName -notin $UserNoNag) -and ($_.UserPrincipalName -notlike "*@$($DomainsNoNag)")}
 [array]$UsersNoMFA = $Report | Where-Object {($_.Method -eq 'None') -and ($_.UserPrincipalName -notin $UserNoNag) -and ($_.UserPrincipalName -notlike "*@$($DomainsNoNag)")}
