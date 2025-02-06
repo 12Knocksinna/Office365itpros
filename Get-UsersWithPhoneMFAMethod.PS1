@@ -6,7 +6,7 @@
 # Requires Users.Read.All and UserAuthenticationMethod.Read.All and Mail.Send
 $Thumbprint = '32C9529B1FFD08BCD483A5D98807E47A472C5318'
 $AppId = '9e289bb8-05bd-486a-aaec-55ecac4aa6ea'
-$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint
 
 # Find licensed user accounts
@@ -109,7 +109,7 @@ ForEach ($User in $UsersToNag) {
     <p><b>Dear $($User.GivenName),</b></p>
     <p>Our records show that you use SMS to respond to multifactor authentication challenges. In other words, you receive a code via SMS and enter that number when prompted by Entra ID.</p>
     <p>SMS was a great method some years ago, but now it's prone to compromise. We need you to upgrade to a more secure authentication method, such as the Microsoft Authenticator app, which is free and easy to use.</p>
-    <p>To learn more about the Authenicator app, please <a href=https://support.microsoft.com/en-us/account-billing/about-microsoft-authenticator-9783c865-0308-42fb-a519-8cf666fe0acc>click here</a> </p>
+    <p>To learn more about the Authenticator app, please <a href=https://support.microsoft.com/en-us/account-billing/about-microsoft-authenticator-9783c865-0308-42fb-a519-8cf666fe0acc>click here</a> </p>
     <p>Have a great time and be sure to call the help desk if you need assistance. And please read all the great articles about Microsoft 365 published on <a href=https://Practical365.com>Practical365.com</a>.</p>
     <p><p>
     <p><h4>Generated:</strong> $(Get-Date -Format g)</h4></p>"
