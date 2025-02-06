@@ -74,8 +74,16 @@ ForEach ($User in $Users) {
 [array]$UserNoNag = 'Azure.Management.Account@office365itpros.com'
 [array]$DomainsNoNag = 'office365itpros.org','contoso.com'
 
-[array]$UsersToNag = $Report | Where-Object {($_.Method -eq 'SMS') -and ($_.UserPrincipalName -notin $UserNoNag) -and ($_.UserPrincipalName -notlike "*@$($DomainsNoNag)")}
-[array]$UsersNoMFA = $Report | Where-Object {($_.Method -eq 'None') -and ($_.UserPrincipalName -notin $UserNoNag) -and ($_.UserPrincipalName -notlike "*@$($DomainsNoNag)")}
+# Find people using SMS as the authentication method that aren't in the excluded list of accounts or domains
+[array]$UsersToNag = $Report | Where-Object {
+    ($_.Method -eq 'SMS') -and ($_.UserPrincipalName -notin $UserNoNag) -and `
+    ($_.UserPrincipalName.Split('@')[1] -notin $DomainsNoNag)
+}
+# Do the same for users who have no MFA method
+[array]$UsersNoMFA = $Report | Where-Object {
+    ($_.Method -eq 'None') -and ($_.UserPrincipalName -notin $UserNoNag) -and `
+    ($_.UserPrincipalName.Split('@')[1] -notin $DomainsNoNag)
+}
 
 Write-Host ("{0} users selected for nagging because they use the SMS MFA method" -f $UsersToNag.Count)
 Write-Host ("{0} users selected for nagging because their account has no MFA method" -f $UsersNoMFA.Count)
