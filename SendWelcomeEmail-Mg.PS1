@@ -29,7 +29,7 @@ $htmlhead="<html>
     </style>"
 
 #Content for the message - obviously this is very customizable to reflect what you want to say to new users
-$HtmlBody = "<body>
+$HtmlBody = $HtmlHead + "<body>
      <h1>Welcome to $($TenantName)</h1>
      <p><strong>Generated:</strong> $(Get-Date -Format g)</p>  
      <h2><u>We're Pleased to Have You Here</u></h2>
