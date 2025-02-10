@@ -1,17 +1,24 @@
 # Report-HardDeletedUserAccounts.PS1
 # Example of an Azure Automation runbook to report Entra ID hard-deleted user accounts
 
-# Requires AuditLog.Read.All permission
+# Requires AuditLog.Read.All permission to read audit log data
+# Requires Sites.ReadWrite.All application permission to access data in SharePoint Online sites. Alternatively,
+# consider using the Sites.Selected permission to allow app access to the target site.
+# See https://practical365.com/restrict-app-access-to-sharepoint-sites for more information about Sites.Selected
+
+# Modules that need to be loaded as resources into the Azure Automation account:
 # Requires Microsoft.Graph.Reports module for access to audit logs
 # Requires Microsoft.Graph.Users.Actions module to send email
 # Requires Microsoft.Graph.Files to upload a file to a SharePoint document library
 # Requires Microsoft.Graph.Sites to access SharePoint Online site
-# Requires ImportExcel module to create an Excel worksheet
+# Requires ImportExcel module to create an Excel worksheet (if not available, the runbook creates a CSV file)
+
+# V1.0 10-Feb-2025
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-HardDeletedUserAccounts.PS1
 
 Connect-MgGraph -Identity -NoWelcome
-$ExcelOutputFile = "HardDeletedUsers.xlsx"
 
-# Find hard-deleted user accounts
+# Find hard-deleted user accounts from the last 30 days
 [array]$DeletedUserRecords = Get-MgAuditLogDirectoryAudit -Filter "ActivityDisplayName eq 'Hard Delete user'" -All -Sort 'ActivityDateTime'
 If (!$DeletedUserRecords) {
         Write-Host "No hard deleted user records found"; break
@@ -25,17 +32,11 @@ ForEach ($Record in $DeletedUserRecords) {
   }
   $Report.Add($DataLine)
 }
-
+Write-Output "The following accounts were hard-deleted in the last 30 days"
 $Report | Format-Table TimeStamp, DeletionInitiatedBy, DeletedUser -AutoSize
 
-# Generate Excel worksheet
-$Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Hard Deleted User Accounts" -Title  "Hard Deleted Accounts" `
-    -TitleBold -TableName "Hard Deleted Accounts" 
-
-# Generate CSV file
-$Report | Export-Csv -Path "HardDeletedUsers.csv" -NoTypeInformation -Encoding UTF8
-
-$SiteUri = "https://redmondassociates.sharepoint.com/sites/Office365Adoption"
+# Define the target SharePoint document library to create the report in. Make sure to update this value to match your tenant
+$SiteUri = "https://office365itpros.sharepoint.com/sites/Office365Questions"
 $SiteId = $SiteUri.Split('//')[1].split("/")[0] + ":/sites/" + $SiteUri.Split('//')[1].split("/")[2]
 $Site = Get-MgSite -SiteId $SiteId
 If (!$Site) {
@@ -43,15 +44,45 @@ If (!$Site) {
     Exit
 }
 [array]$Drives = Get-MgSiteDrive -SiteId $Site.Id
+# Locate the default document library
 $DocumentsDrive = $Drives | Where-Object {$_.Name -eq "Documents"}
-$TargetFile = "root:/General/" + $ExcelOutputFile + ":"
+
+# Generate Excel worksheet - this needs the ImportExcel module - see https://office365itpros.com/2022/05/10/importexcel-powershell/
+If (Get-Module ImportExcel) {
+    # Generate Excel worksheet if we can
+    Import-Module ImportExcel
+    # Make sure that we have a unique file name so that we don't overwrite any existing file
+    $OutputFile = ("HardDeletedUsers-{0}.xlsx" -f  (Get-Date -format yyyyMMdd-HHmm))
+    $Report | Export-Excel -Path $OutputFile -WorksheetName "Hard Deleted User Accounts" -Title  "Hard Deleted Accounts" `
+         -TableName "HardDeletedAccounts"  
+} Else {
+    # Generate CSV file if ImportExcel module is not available
+    $OutputFile = ("HardDeletedUsers-{0}.csv" -f  (Get-Date -format yyyyMMdd-HHmm))
+    $Report | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding UTF8
+}
+
 # This works interactively but not in an Azure Automation runbook
+# $TargetFile = "root:/General/" + $OutputFile + ":"
 # $NewFile = Set-MgDriveItemContent -DriveId $DocumentsDrive.Id -DriveItemId $TargetFile -InFile $File
 # So we use the URI method instead
-$Uri = ("https://graph.microsoft.com/V1.0/sites/{0}/drive/items/root:/General/{1}:/content" -f $Site.Id, $ExcelOutputFile)
-$NewFile = Invoke-MgGraphRequest -uri $uri -Method PUT -InputFilePath $ExcelOutputFile
+$Uri = ("https://graph.microsoft.com/V1.0/sites/{0}/drive/items/root:/General/{1}:/content" -f $Site.Id, $OutputFile)
+$NewFile = Invoke-MgGraphRequest -Uri $Uri -Method PUT -InputFilePath $OutputFile
 If ($NewFile) { 
     Write-Output ("File {0} uploaded to {1} with size {2} MB" -f $NewFile.Name, $DocumentsDrive.Name, ([math]::Round($NewFile.Size/ 1MB, 2)))
+}
+
+# Update the document metadata to include a title and description. Note that if the Sites.Selected Graph permission
+# is used to gain access to the target site, the Manage rather than Write role is required.
+$Uri = ("https://graph.microsoft.com/V1.0/sites/{0}/drive/items/root:/General/{1}:/listItem/fields" -f $Site.Id, $OutputFile)
+$Body = @{}
+$Body.Add("Title", "Hard Deleted Users Report (Created by Azure Automation)")
+$Body.Add("_ExtendedDescription", "This report is generated by an Azure Automation runbook")
+# Custom fields added to the target site
+# $Body.Add("MoreInfo", "Report listing hard-deleted Entra ID user accounts")
+# $Body.Add("NumberofAccounts", $Report.Count)
+$ItemUpdate = Invoke-MgGraphRequest -Uri $Uri -Method PATCH -Body $Body
+If ($ItemUpdate) {
+    Write-Output ("Updated document metadata for item {0} with title {1}" -f $OutputFile, $Body.Title)
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
@@ -60,6 +91,3 @@ If ($NewFile) {
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
 # the Internet without first validating the code in a non-production environment.
-
-
-$Uri = ("https://graph.microsoft.com/V1.0/sites/{0}/drive/items/root:/General/{1}:/content" -f $Site.Id, $ExcelOutputFile)
