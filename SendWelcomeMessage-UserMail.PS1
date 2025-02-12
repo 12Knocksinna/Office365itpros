@@ -1,9 +1,11 @@
 # SendWelcomeMessage-UserMail.PS1
-# https://github.com/12Knocksinna/Office365itpros/blob/master/SendWelcomeMessage-UserMail-Mg.PS1
+# Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/SendWelcomeMessage-UserMail-Mg.PS1
 # How to send a welcome message to new mailboxes using the Send-MgUserMail cmdlet from the Microsoft Graph SDK for PowerShell
 # Needs version 1.7.0 or later of the Microsoft.Graph.Mail and Microsoft.Graph.Users.Actions modules
 
-Function Populate-MessageRecipient {
+# V1.1 12-Feb-2025: Updated function to process attachments to make sure that content type is better defined
+
+Function Update-MessageRecipients {
     [cmdletbinding()]
     Param(
         [array]$ListOfAddresses )
@@ -14,56 +16,64 @@ Function Populate-MessageRecipient {
     }    
 }
 
-Function Populate-Attachments {
+Function Update-MessageAttachments {
     [cmdletbinding()]
     Param(
-        [array]$ListOfAttachments )
-	
-    ForEach ($Attachment in $ListOfAttachments) {
-     Write-Host "Processing" $Attachment
-     $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($Attachment))
-        @{
-            "@odata.type"= "#microsoft.graph.fileAttachment"
-            name = ($Attachment -split '\\')[-1]
-            contentBytes = $EncodedAttachmentFile
-            contentType = "text/plain"
-          }
-        }    
-    }   
+        [array]$ListOfAttachments 
+    )
 
-# Processing
+    ForEach ($File in $ListOfAttachments) {
+        $ConvertedContent = [Convert]::ToBase64String([IO.File]::ReadAllBytes($File))
+        $FileExtension = [System.IO.Path]::GetExtension($File) 
+        Switch ($FileExtension) {
+            ".pdf" {
+                $ContentType = "application/pdf"
+            }
+            ".docx" {
+                $ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            }
+            ".xlsx" {
+                $ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }   
+            ".pptx" {
+                $ContentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            }   
+            ".jpg" {
+                $ContentType = "image/jpeg"
+            }   
+            ".png" {
+                $ContentType = "image/png"
+            }   
+            default {
+                $ContentType = "application/octet-stream"
+            }
+        }
+        $AttachmentDetails = @{
+            "@odata.type" = "#microsoft.graph.fileAttachment"
+            Name = $File
+            ContentType =  $ContentType
+            ContentBytes = $ConvertedContent
+        }
+        $MsgAttachments += $AttachmentDetails
+    }
+    Return $MsgAttachments  
+}
+
+# Main processing
 # Check that we are connected to Exchange Online
-$ModulesLoaded = Get-Module | Select Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+$ModulesLoaded = Get-Module | Select-Object Name
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {
+    Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break
+}
 # Now connect to the Microsoft Graph SDK for PowerShell
 Connect-MgGraph -Scope Mail.Send
-$Details = Get-MgContext
-$Scopes = $Details | Select -ExpandProperty Scopes
-$Scopes = $Scopes -Join ", "
-$ProfileName = (Get-MgProfile).Name
-$TenantName = (Get-MgOrganization).DisplayName
-CLS
-Write-Host "Microsoft Graph Connection Information"
-Write-Host "--------------------------------------"
-Write-Host " "
-Write-Host ("Connected to Tenant {0} ({1}) as account {2}" -f $Details.TenantId, $TenantName, $Details.Account)
-Write-Host "+-------------------------------------------------------------------------------------------------------------------+"
-Write-Host ("Profile set as {0}. The following permission scope is defined: {1}" -f $ProfileName, $Scopes)
-Write-Host ""
-Write-Host "Also successfully connected to the Exchange Online management PowerShell module"
 
-# Make sure that we have valid credentials
-If (-not $O365Cred) { #Make sure we have credentials
-    $O365Cred = (Get-Credential)}
-# Message is from the logged in account - for a background app, you'd use certificate-based authentication or a managed identity
-# credential information from 
-$MsgFrom = $O365Cred.UserName
+# Message is from the signed-in account - change this if necessary (and you're running in app-only mode)
+$MsgFrom = (Get-MgContext).Account
 
 # Define some variables used to construct the HTML content in the message body
 #HTML header with styles
-$htmlhead="<html>
-     <style>
-      BODY{font-family: Arial; font-size: 10pt;}
+$htmlhead="<html><style>BODY{font-family: Arial; font-size: 10pt;}
 	H1{font-size: 22px;}
 	H2{font-size: 18px; padding-top: 10px;}
 	H3{font-size: 16px; padding-top: 8px;}
@@ -82,27 +92,31 @@ $MsgSubject = "A warm welcome to $($TenantName)"
 # Date to Check for new accounts - we use the last 7 days here, but that's easily changable.
 [string]$CheckDate = (Get-Date).AddDays(-7)
 # Find all mailboxes created in the target period
-[array]$Users = (Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$CheckDate'" -RecipientTypeDetails UserMailbox -ResultSize Unlimited -Properties WhenMailboxCreated | Select WhenMailboxCreated, DisplayName, UserPrincipalName, PrimarySmtpAddress)
-If (!($Users)) { Write-Host ("No mailboxes found that were created before {0}. Exiting!" -f $CheckDate) }
+[array]$Users = Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$CheckDate'" -RecipientTypeDetails UserMailbox -ResultSize Unlimited `
+     -Properties WhenMailboxCreated | Select-Object WhenMailboxCreated, DisplayName, UserPrincipalName, PrimarySmtpAddress
+If (!($Users)) { 
+    Write-Host ("No mailboxes found that were created before {0}. Exiting!" -f $CheckDate) 
+}
 
 # Define attachments  we're only using one here, which we fetch from a web site
 # if you want to add more files, add the file names to the $AttachmentsList array
 $WebAttachmentFile = "https://office365itpros.com/wp-content/uploads/2022/02/WelcomeToOffice365ITPros.docx"
 $AttachmentFile = "c:\temp\WelcomeNewEmployeeToOffice365itpros.docx"
-Invoke-WebRequest -uri $WebAttachmentFile -OutFile $AttachmentFile
+Invoke-WebRequest -Uri $WebAttachmentFile -OutFile $AttachmentFile
 
+# Add as many attachments as you want to this array and they'll be added to the message
 [array]$AttachmentsList = "c:\temp\WelcomeNewEmployeeToOffice365itpros.docx"
-[array]$MsgAttachments = Populate-Attachments -ListOfAttachments $AttachmentsList
+[array]$MsgAttachments = Update-MessageAttachments -ListOfAttachments $AttachmentsList
 
 # Populate CC Recipienmt List - any SMTP address will do
 $CcRecipientList = @( 
         'Tenant.Admins@office365itpros.com'
         'Kim.Akers@Office365itpros.com' )
-[array]$MsgCcRecipients = Populate-MessageRecipient -ListOfAddresses $CcRecipientList
+[array]$MsgCcRecipients = Update-MessageRecipients -ListOfAddresses $CcRecipientList
 
 ForEach ($User in $Users) {
   $ToRecipientList   = @( $User.PrimarySmtpAddress )
-  [array]$MsgToRecipients = Populate-MessageRecipient -ListOfAddresses $ToRecipientList
+  [array]$MsgToRecipients = Update-MessageRecipients -ListOfAddresses $ToRecipientList
   Write-Host "Sending welcome email to" $User.DisplayName
   # Customize the message 
   $htmlHeaderUser = "<h2>New User " + $User.DisplayName + "</h2>"    

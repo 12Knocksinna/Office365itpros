@@ -5,18 +5,18 @@
 
 # Check that we are connected to Exchange Online
 $ModulesLoaded = Get-Module | Select-Object -ExpandProperty Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {
+     Write-Host "Please connect to the Exchange Online Management module and then restart the script"; 
+     break
+}
 # Now connect to the Microsoft Graph SDK for PowerShell
 Connect-MgGraph -NoWelcome -Scopes "Mail.Send, Mail.ReadWrite"
 
 $TenantName = (Get-MgOrganization).DisplayName
 Clear-Host
 
-# Make sure that we have valid credentials
-If (-not $O365Cred) { #Make sure we have credentials
-    $O365Cred = (Get-Credential)}
 # Message is from the logged in account
-$MsgFrom = $O365Cred.UserName
+$MsgFrom = (Get-MgContext).Account
 
 # Define some variables used to construct the HTML content in the message body
 #HTML header with styles
