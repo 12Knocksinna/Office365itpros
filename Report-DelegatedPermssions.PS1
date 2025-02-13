@@ -67,8 +67,8 @@ ForEach ($Permission in $DelegatedPermissions) {
     $Report.Add($ReportLine)
 }
 
-# Another way of reporting is to find service principals and list their application and delegated permissions. These permission are
-# set by the applicatio developers
+# Another way of reporting is to find service principals and list their application and delegated roles (otherwise called permissions). These permission are
+# set by the application developers
 [array]$ServicePrincipals = Get-MgServicePrincipal -All -PageSize 500 -Property * | `
     Sort-Object DisplayName | 
     Select-Object DisplayName, Id, AppId, `

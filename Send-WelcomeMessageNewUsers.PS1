@@ -24,22 +24,23 @@ $Users = (Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$CheckDate'" -Recipien
 $Portal = "https://www.microsoft365.com/"
 
 ForEach ($User in $Users) {
-      $EmailRecipient = $User.PrimarySmtpAddress
-      Write-Host "Sending welcome email to" $User.DisplayName
-      $htmlHeaderUser = "<h2>New User " + $User.DisplayName + "</h2>"
-      $htmlline1 = "<p><b>Welcome to Office 365</b></p>"
-      $htmlline2 = ('<p>Access Microsoft 365 apps by clicking here <a href="{0}" here</a> </p>' -f $portal)
-      $htmlline3 = "<p>Have a great time and be sure to call the help desk if you need assistance.</p>"
-      $htmlbody = $htmlheaderUser + $htmlline1 + $htmlline2 + $htmlline3 + "<p>"
-      $HtmlMsg = "" + $HtmlHead + $HtmlBody
+    $EmailRecipient = $User.PrimarySmtpAddress
+    Write-Host "Sending welcome email to" $User.DisplayName
+    $htmlHeaderUser = "<h2>New User " + $User.DisplayName + "</h2>"
+    $htmlline1 = "<p><b>Welcome to Office 365</b></p>"
+    $htmlline2 = ('<p>Access Microsoft 365 apps by clicking here <a href="{0}" here</a> </p>' -f $portal)
+    $htmlline3 = "<p>Have a great time and be sure to call the help desk if you need assistance.</p>"
+    $htmlbody = $htmlheaderUser + $htmlline1 + $htmlline2 + $htmlline3 + "<p>"
+    $HtmlMsg = "" + $HtmlHead + $HtmlBody
      # Construct the message parameters and send it off...
-        $MsgParam = @{
-         To = $EmailRecipient
-         From = $MsgFrom
-         Subject = "A Hundred Thousand Welcomes"
-         Body = $HtmlMsg
-         SmtpServer = $SmtpServer
-         Port = $SmtpPort
-         Credential = $O365Cred }
-         Send-MailMessage @msgParam -UseSSL -BodyAsHTML
-        }
+    $MsgParam = @{
+        To = $EmailRecipient
+        From = $MsgFrom
+        Subject = "A Hundred Thousand Welcomes"
+        Body = $HtmlMsg
+        SmtpServer = $SmtpServer
+        Port = $SmtpPort
+        Credential = $O365Cred 
+    }
+    Send-MailMessage @msgParam -UseSSL -BodyAsHTML
+}
