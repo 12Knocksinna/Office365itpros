@@ -67,12 +67,13 @@ ForEach ($Permission in $DelegatedPermissions) {
     $Report.Add($ReportLine)
 }
 
-# Another way of reporting is to find service principals and list their application and delegated permissions
+# Another way of reporting is to find service principals and list their application and delegated permissions. These permission are
+# set by the applicatio developers
 [array]$ServicePrincipals = Get-MgServicePrincipal -All -PageSize 500 -Property * | `
     Sort-Object DisplayName | 
     Select-Object DisplayName, Id, AppId, `
-    @{name='Application Permissions'; expression={($_.AppRoles | ForEach-Object Value) -join ", "}},
-    @{name='Delegated Permissions'; expression={($_.Oauth2PermissionScopes | ForEach-Object Value) -join ", "}}
+    @{name='Application Roles'; expression={($_.AppRoles | ForEach-Object Value) -join ", "}},
+    @{name='Delegated Roles'; expression={($_.Oauth2PermissionScopes | ForEach-Object Value) -join ", "}}
 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/

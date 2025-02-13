@@ -39,6 +39,8 @@ ForEach ($User in $Users) {
     $Report.Add($ReportLine)
 }
 
+#---------------------- Example of uploading a large attachment to Outlook ==================
+
 $TenantName = (Get-MgOrganization).DisplayName
 # Define some variables used to construct the HTML content in the message body
 #HTML header with styles
@@ -57,68 +59,70 @@ $HTMLBody = $HtmlBody + "<h1>Welcome to $($TenantName)</h1>
     <p>You can open your account to access your email and documents by clicking <a href=http://www.portal.office.com>here</a> </p>
     <p>Have a great time and be sure to call the help desk if you need assistance. And be sure to read all the great articles about Office 365 published on Practical365.com.</p>"
 
-[Int32]$UploadChunkSize=4000
+# Define chunk size for uploading attachments. Must be a multiple of 320 KB ( 327680 bytes)
+[Int32]$uploadChunkSize = 983040
+# Define path to attachment file
+$AttachmentFile = "C:\Temp\PowerShellBook.pdf"
+
+$FileStream = New-Object System.IO.StreamReader($AttachmentFile)  
+$FileSize = $FileStream.BaseStream.Length 
+
+# Build structure for the attachment
+$AttachmentDetail = @{}
+$AttachmentDetail.Add("attachmentType", "file")
+$AttachmentDetail.Add("name", [System.IO.Path]::GetFileName($AttachmentFile))
+$AttachmentDetail.Add("size", $FileSize)
+
+$AttachmentParams = @{}
+$AttachmentParams.Add("AttachmentItem", $AttachmentDetail)
+
 $MsgSubject = "A warm welcome to $($TenantName)"
 $MsgFrom = (Get-MgContext).Account
-$FilePath = "C:\Temp\PowerShellBook.pdf"
-$FileStream = New-Object System.IO.StreamReader($filePath)  
-$FileSize = $fileStream.BaseStream.Length 
-$FileName = [System.IO.Path]::GetFileName($filePath)
-$Attachment = @{}
-$Attachment.Add("AttachmentType", "file")
-$Attachment.Add("Name", $FileName)
-$Attachment.Add("Size", $FileSize)
 
 # Create message structure
 $MsgParams = @{}
-$MsgParams.Add("AttachmentItem", $Attachment)
 $MsgParams.Add("Content", $HtmlBody)
 $MsgParams.Add("ContentType", "html")
 
 # Add the recipient using the mailbox's primary SMTP address
-$EmailAddress  = @{address = $User.PrimarySmtpAddress} 
+$EmailAddress  = @{address = $User.Mail} 
 $EmailRecipient = @{EmailAddress = $EmailAddress}  
 Write-Host "Sending welcome email to" $User.DisplayName
 
 # Create a draft message in the signed-in user's mailbox
-$NewMessage = New-MgUserMessage -UserId $MsgFrom -Body $MessageBody -ToRecipients $EmailRecipient -Subject $MsgSubject -Attachments $MsgAttachment
-$Session = New-MgUserMessageAttachmentUploadSession -UserId $User.Id -MessageId $NewMessage.Id -BodyParameter $MsgParams
+$NewMessage = New-MgUserMessage -UserId $MsgFrom -Body $MsgParams -ToRecipients $EmailRecipient -Subject $MsgSubject 
 
-$Headers = @{}
-$headers.add("Content-length","4000")
-$headers.add("Content-range","0-3999/$FileSize")
-$headers.add("Content-type","application/octet-stream")
+# Create an upload session
+$UploadSession = New-MgUserMessageAttachmentUploadSession -UserId $MsgFrom -MessageId $NewMessage.Id -BodyParameter $AttachmentParams
 
-if($uploadChunkSize -gt $fileStream.BaseStream.Length){
-    $uploadChunkSize = $fileStream.BaseStream.Length
-}
-$FileOffsetStart = 0
-      
+# Upload the attachment file in chunks
+$FileOffsetStart = 0              
 $FileBuffer = [byte[]]::new($uploadChunkSize)
 do {            
-    $FileChunkByteCount = $fileStream.BaseStream.Read($FileBuffer,0,$FileBuffer.Length) 
+    $FileChunkByteCount = $fileStream.BaseStream.Read($FileBuffer, 0, $FileBuffer.Length) 
     Write-Verbose ($fileStream.BaseStream.Position)
-    $FileOffsetEnd = $fileStream.BaseStream.Position-1
-    if($FileChunkByteCount -gt 0){
+    $FileOffsetEnd = $fileStream.BaseStream.Position - 1
+    if ($FileChunkByteCount -gt 0) {
         $UploadRangeHeader = "bytes " + $FileOffsetStart + "-" + $FileOffsetEnd + "/" + $FileSize
         Write-Verbose $UploadRangeHeader                
         $FileOffsetStart = $fileStream.BaseStream.Position
-        $binaryContent = New-Object System.Net.Http.ByteArrayContent -ArgumentList @($FileBuffer,0,$FileChunkByteCount)
+        $binaryContent = New-Object System.Net.Http.ByteArrayContent -ArgumentList @($FileBuffer, 0, $FileChunkByteCount)
         $FileBuffer = [byte[]]::new($uploadChunkSize)
-       
-        $Results = (Invoke-RestMethod -Method Put -Uri $Session.UploadURL -Headers $headers -Body $binaryContent.ReadAsByteArrayAsync().Result -SkipHeaderValidation ) 
-    }          
+        $headers = @{
+            'AnchorMailbox' = $MsgFrom
+            'Content-Range' = $UploadRangeHeader
+        }
+        $Result = (Invoke-RestMethod -Method Put -Uri $UploadSession.UploadUrl -UserAgent "UploadAgent" -Headers $headers -Body $binaryContent.ReadAsByteArrayAsync().Result -ContentType "application/octet-stream") 
+        Write-Verbose $Result 
+}          
 
- }while($FileChunkByteCount -ne 0)   
+} while ($FileChunkByteCount -ne 0)      
 
-   
-     # Create a draft message in the signed-in user's mailbox
-
-     # Send the message
-     Send-MgUserMessage -UserId $MsgFrom -MessageId $NewMessage.Id  
+# Send the message
+Send-MgUserMessage -UserId $MsgFrom -MessageId $NewMessage.Id  
 
 
-
+# +---------------------- Example of loading lots of attachments to a message -----------------
 
 $AttachmentsFolder = "c:\Temp\Attachments"
 [array]$InputAttachments = Get-ChildItem -Path $AttachmentsFolder
@@ -128,6 +132,7 @@ If (!($InputAttachments)) {
 }   
 [array]$MsgAttachments = $null
 Write-Host ("Processing {0} attachments..." -f $InputAttachments.Count)
+[array]$MsgAttachments = $null
 ForEach ($File in $InputAttachments.Name) {
     $FullFileName = $AttachmentsFolder + "\" + $File
     $ConvertedContent = [Convert]::ToBase64String([IO.File]::ReadAllBytes($FullFileName))

@@ -22,6 +22,7 @@ Function Update-MessageAttachments {
         [array]$ListOfAttachments 
     )
 
+    [array]$MsgAttachments = $null
     ForEach ($File in $ListOfAttachments) {
         $ConvertedContent = [Convert]::ToBase64String([IO.File]::ReadAllBytes($File))
         $FileExtension = [System.IO.Path]::GetExtension($File) 
