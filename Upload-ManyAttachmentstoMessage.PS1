@@ -3,7 +3,7 @@
 # +---------------------- Example of loading lots of attachments to a message -----------------
 
 # V1.0 14-Feb-2025
-# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Upload-ManyAttachmentsToMessage.PS1
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Upload-ManyAttachmentstoMessage.PS1
 
 Connect-MgGraph -Scopes "Mail.Send", "Mail.ReadWrite" -NoWelcome
 
