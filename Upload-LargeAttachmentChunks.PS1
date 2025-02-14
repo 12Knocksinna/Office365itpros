@@ -2,7 +2,7 @@
 # An example to show how to upload a large attachment in byte chunks for a draft message and then send the message
 
 # V1.0 14-Feb-2025
-# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Update-LargeAttachmentChunks.PS1
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Upload-LargeAttachmentChunks.PS1
 
 Connect-MgGraph -Scopes "Mail.Send", "Mail.ReadWrite" -NoWelcome
 
