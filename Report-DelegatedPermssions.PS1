@@ -1,6 +1,9 @@
 # Report-DelegatedPermissions.PS1
 # A script to report delegated permission grants for Entra ID service principals and user accounts
 
+# V1.0 1-Feb-2025
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-DelegatedPermissions.PS1
+
 Connect-MgGraph -Scopes Directory.Read.All -NoWelcome
 
 # Details of delegated permissions https://learn.microsoft.com/en-us/graph/api/resources/oauth2permissiongrant?view=graph-rest-1.0
@@ -30,6 +33,7 @@ $ResourceHash.Add("ebf6e6bd-3a61-469d-9acf-514b74f182c4", "Office 365 Management
 
 $Report = [System.Collections.Generic.List[Object]]::new()
 
+Write-Host ("Processin details of {0} delegated permissions..." -f $DelegatedPermissions.Count)
 ForEach ($Permission in $DelegatedPermissions) {
     
     Switch ($Permission.ConsentType) {
