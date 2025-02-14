@@ -14,7 +14,7 @@ If (!($InputAttachments)) {
     Write-Host "No attachments found in $AttachmentsFolder"
     Break
 }   
-$FileSizeThreshold = 146800640 # 140 MB in byes
+$FileSizeThreshold = 146800640 # 140 MB in bytes
 $TotalFileSize = ($InputAttachments | Measure-Object -Sum Length).Sum
 $FoundSizeMB = [math]::Round($TotalFileSize / 1MB, 2)
 If ($TotalFileSize -gt $FileSizeThreshold) {
