@@ -51,11 +51,11 @@ ForEach ($File in $InputAttachments.Name) {
         default {
             $ContentType = "application/octet-stream"
         }
-        }
+    }
     $AttachmentDetails = @{
         "@odata.type" = "#microsoft.graph.fileAttachment"
         Name = $File
-        ContentType =  $ContentType
+        ContentType = $ContentType
         ContentBytes = $ConvertedContent
     }
     $MsgAttachments += $AttachmentDetails
