@@ -6,7 +6,7 @@
 # Requires an Azure automation account and a Exchange Online HVE account. 
 
 # V1.0 19-Feb-2025
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-MailboxesEnabledForEWS.PS1
 
 # Get the credentials for the HVE account
 Connect-AzAccount -Identity
