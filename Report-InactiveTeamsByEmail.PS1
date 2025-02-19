@@ -196,7 +196,7 @@ ForEach ($Team in $Teams) {
 
     [int]$CountOfTeamActivities = $FilesUploaded.Count + $FilesModified.Count + $ActiveUsers + $Reactions + $ChannelMessages + $PostMessages + $ReplyMessages
 
-    $TeamReportLine = [PSCustomObject]@{
+    $TeamReportLine = [PSCustomObject][Ordered]@{ 
         DisplayName         = $Team.DisplayName
         TeamId              = $Team.Id
         Created             = Get-Date $CreatedDate -format 'dd-MMM-yyyy HH:mm'
