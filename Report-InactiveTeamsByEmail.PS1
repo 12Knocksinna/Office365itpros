@@ -2,7 +2,18 @@
 # an example of how to report inactive teams based on their activity as recorded in audit logs and 
 # the usage report.
 # 
-# Needs Team.ReadBasic.All, AuditQuery.Read.All, AuditLog.Read.All, Reports.Read.All, Sites.Read.All, ReportSettings.ReadWrite.All
+# V1.0 19-Feb-2025
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-InactiveTeamsByEmail.PS1
+
+# Needs these permissions:
+# Team.ReadBasic.All - read Teams information
+# AuditQuery.Read.All and AuditLog.Read.All to access audit data
+# Reports.Read.All to read usage data for Teams
+# Sites.Read.All to read the site URL for a team 
+# ReportSettings.ReadWrite.All to disable/enable usage report obfuscation if required
+# GroupMember.Read.All to read team membership
+# User.Read.All to read details of members found in groups
+
 # Would like to use SharePoint Site Usage report but site URL is not included https://learn.microsoft.com/en-gb/graph/api/reportroot-getsharepointsiteusagedetail?view=graph-rest-1.0&WT.mc_id=M365-MVP-9501
 # So we have to use the audit log to find file upload and file modified events
 # See https://office365itpros.com/2024/02/19/sharepoint-usage-data-issue/ 
