@@ -18,15 +18,8 @@
 # So we have to use the audit log to find file upload and file modified events
 # See https://office365itpros.com/2024/02/19/sharepoint-usage-data-issue/ 
 
-Connect-MgGraph 
-
-[array]$Teams = Get-MgTeam -All -PageSize 500
-If (!$Teams) {
-    Write-Host "No Teams found"
-    Break
-}
-
-Write-Output ("Found {0} Teams" -f $Teams.Count)
+# Script runs in app-only mode or using an Azure Automation account
+Connect-MgGraph -TenantId $TenantId -AppId $AppId -CertificateSubjectName $Thumbprint
 
 # Run an audit job to find SharePoint FileUpload and FileModified events
 # SharePoint events at https://learn.microsoft.com/en-us/purview/audit-log-activities?WT.mc_id=M365-MVP-9501#file-and-page-activities
@@ -110,7 +103,7 @@ ForEach ($Record in $AuditRecords) {
     $SPOAuditInfo.Add($SPOAuditLine)
 }
 
-# Now get the report data
+# Now get the usage report data
 $ObfuscationChanged = $false
 If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $True) {
    $Parameters = @{ displayConcealedNames = $False }
@@ -129,10 +122,31 @@ If ($ObfuscationChanged) {
     }
 }
 
+# Get a list of all teams
+Write-Host "Fetching list of Teams..."
+[array]$Teams = Get-MgTeam -All -PageSize 500
+If (!$Teams) {
+    Write-Host "No Teams found"
+    Break
+}
+Write-Output ("Found {0} Teams" -f $Teams.Count)
+
 # For each team, check what activities we know about
 $TeamReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Team in $Teams) {
-    # Get the webURL for the Team site
+
+    # To be able to filter out archived teams and to get the created date, we need to fetch the Team settings
+    # It's silly that these properties aren't returned by default when you list teams.
+    # https://learn.microsoft.com/en-us/graph/api/teams-list?view=graph-rest-1.0&WT.mc_id=M365-MVP-9501
+    $TeamSettings = Get-MgTeam -Team $Team.Id
+    If ($TeamSettings.IsArchived -eq $true) {
+        Write-Host ("Team {0} is archived and is excluded from active status checks" -f $Team.DisplayName)
+        Continue
+    }
+    $CreatedDate = $TeamSettings.CreatedDateTime
+    $AgeInDays = (New-TimeSpan -Start $CreatedDate -End (Get-Date)).Days
+
+    # Get the webURL for the Team site - this is one way to get the information
     $WebURL = $null
     $Uri = ("https://graph.microsoft.com/v1.0/groups/{0}/sites/root?`$select=webUrl" -f $Team.id)
     Try {
@@ -160,7 +174,6 @@ ForEach ($Team in $Teams) {
         $ReplyMessages = $UsageData.'Reply Messages'
         $UrgentMessages = $UsageData.'Urgent Messages'
         $Mentions = $UsageData.'Mentions'
-        $Guests = $UsageData.'Guests'
         $ActiveSharedChannels = $UsageData.'Active Shared Channels'
     } Else {
         $ActiveUsers = 0
@@ -172,7 +185,6 @@ ForEach ($Team in $Teams) {
         $ReplyMessages = 0
         $UrgentMessages = 0
         $Mentions = 0       
-        $Guests = 0
         $ActiveSharedChannels = 0
     }
 
@@ -184,15 +196,12 @@ ForEach ($Team in $Teams) {
 
     [int]$CountOfTeamActivities = $FilesUploaded.Count + $FilesModified.Count + $ActiveUsers + $Reactions + $ChannelMessages + $PostMessages + $ReplyMessages
 
-    # Get created date - silly that it's not returned by default when you list teams.
-    $CreatedDate = (Get-MgTeam -TeamId $Team.Id | Select-Object -ExpandProperty CreatedDateTime)
-    $AgeInDays = (New-TimeSpan -Start $CreatedDate -End (Get-Date)).Days
-
     $TeamReportLine = [PSCustomObject]@{
         DisplayName         = $Team.DisplayName
         TeamId              = $Team.Id
         Created             = Get-Date $CreatedDate -format 'dd-MMM-yyyy HH:mm'
         'Age in Days'       = $AgeInDays
+        Visibility          = $Team.Visibility
         Description         = $Team.Description
         Owners              = $OwnersDisplayNames
         SiteURL             = $WebURL
@@ -208,7 +217,9 @@ ForEach ($Team in $Teams) {
         'Reply Messages'    = $ReplyMessages
         'Urgent Messages'   = $UrgentMessages
         Mentions            = $Mentions
-        Guests              = $Guests
+        Members             = $TeamSettings.Summary.MemberCount
+        'Owner count'       = $TeamSettings.Summary.OwnerCount
+        Guests              = $TeamSettings.Summary.GuestsCount
         'Active Shared Channels' = $ActiveSharedChannels
         'Count of Activities' = $CountOfTeamActivities
     }
@@ -218,6 +229,20 @@ ForEach ($Team in $Teams) {
 $HtmlTeamReport = $TeamReport | Where-Object {$_.'Count of Activities' -le 100} | `
     Select-Object DisplayName, Created, 'Age in Days', 'Last active date', Owners, 'Count of Activities', TeamId, Description, SiteURL | Sort-Object DisplayName
 $HtmlTeamReport = $HtmlTeamReport | ConvertTo-Html -Fragment
+
+[array]$MsgAttachments = $null
+$OutputFile = "C:\Temp\InactiveTeams.csv"
+$TeamReport | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding UTF8
+
+$ConvertedContent = [Convert]::ToBase64String([IO.File]::ReadAllBytes($OutputFile))
+$FileName = [System.IO.Path]::GetFileName($OutputFile)
+
+$AttachmentDetails = @{
+    "@odata.type" = "#microsoft.graph.fileAttachment"
+    Name = $FileName
+    ContentBytes = $ConvertedContent
+}
+$MsgAttachments += $AttachmentDetails
 
 $MsgFrom = 'Customer.Services@office365itpros.com'
 # Define some variables used to construct the HTML content in the message body
@@ -237,7 +262,7 @@ $ToRecipients = @{}
 $ToRecipients.Add("emailAddress",@{'address'='tony.redmond@office365itpros.com'})
 [array]$MsgTo = $ToRecipients
 # Customize the message 
-$HtmlHeaderUser = "<h2>Administrative alert: Inactive Teams based on 30-day lookback/h2>"   
+$HtmlHeaderUser = "<h2>Administrative alert: Inactive Teams based on 30-day lookback</h2>"   
 # Add some content for the message - obviously, this is very customizable and should reflect what you want to say about the data being reported
 $HtmlBody = "<body> <h1>Please Check these inactive teams.</h1><p></p>"
 $HtmlBody = $HtmlBody + $HtmlTeamReport
@@ -253,6 +278,8 @@ $Message = @{}
 $Message.Add('subject', $MsgSubject)
 $Message.Add('toRecipients', $MsgTo)    
 $Message.Add('body', $MsgBody)
+$Message.Add('attachments', $MsgAttachments) 
+
 $Params = @{}
 $Params.Add('message', $Message)
 $Params.Add('saveToSentItems', $true)
