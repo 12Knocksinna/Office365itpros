@@ -50,7 +50,7 @@ $HtmlReport = $Report | ConvertTo-Html -Fragment
 $DistributionListAddress = "Office365BookFans@office365itpros.com"
 # Build some HTML content
 $HTMLContent = ("<p>We found <b>{0}</b> mailboxes still enabled for Exchange Web Services.</p>" -f $Report.Count)
-$HTMLContent = $HTMLContent + ("<p>The EWSEnabled setting in the organization confiuration is {0}.</p>" -f $EWSEnabled)
+$HTMLContent = $HTMLContent + ("<p>The EWSEnabled setting in the organization confiuration is <b>{0}</b>.</p>" -f $EWSEnabled)
 $HTMLContent = $HTMLContent + $HtmlReport
 $HTMLContent = $HTMLContent + "<p>Please review these mailboxes and disable EWS for any mailbox that no longer needs this facility.</p>"
 # Create the HVE parameters
@@ -71,7 +71,7 @@ $SendHVEMessageParams.Add('BodyAsHtml', $True)
 Try {
     Send-MailMessage @SendHVEMessageParams -ErrorAction Stop 
 } Catch {
-    Write-Host ("Failed to send email to {0} with error {1}" -f $Recipient, $_.Exception.Message)
+    Write-Output ("Failed to send email to {0} with error {1}" -f $Recipient, $_.Exception.Message)
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
