@@ -2,7 +2,7 @@
 # A script to check users with Microsfot 365 Copilot licenses who might not be using the features as they should
 # And if we find any underused licenses, we can give them to someone else...
 # V1.0 5-Nov-2024
-# V1.1 20-Feb-2025
+# V1.1 1-Feb-2025
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-UnderusedCopilotLicenses.PS1
 
 # Connect to Microsoft Graph
@@ -32,13 +32,14 @@ If (!$Users) {
     Write-Host ("{0} users with Microsoft 365 Copilot licenses found" -f $Users.Count)
 }
 
+$ConcealedNames = $false
 # Make sure that we can fetch usage data that isn't obfuscated
 Write-Host "Checking tenant settings for usage data obfuscation..."
 If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $true) {
     $Parameters = @{ displayConcealedNames = $false }
     Write-Host "Switching tenant settings to allow access to unobfuscated usage data..."
     Update-MgAdminReportSetting -BodyParameter $Parameters
-    $ConcealedNames = $false
+    $ConcealedNames = $true
 }
 
 # Fetch usage data for Copilot
@@ -273,9 +274,8 @@ If ($ExcelGenerated) {
     Write-Host ("A CSV report of underused Microsoft 365 Copilot licenses is available in {0}" -f $CSVOutputFile)
 }  
 
-
 # Reset tenant obfuscation settings to True if we switched the setting earlier
-If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $false -and $ConcealedNames) {
+If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $false -and $ConcealedNames -eq $true) {
     Write-Host "Resetting tenant settings to obfuscate usage data..."
     $Parameters = @{ displayConcealedNames = $True }
     Update-MgAdminReportSetting -BodyParameter $Parameters
