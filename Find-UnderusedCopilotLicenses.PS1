@@ -2,6 +2,7 @@
 # A script to check users with Microsfot 365 Copilot licenses who might not be using the features as they should
 # And if we find any underused licenses, we can give them to someone else...
 # V1.0 5-Nov-2024
+# V1.1 20-Feb-2025
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-UnderusedCopilotLicenses.PS1
 
 # Connect to Microsoft Graph
@@ -43,10 +44,23 @@ If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $true) {
 # Fetch usage data for Copilot
 Write-Host "Fetching Microsoft 365 Copilot usage data..."
 $Uri = "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUsageUserDetail(period='D90')"
-[array]$UsageData = Invoke-GraphRequest -Uri $Uri -Method Get | Select-Object -ExpandProperty Value
-If (!($UsageData)) {
+[array]$SearchRecords = Invoke-GraphRequest -Uri $Uri -Method Get 
+If (!($SearchRecords)) {
     Write-Host "No usage data found for Microsoft 365 Copilot"
     Break
+}
+
+# Store the fetched usage data in an array
+[array]$UsageData = $SearchRecords.value
+
+# Check do we have more usage data records to fetch and fetch more if a nextlink is available
+$NextLink = $SearchRecords.'@Odata.NextLink'
+While ($null -ne $NextLink) {
+    $SearchRecords = $null
+    [array]$SearchRecords = Invoke-MgGraphRequest -Uri $NextLink -Method GET 
+    $UsageData += $SearchRecords.value
+    Write-Host ("{0} usage data records fetched so far..." -f $UsageData.count)
+    $NextLink = $SearchRecords.'@odata.NextLink' 
 }
 
 $CopilotReport = [System.Collections.Generic.List[Object]]::new()

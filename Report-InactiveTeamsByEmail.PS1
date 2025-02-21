@@ -24,6 +24,7 @@ Connect-MgGraph -TenantId $TenantId -AppId $AppId -CertificateSubjectName $Thumb
 # Run an audit job to find SharePoint FileUpload and FileModified events
 # SharePoint events at https://learn.microsoft.com/en-us/purview/audit-log-activities?WT.mc_id=M365-MVP-9501#file-and-page-activities
 
+Write-Output "Generating audit report for SharePoint file activities..."
 Set-MgRequestContext -MaxRetry 10 -RetryDelay 15 | Out-Null
 $AuditQueryName = ("Audit Job SPO Operations created at {0}" -f (Get-Date))
 $StartDate = (Get-Date).AddDays(-30)
@@ -131,6 +132,7 @@ If (!$Teams) {
 }
 Write-Output ("Found {0} Teams" -f $Teams.Count)
 
+Write-Output "Generating report about Teams activity..."
 # For each team, check what activities we know about
 $TeamReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Team in $Teams) {
@@ -140,7 +142,7 @@ ForEach ($Team in $Teams) {
     # https://learn.microsoft.com/en-us/graph/api/teams-list?view=graph-rest-1.0&WT.mc_id=M365-MVP-9501
     $TeamSettings = Get-MgTeam -Team $Team.Id
     If ($TeamSettings.IsArchived -eq $true) {
-        Write-Host ("Team {0} is archived and is excluded from active status checks" -f $Team.DisplayName)
+        Write-Host ("The {0} team is archived and is excluded from active status checks" -f $Team.DisplayName)
         Continue
     }
     $CreatedDate = $TeamSettings.CreatedDateTime
@@ -152,7 +154,7 @@ ForEach ($Team in $Teams) {
     Try {
         $Data = Invoke-MgGraphRequest -Uri $Uri -Method Get -ErrorAction SilentlyContinue
     } Catch {
-        Write-Host ("Unable to find SharePoint site for {0}" -f $Team.DisplayName)
+        Write-Host ("Unable to find SharePoint site for {0}. It might not have been created." -f $Team.DisplayName)
         Continue
     }
     $WebURL = $Data.WebUrl + "/"
@@ -217,8 +219,8 @@ ForEach ($Team in $Teams) {
         'Reply Messages'    = $ReplyMessages
         'Urgent Messages'   = $UrgentMessages
         Mentions            = $Mentions
-        Members             = $TeamSettings.Summary.MemberCount
-        'Owner count'       = $TeamSettings.Summary.OwnerCount
+        Members             = $TeamSettings.Summary.MembersCount
+        'Owner count'       = $TeamSettings.Summary.OwnersCount
         Guests              = $TeamSettings.Summary.GuestsCount
         'Active Shared Channels' = $ActiveSharedChannels
         'Count of Activities' = $CountOfTeamActivities
@@ -226,9 +228,11 @@ ForEach ($Team in $Teams) {
     $TeamReport.Add($TeamReportLine)
 }
 
-$HtmlTeamReport = $TeamReport | Where-Object {$_.'Count of Activities' -le 100} | `
-    Select-Object DisplayName, Created, 'Age in Days', 'Last active date', Owners, 'Count of Activities', TeamId, Description, SiteURL | Sort-Object DisplayName
-$HtmlTeamReport = $HtmlTeamReport | ConvertTo-Html -Fragment
+$SelectedTeamReport =  [System.Collections.Generic.List[Object]]::new()
+$SelectedTeamReport = $TeamReport | Where-Object {$_.'Count of Activities' -le 100} | `
+    Select-Object DisplayName, Created, 'Age in Days', 'Last active date', Owners, 'Count of Activities', SiteURL | Sort-Object DisplayName
+
+$HtmlTeamReport = $SelectedTeamReport | ConvertTo-Html -Fragment
 
 [array]$MsgAttachments = $null
 $OutputFile = "C:\Temp\InactiveTeams.csv"
@@ -246,32 +250,33 @@ $MsgAttachments += $AttachmentDetails
 
 $MsgFrom = 'Customer.Services@office365itpros.com'
 # Define some variables used to construct the HTML content in the message body
-#HTML header with styles
-$HtmlHead="<html>
-    <style>
+# HTML header with styles
+$HtmlHead = "<html><style>
     BODY{font-family: Arial; font-size: 10pt;}
 	H1{font-size: 22px;}
 	H2{font-size: 18px; padding-top: 10px;}
 	H3{font-size: 16px; padding-top: 8px;}
-    H4{font-size: 8px; padding-top: 4px;}
-</style>"
+    H4{font-size: 8px; padding-top: 4px;} 
+    </style>"
 
-$MsgSubject = "Inactive Teams for your review"
+$HtmlBody = "<body><h2>Administrative alert: Inactive Teams based on 30-day lookback</h2><p><h1>Check for potentially inactive teams.</h1><p></p>"   
 
-$ToRecipients = @{}
-$ToRecipients.Add("emailAddress",@{'address'='tony.redmond@office365itpros.com'})
-[array]$MsgTo = $ToRecipients
-# Customize the message 
-$HtmlHeaderUser = "<h2>Administrative alert: Inactive Teams based on 30-day lookback</h2>"   
-# Add some content for the message - obviously, this is very customizable and should reflect what you want to say about the data being reported
-$HtmlBody = "<body> <h1>Please Check these inactive teams.</h1><p></p>"
 $HtmlBody = $HtmlBody + $HtmlTeamReport
 $HtmlBody = $HtmlBody + "<p>These teams are highlighted because of their lack of activity in Teams messaging and SharePoint Online. Please check to ensure that they are still needed.</p>"
-$HtmlBody = $HtmlBody + "<p><h4>Generated:</strong> $(Get-Date -Format g)</h4></p>"
-$HtmlMsg = "</body></html>" + $HtmlHead + $Htmlheaderuser + $HtmlBody + "<p>"
+
+$ReportDate = Get-Date -Format 'dd-MMM-yyyy HH:mm'
+$HtmlFooter = "<p><h4>Generated:</b>" + $ReportDate + "</b></h4>"
+$HtmlMsg = $HtmlHead + $HtmlBody + $HtmlFooter + "<p></body>"
+
+$MsgSubject = "Potentially inactive Teams for review"
+
+$ToRecipients = @{}
+$ToRecipients.Add("emailAddress", @{"address"="tony.redmond@redmondassociates.org"} )
+[array]$MsgTo = $ToRecipients
+
 # Construct the message body
 $MsgBody = @{}
-$MsgBody.Add('Content', "$($HtmlMsg)")
+$MsgBody.Add('Content', $HtmlMsg)
 $MsgBody.Add('ContentType','html')
 
 $Message = @{}
