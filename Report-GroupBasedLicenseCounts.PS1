@@ -2,7 +2,7 @@
 # Report on group-based licensing in a tenant by analyzing the licenses assigned through each group and sending a report by email.
 
 # V1.0 24-Feb-2025
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-GroupBasedLicenseCounts.PS1
 
 # Download the Microsoft licensing data
 [array]$ProductData = Invoke-RestMethod -Method Get -Uri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv" | ConvertFrom-CSV
@@ -23,7 +23,7 @@ If ($ProductData) {
 # Get all groups with assigned licenses
 Write-Host "Finding groups used by group-based licensing..."
 [array]$Groups = Get-MgGroup -All -Filter "assignedLicenses/`$count ne 0" `
-    -ConsistencyLevel Eventual -CountVariable Count -Property Id, DisplayName, AssignedLicenses
+    -ConsistencyLevel Eventual -CountVariable Count -Property Id, DisplayName, AssignedLicenses, LicenseProcessingState
 
 If (!$Groups) {
     Write-Host "No groups found with assigned licenses"
@@ -61,12 +61,29 @@ ForEach ($Group in $Groups) {
         GroupId             = $Group.Id
         Licenses            = $ProductNames -join ', '
         Members             = $GroupMembers.Count
+        'Licensing errors'  = (Get-MgGroupMemberWithLicenseError -GroupId $Group.Id).Count
         'Member names'      = ($GroupMembers.additionalProperties.displayName -join ', ')
         AssignedLicenses    = $Group.AssignedLicenses
+        'Processing state'  = $Group.LicenseProcessingState.State
     }
     $Report.Add($ReportLine)
 }
 
+Write-Host "Checking for user accounts with license assignment errors..."
+[array]$UsersWithErrors = Get-MgUser -All -PageSize 500 .\Analyze-MailTrafficUsers.PS1-Property AssignedLicenses, LicenseAssignmentStates, DisplayName | `
+    Select-Object DisplayName, AssignedLicenses -ExpandProperty LicenseAssignmentStates | `
+    Select-Object DisplayName, AssignedByGroup, State, Error, SkuId | Where-Object {$_.Error -ne 'None'}
+
+# Remove errors that arem't associated with group-based licensing
+$UsersWithErrors = $UsersWithErrors | Where-Object {$_.AssignedByGroup -ne $null}
+
+# Build a hash table to lookup group names for user accounts with license assignment errors
+$GroupsHash = @{}
+ForEach ($Group in $Groups) {
+    $GroupsHash.Add($Group.Id, $Group.DisplayName)
+}   
+
+# HTML style (basic)
 $HtmlHead="<html>
     <style>
     BODY{font-family: Arial; font-size: 10pt;}
@@ -75,13 +92,13 @@ $HtmlHead="<html>
 	H3{font-size: 16px; padding-top: 8px;}
     H4{font-size: 8px; padding-top: 4px;}
 </style>"
-$HtmlBody = $HtmlHead
+$HtmlBody = $HtmlHead + "<h1>Group-based licensing report</h1><p>This report details licenses assigned to tenant accounts through group-based licensing."
 
 # Build a HTML message body part by looping through the set of SKUs found for group-based licensing and 
 # report what we find
 ForEach ($Sku in $GroupBasedSkusReport) {
     $GroupData = $Report | Where-Object {$_.GroupId -eq $Sku.GroupId}
-    $HtmlHeader = ("<h2>Product: {0}" -f $Sku.'Product name') + "</h2><p>"
+    $HtmlHeader = ("<h2>Product: <u>{0}</u>" -f $Sku.'Product name') + "</h2><p>"
     $HtmlHeader = $HtmlHeader + ("<p><h2>Licenses assigned through group {0}</h2>" -f $GroupData.DisplayName) + "</p>"
     $HtmlHeader = $HtmlHeader + ("<p><h3>Consumed units: {0} Prepaid Units: {1} Available Units: {2} Assigned through group: {3}</h3> " `
         -f $Sku.ConsumedUnits, $Sku.PrepaidUnits, $Sku.AvailableUnits, $GroupData.Members) + "</p>"
@@ -92,7 +109,17 @@ ForEach ($Sku in $GroupBasedSkusReport) {
     }
     $HtmlBody = $HtmlBody + $HtmlHeader + ("<p>Licenses assigned to the following members: {0}" -f $GroupData.'Member names') + "</p>"
 }
-$HtmlMsg = $HtmlBody + "<p><h4>Generated:</strong> $(Get-Date -Format 'dd-MMM-yyyy HH:mm')</h4></p>""<p></body>"
+If (!$UsersWithErrors) {
+    Write-Host "No user accounts with license assignment errors found"
+    $HtmlUsersError = "<p>No user accounts with license assignment errors found</p>"
+} Else {
+    $HtmlUsersError = "<h2>User accounts with license assignment errors</h2><p>"
+    $HtmlUsersError = $UsersWithErrors | Select-Object DisplayName, @{name='Group';expression={$GroupsHash[$_.AssignedByGroup]}}, `
+        @{name='Product';expression={$ProductInfoHash[$_.SkuId]}} | ConvertTo-Html -Fragment
+    $HtmlUsersError = "<h2>User Accounts with License Assignment Errors</h2><p>" + $HtmlUsersError
+}
+
+$HtmlMsg = $HtmlBody + $HtmlUsersError + "<p><h4>Generated:</strong> $(Get-Date -Format 'dd-MMM-yyyy HH:mm')</h4></p>""<p></body>"
 
 $MsgSubject = "Group-based licensing report"
 # Email sent using the account that signed into the Graph session. Change this if you want the sender to be a different account.
