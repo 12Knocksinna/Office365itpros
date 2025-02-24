@@ -58,3 +58,48 @@ While ($Data.count -ne 0) {
         $Data.RemoveRange(0,$Data.count)
     }
 }
+
+$SelectedUsers = Get-MgUser -Filter "userType eq 'Member'"
+$MsgFrom = 'Customer.Services@office365itpros.com'
+# Define some variables used to construct the HTML content in the message body
+# HTML header with styles
+$HtmlHead="<html>
+    <style>
+    BODY{font-family: Arial; font-size: 10pt;}
+	H1{font-size: 22px;}
+	H2{font-size: 18px; padding-top: 10px;}
+	H3{font-size: 16px; padding-top: 8px;}
+    H4{font-size: 8px; padding-top: 4px;}
+</style>"
+
+$HtmlBody = $null
+$HtmlBody = $HtmlBody + "<body> <h1>Users</h1><p></p>"   
+
+$HtmlBody = $HtmlBody + ($SelectedUsers| Sort-Object DisplayName | ConvertTo-HTML -Fragment -As Table -PreContent "<h2>Administrative alert: Inactive Teams based on 30-day lookback</h2>")
+$HtmlBody = $HtmlBody + "<p>These users are member accounts</p>"
+$HtmlBody = $HtmlBody + "<p><h4>Generated:</strong> $(Get-Date -Format 'dd-MMM-yyyy HH:mm')</h4></p>"
+
+$HtmlMsg = $HtmlHead + $HtmlBody + "<p></body>"
+
+$MsgSubject = "Member users"
+
+$ToRecipients = @{}
+$ToRecipients.Add("emailAddress", @{"address"="office365itpros@proton.me"} )
+[array]$MsgTo = $ToRecipients
+
+# Construct the message body
+$MsgBody = @{}
+$MsgBody.Add('Content', "$($HtmlMsg)")
+$MsgBody.Add('ContentType','html')
+
+$Message = @{}
+$Message.Add('subject', $MsgSubject)
+$Message.Add('toRecipients', $MsgTo)    
+$Message.Add('body', $MsgBody)
+
+$Params = @{}
+$Params.Add('message', $Message)
+$Params.Add('saveToSentItems', $true)
+$Params.Add('isDeliveryReceiptRequested', $true)    
+
+Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params

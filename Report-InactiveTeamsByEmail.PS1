@@ -111,7 +111,7 @@ If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $True) {
    Update-MgAdminReportSetting -BodyParameter $Parameters
    $ObfuscationChanged = $true
 }
-
+Write-Output "Fetching Teams usage data..."
 $TempFile = "C:\Temp\TeamActivityDetail.csv"
 Get-MgReportTeamActivityDetail -Period 'D30' -OutFile $TempFile
 $TeamsData = Import-Csv -Path $TempFile
@@ -229,10 +229,7 @@ ForEach ($Team in $Teams) {
 }
 
 $SelectedTeamReport =  [System.Collections.Generic.List[Object]]::new()
-$SelectedTeamReport = $TeamReport | Where-Object {$_.'Count of Activities' -le 100} | `
-    Select-Object DisplayName, Created, 'Age in Days', 'Last active date', Owners, 'Count of Activities', SiteURL | Sort-Object DisplayName
-
-$HtmlTeamReport = $SelectedTeamReport | ConvertTo-Html -Fragment
+$SelectedTeamReport = $TeamReport | Where-Object {$_.'Count of Activities' -le 100} | Select-Object DisplayName, Created, 'Age in Days', 'Last active date', Owners, 'Count of Activities', SiteURL
 
 [array]$MsgAttachments = $null
 $OutputFile = "C:\Temp\InactiveTeams.csv"
@@ -248,35 +245,37 @@ $AttachmentDetails = @{
 }
 $MsgAttachments += $AttachmentDetails
 
-$MsgFrom = 'Customer.Services@office365itpros.com'
 # Define some variables used to construct the HTML content in the message body
 # HTML header with styles
-$HtmlHead = "<html><style>
+$HtmlHead="<html>
+    <style>
     BODY{font-family: Arial; font-size: 10pt;}
 	H1{font-size: 22px;}
 	H2{font-size: 18px; padding-top: 10px;}
 	H3{font-size: 16px; padding-top: 8px;}
-    H4{font-size: 8px; padding-top: 4px;} 
-    </style>"
+    H4{font-size: 8px; padding-top: 4px;}
+</style>"
 
-$HtmlBody = "<body><h2>Administrative alert: Inactive Teams based on 30-day lookback</h2><p><h1>Check for potentially inactive teams.</h1><p></p>"   
+$HtmlBody = $null
+$HtmlBody = $HtmlBody + "<body> <h1>Check for potentially inactive teams.</h1><p></p>"   
 
-$HtmlBody = $HtmlBody + $HtmlTeamReport
+$HtmlBody = $HtmlBody + ($SelectedTeamReport | Sort-Object DisplayName | ConvertTo-HTML -Fragment -As Table -PreContent "<h2>Administrative alert: Inactive Teams based on 30-day lookback</h2>")
 $HtmlBody = $HtmlBody + "<p>These teams are highlighted because of their lack of activity in Teams messaging and SharePoint Online. Please check to ensure that they are still needed.</p>"
+$HtmlBody = $HtmlBody + "<p><h4>Generated:</strong> $(Get-Date -Format 'dd-MMM-yyyy HH:mm')</h4></p>"
 
-$ReportDate = Get-Date -Format 'dd-MMM-yyyy HH:mm'
-$HtmlFooter = "<p><h4>Generated:</b>" + $ReportDate + "</b></h4>"
-$HtmlMsg = $HtmlHead + $HtmlBody + $HtmlFooter + "<p></body>"
+$HtmlMsg = $HtmlHead + $HtmlBody + "<p></body>"
 
 $MsgSubject = "Potentially inactive Teams for review"
+$MsgFrom = 'Customer.Services@office365itpros.com'
+$MsgAddressee = "tony.redmond@office365itpros.com"
 
 $ToRecipients = @{}
-$ToRecipients.Add("emailAddress", @{"address"="tony.redmond@redmondassociates.org"} )
+$ToRecipients.Add("emailAddress", @{"address"=$MsgAddressee} )
 [array]$MsgTo = $ToRecipients
 
 # Construct the message body
 $MsgBody = @{}
-$MsgBody.Add('Content', $HtmlMsg)
+$MsgBody.Add('Content', "$($HtmlMsg)")
 $MsgBody.Add('ContentType','html')
 
 $Message = @{}
@@ -291,6 +290,8 @@ $Params.Add('saveToSentItems', $true)
 $Params.Add('isDeliveryReceiptRequested', $true)    
 
 Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
+
+Write-Output ("Email with inactive Teams listing sent to {0}" -f $MsgAddressee)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.

@@ -75,10 +75,10 @@ ForEach ($Rec in $AuditRecords) {
     If ('UserPrincipalName' -in $rec.AuditData.ModifiedProperties.Name) {
         # Extract the values for the old and new UPNs from the Auditdata payload
         $OldUPN = $AuditData.ModifiedProperties | Where-Object {$_.Name -eq 'UserPrincipalName'} | Select-Object -ExpandProperty OldValue
-        $EmailAddress = $OldUPN -match '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b' | Out-Null
+        $MatchedData = $OldUPN -match '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b' | Out-Null
         $OldUPN = $Matches[0]
         $NewUPN = $AuditData.ModifiedProperties | Where-Object {$_.Name -eq 'UserPrincipalName'} | Select-Object -ExpandProperty NewValue
-        $EmailAddress = $NewUPN -match '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b' | Out-Null
+        $MatchedData = $NewUPN -match '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b' | Out-Null
         $NewUPN = $Matches[0]
         If ($OldUPN -ne $NewUPN) {
             $ReportLine = [PSCustomObject][Ordered]@{
@@ -97,7 +97,7 @@ $Report | Sort-Object {$_.Timestamp -as [datetime]} | Format-Table -AutoSize
 
 $MsgFrom = 'Customer.Services@office365itpros.com'
 # Define some variables used to construct the HTML content in the message body
-#HTML header with styles
+# HTML header with styles
 $HtmlHead="<html>
     <style>
     BODY{font-family: Arial; font-size: 10pt;}
@@ -113,13 +113,13 @@ $ToRecipients = @{}
 $ToRecipients.Add("emailAddress",@{'address'='tony.redmond@office365itpros.com'})
 [array]$MsgTo = $ToRecipients
 # Customize the message 
-$HtmlHeaderUser = "<h2>Administrative alert: User Principal Name Updates in the last week</h2>"   
+$HtmlHeader = "<p><h2>Administrative alert: User Principal Name Updates in the last week</h2></p>"   
 # Add some content for the message - obviously, this is very customizable and should reflect what you want to say about the data being reported
-$HtmlBody = "<body> <h1>Please Check these audit events</h1><p></p>"
+$HtmlBody = "<h1>Please Check these audit events</h1><p></p>"
 $HtmlBody = $HtmlBody + ($Report | ConvertTo-Html -Fragment)
 $HtmlBody = $HtmlBody + "<p>These audit records are highlighted because of the impact a change to a user principal name can have on systems.</p>"
-$HtmlBody = $HtmlBody + "<p><h4>Generated:</strong> $(Get-Date -Format g)</h4></p>"
-$HtmlMsg = "</body></html>" + $HtmlHead + $Htmlheaderuser + $HtmlBody + "<p>"
+$HtmlBody = $HtmlBody + "<p><h4>Generated:</strong> $(Get-Date -Format 'dd-MMM-yyyy HH:mm')</h4></p>"
+$HtmlMsg = $HtmlHead + $HtmlHeader + $HtmlBody + "<p>"
 # Construct the message body
 $MsgBody = @{}
 $MsgBody.Add('Content', "$($HtmlMsg)")
