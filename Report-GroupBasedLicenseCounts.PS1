@@ -1,112 +1,10 @@
-# SketchPad.PS1
-# Used for bits of PowerShell I am working on or want to note
+# Report-GroupBasedLicenseCounts.PS1
+# Report on group-based licensing in a tenant by analyzing the licenses assigned through each group and sending a report by email.
 
-# Get list to update metadata for the new item
-$ListId = (Get-MgSiteList -SiteId $Site.Id -Filter "DisplayName eq 'Documents'").Id
-[array]$ListItems = Get-MgSiteListItem -SiteId $Site.Id -ListId $ListId
-$ListItem = $ListItems[-1]
-$Body = @{}
-$Body.Add("Title", "Hard Deleted Users Report Created by Azure Automation")
-$Status = Update-MgSiteListItemField -SiteId $site.Id -ListId $listId -ListItemId $listItem.Id -BodyParameter $Body
-If ($Status) {
-    Write-Output ("Updated document metadata for item {0} with title {1}" -f $ListItem.Id, $Params.Title)
-}
+# V1.0 24-Feb-2025
+# GitHub Link:
 
-
-
-
-# Report all OneDrive accounts
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
-    -ConsistencyLevel eventual -CountVariable UsersFound -All -PageSize 500
-If (!$Users) {
-    Write-Host "No user accounts found"
-    Break
-}
-$Report = [System.Collections.Generic.List[Object]]::new()
-ForEach ($User in $Users) {
-    Try {
-        $OneDrive = Get-MgUserDefaultDrive -UserId $User.Id -ErrorAction Stop
-    } Catch {
-        Write-Host ("Unable to find OneDrive for {0}" -f $User.UserPrincipalName)
-        Continue
-    }   
-    $ReportLine = [PSCustomObject][Ordered]@{
-        UserPrincipalName = $User.UserPrincipalName
-        OneDriveUrl       = $OneDrive.WebUrl
-        Created           = Get-Date $OneDrive.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
-        Modified          = Get-Date $OneDrive.LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
-    }
-    $Report.Add($ReportLine)
-}
-
-# --- Add multiple members from a Microsoft 365 Group to another group
-
-$SourceGroup = Get-MgGroup -Filter "DisplayName eq 'Bala Group'"
-$TargetGroup = Get-MgGroup -Filter "DisplayName eq 'Bedson Project'"
-[array]$MembersSourceGroup = Get-MgGroupMember -GroupId $SourceGroup.Id -All | Select-Object -ExpandProperty Id
-[array]$MembersTargetGroup = Get-MgGroupMember -GroupId $TargetGroup.Id -All | Select-Object -ExpandProperty Id
-# Remove source members who are already members of the target group
-$MembersSourceGroup = $MembersSourceGroup | Where-Object { $MembersTargetGroup -notcontains $_ }
-$Data = [System.Collections.Generic.List[Object]]::new()
-$MembersSourceGroup | ForEach-Object {$Data.Add("https://graph.microsoft.com/beta/directoryobjects/{0}" -f $_)}
-While ($Data.count -ne 0) {
-    $Parameters = @{"members@odata.bind" = $Data[0..19] }
-    Update-MgGroup -GroupId $TargetGroup.Id -BodyParameter $Parameters
-    If ($Data.count -gt 20) {
-        $Data.RemoveRange(0.20)
-    } Else {
-        $Data.RemoveRange(0,$Data.count)
-    }
-}
-
-$SelectedUsers = Get-MgUser -Filter "userType eq 'Member'"
-$MsgFrom = 'Customer.Services@office365itpros.com'
-# Define some variables used to construct the HTML content in the message body
-# HTML header with styles
-$HtmlHead="<html>
-    <style>
-    BODY{font-family: Arial; font-size: 10pt;}
-	H1{font-size: 22px;}
-	H2{font-size: 18px; padding-top: 10px;}
-	H3{font-size: 16px; padding-top: 8px;}
-    H4{font-size: 8px; padding-top: 4px;}
-</style>"
-
-$HtmlBody = $null
-$HtmlBody = $HtmlBody + "<body> <h1>Users</h1><p></p>"   
-
-$HtmlBody = $HtmlBody + ($SelectedUsers| Sort-Object DisplayName | ConvertTo-HTML -Fragment -As Table -PreContent "<h2>Administrative alert: Inactive Teams based on 30-day lookback</h2>")
-$HtmlBody = $HtmlBody + "<p>These users are member accounts</p>"
-$HtmlBody = $HtmlBody + "<p><h4>Generated:</strong> $(Get-Date -Format 'dd-MMM-yyyy HH:mm')</h4></p>"
-
-$HtmlMsg = $HtmlHead + $HtmlBody + "<p></body>"
-
-$MsgSubject = "Member users"
-
-$ToRecipients = @{}
-$ToRecipients.Add("emailAddress", @{"address"="tony.redmond@office365itpros.com"} )
-[array]$MsgTo = $ToRecipients
-
-# Construct the message body
-$MsgBody = @{}
-$MsgBody.Add('Content', "$($HtmlMsg)")
-$MsgBody.Add('ContentType','html')
-
-$Message = @{}
-$Message.Add('subject', $MsgSubject)
-$Message.Add('toRecipients', $MsgTo)    
-$Message.Add('body', $MsgBody)
-
-$Params = @{}
-$Params.Add('message', $Message)
-$Params.Add('saveToSentItems', $true)
-$Params.Add('isDeliveryReceiptRequested', $true)    
-
-Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
-
-
-#-----------
-
+# Download the Microsoft licensing data
 [array]$ProductData = Invoke-RestMethod -Method Get -Uri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv" | ConvertFrom-CSV
 If ($ProductData) {
     [array]$ProductInfo = $ProductData | Sort-Object GUID -Unique
@@ -115,6 +13,7 @@ If ($ProductData) {
         $ProductInfoHash.Add([string]$P.GUID, [string]$P.Product_Display_Name)
     }   
 } Else {
+    # if a local copy exists, you could plug it in here
     Write-Host "Unable to retrieve product data"
     Break
 }
@@ -137,6 +36,7 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 $GroupBasedSkusReport = [System.Collections.Generic.List[Object]]::new()
 
 Write-Host "Analyzing group-based licensing..."
+# Two outputs - a list containing group information and another with all the license data
 ForEach ($Group in $Groups) {
     # Resolve product identifiers to product names for each license
     $ProductNames = @()
@@ -176,6 +76,9 @@ $HtmlHead="<html>
     H4{font-size: 8px; padding-top: 4px;}
 </style>"
 $HtmlBody = $HtmlHead
+
+# Build a HTML message body part by looping through the set of SKUs found for group-based licensing and 
+# report what we find
 ForEach ($Sku in $GroupBasedSkusReport) {
     $GroupData = $Report | Where-Object {$_.GroupId -eq $Sku.GroupId}
     $HtmlHeader = ("<h2>Product: {0}" -f $Sku.'Product name') + "</h2><p>"
@@ -192,8 +95,11 @@ ForEach ($Sku in $GroupBasedSkusReport) {
 $HtmlMsg = $HtmlBody + "<p><h4>Generated:</strong> $(Get-Date -Format 'dd-MMM-yyyy HH:mm')</h4></p>""<p></body>"
 
 $MsgSubject = "Group-based licensing report"
+# Email sent using the account that signed into the Graph session. Change this if you want the sender to be a different account.
+# Sending from a different account means that the script must run in app-only mode and have consent to use the Mail.Send application permission
 $MsgFrom = (Get-MgContext).Account
 $ToRecipients = @{}
+# Add the email addresses of the recipients to the ToRecipients hash table - change this address to get the email to where you want it to go
 $ToRecipients.Add("emailAddress", @{"address"="tony.redmond@office365itpros.com"} )
 [array]$MsgTo = $ToRecipients
 
@@ -213,3 +119,9 @@ $Params.Add('saveToSentItems', $true)
 $Params.Add('isDeliveryReceiptRequested', $true)    
 
 Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# first validating the code in a non-production environment.
