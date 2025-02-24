@@ -28,7 +28,8 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($M in $Mbx) {
     Write-Host ("Processing mailbox {0}" -f $M.UserPrincipalName) -ForegroundColor Yellow
     [array]$Items = Get-RecoverableItems -Identity $M.UserPrincipalName -SourceFolder RecoverableItems `
-     -FilterStartTime $StartDate.toString() -FilterEndTime $EndDate.toString() -ResultSize Unlimited
+     -FilterStartTime $StartDate.toString() -FilterEndTime $EndDate.toString() -ResultSize Unlimited | `
+     Sort-Object {$_.LastModifiedTime -as [datetime]}
 
     # If some items are returned, report them
     Write-Host ("Found {0} items" -f $Items.Count)
