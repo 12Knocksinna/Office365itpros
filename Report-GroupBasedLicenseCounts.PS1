@@ -5,6 +5,7 @@
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-GroupBasedLicenseCounts.PS1
 
 # Download the Microsoft licensing data
+Write-Host "Attempting to download Microsoft licensing data..."
 [array]$ProductData = Invoke-RestMethod -Method Get -Uri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv" | ConvertFrom-CSV
 If ($ProductData) {
     [array]$ProductInfo = $ProductData | Sort-Object GUID -Unique
@@ -70,11 +71,11 @@ ForEach ($Group in $Groups) {
 }
 
 Write-Host "Checking for user accounts with license assignment errors..."
-[array]$UsersWithErrors = Get-MgUser -All -PageSize 500 .\Analyze-MailTrafficUsers.PS1-Property AssignedLicenses, LicenseAssignmentStates, DisplayName | `
+[array]$UsersWithErrors = Get-MgUser -All -PageSize 500 -Property AssignedLicenses, LicenseAssignmentStates, DisplayName | `
     Select-Object DisplayName, AssignedLicenses -ExpandProperty LicenseAssignmentStates | `
     Select-Object DisplayName, AssignedByGroup, State, Error, SkuId | Where-Object {$_.Error -ne 'None'}
 
-# Remove errors that arem't associated with group-based licensing
+# Remove errors that aren't associated with group-based licensing
 $UsersWithErrors = $UsersWithErrors | Where-Object {$_.AssignedByGroup -ne $null}
 
 # Build a hash table to lookup group names for user accounts with license assignment errors
@@ -99,13 +100,16 @@ $HtmlBody = $HtmlHead + "<h1>Group-based licensing report</h1><p>This report det
 ForEach ($Sku in $GroupBasedSkusReport) {
     $GroupData = $Report | Where-Object {$_.GroupId -eq $Sku.GroupId}
     $HtmlHeader = ("<h2>Product: <u>{0}</u>" -f $Sku.'Product name') + "</h2><p>"
-    $HtmlHeader = $HtmlHeader + ("<p><h2>Licenses assigned through group {0}</h2>" -f $GroupData.DisplayName) + "</p>"
+    $HtmlHeader = $HtmlHeader + ("<p><h2>License assignment through the <u>{0}</u> group</h2>" -f $GroupData.DisplayName) + "</p>"
     $HtmlHeader = $HtmlHeader + ("<p><h3>Consumed units: {0} Prepaid Units: {1} Available Units: {2} Assigned through group: {3}</h3> " `
         -f $Sku.ConsumedUnits, $Sku.PrepaidUnits, $Sku.AvailableUnits, $GroupData.Members) + "</p>"
     If ($Sku.AvailableUnits -le 0) {
         $HtmlHeader = $HtmlHeader + "<p><strong>Warning: No more licenses availble</strong></p>"
     } ElseIf ($Sku.AvailableUnits -lt 10) {
         $HtmlHeader = $HtmlHeader + "<p><strong>Warning: Less than 10 licenses available</strong></p>"
+    }
+    If ($GroupData.Members -gt $Sku.PrepaidUnits) {
+        $HtmlHeader = $HtmlHeader + "<p><strong>Warning: More group members than prepaid licenses</strong></p>"
     }
     $HtmlBody = $HtmlBody + $HtmlHeader + ("<p>Licenses assigned to the following members: {0}" -f $GroupData.'Member names') + "</p>"
 }
@@ -115,7 +119,7 @@ If (!$UsersWithErrors) {
 } Else {
     $HtmlUsersError = "<h2>User accounts with license assignment errors</h2><p>"
     $HtmlUsersError = $UsersWithErrors | Select-Object DisplayName, @{name='Group';expression={$GroupsHash[$_.AssignedByGroup]}}, `
-        @{name='Product';expression={$ProductInfoHash[$_.SkuId]}} | ConvertTo-Html -Fragment
+        @{name='Product';expression={$ProductInfoHash[$_.SkuId]}}, Error | ConvertTo-Html -Fragment
     $HtmlUsersError = "<h2>User Accounts with License Assignment Errors</h2><p>" + $HtmlUsersError
 }
 
