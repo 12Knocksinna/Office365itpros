@@ -4,6 +4,11 @@
 # V1.0 24-Feb-2025
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-GroupBasedLicenseCounts.PS1
 
+# Requires Mail.Send to send email
+# Requires Group.Read.All to read groups
+# Requires GroupMember.Read.All to read group members
+# Requires User.Read.All to read user data
+
 # Download the Microsoft licensing data
 Write-Host "Attempting to download Microsoft licensing data..."
 [array]$ProductData = Invoke-RestMethod -Method Get -Uri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv" | ConvertFrom-CSV
@@ -149,7 +154,12 @@ $Params.Add('message', $Message)
 $Params.Add('saveToSentItems', $true)
 $Params.Add('isDeliveryReceiptRequested', $true)    
 
-Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
+Try {
+    Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params -ErrorAction Stop
+    Write-Host "Report sent by email"
+} Catch {
+    Write-Host "Error sending email: $($_.Exception.Message)"
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
