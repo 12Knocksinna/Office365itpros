@@ -23,22 +23,25 @@ $PermissionsUsedReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($S in $SendAsData) {
   $AuditCheck = $UserSendAsRecords | Where-Object {$_.SentBy -eq $S.AssignedTo -and $_.SentAs -eq $S.UPN} | Select-Object -ExpandProperty TimeStamp
   If ($null -eq $AuditCheck) {
-       $PermissionsNotUsed++
-       $ReportLine  = [PSCustomObject] @{
+      $PermissionsNotUsed++
+      $ReportLine  = [PSCustomObject] @{
          Mailbox    = $S.Mailbox
          UPN        = $S.UPN
          Assignedto = $S.AssignedTo
-         Status     = "SendAs permission not used"}
-       $PermissionsUsedReport.Add($ReportLine) 
+         Status     = "SendAs permission not used"
+      }
+         $PermissionsUsedReport.Add($ReportLine) 
    } Else {
-       $LastUsedDate  = $AuditCheck | Sort-Object {$_.TimeStamp -as [datetime]} -Descending | Select-Object -Last 1  # Grab latest SendAs
-       $PermissionsUsed++
-       $ReportLine  = [PSCustomObject] @{
+      $LastUsedDate  = $AuditCheck | Sort-Object {$_.TimeStamp -as [datetime]} -Descending | Select-Object -Last 1  # Grab latest SendAs
+      $PermissionsUsed++
+      $ReportLine  = [PSCustomObject] @{
          Mailbox    = $S.Mailbox
          UPN        = $S.UPN
          Assignedto = $S.AssignedTo
-         Status     = [String]$AuditCheck.Count + " SendAs permissions used. Last use on " + $LastUsedDate }
-       $PermissionsUsedReport.Add($ReportLine) }
+         Status     = [String]$AuditCheck.Count + " SendAs permissions used. Last use on " + $LastUsedDate 
+      }
+         $PermissionsUsedReport.Add($ReportLine) 
+      }
 }
     
 $PermissionsUsedReport | Sort-Object AssignedTo | Out-GridView
