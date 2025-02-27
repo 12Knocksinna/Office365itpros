@@ -42,7 +42,7 @@ ForEach ($S in $SendAsData) {
 }
     
 $PermissionsUsedReport | Sort-Object AssignedTo | Out-GridView
-$PermissionsUsedReport | Export-CSV -NoTypeInformation c:\Temp\SendAsPermissionsUsageReport.CSV
+$PermissionsUsedReport | Export-CSV -NoTypeInformation -Encoding UTF8 c:\Temp\SendAsPermissionsUsageReport.CSV
 
 Clear-Host
 Write-Host "SendAs Analysis for the last 90 days"
@@ -58,4 +58,3 @@ Write-Host "Output report available in c:\Temp\SendAsPermissionsUsageReport.CSV"
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization.  Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
-
