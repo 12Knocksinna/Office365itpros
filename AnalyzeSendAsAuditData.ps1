@@ -10,26 +10,28 @@ If (!(Test-Path -Path c:\temp\SendAsAuditRecords.CSV)) {
    Write-Host "Error: c:\temp\SendAsAuditRecords.CSV not found. Please run script to extract audit records for SendAs events" ; break}
 
 # Import information gathered about audit records and permissions
-$UserSendAsRecords = Import-CSV c:\temp\SendAsAuditRecords.CSV  | ? {$_.MailboxType -eq "UserMailbox"}
-$SendAsData = Import-CSV c:\temp\MailboxAccessPermissions.csv | ? {$_.Permission -eq "SendAs"}
-If ($SendAsData.Count -eq 0) { Write-Host "No SendAs permissions found"; break}
+$UserSendAsRecords = Import-CSV c:\temp\SendAsAuditRecords.CSV  | Where-Object {$_.MailboxType -eq "UserMailbox"}
+$SendAsData = Import-CSV c:\temp\MailboxAccessPermissions.csv | Where-Object {$_.Permission -eq "SendAs"}
+If ($SendAsData.Count -eq 0) { 
+   Write-Host "No SendAs permissions found"; break
+}
 
 $PermissionsUsed = 0; $PermissionsNotUsed = 0
 $PermissionsUsedReport = [System.Collections.Generic.List[Object]]::new()
 
 # Check each assigned permission to establish if we can find an audit record to prove its use (or not)
 ForEach ($S in $SendAsData) {
-  $AuditCheck = $UserSendAsRecords | Where-Object {$_.SentBy -eq $S.AssignedTo -and $_.SentAs -eq $S.UPN} | Select -ExpandProperty TimeStamp
-  If ($AuditCheck -eq $Null) {
+  $AuditCheck = $UserSendAsRecords | Where-Object {$_.SentBy -eq $S.AssignedTo -and $_.SentAs -eq $S.UPN} | Select-Object -ExpandProperty TimeStamp
+  If ($null -eq $AuditCheck) {
        $PermissionsNotUsed++
        $ReportLine  = [PSCustomObject] @{
          Mailbox    = $S.Mailbox
          UPN        = $S.UPN
          Assignedto = $S.AssignedTo
          Status     = "SendAs permission not used"}
-       $PermissionsUsedReport.Add($ReportLine) }
-    Else {
-       $LastUsedDate  = $AuditCheck | Sort-Object {$_.TimeStamp -as [datetime]} -Descending | Select -Last 1  # Grab latest SendAs
+       $PermissionsUsedReport.Add($ReportLine) 
+   } Else {
+       $LastUsedDate  = $AuditCheck | Sort-Object {$_.TimeStamp -as [datetime]} -Descending | Select-Object -Last 1  # Grab latest SendAs
        $PermissionsUsed++
        $ReportLine  = [PSCustomObject] @{
          Mailbox    = $S.Mailbox
@@ -39,10 +41,10 @@ ForEach ($S in $SendAsData) {
        $PermissionsUsedReport.Add($ReportLine) }
 }
     
-$PermissionsUsedReport | Sort AssignedTo | Out-GridView
+$PermissionsUsedReport | Sort-Object AssignedTo | Out-GridView
 $PermissionsUsedReport | Export-CSV -NoTypeInformation c:\Temp\SendAsPermissionsUsageReport.CSV
 
-CLS
+Clear-Host
 Write-Host "SendAs Analysis for the last 90 days"
 Write-Host "------------------------------------"
 Write-Host "Total SendAs Permissions   :" $SendAsData.Count
