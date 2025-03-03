@@ -107,109 +107,221 @@ Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
 
 #-----------
 
-[array]$ProductData = Invoke-RestMethod -Method Get -Uri "https://download.microsoft.com/download/e/3/e/e3e9faf2-f28b-490a-9ada-c6089a1fc5b0/Product%20names%20and%20service%20plan%20identifiers%20for%20licensing.csv" | ConvertFrom-CSV
-If ($ProductData) {
-    [array]$ProductInfo = $ProductData | Sort-Object GUID -Unique
-    $ProductInfoHash = @{}
-    ForEach ($P in $ProductInfo) {
-        $ProductInfoHash.Add([string]$P.GUID, [string]$P.Product_Display_Name)
-    }   
-} Else {
-    Write-Host "Unable to retrieve product data"
-    Break
+$UPN = (Get-MgContext).Account
+$StartTime = (Get-Date).AddDays(1).ToString("yyyy-MM-ddT00:00:00Z")
+$EndTime = (Get-Date).AddDays(7).ToString("yyyy-MM-ddT00:00:00Z")
+
+$ScheduledStartDateTime = @{}
+$ScheduledStartDateTime.Add("dateTime", $StartTime)
+$ScheduledStartDateTime.Add("timeZone", "UTC")
+$ScheduledEndDateTime = @{}
+$ScheduledEndDateTime.Add("dateTime", $EndTime)
+$ScheduledEndDateTime.Add("timeZone", "UTC")    
+
+$AutomaticRepliesSetting = @{}
+$AutomaticRepliesSetting.Add("status", "alwaysEnabled")
+$AutomaticRepliesSetting.Add("externalAudience", "all")
+$AutomaticRepliesSetting.Add("scheduledEndDateTime", $ScheduledEndDateTime)
+$AutomaticRepliesSetting.Add("scheduledStartDateTime", $ScheduledStartDateTime)
+$AutomaticRepliesSetting.Add("internalReplyMessage", "I am out of the office until next week")
+$AutomaticRepliesSetting.Add("externalReplyMessage", "I am out of the office until next week")
+
+$AutoReply = @{}
+$AutoReply.Add("@odata.context", "https://graph.microsoft.com/v1.0/$UPN/mailboxSettings")
+$AutoReply.Add("automaticRepliesSetting", $AutomaticRepliesSetting)
+
+Update-MgUserMailboxSetting -UserId $UPN -BodyParameter $AutoReply
+
+$params = @{
+	"@odata.context" = "https://graph.microsoft.com/v1.0/$metadata#Me/mailboxSettings"
+	automaticRepliesSetting = @{
+		status = "Scheduled"
+		scheduledStartDateTime = @{
+			dateTime = "2026-03-20T18:00:00.0000000"
+			timeZone = "UTC"
+		}
+		scheduledEndDateTime = @{
+			dateTime = "2026-03-28T18:00:00.0000000"
+			timeZone = "UTC"
+		}
+        externalReplyMessage = "I am out of the office until next week"
+        internalReplyMessage = "I am out of the office until next week"
+        externalAudience = "all"
+	}
 }
 
-[array]$TenantSkus = Get-MgSubscribedSku -All | Select-Object SkuId, SkuPartNumber, ServicePlans, ConsumedUnits, PrepaidUnits
+#+------------- Copilot Interactions
 
-# Get all groups with assigned licenses
-Write-Host "Finding groups used by group-based licensing..."
-[array]$Groups = Get-MgGroup -All -Filter "assignedLicenses/`$count ne 0" `
-    -ConsistencyLevel Eventual -CountVariable Count -Property Id, DisplayName, AssignedLicenses
+Set-MgRequestContext -MaxRetry 10 -RetryDelay 15| Out-Null
+$AuditQueryName = ("Copilot Interactions audit job created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
+$StartDate = (Get-Date).AddDays(-30)
+$EndDate = (Get-Date).AddDays(1)
+$AuditQueryStart = (Get-Date $StartDate -format s)
+$AuditQueryEnd = (Get-Date $EndDate -format s)
+[array]$AuditQueryOperations = "CopilotInteraction"
+$AuditQueryParameters = @{}
+#$AuditQueryParameters.Add("@odata.type","#microsoft.graph.security.auditLogQuery")
+$AuditQueryParameters.Add("displayName", $AuditQueryName)
+$AuditQueryParameters.Add("OperationFilters", $AuditQueryOperations)
+$AuditQueryParameters.Add("filterStartDateTime", $AuditQueryStart)
+$AuditQueryParameters.Add("filterEndDateTime", $AuditQueryEnd)
 
-If (!$Groups) {
-    Write-Host "No groups found with assigned licenses"
-    Break
-} Else {
-    Write-Host ("Found {0} groups with assigned licenses" -f $Groups.Count)
+# Submit the audit query
+$AuditJob = New-MgBetaSecurityAuditLogQuery -BodyParameter $AuditQueryParameters
+
+# Check the audit query status every 20 seconds until it completes
+[int]$i = 1
+[int]$SleepSeconds = 20
+$SearchFinished = $false; [int]$SecondsElapsed = 20
+Write-Host "Checking audit query status..."
+Start-Sleep -Seconds 30
+# This cmdlet is not working...
+#$AuditQueryStatus = Get-MgBetaSecurityAuditLogQuery -AuditLogQueryId $AuditJob.Id
+$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}" -f $AuditJob.id)
+$AuditQueryStatus = Invoke-MgGraphRequest -Uri $Uri -Method Get
+
+While ($SearchFinished -eq $false) {
+    $i++
+    Write-Host ("Waiting for audit search to complete. Check {0} after {1} seconds. Current state {2}" -f $i, $SecondsElapsed, $AuditQueryStatus.status)
+    If ($AuditQueryStatus.status -eq 'succeeded') {
+        $SearchFinished = $true
+    } Else {
+        Start-Sleep -Seconds $SleepSeconds
+        $SecondsElapsed = $SecondsElapsed + $SleepSeconds
+        # $AuditQueryStatus = Get-MgBetaSecurityAuditLogQuery -AuditLogQueryId $AuditJob.Id
+        $AuditQueryStatus = Invoke-MgGraphRequest -Uri $Uri -Method Get
+    }
 }
+
+# Fetch the audit records returned by the query
+# This cmdlet isn't working either
+# [array]$AuditRecords = Get-MgBetaSecurityAuditLogQueryRecord -AuditLogQueryId $AuditJob.Id -All -PageSize 999
+$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records" -f $AuditJob.Id)
+[array]$SearchRecords = Invoke-MgGraphRequest -Uri $Uri -Method GET
+[array]$AuditRecords = $SearchRecords.value
+
+$NextLink = $SearchRecords.'@Odata.NextLink'
+While ($null -ne $NextLink) {
+    $SearchRecords = $null
+    [array]$SearchRecords = Invoke-MgGraphRequest -Uri $NextLink -Method GET 
+    $AuditRecords += $SearchRecords.value
+    Write-Host ("{0} audit records fetched so far..." -f $AuditRecords.count)
+    $NextLink = $SearchRecords.'@odata.NextLink' 
+}
+
+Write-Host ("Audit query {0} returned {1} records" -f $AuditQueryName, $AuditRecords.Count)`
+$AuditRecords = $AuditRecords | Sort-Object CreatedDateTime -Descending
 
 $Report = [System.Collections.Generic.List[Object]]::new()
-$GroupBasedSkusReport = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Rec in $AuditRecords) {
+    $AuditData = $Rec.AuditData
+    $CopilotApp = 'Copilot for Microsoft 365'; $Context = $null; $CopilotLocation = $null
 
-Write-Host "Analyzing group-based licensing..."
-ForEach ($Group in $Groups) {
-    # Resolve product identifiers to product names for each license
-    $ProductNames = @()
-    ForEach ($License in $Group.AssignedLicenses) {
-        $ConsumedUnits = 0; $PrepaidUnits = 0
-        $ProductNames += $ProductInfoHash[$License.SkuId]
-        $ConsumedUnits = ($TenantSkus | Where-Object {$_.SkuId -eq $License.SkuId}).ConsumedUnits
-        $PrepaidUnits = ($TenantSkus | Where-Object {$_.SkuId -eq $License.SkuId}).PrepaidUnits.Enabled
-        $GroupBasedSkuLine = [PSCustomObject][Ordered]@{
-            SkuId           = $License.SkuId
-            'Product name'  = $ProductInfoHash[$License.SkuId]
-            ConsumedUnits   = $ConsumedUnits
-            PrepaidUnits    = $PrepaidUnits
-            AvailableUnits  = $PrepaidUnits - $ConsumedUnits
-            'GroupId'       = $Group.Id
+    $CopilotApp = $AuditData.copiloteventdata.apphost
+    If ($null -eq $CopilotApp) {  
+        Switch ($Auditdata.copiloteventdata.contexts.type) {
+            "xlsx" {
+                $CopilotApp = "Excel"
+            }
+            "docx" {
+                $CopilotApp = "Word"
+            }
+            "pptx" {
+                $CopilotApp = "PowerPoint"
+            }
+            "TeamsMeeting" {
+                $CopilotApp = "Teams"
+                $CopilotLocation = "Teams meeting"
+            }
+            "StreamVideo" {
+                $CopilotApp = "Stream"
+                $CopilotLocation = "Stream video player"
+            }
+            Default {
+                $CopilotApp = "Copilot for Microsoft 365"
+                $CopilotLocation = "Unknown"
+            }
         }
-        $GroupBasedSkusReport.Add($GroupBasedSkuLine)
     }
-    [array]$GroupMembers = Get-MgGroupMember -GroupId $Group.Id -All 
+
+    If ($Auditdata.copiloteventdata.contexts.id -like "*https://teams.microsoft.com/*") {
+        $CopilotApp = "Teams"
+    } ElseIf ($AuditData.CopiloteventData.AppHost -eq "bizchat" -or $AuditData.CopiloteventData.AppHost -eq "Office") {
+        $CopilotApp = "Copilot for Microsoft 365 Chat"
+        $CopilotLocation = "Chat"
+    }
+
+    If ($Auditdata.CopilotEventData.contexts.id) {
+        $Context = $Auditdata.CopilotEventData.contexts.id
+    } ElseIf ($Auditdata.CopilotEventData.threadid) {
+        $Context = $Auditdata.CopilotEventData.threadid
+       # $CopilotApp = "Teams"
+    }
+
+    If ($Auditdata.copiloteventdata.contexts.id -like "*/sites/*") {
+        $CopilotLocation = "SharePoint Online"
+    } ElseIf ($Auditdata.copiloteventdata.contexts.id -like "*https://teams.microsoft.com/*") {
+        $CopilotLocation = "Teams"
+        If ($Auditdata.copiloteventdata.contexts.id -like "*ctx=channel*") {
+            $CopilotLocation = "Teams Channel"
+        } Else {
+            $CopilotLocation = "Teams Chat"
+        }
+    } ElseIf ($Auditdata.copiloteventdata.contexts.id -like "*/personal/*") {
+        $CopilotLocation = "OneDrive for Business"
+    } 
+    If ($CopilotApp -eq "Outlook") {
+        $CopilotLocation = "Mailbox"
+    }
+    If ($CopilotApp -eq 'Loop') {
+        $CopilotLocation = "SharePoint Embedded"
+    }
+       
+    # Make sure that we report the resources used by Copilot and the action (like read) used to access the resource
+    [array]$AccessedResources = $AuditData.copiloteventdata.accessedResources.name | Sort-Object -Unique
+    [string]$AccessedResources = $AccessedResources -join ", "
+    [array]$AccessedResourceLocations = $AuditData.copiloteventdata.accessedResources.id | Sort-Object -Unique
+    [string]$AccessedResourceLocations = $AccessedResourceLocations -join ", "
+    [array]$AccessedResourceActions = $AuditData.copiloteventdata.accessedResources.action | Sort-Object -Unique
+    [string]$AccessedResourceActions = $AccessedResourceActions -join ", "
+
     $ReportLine = [PSCustomObject][Ordered]@{
-        DisplayName         = $Group.DisplayName
-        GroupId             = $Group.Id
-        Licenses            = $ProductNames -join ', '
-        Members             = $GroupMembers.Count
-        'Member names'      = ($GroupMembers.additionalProperties.displayName -join ', ')
-        AssignedLicenses    = $Group.AssignedLicenses
+        TimeStamp                       = (Get-Date $Rec.CreatedDateTime -format "dd-MMM-yyyy HH:mm:ss")
+        User                            = $Rec.userPrincipalName
+        UserId                          = $Rec.userId
+        App                             = $CopilotApp
+        'Resource Location'             = $CopilotLocation 
+        'App context'                   = $Context   
+        'Accessed Resources'            = $AccessedResources
+        'Accessed Resource Locations'   = $AccessedResourceLocations
+        Action                          = $AccessedResourceActions
     }
     $Report.Add($ReportLine)
 }
 
-$HtmlHead="<html>
-    <style>
-    BODY{font-family: Arial; font-size: 10pt;}
-	H1{font-size: 22px;}
-	H2{font-size: 18px; padding-top: 10px;}
-	H3{font-size: 16px; padding-top: 8px;}
-    H4{font-size: 8px; padding-top: 4px;}
-</style>"
-$HtmlBody = $HtmlHead
-ForEach ($Sku in $GroupBasedSkusReport) {
-    $GroupData = $Report | Where-Object {$_.GroupId -eq $Sku.GroupId}
-    $HtmlHeader = ("<h2>Product: {0}" -f $Sku.'Product name') + "</h2><p>"
-    $HtmlHeader = $HtmlHeader + ("<p><h2>Licenses assigned through group {0}</h2>" -f $GroupData.DisplayName) + "</p>"
-    $HtmlHeader = $HtmlHeader + ("<p><h3>Consumed units: {0} Prepaid Units: {1} Available Units: {2} Assigned through group: {3}</h3> " `
-        -f $Sku.ConsumedUnits, $Sku.PrepaidUnits, $Sku.AvailableUnits, $GroupData.Members) + "</p>"
-    If ($Sku.AvailableUnits -le 0) {
-        $HtmlHeader = $HtmlHeader + "<p><strong>Warning: No more licenses availble</strong></p>"
-    } ElseIf ($Sku.AvailableUnits -lt 10) {
-        $HtmlHeader = $HtmlHeader + "<p><strong>Warning: Less than 10 licenses available</strong></p>"
+[array]$UsersOfCopilot = $Report | Sort-Object UserId -Unique | Select-Object User, UserId
+$CopilotUserData =  [System.Collections.Generic.List[Object]]::new()
+ForEach ($User in $UsersOfCopilot) {
+    $CopilotChatInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'Copilot for Microsoft 365 Chat')} | Measure-Object | Select-Object -ExpandProperty Count
+    $CopilotExcelInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'Excel')} | Measure-Object | Select-Object -ExpandProperty Count
+    $CopilotLoopInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'Loop')} | Measure-Object | Select-Object -ExpandProperty Count
+    $CopilotOneNoteInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'OneNote')} | Measure-Object | Select-Object -ExpandProperty Count
+    $CopilotOutlookInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'Outlook')} | Measure-Object | Select-Object -ExpandProperty Count
+    $CopilotPowerPointInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'PowerPoint')} | Measure-Object | Select-Object -ExpandProperty Count
+    $CopilotWordInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'Word')} | Measure-Object | Select-Object -ExpandProperty Count
+    $TotalInteractions = $Report | Where-Object {$_.UserId -eq $User.UserId} | Measure-Object | Select-Object -ExpandProperty Count
+    $ReportLine = [PSCustomObject][Ordered]@{
+        User                    = $User.User
+        UserId                  = $User.UserId
+        ChatInteractions        = $CopilotChatInteractions
+        ExcelInteractions       = $CopilotExcelInteractions
+        LoopInteractions        = $CopilotLoopInteractions
+        OutlookInteractions     = $CopilotOutlookInteractions
+        PowerPointInteractions  = $CopilotPowerPointInteractions
+        WordInteractions        = $CopilotWordInteractions
+        OtherInteractions       = $TotalInteractions - ($CopilotChatInteractions + $CopilotExcelInteractions + $CopilotLoopInteractions + $CopilotOneNoteInteractions + $CopilotOutlookInteractions + $CopilotPowerPointInteractions + $CopilotWordInteractions)
+        TotalInteractions       = $TotalInteractions
     }
-    $HtmlBody = $HtmlBody + $HtmlHeader + ("<p>Licenses assigned to the following members: {0}" -f $GroupData.'Member names') + "</p>"
+    $CopilotUserData.Add($ReportLine)
 }
-$HtmlMsg = $HtmlBody + "<p><h4>Generated:</strong> $(Get-Date -Format 'dd-MMM-yyyy HH:mm')</h4></p>""<p></body>"
 
-$MsgSubject = "Group-based licensing report"
-$MsgFrom = (Get-MgContext).Account
-$ToRecipients = @{}
-$ToRecipients.Add("emailAddress", @{"address"="tony.redmond@office365itpros.com"} )
-[array]$MsgTo = $ToRecipients
-
-# Construct the message body
-$MsgBody = @{}
-$MsgBody.Add('Content', "$($HtmlMsg)")
-$MsgBody.Add('ContentType','html')
-
-$Message = @{}
-$Message.Add('subject', $MsgSubject)
-$Message.Add('toRecipients', $MsgTo)    
-$Message.Add('body', $MsgBody)
-
-$Params = @{}
-$Params.Add('message', $Message)
-$Params.Add('saveToSentItems', $true)
-$Params.Add('isDeliveryReceiptRequested', $true)    
-
-Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
