@@ -75,8 +75,7 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
     $i++
     Write-Output ("Analyzing workspace {0} {1}/{2}" -f $LoopSpace.ContainerName, $i, $LoopWorkspaces.count)
     # Get detail of the workspace
-    $LoopSpaceDetails =  Get-SPOContainer -OwningApplicationID a187e399-0c36-4b98-8f04-1edc167a0996 `
-      -Identity $LoopSpace.ContainerId
+    $LoopSpaceDetails =  Get-SPOContainer -Identity $LoopSpace.ContainerId
     # Get detail about the owner
     [array]$Owners = $LoopSpaceDetails.Owners
     ForEach ($Owner in $Owners) {
@@ -111,7 +110,7 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
 
     $ReportLine = [PSCustomObject]@{
         ContainerId         = $LoopSpace.ContainerId
-       # App                 = $LoopSpaceDetails.OwningApplicationName
+        App                 = $LoopSpaceDetails.OwningApplicationName
         'Workspace Name'    = $LoopSpace.ContainerName
         Description         = $LoopSpace.Description
         Owner               = $User.DisplayName
