@@ -22,6 +22,7 @@
 #                     script ignores cost centers
 # V1.93 05-Sep-2024   Add analysis of costs by company name
 # V1.94 08-Sep-2024   Remove licenses assigned for expired subscriptions from the report
+# V1.95 03-Mar-2025   Fix issue #117 to allow script to run better without pricing information
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
@@ -403,7 +404,6 @@ $SkuReport = [System.Collections.Generic.List[Object]]::new()
 [array]$SkuSummary = Get-MgSubscribedSku | Select-Object SkuId, ConsumedUnits, PrepaidUnits
 $SkuSummary = $SkuSummary | Where-Object { $_.ConsumedUnits -ne 0 }
 ForEach ($S in $SkuSummary) {
-  $SKUCost = Get-LicenseCosts -Licenses $S.SkuId
   $SkuDisplayName = $SkuHashtable[$S.SkuId]
   If ($S.PrepaidUnits.Enabled -le $S.ConsumedUnits ) {
     $BoughtUnits = $S.ConsumedUnits 
@@ -411,6 +411,7 @@ ForEach ($S in $SkuSummary) {
     $BoughtUnits = $S.PrepaidUnits.Enabled
   }
   If ($PricingInfoAvailable) {
+    $SKUCost = Get-LicenseCosts -Licenses $S.SkuId
     $SKUTotalCost = ($SKUCost * $BoughtUnits)
     $SkuReportLine = [PSCustomObject][Ordered]@{  
       "SKU Id"                = $S.SkuId
@@ -541,16 +542,18 @@ If ($PricingInfoAvailable) {
       $SkuHTMLFooter = $null; [float]$AnnualCost = $null; $AnnualCostLicense = $null
       $SkuHeader = ("<h3>{0}</h3>" -f $SkuHashTable[$Sku])
       $AssignedSkus = $CompanyAssignments | Where-Object {$_.Sku -eq $Sku} | Select-Object Sku, Name, SkuName, Country, Department, Company 
-      $LicenseCostSKU = $PricingHashTable[$Sku]
-      [float]$LicenseCostCents = [float]$LicenseCostSKU * 100
-      If ($LicenseCostCents -gt 0) {
-        # Compute annual cost for the license
-        [float]$AnnualCost = $LicenseCostCents * 12
-        # Compute cost for this SKU assigned to this company
-        $AnnualCostLicense = ($AnnualCost * $AssignedSkus.count)/100
-        $AnnualCostLicenseFormatted = ("{0} {1}" -f $Currency, ('{0:N2}' -f $AnnualCostLicense))
-      } Else {
-        $AnnualCostLicenseFormatted = ("{0} {1}" -f $Currency, ('{0:N2}' -f 0))
+      If ($PricingInfoAvailable) {
+        $LicenseCostSKU = $PricingHashTable[$Sku]
+        [float]$LicenseCostCents = [float]$LicenseCostSKU * 100
+        If ($LicenseCostCents -gt 0) {
+          # Compute annual cost for the license
+          [float]$AnnualCost = $LicenseCostCents * 12
+          # Compute cost for this SKU assigned to this company
+          $AnnualCostLicense = ($AnnualCost * $AssignedSkus.count)/100
+          $AnnualCostLicenseFormatted = ("{0} {1}" -f $Currency, ('{0:N2}' -f $AnnualCostLicense))
+          } Else {
+          $AnnualCostLicenseFormatted = ("{0} {1}" -f $Currency, ('{0:N2}' -f 0))
+        }
       }
       # Report the set of people assigned this SKU      
       $AssignedSkusHTML = $AssignedSkus | ConvertTo-HTML -fragment
