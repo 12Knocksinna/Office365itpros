@@ -37,6 +37,7 @@ Function Get-MessageRecipients { # Build a list of the recipients for a message
 }
 
 # Replace the identifiers with appropriate values for your tenant. Application (client) identifier, app secret, and tenant id
+# I use an app called Office365ITPros Email Communication Service for this script
 $AppId = 'a0789401-fc4f-499a-9bb2-8b0fd349798f'
 $AppSecret = 'q7n8Q~xwBCGPz--2sVtDvQGgK4k-CsFtkKQxDb3~'
 $TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
@@ -49,7 +50,7 @@ $SenderAddress = 'DoNotReply@office365itpros.com'
 # Endpoint for the Azure Communication Services API
 $CommunicationEndPoint = "office365itpros.unitedstates.communication.azure.com"
 
-# Define the headers for the REST API call
+# Define the headers for the REST API call. This includes the access token to identify the app as coming from the domain
 $headers = @{
     "Content-Type"  = "application/json"
     "Authorization" = "Bearer $(Get-AccessToken)"
@@ -105,7 +106,7 @@ ForEach ($Recipient in $RecipientList.Email) {
        
         # The content of the email, including the subject and HTML body
         content = @{
-            subject   = "Office 365 for IT Pros Subscription Update"
+            subject   = "Office 365 for IT Pros Subscription update"
             html      = $Content
         }
         # The recipients of the email
