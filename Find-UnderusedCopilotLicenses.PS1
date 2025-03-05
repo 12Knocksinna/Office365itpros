@@ -193,7 +193,7 @@ If (!($UnderusedCopilot)) {
 } Else {
     Clear-Host
     $LicenseReport = [System.Collections.Generic.List[Object]]::new()
-    Write-Host ("The folllowing {0} users are underusing their assigned Microsoft 365 Copilot license" -f $UnderusedCopilot.Count)
+    Write-Host ("The following {0} users are underusing their assigned Microsoft 365 Copilot license" -f $UnderusedCopilot.Count)
     $UnderusedCopilot | Sort-Object {$_.'Overall Score' -as [double]} | Select-Object User, UserPrincipalName, 'Number active apps', 'Overall Score' | Format-Table -AutoSize
     [string]$Decision = Read-Host "Do you want to remove the Microsoft 365 Copilot licenses from these users"
     If ($Decision.Substring(0,1).toUpper() -eq "Y") {

@@ -4,6 +4,8 @@
 # This is a version of Find-UnderusedCopilotLicenses.PS1 that uses the Microsoft Graph to fetch audit data to add 
 # more information to what we know about Copilot interactions in different apps.
 # V1.0 1-Mar-2025
+# V1.1 5-Mar-2025   Use Graph API requests to submit and fetch user data because of issue with cmdlets
+#                   See https://github.com/microsoftgraph/msgraph-sdk-powershell/issues/3199
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-UnderusedCopilotLicensesWithAudit.PS1
 
 # Connect to Microsoft Graph
@@ -11,6 +13,7 @@ If (!(Get-MgContext).Account) {
     Write-Host "Connecting to Microsoft Graph..."
     Connect-MgGraph -NoWelcome -Scopes Reports.Read.All, ReportSettings.ReadWrite.All, User.ReadWrite.All, AuditLog.Read.All
     # Reports.Read.All is needed to fetch usage data
+    # AuditLog.Read.All needed to fetch audit data (users must also hold a suitable Compliance role like Audit Manager or Audit Reader role)
     # ReportSettings.ReadWrite.All is needed to change the tenant settings to allow access to unobfuscated usage data
     # User.ReadWrite.All is needed to read license data for user accounts and to remove licenses from accounts. Also to read sign-in data for users.
 }   
@@ -80,6 +83,8 @@ While ($null -ne $NextLink) {
 
 If ($UsageData) {
     Write-Host ("{0} Microsoft 365 Copilot usage records fetched" -f $UsageData.Count)
+    # Get the date of the usage data
+    [datetime]$ReportRefreshDate =  $Userdata[0].'reportRefreshDate'
 } Else {
     Write-Host "No Microsoft 365 Copilot usage data found"
     Break
@@ -90,11 +95,12 @@ Write-Host "This might take some time, depending on the amount of data to be pro
 Write-Host "An audit job is submitted to run in the background. When complete, we will fetch the audit records."
 Write-Host "Please wait..."
 
-# Set the parameters for the audit query
+# Set the parameters for the audit query. We're looking for audit records for roughly the same period as covered
+# by the usage data
 Set-MgRequestContext -MaxRetry 10 -RetryDelay 15| Out-Null
 $AuditQueryName = ("Copilot Interactions audit job created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
-$StartDate = (Get-Date).AddDays(-30)
-$EndDate = (Get-Date).AddDays(1)
+$EndDate = (Get-Date $ReportRefreshDate).AddHours(23)
+$StartDate = (Get-Date $EndDate).AddDays(-30)
 $AuditQueryStart = (Get-Date $StartDate -format s)
 $AuditQueryEnd = (Get-Date $EndDate -format s)
 [array]$AuditQueryOperations = "CopilotInteraction"
@@ -106,7 +112,10 @@ $AuditQueryParameters.Add("filterStartDateTime", $AuditQueryStart)
 $AuditQueryParameters.Add("filterEndDateTime", $AuditQueryEnd)
 
 # Submit the audit query
-$AuditJob = New-MgBetaSecurityAuditLogQuery -BodyParameter $AuditQueryParameters
+# Too many problems with this beta cmdlet so we'll use the Graph API instead
+# $AuditJob = New-MgBetaSecurityAuditLogQuery -BodyParameter $AuditQueryParameters
+$Uri = $Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
+$AuditJob = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $AuditQueryParameters
 
 # Check the audit query status every 20 seconds until it completes
 [int]$i = 1
@@ -136,7 +145,7 @@ While ($SearchFinished -eq $false) {
 # This cmdlet isn't working either
 # [array]$AuditRecords = Get-MgBetaSecurityAuditLogQueryRecord -AuditLogQueryId $AuditJob.Id -All -PageSize 999
 [array]$AuditRecords = $null
-$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records" -f $AuditJob.Id)
+$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records?`$top=500" -f $AuditJob.Id)
 [array]$AuditSearchRecords = Invoke-MgGraphRequest -Uri $Uri -Method GET
 [array]$AuditRecords = $AuditSearchRecords.value
 
@@ -249,7 +258,9 @@ ForEach ($User in $UsersOfCopilot) {
     $CopilotPowerPointInteractions = $CopilotUserAuditReport | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'PowerPoint')} | Measure-Object | Select-Object -ExpandProperty Count
     $CopilotWordInteractions = $CopilotUserAuditReport | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'Word')} | Measure-Object | Select-Object -ExpandProperty Count
     $TotalInteractions = $CopilotUserAuditReport | Where-Object {$_.UserId -eq $User.UserId} | Measure-Object | Select-Object -ExpandProperty Count
-    $ReportLine = [PSCustomObject][Ordered]@{
+    $OtherInteractions = $TotalInteractions - ($CopilotChatInteractions + $CopilotExcelInteractions + $CopilotLoopInteractions + $CopilotOneNoteInteractions + $CopilotOutlookInteractions + $CopilotPowerPointInteractions + $CopilotWordInteractions)
+
+    $CopilotUserAuditReportLine = [PSCustomObject][Ordered]@{
         User                    = $User.User
         UserId                  = $User.UserId
         ChatInteractions        = $CopilotChatInteractions
@@ -258,13 +269,13 @@ ForEach ($User in $UsersOfCopilot) {
         OutlookInteractions     = $CopilotOutlookInteractions
         PowerPointInteractions  = $CopilotPowerPointInteractions
         WordInteractions        = $CopilotWordInteractions
-        OtherInteractions       = $TotalInteractions - ($CopilotChatInteractions + $CopilotExcelInteractions + $CopilotLoopInteractions + $CopilotOneNoteInteractions + $CopilotOutlookInteractions + $CopilotPowerPointInteractions + $CopilotWordInteractions)
+        OtherInteractions       = $OtherInteractions
         TotalInteractions       = $TotalInteractions
     }
-    $CopilotUserAuditData.Add($ReportLine)
+    $CopilotUserAuditData.Add($CopilotUserAuditReportLine)
 }
 
-Write-Host "Generating report..."
+Write-Host "Generating Copilot license usage assessment report..."
 $CopilotReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
     $LastSignIn = $null; $ScoreApps = 7; $UserScore = 0
@@ -291,7 +302,7 @@ ForEach ($User in $Users) {
     # OneNote
     If (-not ([string]::IsNullOrEmpty($UserData.oneNoteCopilotLastActivityDate))) {
         $OneNoteDate = Get-Date $UserData.oneNoteCopilotLastActivityDate -format 'dd-MMM-yyyy'
-        $OneNoteDays = (New-TimeSpan $OneNoteDate).Days
+        $OneNoteDays = (New-TimeSpan -Start $OneNoteDate -End $ReportRefreshDate).Days
     } Else {
         $OneNoteDate = 'Not used'
         $OneNoteDays = 0
@@ -300,7 +311,7 @@ ForEach ($User in $Users) {
     #Teams
     If (-not ([string]::IsNullOrEmpty($UserData.microsoftTeamsCopilotLastActivityDate))) {
         $TeamsDate = Get-Date $UserData.microsoftTeamsCopilotLastActivityDate -format 'dd-MMM-yyyy'
-        $TeamsDays = (New-TimeSpan $TeamsDate).Days
+        $TeamsDays = (New-TimeSpan -Start $TeamsDate -End $ReportRefreshDate).Days
     } Else {
         $TeamsDate = 'Not used'
         $TeamsDays = 0
@@ -309,7 +320,7 @@ ForEach ($User in $Users) {
     #Outlook
     If (-not ([string]::IsNullOrEmpty($UserData.outlookCopilotLastActivityDate))) {
         $OutlookDate = Get-Date $UserData.outlookCopilotLastActivityDate -format 'dd-MMM-yyyy'
-        $OutlookDays = (New-TimeSpan $OutlookDate).Days
+        $OutlookDays = (New-TimeSpan -Start $OutlookDate -End $ReportRefreshDate).Days
     } Else {
         $OutlookDate = 'Not used'
         $OutlookDays = 0
@@ -318,7 +329,7 @@ ForEach ($User in $Users) {
     # Word
     If (-not ([string]::IsNullOrEmpty($UserData.wordCopilotLastActivityDate))) {
         $WordDate = Get-Date $UserData.wordCopilotLastActivityDate -format 'dd-MMM-yyyy'
-        $WordDays = (New-TimeSpan $WordDate).Days
+        $WordDays = (New-TimeSpan -Start $WordDate -End $ReportRefreshDate).Days
     } Else {
         $WordDate = 'Not used'
         $WordDays = 0
@@ -327,7 +338,7 @@ ForEach ($User in $Users) {
     # Microsoft 365 Chat
     If (-not ([string]::IsNullOrEmpty($UserData.copilotChatLastActivityDate))) {
         $ChatDate = Get-Date $UserData.copilotChatLastActivityDate -format 'dd-MMM-yyyy'
-        $ChatDays = (New-TimeSpan $ChatDate).Days
+        $ChatDays = (New-TimeSpan -Start $ChatDate -End $ReportRefreshDate).Days
     } Else {
         $ChatDate = 'Not used'
         $ChatDays = 0
@@ -336,7 +347,7 @@ ForEach ($User in $Users) {
     # Excel
     If (-not ([string]::IsNullOrEmpty($UserData.excelCopilotLastActivityDate))) {
         $ExcelDate = Get-Date $UserData.excelCopilotLastActivityDate -format 'dd-MMM-yyyy'
-        $ExcelDays = (New-TimeSpan $ExcelDate).Days
+        $ExcelDays = (New-TimeSpan -Start $ExcelDate -End $ReportRefreshDate).Days
     } Else {
         $ExcelDate = 'Not used'
         $ExcelDays = 0
@@ -345,7 +356,7 @@ ForEach ($User in $Users) {
     # PowerPoint
     If (-not ([string]::IsNullOrEmpty($UserData.powerPointCopilotLastActivityDate))) {
         $PowerPointDate = Get-Date $UserData.powerPointCopilotLastActivityDate -format 'dd-MMM-yyyy'
-        $PowerPointDays = (New-TimeSpan $PowerPointDate).Days
+        $PowerPointDays = (New-TimeSpan -Start $PowerPointDate -End $ReportRefreshDate).Days
     } Else {
         $PowerPointDate = 'Not used'
         $PowerPointDays = 0
@@ -397,14 +408,17 @@ ForEach ($User in $Users) {
 }
 
 # Extract the set of users who should be considered as underusing Copilot
-[array]$UnderusedCopilot = $CopilotReport | Where-Object {$_.'Overall Score' -gt $MicrosoftCopilotScore -or $_.'Overall Score' -as [int] -eq 0}
-# If there are no underused Copilot users, say so - and if we have, give the administrator the chance to remove the licenses
+[array]$UnderusedCopilot = $CopilotReport | Where-Object {
+    $OS = [double]$_.'Overall Score'
+    $OS -gt $MicrosoftCopilotScore -or $_.'Overall Score' -as [double] -eq 0}
+
+    # If there are no underused Copilot users, say so - and if we have, give the administrator the chance to remove the licenses
 If (!($UnderusedCopilot)) {
     Write-Host "No users found to be underusing an assigned Microsoft 365 Copilot license"
 } Else {
     Clear-Host
     $LicenseReport = [System.Collections.Generic.List[Object]]::new()
-    Write-Host ("The folllowing {0} users are underusing their assigned Microsoft 365 Copilot license" -f $UnderusedCopilot.Count)
+    Write-Host ("The following {0} users are underusing their assigned Microsoft 365 Copilot license" -f $UnderusedCopilot.Count)
     $UnderusedCopilot | Sort-Object {$_.'Overall Score' -as [double]} | Select-Object User, UserPrincipalName, 'Number active apps', 'Overall Score' | Format-Table -AutoSize
     [string]$Decision = Read-Host "Do you want to remove the Microsoft 365 Copilot licenses from these users"
     If ($Decision.Substring(0,1).toUpper() -eq "Y") {
@@ -450,8 +464,7 @@ If (!($UnderusedCopilot)) {
                 } Catch {
                     Write-Host ("Failed to remove Microsoft 365 Copilot license for {0} from group {1}: {2}" -f $UserLicenseData.displayName, $GroupId, $_.Exception.Message) -ForegroundColor Red
                 }
-            }
-            
+            }          
         }
         Write-Host ("{0} Microsoft 365 Copilot licenses removed" -f $LicenseReport.Count)
     } Else {

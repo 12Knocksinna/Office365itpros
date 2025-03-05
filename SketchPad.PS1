@@ -152,8 +152,6 @@ $params = @{
 
 #+------------- Application Management Policy
 
-
-
 $PasswordCredentials1 = @{}
 $PasswordCredentials1.Add("restrictForAppsCreatedAfterDateTime", [System.DateTime]::Parse("2025-01-01T00:00:00Z"))
 $PasswordCredentials1.Add("restrictionType", "passwordAddition")
@@ -172,14 +170,16 @@ $ApplicationCredentials.Add("passwordCredentials", $PasswordCredentials)
 $ApplicationPolicyParameters = @{}
 $ApplicationPolicyParameters.Add("isEnabled", $True)
 $ApplicationPolicyParameters.Add("applicationRestrictions", $ApplicationCredentials)  
+$ApplicationPolicyParameters.Add("ServicePrincipalRestrictions", $ApplicationCredentials)
 
 Update-MgPolicyDefaultAppManagementPolicy -BodyParameter $ApplicationPolicyParameters
 
 $Policy = Get-MgPolicyDefaultAppManagementPolicy
 
-#$Policy.applicationRestrictions.PasswordCredentials
+$Policy.applicationRestrictions.PasswordCredentials
 
 #RestrictForAppsCreatedAfterDateTime RestrictionType        State
 #----------------------------------- ---------------        -----
 #01/01/2025 00:00:00                 passwordAddition       enabled
 #01/01/2025 00:00:00                 customPasswordAddition enabled
+
