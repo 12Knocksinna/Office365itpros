@@ -150,178 +150,36 @@ $params = @{
 	}
 }
 
-#+------------- Copilot Interactions
+#+------------- Application Management Policy
 
-Set-MgRequestContext -MaxRetry 10 -RetryDelay 15| Out-Null
-$AuditQueryName = ("Copilot Interactions audit job created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
-$StartDate = (Get-Date).AddDays(-30)
-$EndDate = (Get-Date).AddDays(1)
-$AuditQueryStart = (Get-Date $StartDate -format s)
-$AuditQueryEnd = (Get-Date $EndDate -format s)
-[array]$AuditQueryOperations = "CopilotInteraction"
-$AuditQueryParameters = @{}
-#$AuditQueryParameters.Add("@odata.type","#microsoft.graph.security.auditLogQuery")
-$AuditQueryParameters.Add("displayName", $AuditQueryName)
-$AuditQueryParameters.Add("OperationFilters", $AuditQueryOperations)
-$AuditQueryParameters.Add("filterStartDateTime", $AuditQueryStart)
-$AuditQueryParameters.Add("filterEndDateTime", $AuditQueryEnd)
 
-# Submit the audit query
-$AuditJob = New-MgBetaSecurityAuditLogQuery -BodyParameter $AuditQueryParameters
 
-# Check the audit query status every 20 seconds until it completes
-[int]$i = 1
-[int]$SleepSeconds = 20
-$SearchFinished = $false; [int]$SecondsElapsed = 20
-Write-Host "Checking audit query status..."
-Start-Sleep -Seconds 30
-# This cmdlet is not working...
-#$AuditQueryStatus = Get-MgBetaSecurityAuditLogQuery -AuditLogQueryId $AuditJob.Id
-$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}" -f $AuditJob.id)
-$AuditQueryStatus = Invoke-MgGraphRequest -Uri $Uri -Method Get
+$PasswordCredentials1 = @{}
+$PasswordCredentials1.Add("restrictForAppsCreatedAfterDateTime", [System.DateTime]::Parse("2025-01-01T00:00:00Z"))
+$PasswordCredentials1.Add("restrictionType", "passwordAddition")
+$PasswordCredentials1.Add("maxLifetime", $null)
 
-While ($SearchFinished -eq $false) {
-    $i++
-    Write-Host ("Waiting for audit search to complete. Check {0} after {1} seconds. Current state {2}" -f $i, $SecondsElapsed, $AuditQueryStatus.status)
-    If ($AuditQueryStatus.status -eq 'succeeded') {
-        $SearchFinished = $true
-    } Else {
-        Start-Sleep -Seconds $SleepSeconds
-        $SecondsElapsed = $SecondsElapsed + $SleepSeconds
-        # $AuditQueryStatus = Get-MgBetaSecurityAuditLogQuery -AuditLogQueryId $AuditJob.Id
-        $AuditQueryStatus = Invoke-MgGraphRequest -Uri $Uri -Method Get
-    }
-}
+$PasswordCredentials2 = @{}
+$PasswordCredentials2.Add("restrictionType", "customPasswordAddition")
+$PasswordCredentials2.Add("maxLifetime", $null)
+$PasswordCredentials2.Add("restrictForAppsCreatedAfterDateTime", [System.DateTime]::Parse("2025-01-01T00:00:00Z"))
 
-# Fetch the audit records returned by the query
-# This cmdlet isn't working either
-# [array]$AuditRecords = Get-MgBetaSecurityAuditLogQueryRecord -AuditLogQueryId $AuditJob.Id -All -PageSize 999
-$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records" -f $AuditJob.Id)
-[array]$SearchRecords = Invoke-MgGraphRequest -Uri $Uri -Method GET
-[array]$AuditRecords = $SearchRecords.value
+[array]$PasswordCredentials = $PasswordCredentials1, $PasswordCredentials2
 
-$NextLink = $SearchRecords.'@Odata.NextLink'
-While ($null -ne $NextLink) {
-    $SearchRecords = $null
-    [array]$SearchRecords = Invoke-MgGraphRequest -Uri $NextLink -Method GET 
-    $AuditRecords += $SearchRecords.value
-    Write-Host ("{0} audit records fetched so far..." -f $AuditRecords.count)
-    $NextLink = $SearchRecords.'@odata.NextLink' 
-}
+$ApplicationCredentials = @{}
+$ApplicationCredentials.Add("passwordCredentials", $PasswordCredentials)
 
-Write-Host ("Audit query {0} returned {1} records" -f $AuditQueryName, $AuditRecords.Count)`
-$AuditRecords = $AuditRecords | Sort-Object CreatedDateTime -Descending
+$ApplicationPolicyParameters = @{}
+$ApplicationPolicyParameters.Add("isEnabled", $True)
+$ApplicationPolicyParameters.Add("applicationRestrictions", $ApplicationCredentials)  
 
-$Report = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Rec in $AuditRecords) {
-    $AuditData = $Rec.AuditData
-    $CopilotApp = 'Copilot for Microsoft 365'; $Context = $null; $CopilotLocation = $null
+Update-MgPolicyDefaultAppManagementPolicy -BodyParameter $ApplicationPolicyParameters
 
-    $CopilotApp = $AuditData.copiloteventdata.apphost
-    If ($null -eq $CopilotApp) {  
-        Switch ($Auditdata.copiloteventdata.contexts.type) {
-            "xlsx" {
-                $CopilotApp = "Excel"
-            }
-            "docx" {
-                $CopilotApp = "Word"
-            }
-            "pptx" {
-                $CopilotApp = "PowerPoint"
-            }
-            "TeamsMeeting" {
-                $CopilotApp = "Teams"
-                $CopilotLocation = "Teams meeting"
-            }
-            "StreamVideo" {
-                $CopilotApp = "Stream"
-                $CopilotLocation = "Stream video player"
-            }
-            Default {
-                $CopilotApp = "Copilot for Microsoft 365"
-                $CopilotLocation = "Unknown"
-            }
-        }
-    }
+$Policy = Get-MgPolicyDefaultAppManagementPolicy
 
-    If ($Auditdata.copiloteventdata.contexts.id -like "*https://teams.microsoft.com/*") {
-        $CopilotApp = "Teams"
-    } ElseIf ($AuditData.CopiloteventData.AppHost -eq "bizchat" -or $AuditData.CopiloteventData.AppHost -eq "Office") {
-        $CopilotApp = "Copilot for Microsoft 365 Chat"
-        $CopilotLocation = "Chat"
-    }
+#$Policy.applicationRestrictions.PasswordCredentials
 
-    If ($Auditdata.CopilotEventData.contexts.id) {
-        $Context = $Auditdata.CopilotEventData.contexts.id
-    } ElseIf ($Auditdata.CopilotEventData.threadid) {
-        $Context = $Auditdata.CopilotEventData.threadid
-       # $CopilotApp = "Teams"
-    }
-
-    If ($Auditdata.copiloteventdata.contexts.id -like "*/sites/*") {
-        $CopilotLocation = "SharePoint Online"
-    } ElseIf ($Auditdata.copiloteventdata.contexts.id -like "*https://teams.microsoft.com/*") {
-        $CopilotLocation = "Teams"
-        If ($Auditdata.copiloteventdata.contexts.id -like "*ctx=channel*") {
-            $CopilotLocation = "Teams Channel"
-        } Else {
-            $CopilotLocation = "Teams Chat"
-        }
-    } ElseIf ($Auditdata.copiloteventdata.contexts.id -like "*/personal/*") {
-        $CopilotLocation = "OneDrive for Business"
-    } 
-    If ($CopilotApp -eq "Outlook") {
-        $CopilotLocation = "Mailbox"
-    }
-    If ($CopilotApp -eq 'Loop') {
-        $CopilotLocation = "SharePoint Embedded"
-    }
-       
-    # Make sure that we report the resources used by Copilot and the action (like read) used to access the resource
-    [array]$AccessedResources = $AuditData.copiloteventdata.accessedResources.name | Sort-Object -Unique
-    [string]$AccessedResources = $AccessedResources -join ", "
-    [array]$AccessedResourceLocations = $AuditData.copiloteventdata.accessedResources.id | Sort-Object -Unique
-    [string]$AccessedResourceLocations = $AccessedResourceLocations -join ", "
-    [array]$AccessedResourceActions = $AuditData.copiloteventdata.accessedResources.action | Sort-Object -Unique
-    [string]$AccessedResourceActions = $AccessedResourceActions -join ", "
-
-    $ReportLine = [PSCustomObject][Ordered]@{
-        TimeStamp                       = (Get-Date $Rec.CreatedDateTime -format "dd-MMM-yyyy HH:mm:ss")
-        User                            = $Rec.userPrincipalName
-        UserId                          = $Rec.userId
-        App                             = $CopilotApp
-        'Resource Location'             = $CopilotLocation 
-        'App context'                   = $Context   
-        'Accessed Resources'            = $AccessedResources
-        'Accessed Resource Locations'   = $AccessedResourceLocations
-        Action                          = $AccessedResourceActions
-    }
-    $Report.Add($ReportLine)
-}
-
-[array]$UsersOfCopilot = $Report | Sort-Object UserId -Unique | Select-Object User, UserId
-$CopilotUserData =  [System.Collections.Generic.List[Object]]::new()
-ForEach ($User in $UsersOfCopilot) {
-    $CopilotChatInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'Copilot for Microsoft 365 Chat')} | Measure-Object | Select-Object -ExpandProperty Count
-    $CopilotExcelInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'Excel')} | Measure-Object | Select-Object -ExpandProperty Count
-    $CopilotLoopInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'Loop')} | Measure-Object | Select-Object -ExpandProperty Count
-    $CopilotOneNoteInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'OneNote')} | Measure-Object | Select-Object -ExpandProperty Count
-    $CopilotOutlookInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'Outlook')} | Measure-Object | Select-Object -ExpandProperty Count
-    $CopilotPowerPointInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'PowerPoint')} | Measure-Object | Select-Object -ExpandProperty Count
-    $CopilotWordInteractions = $Report | Where-Object {($_.UserId -eq $User.UserId) -and ($_.App -eq 'Word')} | Measure-Object | Select-Object -ExpandProperty Count
-    $TotalInteractions = $Report | Where-Object {$_.UserId -eq $User.UserId} | Measure-Object | Select-Object -ExpandProperty Count
-    $ReportLine = [PSCustomObject][Ordered]@{
-        User                    = $User.User
-        UserId                  = $User.UserId
-        ChatInteractions        = $CopilotChatInteractions
-        ExcelInteractions       = $CopilotExcelInteractions
-        LoopInteractions        = $CopilotLoopInteractions
-        OutlookInteractions     = $CopilotOutlookInteractions
-        PowerPointInteractions  = $CopilotPowerPointInteractions
-        WordInteractions        = $CopilotWordInteractions
-        OtherInteractions       = $TotalInteractions - ($CopilotChatInteractions + $CopilotExcelInteractions + $CopilotLoopInteractions + $CopilotOneNoteInteractions + $CopilotOutlookInteractions + $CopilotPowerPointInteractions + $CopilotWordInteractions)
-        TotalInteractions       = $TotalInteractions
-    }
-    $CopilotUserData.Add($ReportLine)
-}
-
+#RestrictForAppsCreatedAfterDateTime RestrictionType        State
+#----------------------------------- ---------------        -----
+#01/01/2025 00:00:00                 passwordAddition       enabled
+#01/01/2025 00:00:00                 customPasswordAddition enabled
