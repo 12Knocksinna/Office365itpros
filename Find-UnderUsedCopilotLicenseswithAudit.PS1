@@ -31,6 +31,9 @@ function Get-UserScore {
     return $UserScore
 }
 
+Disconnect-MgGraph # Remove any existing session
+Connect-MgGraph -Scopes AuditLog.Read.All, User.ReadWrite.All, Reports.Read.All, ReportSettings.ReadWrite.All
+
 # Define the score that marks a user as underusing Microsoft 365 Copilot
 [double]$MicrosoftCopilotScore = 30
 

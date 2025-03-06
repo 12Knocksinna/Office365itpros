@@ -185,6 +185,67 @@ $Policy.applicationRestrictions.PasswordCredentials
 
 
 
+
+$params = @{
+	displayName = "Credential management policy"
+	description = "Cred policy sample"
+	isEnabled = $true
+	restrictions = @{
+		passwordCredentials = @(
+			@{
+				restrictionType = "passwordAddition"
+				state = "enabled"
+				maxLifetime = $null
+				restrictForAppsCreatedAfterDateTime = [System.DateTime]::Parse("2025-04-01T10:37:00Z")
+			}
+			@{
+				restrictionType = "passwordLifetime"
+				state = "enabled"
+				maxLifetime = "P90D"
+				restrictForAppsCreatedAfterDateTime = [System.DateTime]::Parse("2025-03-01T00:00:00Z")
+			}
+			@{
+				restrictionType = "symmetricKeyAddition"
+				state = "enabled"
+				maxLifetime = $null
+				restrictForAppsCreatedAfterDateTime = [System.DateTime]::Parse("2019-10-19T10:37:00Z")
+			}
+			@{
+				restrictionType = "symmetricKeyLifetime"
+				state = "enabled"
+				maxLifetime = "P90D"
+				restrictForAppsCreatedAfterDateTime = [System.DateTime]::Parse("2014-10-19T10:37:00Z")
+			}
+		)
+		keyCredentials = @(
+		)
+	}
+}
+
+
+$AppPolicyParameters = @{
+    displayName = "Restrict App Secrets to 180 days"
+	description = "This policy allows apps to have app secrets lasting for up to 180 days"
+	isEnabled = $true
+    restrictions = @{
+		passwordCredentials = @(
+			@{
+				restrictionType = "passwordLifeTime"
+				state = "enabled"
+				maxLifetime = 'P180D'
+				restrictForAppsCreatedAfterDateTime = [System.DateTime]::Parse("2025-01-01T00:00:00Z")
+			}
+            @{
+                restrictionType = "passwordAddition"
+                state = "disabled"
+                maxLifetime = $null
+                restrictForAppsCreatedAfterDateTime = [System.DateTime]::Parse("2025-01-01T00:00:00Z")
+            }       
+        )
+    }
+}
+
+
 # Convert a PowerShell timespan to ISO8601 duration
 Function Convert-TimeSpanToISO8601 {
     param (
