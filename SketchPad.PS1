@@ -183,3 +183,35 @@ $Policy.applicationRestrictions.PasswordCredentials
 #01/01/2025 00:00:00                 passwordAddition       enabled
 #01/01/2025 00:00:00                 customPasswordAddition enabled
 
+
+
+# Convert a PowerShell timespan to ISO8601 duration
+Function Convert-TimeSpanToISO8601 {
+    param (
+        [Parameter(Mandatory=$true)]
+        [TimeSpan]$TimeSpan
+    )
+    
+    $duration = "P"
+    if ($TimeSpan.Days -gt 0) {
+        $duration += "$($TimeSpan.Days)D"
+    }
+    if ($TimeSpan.Hours -gt 0 -or $TimeSpan.Minutes -gt 0 -or $TimeSpan.Seconds -gt 0) {
+        $duration += "T"
+        if ($TimeSpan.Hours -gt 0) {
+            $duration += "$($TimeSpan.Hours)H"
+        }
+        if ($TimeSpan.Minutes -gt 0) {
+            $duration += "$($TimeSpan.Minutes)M"
+        }
+        if ($TimeSpan.Seconds -gt 0) {
+            $duration += "$($TimeSpan.Seconds)S"
+        }
+    }
+    return $duration
+}
+
+# Example usage
+$timespan = New-TimeSpan -Days 1 -Hours 2 -Minutes 30 -Seconds 45
+$iso8601Duration = Convert-TimeSpanToISO8601 -TimeSpan $timespan
+Write-Output $iso8601Duration
