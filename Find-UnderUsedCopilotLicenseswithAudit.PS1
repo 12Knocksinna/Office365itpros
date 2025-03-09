@@ -101,7 +101,7 @@ Write-Host "Please wait..."
 # Set the parameters for the audit query. We're looking for audit records for roughly the same period as covered
 # by the usage data
 Set-MgRequestContext -MaxRetry 10 -RetryDelay 15| Out-Null
-$AuditQueryName = ("Copilot Interactions audit job created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
+$AuditJobName = ("Copilot Interactions audit job created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
 $EndDate = (Get-Date $ReportRefreshDate).AddHours(23)
 $StartDate = (Get-Date $EndDate).AddDays(-30)
 $AuditQueryStart = (Get-Date $StartDate -format s)
@@ -109,7 +109,7 @@ $AuditQueryEnd = (Get-Date $EndDate -format s)
 [array]$AuditQueryOperations = "CopilotInteraction"
 $AuditQueryParameters = @{}
 #$AuditQueryParameters.Add("@odata.type","#microsoft.graph.security.auditLogQuery")
-$AuditQueryParameters.Add("displayName", $AuditQueryName)
+$AuditQueryParameters.Add("displayName", $AuditJobName)
 $AuditQueryParameters.Add("OperationFilters", $AuditQueryOperations)
 $AuditQueryParameters.Add("filterStartDateTime", $AuditQueryStart)
 $AuditQueryParameters.Add("filterEndDateTime", $AuditQueryEnd)
@@ -117,7 +117,7 @@ $AuditQueryParameters.Add("filterEndDateTime", $AuditQueryEnd)
 # Submit the audit query
 # Too many problems with this beta cmdlet so we'll use the Graph API instead
 # $AuditJob = New-MgBetaSecurityAuditLogQuery -BodyParameter $AuditQueryParameters
-$Uri = $Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
+$Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
 $AuditJob = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $AuditQueryParameters
 
 # Check the audit query status every 20 seconds until it completes
@@ -147,8 +147,8 @@ While ($SearchFinished -eq $false) {
 # Fetch the audit records returned by the query
 # This cmdlet isn't working either
 # [array]$AuditRecords = Get-MgBetaSecurityAuditLogQueryRecord -AuditLogQueryId $AuditJob.Id -All -PageSize 999
-[array]$AuditRecords = $null
-$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records?`$top=500" -f $AuditJob.Id)
+$AuditRecords = [System.Collections.Generic.List[string]]::new()
+$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records?`$top=999" -f $AuditJob.Id)
 [array]$AuditSearchRecords = Invoke-MgGraphRequest -Uri $Uri -Method GET
 [array]$AuditRecords = $AuditSearchRecords.value
 
@@ -161,7 +161,7 @@ While ($null -ne $NextLink) {
     $NextLink = $AuditSearchRecords.'@odata.NextLink' 
 }
 
-Write-Host ("Audit query {0} returned {1} records" -f $AuditQueryName, $AuditRecords.Count)
+Write-Host ("Audit query {0} returned {1} records" -f $AuditJobName, $AuditRecords.Count)
 $AuditRecords = $AuditRecords | Sort-Object CreatedDateTime -Descending
 
 $CopilotUserAuditReport = [System.Collections.Generic.List[Object]]::new()

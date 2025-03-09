@@ -276,3 +276,104 @@ Function Convert-TimeSpanToISO8601 {
 $timespan = New-TimeSpan -Days 1 -Hours 2 -Minutes 30 -Seconds 45
 $iso8601Duration = Convert-TimeSpanToISO8601 -TimeSpan $timespan
 Write-Output $iso8601Duration
+
+# ------------------------ AuditLOgQuery Searches
+
+
+$AuditJobName = ("SharePoint Audit job created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
+$EndDate = (Get-Date).AddHours(1)
+$StartDate = (Get-Date $EndDate).AddDays(-180)
+$AuditQueryStart = (Get-Date $StartDate -format s)
+$AuditQueryEnd = (Get-Date $EndDate -format s)
+[array]$AuditOperationFilters = "FileModified", "FileDeleted", "FileUploaded"
+[array]$AuditobjectIdFilters = "https://redmondassociates.sharepoint.com/sites/blogsandprojects/*", "https://redmondassociates.sharepoint.com/sites/Office365Adoption/*"
+[array]$AuditAdministrativeUnitIdFilters = "112f5e71-b430-4c83-945b-8b665c14ff25" -as [string]
+[array]$AuditUserPrincipalNameFilters = "Ken.Bowers@office365itpros.com", "Lotte.Vetler@office365itpros.com", "tony.redmond@redmondassociates.org"
+
+$AuditQueryParameters = @{}
+$AuditQueryParameters.Add("@odata.type","#microsoft.graph.security.auditLogQuery")
+$AuditQueryParameters.Add("displayName", $AuditJobName)
+$AuditQueryParameters.Add("OperationFilters", $AuditOperationFilters)
+$AuditQueryParameters.Add("filterStartDateTime", $AuditQueryStart)
+$AuditQueryParameters.Add("filterEndDateTime", $AuditQueryEnd)
+$AuditQueryParameters.Add("userPrincipalNameFilters", $AuditUserPrincipalNameFilters)
+$AuditQueryParameters.Add("objectIdFilters", $AuditobjectIdFilters)
+# $AuditQueryParameters.Add("administrativeUnitIdFilters", $AuditAdministrativeUnitIdFilters)
+
+$Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
+$AuditJob = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $AuditQueryParameters
+
+
+# Check the audit query status every 20 seconds until it completes
+[int]$i = 1
+[int]$SleepSeconds = 20
+$SearchFinished = $false; [int]$SecondsElapsed = 20
+Write-Host "Checking audit query status..."
+Start-Sleep -Seconds 30
+# This cmdlet is not working...
+#$AuditQueryStatus = Get-MgBetaSecurityAuditLogQuery -AuditLogQueryId $AuditJob.Id
+$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}" -f $AuditJob.id)
+$AuditQueryStatus = Invoke-MgGraphRequest -Uri $Uri -Method Get
+
+While ($SearchFinished -eq $false) {
+    $i++
+    Write-Host ("Waiting for audit search to complete. Check {0} after {1} seconds. Current state {2}" -f $i, $SecondsElapsed, $AuditQueryStatus.status)
+    If ($AuditQueryStatus.status -eq 'succeeded') {
+        $SearchFinished = $true
+    } Else {
+        Start-Sleep -Seconds $SleepSeconds
+        $SecondsElapsed = $SecondsElapsed + $SleepSeconds
+        # $AuditQueryStatus = Get-MgBetaSecurityAuditLogQuery -AuditLogQueryId $AuditJob.Id
+        $AuditQueryStatus = Invoke-MgGraphRequest -Uri $Uri -Method Get
+    }
+}
+
+# Fetch the audit records returned by the query
+# This cmdlet isn't working either
+# [array]$AuditRecords = Get-MgBetaSecurityAuditLogQueryRecord -AuditLogQueryId $AuditJob.Id -All -PageSize 999
+$AuditRecords = [System.Collections.Generic.List[string]]::new()
+$Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records?`$top=999" -f $AuditJob.Id)
+[array]$AuditSearchRecords = Invoke-MgGraphRequest -Uri $Uri -Method GET
+[array]$AuditRecords = $AuditSearchRecords.value
+
+$NextLink = $AuditSearchRecords.'@Odata.NextLink'
+While ($null -ne $NextLink) {
+    $AuditSearchRecords = $null
+    [array]$AuditSearchRecords = Invoke-MgGraphRequest -Uri $NextLink -Method GET 
+    $AuditRecords += $AuditSearchRecords.value
+    Write-Host ("{0} audit records fetched so far..." -f $AuditRecords.count)
+    $NextLink = $AuditSearchRecords.'@odata.NextLink' 
+}
+
+Write-Host ("Audit query {0} returned {1} records" -f $AuditJobName, $AuditRecords.Count)
+$AuditRecords = $AuditRecords | Sort-Object CreatedDateTime -Descending
+
+
+$Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
+$Data = Invoke-MgGraphRequest -Uri $Uri -Method GET
+If ($Data) {
+    Write-Output "Audit Jobs found"
+    $Data.Value | ForEach-Object {
+        Write-Host ("{0} {1}" -f $_.id, $_.displayName)
+    }
+} Else {
+    Write-Output "No audit jobs found"
+}   
+
+# Full filter
+
+$AuditJobName = ("Full audit job created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
+$EndDate = (Get-Date).AddHours(1)
+$StartDate = (Get-Date $EndDate).AddDays(-180)
+$AuditQueryStart = (Get-Date $StartDate -format s)
+$AuditQueryEnd = (Get-Date $EndDate -format s)
+
+$AuditQueryParameters = @{}
+$AuditQueryParameters.Add("@odata.type","#microsoft.graph.security.auditLogQuery")
+$AuditQueryParameters.Add("displayName", $AuditJobName)
+$AuditQueryParameters.Add("filterStartDateTime", $AuditQueryStart)
+$AuditQueryParameters.Add("filterEndDateTime", $AuditQueryEnd)
+
+
+$Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
+$AuditJob = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $AuditQueryParameters
