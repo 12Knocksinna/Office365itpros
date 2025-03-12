@@ -45,7 +45,7 @@ ForEach ($T in $Teams) {
 
   If ($ChatsPerDay -gt 0 -and $ChatsPerDay -le 2) { $ActiveStatus = "Moderate" }
   Elseif ($ChatsPerDay -gt 2 -and $ChatsPerDay -le 5) { $ActiveStatus = "Reasonable"}
-  Elseif ($ChatPerDay -gt 5) { $ActiveStatus = "Heavy" }   
+  Elseif ($ChatsPerDay -gt 5) { $ActiveStatus = "Heavy" }   
  
   $ReportLine = [PSCustomObject]@{
      Alias        = $T.Alias
