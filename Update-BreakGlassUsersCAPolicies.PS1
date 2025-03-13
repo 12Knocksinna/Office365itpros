@@ -8,33 +8,44 @@ Connect-MgGraph -NoWelcome -Scopes Policy.ReadWrite.ConditionalAccess
 # These are the policy states that will be updated with break glass accounts if required. 
 [array]$PolicyStatesToProcess = "enabledForReportingButNotEnforced", "enabled","disabled"
 [array]$BreakGlassUsers = "91813a30-f048-48f1-a0f2-fd7c72020515", "b7289bc7-7e4e-44e2-ae1b-7e13e94e3749"
-# Parameters needed to update a CA policy
-$Parameters = @{
-    Conditions = @{
-        users = @{  
-            excludeUsers = @(
-                "91813a30-f048-48f1-a0f2-fd7c72020515"
-                "b7289bc7-7e4e-44e2-ae1b-7e13e94e3749"
-            )
-        }
-    }
-}
-# If you prefer using a group instead, change excludeUsers to excludeGroups 
 
 [int]$PoliciesUpdated = 0
 Write-Host "Finding conditional access policies... "
 [array]$Policies = Get-MgIdentityConditionalAccessPolicy | Sort-Object DisplayName
+
 ForEach ($Policy in $Policies) {
-    Write-Host ("Checking settings for conditional access policy {0}" -f $Policy.displayName) -foregroundcolor Yellow
-    [array]$ExcludedUsers = $Policy.conditions.users.excludeUsers
-    ForEach ($User in $BreakGlassUsers) {
-        If ($User -notin $ExcludedUsers) {
-           Write-Host ("Can't find user {0} in CA policy {1}" -f (Get-MgUser -UserId $User).DisplayName, $Policy.DisplayName)
-           If ($Policy.State -in $PolicyStatesToProcess) {
-              Write-Host ("Updating {0} with break glass accounts" -f $Policy.displayName) -ForegroundColor Red
-              $PoliciesUpdated++
-              Update-MgIdentityConditionalAccessPolicy -BodyParameter $Parameters -ConditionalAccessPolicyId $Policy.Id
-           }
+    Write-Host ("Checking settings for conditional access policy {0}" -f $Policy.displayName) -foregroundcolor Yellow    
+    if (($Policy.Conditions.ClientApplications.IncludeServicePrincipals -ne $null) -or ($Policy.Conditions.ClientApplications.ExcludeServicePrincipals -ne $null)) {
+        Write-Host ("CA Policy {0} is scoped to Workload Identities - it is not relevant to add break glass accounts here" -f $Policy.displayName) -ForegroundColor Green
+    } else {
+        [array]$ExcludedUsers = $Policy.conditions.users.excludeUsers
+        [bool]$needChange = $false
+        ForEach ($User in $BreakGlassUsers) {
+            If ($User -notin $ExcludedUsers) {
+            Write-Host ("Can't find user {0} in CA policy {1}" -f (Get-MgUser -UserId $User).DisplayName, $Policy.DisplayName)
+            If ($Policy.State -in $PolicyStatesToProcess) {
+                Write-Host ("Updating {0} with break glass accounts" -f $Policy.displayName) -ForegroundColor Red              
+                $Policy.conditions.users.excludeUsers += $User
+                $needChange = $true
+            }
+            }
+        }
+        if ($needChange) {        
+            # Parameters needed to update a CA policy
+            $Parameters = @{
+                Conditions = @{
+                    users = @{  
+                        excludeUsers = @(
+                            $Policy.conditions.users.excludeUsers
+                        )
+                    }
+                }
+            }
+            $PoliciesUpdated++
+            Update-MgIdentityConditionalAccessPolicy -BodyParameter $Parameters -ConditionalAccessPolicyId $Policy.Id
+            $needChange = $false
+        } else {
+            Write-Host ("CA Policy {0} already has break glass accounts excluded" -f $Policy.displayName) -ForegroundColor Green
         }
     }
 }
