@@ -3,7 +3,7 @@
 # after a domain has been removed from a Microsoft 365 tenant
 
 # V1.0 14-Mar-2025
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Fix-ProxyEmailAddresses.PS1
 
 [array]$Modules = Get-Module -ListAvailable | Where-Object { $_.Name -eq "ExchangeOnlineManagement" }
 If (!$Modules) {
