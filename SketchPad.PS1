@@ -377,3 +377,163 @@ $AuditQueryParameters.Add("filterEndDateTime", $AuditQueryEnd)
 
 $Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
 $AuditJob = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $AuditQueryParameters
+
+#----------- HTML header
+
+$ReportTitle = "Audit Log Report"
+$DateRun = Get-Date -Format "dd-MMM-yyyy HH:mm"
+
+$HtmlHeader = @"
+<html>
+<head>
+    <style>
+        body { font-family: Arial; font-size: 10pt; }
+        h1 { background-color: blue; color: white; padding: 10px; }
+        h2 { font-size: 18px; padding-top: 10px; }
+        h3 { font-size: 16px; padding-top: 8px; }
+        h4 { font-size: 8px; padding-top: 4px; }
+    </style>
+</head>
+<body>
+    <h1>$ReportTitle</h1>
+    <p>Date Run: $DateRun</p>
+"@
+
+# ---
+
+
+[array]$Mailboxes = Get-Mailbox -ResultSize Unlimited | Where-Object { $_.PrimarySmtpAddress.Split('@')[1] -notin $Domains }
+
+[array]$Domains = Get-AcceptedDomain 
+$PrimaryDomain = $Domains | Where-Object { $_.Default -eq $true } | Select-Object -ExpandProperty DomainName
+[array]$Domains = $Domains | Select-Object -ExpandProperty DomainName
+
+
+Write-Host "Checking mailboxes..."
+[array]$Mailboxes = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox, SharedMailbox, RoomMailbox, EquipmentMailbox, discoveryMailbox
+$Report = [System.Collections.Generic.List[Object]]::new()
+
+ForEach ($Mailbox in $Mailboxes) {
+    $ExternalAddresses = $Mailbox.EmailAddresses | Where-Object { $_ -like "SMTP:*" -and ($_.Split(':')[1].Split('@')[1] -notin $Domains) }
+    If ($ExternalAddresses) {
+        $ReportLine = [PSCustomObject][Ordered]@{
+            DisplayName             = $Mailbox.DisplayName
+            PrimarySmtpAddress      = $Mailbox.PrimarySmtpAddress
+            EmailAddresses          = $ExternalAddresses -join ", "
+            Type                    = "mailbox"
+            Identity                = $Mailbox.Alias
+        }
+        $Report.Add($ReportLine)
+    }
+}
+
+Write-Host "Checking Microsoft 365 Groups..."
+[array]$Groups = Get-UnifiedGroup -ResultSize Unlimited
+
+ForEach ($Group in $Groups) {
+    $ExternalAddresses = $Group.EmailAddresses | Where-Object { $_ -like "SMTP:*" -and ($_.Split(':')[1].Split('@')[1] -notin $Domains) }
+    If ($ExternalAddresses) {
+        $ReportLine = [PSCustomObject][Ordered]@{
+            DisplayName             = $Group.DisplayName
+            PrimarySmtpAddress      = $Group.PrimarySmtpAddress
+            EmailAddresses  = $ExternalAddresses -join ", "
+            Type                    = "group"
+            Identity                = $Group.Alias
+        }
+        $Report.Add($ReportLine)
+    }
+}
+
+Write-Host "Checking Distribution Lists..."
+[array]$DLs = Get-DistributionGroup -ResultSize Unlimited
+
+ForEach ($DL in $DLs) {
+    $ExternalAddresses = $DL.EmailAddresses | Where-Object { $_ -like "SMTP:*" -and ($_.Split(':')[1].Split('@')[1] -notin $Domains) }
+    If ($ExternalAddresses) {
+        $ReportLine = [PSCustomObject][Ordered]@{
+            DisplayName             = $DL.DisplayName
+            PrimarySmtpAddress      = $DL.PrimarySmtpAddress
+            EmailAddresses          = $ExternalAddresses -join ", "
+            Type                    = "dl"
+            Identity                = $DL.Alias
+        }
+        $Report.Add($ReportLine)
+    }
+}
+
+Write-Host "Checking Dynamic distribution groups..."
+[array]$DDLs = Get-DynamicDistributionGroup -ResultSize Unlimited
+
+ForEach ($DDL in $DDLs) {
+    $ExternalAddresses = $DDL.EmailAddresses | Where-Object { $_ -like "SMTP:*" -and ($_.Split(':')[1].Split('@')[1] -notin $Domains) }
+    If ($ExternalAddresses) {
+        $ReportLine = [PSCustomObject][Ordered]@{
+            DisplayName             = $DDL.DisplayName
+            PrimarySmtpAddress      = $DDL.PrimarySmtpAddress
+            EmailAddresses          = $ExternalAddresses -join ", "
+            Type                    = "ddl"
+            Identity                = $DDL.Alias
+        }
+        $Report.Add($ReportLine)
+    }
+}
+
+Write-Host ("{0} mailboxes, {1} groups, {2} distribution lists, and {3} dynamic distribution lists checked" -f $Mailboxes.Count, $Groups.Count, $DLs.Count, $DDLs.Count)
+Write-Host ("Problems found in {0} objects" -f $Report.Count)
+
+$Report | Format-Table -AutoSize
+
+ForEach ($Object in $Report) {
+
+    $UpdatePrimary = $false
+    $NewPrimarySmtpAddress = $null
+
+    # Check if primary SMTP address needs to be updated
+    If ($Object.PrimarySmtpAddress.Split('@')[1] -notin $Domains) {
+        Write-Host ("Primary SMTP address must be updated from {0}" -f $Object.PrimarySmtpAddress)
+        $NewPrimarySmtpAddress = ("{0}@{1}" -f $Object.PrimarySmtpAddress.Split('@')[0], $PrimaryDomain)
+        $UpdatePrimary = $true
+    }
+
+    If ($UpdatePrimary) {
+        Write-Host ("Setting new primary SMTP address {0}" -f $NewPrimarySmtpAddress)
+        Switch ($Object.Type) {
+            "mailbox" {
+                Set-Mailbox -Identity $Object.Identity -EmailAddresses @{Remove=$Object.PrimarySmtpAddress; Add=$NewPrimarySmtpAddress} -ErrorAction SilentlyContinue
+                Set-Mailbox -Identity $Object.Identity -WindowsEmailAddress $NewPrimarySmtpAddress -ErrorAction SilentlyContinue
+            }   
+            "group" {
+                Set-UnifiedGroup -Identity $Object.Identity -PrimarySmtpAddress $NewPrimarySmtpAddress -ErrorAction SilentlyContinue
+            }
+            "dl" {
+                Set-DistributionGroup -Identity $Object.Identity -PrimarySmtpAddress $NewPrimarySmtpAddress -ErrorAction SilentlyContinue
+            }
+            "ddl" {
+                Set-DynamicDistributionGroup -Identity $Object.Identity -PrimarySmtpAddress $NewPrimarySmtpAddress -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    [array]$EmailAddresses = $Object.EmailAddresses -split ", "
+    ForEach ($Address in $EmailAddresses) {
+        If ($Address.Split('@')[1] -notin $Domains) {
+            $AddressToRemove = $Address.Split(':')[1]
+            Write-Host ("Removing address {0} from {1}" -f $Address, $Object.DisplayName)
+            Switch ($Object.Type) {
+            "mailbox" {
+                Set-Mailbox -Identity $Object.Identity -EmailAddresses @{Remove=$AddressToRemove} -ErrorAction SilentlyContinue   
+            }
+            "group" {
+                Set-UnifiedGroup -Identity $Object.Identity -EmailAddresses @{Remove=$AddressToRemove} -ErrorAction SilentlyContinue 
+            }
+             "dl" {
+                Set-DistributionGroup -Identity $Object.Identity -EmailAddresses @{Remove=$AddressToRemove} -ErrorAction SilentlyContinue 
+            }
+             "ddl" {
+                Set-DynamicDistributionGroup -Identity $Object.Identity -EmailAddresses @{Remove=$AddressToRemove} -ErrorAction SilentlyContinue 
+            }
+            }          
+        }
+    }
+
+}
