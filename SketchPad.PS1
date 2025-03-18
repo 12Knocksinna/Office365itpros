@@ -537,3 +537,16 @@ ForEach ($Object in $Report) {
     }
 
 }
+
+# --- Sites and default sensitivity labels
+[array]$Sites = Get-MgSite -All -PageSize 500
+$Sites = $Sites | Where-Object {$_.IsPersonalSite -eq $false}
+
+ForEach ($Site in $Sites) {
+    [array]$Lists = Get-MgSiteList -SiteId $Site.Id -All -PageSize 500
+    $Lists = $Lists | Where-Object {$_.List.Template -eq 'documentLibrary' -and $_.DisplayName -ne 'Teams Wiki Data'}
+    ForEach ($List in $Lists) {
+        [array]$ListItenms = Get-MgSiteListItem -SiteId $Site.Id -ListId $List.Id -All -PageSize 500
+    }
+
+}
