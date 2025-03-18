@@ -546,7 +546,6 @@ ForEach ($Site in $Sites) {
     [array]$Lists = Get-MgSiteList -SiteId $Site.Id -All -PageSize 500
     $Lists = $Lists | Where-Object {$_.List.Template -eq 'documentLibrary' -and $_.DisplayName -ne 'Teams Wiki Data'}
     ForEach ($List in $Lists) {
-        [array]$ListItenms = Get-MgSiteListItem -SiteId $Site.Id -ListId $List.Id -All -PageSize 500
+        # Check the list settings for a default sensitivity label...
     }
-
 }
