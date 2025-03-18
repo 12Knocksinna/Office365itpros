@@ -2,13 +2,13 @@
 # An example of using PnP PowerShell to report on sites with default sensitivity labels
 
 # V1.0 18-Mar-2025
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-SitesWithDefaultSensitivityLabels.PS1
 
 # Define these values for your tenant
 $PnPClientApp = 'cb5f363f-fbc0-46cb-bcfd-0933584a8c57'
 $Thumbprint = '59176CF0C682A3D43E4CC4B38129F5CA91156C94'
-$SPOSite = 'https://redmondassociates.sharepoint.com'
-$TenantName = 'redmondassociates.onmicrosoft.com'
+$SPOSite = 'https://office365itpros.sharepoint.com'
+$TenantName = 'office365itpros.onmicrosoft.com'
 
 # Get the sensitivity labels in the tenant
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
