@@ -2,7 +2,7 @@
 # A script using Azure Automation and a managed identity to scan for apps assigned high-priority permissions and report them
 # for administrator review
 
-Connect-MgGraph -Identity -Scopes Application.Read.All, Mail.Send, AuditLog.Read.All
+Connect-MgGraph -Identity -Scopes Application.Read.All, AuditLog.Read.All
 
 # Get tenant information
 $Tenant = (Get-MgOrganization)
