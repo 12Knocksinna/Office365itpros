@@ -2,7 +2,7 @@
 # A script using Azure Automation and a managed identity to scan for apps assigned high-priority permissions and report them
 # for administrator review
 
-Connect-MgGraph -Identity -NoWelcome
+Connect-MgGraph -Identity -Scopes Application.Read.All, Mail.Send, AuditLog.Read.All
 
 # Get tenant information
 $Tenant = (Get-MgOrganization)
@@ -123,7 +123,7 @@ Write-Output "Permissions found"
 Write-Output "-----------------"
 Write-Output ""
 
-$Report | Group-Object Permission | Sort-Object Name | Format-Table Name, Count
+$Report | Group-Object Permission -NoElement | Sort-Object Name | Format-Table Name, Count
 # Uncomment the next two lines if you want to generate the output file (interactive use only)
 # $Report | Export-CSV -NoTypeInformation $OutputFile
 # Write-Output ("Full permissions report is available in {0}" -f $OutputFile)
