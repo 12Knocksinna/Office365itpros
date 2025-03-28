@@ -235,7 +235,7 @@ If ($LocationsWithItems.Count -eq 1) {
     }
 }
 
-$LoopsNeeded = [math]::ceiling($HighestValue/100)
+$LoopsNeeded = [math]::ceiling($HighestValue/10)
 # Let the administrator know what we have found 
 Write-Host ("Compliance search completed. {0} items found in {1} locations. {2} iterations are required to remove these items. The mailbox with most items is {3} with {4}." -f $ItemsFound, $Locations.Count, $LoopsNeeded, $HighestLocation, $HighestValue) -ForeGroundColor Yellow
 Write-Host ""

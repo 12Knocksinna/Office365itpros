@@ -537,3 +537,49 @@ ForEach ($Object in $Report) {
     }
 
 }
+
+
+[array]$ExoTags = Get-RetentionPolicyTag 
+[array]$M365Tags = Get-ComplianceTag
+
+$RetentionTagsHash = @{}
+ForEach ($Tag in $ExoTags) {
+    $RetentionTagsHash.Add([string]$Tag.Guid, $Tag.Name)
+}
+ForEach ($Tag in $M365Tags) {
+    $RetentionTagsHash.Add([string]$Tag.Guid, $Tag.Name)
+}
+
+Write-Host "Looking for audit records..."
+[array]$Records = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date) -Operations ApplyPriorityCleanup -ResultSize 5000 -Formatted
+
+If ($Records.Count -eq 0) {
+    Write-Host "No audit records found for ApplyPriorityCleanup operations"
+    Break
+} Else {
+    $Records = $Records | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime]} -Descending
+    Write-Host ("Processing {0} audit records..." -f $Records.Count)
+}
+
+$PriorityCleanupReport = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Rec in $Records) {
+    $LabelApplied = $null; $LabelID = $null; $LabelRemoved = $null; [string]$TimeStamp = $null
+    $AuditData = $Rec.AuditData | ConvertFrom-Json
+    $LabelApplied = $AuditData.OperationProperties | Where-Object {$_.Name -eq 'TagName'} | Select-Object -ExpandProperty Value
+    $LabelId = $AuditData.OperationProperties | Where-Object {$_.Name -eq 'TagId'} | Select-Object -ExpandProperty Value
+    $LabelRemoved = $AuditData.OperationProperties | Where-Object {$_.Name -eq 'TagReplacedByPriorityCleanup'} | Select-Object -ExpandProperty Value
+    $TimeStamp = Get-Date ($AuditData.CreationTime) -format 'dd-MMM-yyyy HH:mm'
+    $ReportLine = [PSCustomObject][Ordered]@{
+        TimeStamp       = $TimeStamp
+        User            = $AuditData.UserId
+        Action          = $AuditData.Operation
+        Mailbox         = $AuditData.MailboxOwnerUPN
+        Item            = $AuditData.Item.Subject
+        'Label Applied' = $LabelApplied
+        'Label Id'      = $LabelId
+        'Label Removed' = $RetentionTagsHash[$LabelRemoved]  
+    }
+    $PriorityCleanupReport.Add($ReportLine)
+}
+
+$PriorityCleanupReport | Group-Object Mailbox -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
