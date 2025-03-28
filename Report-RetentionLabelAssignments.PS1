@@ -2,7 +2,7 @@
 # Report on retention label assignments in a tenant for the last 30 days
 # V1.0 27-Mar-2025
 
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RetentionLabelAssignments.PS1
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ($Modules -notcontains "ExchangeOnlineManagement") {
