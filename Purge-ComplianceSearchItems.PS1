@@ -14,7 +14,7 @@ function Get-RecoverableItemsFolderId ([string]$MailboxId) {
     [array]$RecoverableFolders = 'RecoverableItemsVersions', 'RecoverableItemsDeletions', 'RecoverableItemsPurges'
     
     # Process Recoverable Items folders in the primary mailbox
-    $Folders = Get-ExoMailboxFolderStatistics $MailboxId
+    $Folders = Get-ExoMailboxFolderStatistics -Identity $MailboxId
     Foreach ($Folder in $Folders) {
         If ($Folder.FolderType -in $RecoverableFolders) {           
             $encoding= [System.Text.Encoding]::GetEncoding("us-ascii")
