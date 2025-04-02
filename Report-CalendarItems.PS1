@@ -2,9 +2,9 @@
 # Generate a report of calendar items for a mailbox
 # V1.0 2-Apr-2025
 
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-CalendarItems.PS1
 
-Connect-MgGraph -NoWelcome -Scopes Mail.Read, User.ReadBasic.All
+Connect-MgGraph -NoWelcome -Scopes Calendars.ReadBasic, User.ReadBasic.All
 
 $StartDate = (Get-Date).AddDays(-180)
 $EndDate = (Get-Date).AddDays(1)
@@ -39,10 +39,14 @@ ForEach ($event in $Meetings) {
         $Duration = 480 
     }
      
+    $OnlineMeetingProvider = $null
     [array]$AllAttendees = ($Event.Attendees | Where-Object {$_.Type -ne "resource"} )
     [array]$RequiredAttendees = ($Event.Attendees | Where-Object {$_.Type -eq "required"}) 
     [array]$OptionalAttendees = ($Event.Attendees | Where-Object {$_.Type -eq "optional"})
     # Create output line - add one to the total attendees to account for the organizer
+    If ($Event.onlineMeetingProvider -ne "unknown") {
+        $OnlineMeetingProvider = $Event.onlineMeetingProvider
+    }
     $DataLine = [PSCustomObject] @{
         Type              = $Event.type
         Organizer         = $Event.organizer.emailaddress.name
@@ -53,7 +57,7 @@ ForEach ($event in $Meetings) {
         Subject           = $Event.Subject
         AllDay            = $Event.IsAllDay
         Online            = $Event.isOnlineMeeting
-        OnlineProvider    = $Event.onlineMeetingProvider
+        OnlineProvider    = $OnlineMeetingProvider
         Start             = Get-Date($MeetingStart) -format 'dd-MMM-yyyy HH:mm'
         End               = Get-Date($MeetingEnd) -format 'dd-MMM-yyyy HH:mm'
         Day               = (Get-Date($MeetingStart)).DayOfWeek
@@ -69,8 +73,31 @@ ForEach ($event in $Meetings) {
     $CalendarInfo.Add($DataLine)
 }
 
+$CalendarInfo = $CalendarInfo | Sort-Object {$_.Start -as [datetime]}
+$CalendarInfo | Select-Object Start, End, Subject, Organizer, RequiredAttendees, OnlineProvider | Out-GridView -Title ("Calendar items for {0}" -f $User.displayName) 
 
+Write-Host "Generating report..."
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Calendar Items.xlsx"
+    If (Test-Path $ExcelOutputFile) {
+        Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+    }
+    $CalendarInfo | Export-Excel -Path $ExcelOutputFile -WorksheetName "Calendar Items" `
+        -Title ("Calendar Items {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "CalendarItems"
+} Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Calendar Items.CSV"
+    $CalendarInfo | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+}
+ 
+If ($ExcelGenerated) {
+    Write-Host ("An Excel report of calendar items is available in {0}" -f $ExcelOutputFile)
+} Else {    
+    Write-Host ("A CSV report of calendar items is available in {0}" -f $CSVOutputFile)
+}  
 
+Write-Host "All done..."
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
