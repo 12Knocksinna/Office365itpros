@@ -77,6 +77,7 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
     # Get detail of the workspace
     $LoopSpaceDetails =  Get-SPOContainer -Identity $LoopSpace.ContainerId
     # Get detail about the owner
+    [array]$Owners = $null
     [array]$Owners = $LoopSpaceDetails.Owners
     ForEach ($Owner in $Owners) {
         $LicenseFound = $Null; $LoopLicenseStatus = "Unlicensed";  $LicenseName = $Null

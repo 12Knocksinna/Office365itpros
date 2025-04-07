@@ -583,3 +583,69 @@ ForEach ($Rec in $Records) {
 }
 
 $PriorityCleanupReport | Group-Object Mailbox -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
+
+# Create simple calendar appointment
+$EventBody = @{}
+$EventBody.Add("contentType", "HTML")
+$EventBody.Add("content", "The TEC Roadshow 2005 London event starts with registration and breakfast at 8:30AM. The first session will commence at 9:30AM")
+
+$EventStart = @{}
+$EventStart.Add("dateTime", "2025-04-07T09:00:00")
+$EventStart.Add("timeZone", "UTC")
+
+$EventEnd = @{}
+$EventEnd.Add("dateTime", "2025-04-07T17:00:00")
+$EventEnd.Add("timeZone", "UTC")
+
+$EventLocation = @{}
+$EventLocation.Add("displayName", "Royal Garden Hotel, London")
+
+$Event = @{}
+$Event.Add("subject", "TEC Roadshow")
+$Event.Add("body", $EventBody)
+$Event.Add("start", $EventStart)
+$Event.Add("end", $EventEnd)
+$Event.Add("location", $EventLocation)
+$Event.Add("allowNewTimeProposals", $true)
+$Event.Add("transactionId", (New-Guid))
+
+# hash table for attendees
+$EventAttendees = @()
+
+# Each attendde defined as email address and name
+$Participant1 = @{}
+$Participant1.add("address","lotte.vetler@office365itpros.com")
+$Participant1.add("name", "Lotte Vetler")
+
+$Participant2 = @{}
+$Participant2.add("address","otto.flick@office365itpros.com")
+$Participant2.add("name", "Otto.Flick")
+
+$EventAttendee1 = @{}
+$EventAttendee1.add("emailaddress", $Participant1)
+$EventAttendee1.Add("type", "required")
+
+$EventAttendee2 = @{}
+$EventAttendee2.add("emailaddress", $Participant2)
+$EventAttendee2.Add("type", "optional")
+
+$EventAttendees = $EventAttendee1, $EventAttendee2
+
+$Event.Add("attendees", $EventAttendees)
+
+$Uri =("https://graph.microsoft.com/v1.0/users/{0}/calendar/events" -f $userId)
+$NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $Event
+
+
+ $UpdateEventDetails = @{}
+ $UpdateEventDetails.Add("isOnlineMeeting", $true)
+ $UpdateEventDetails.Add("onlineMeetingProvider", "teamsForBusiness")
+ $UpdateEventDetails.Add("isReminderOn", $true)
+ $UpdateEventDetails.Add("reminderMinutesBeforeStart", 30)
+
+ $Uri = ("https://graph.microsoft.com/v1.0/{0}/events/{1}" -f $UserId, $NewEvent.Id)
+ $UpdatedEvent = Invoke-MgGraphRequest -Uri $Uri -Method PATCH -Body $UpdateEventDetails
+    
+ $NewEvent = Update-MgUserEvent -UserId $userId -EventId $NewEvent.Id -BodyParameter $UpdateEventDetails
+
+ Update-MgUserEvent -Userid $Userid -Eventid $newEvent.Id -IsOnlineMeeting:$true -Importance High -OnlineMeetingProvider 'TeamsforBusiness' -ReminderMinutesBeforeStart 30
