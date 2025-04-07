@@ -3,7 +3,7 @@
 # accounts. Excludes sharing for SharePoint Embedded and apps that use SharePoint Embedded.
 
 # V1.0 6-Apr-2025
-# GitHub Link: 
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-FileSharingAuditEvents.PS1
 
 Connect-MgGraph -Scopes "AuditLog.Read.All","User.ReadBasic.All" -ErrorAction Stop
 
@@ -24,7 +24,6 @@ If ($Labels) {
         $LabelsHash.Add([string]$Label.ImmutableId, $Label.DisplayName)
     }
 }
-
 
 Write-Host "Setting up background audit query to find file sharing events..."$AuditJobName = ("Audit job created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
 $EndDate = (Get-Date).AddHours(1)
@@ -214,6 +213,10 @@ If ($ExcelGenerated) {
 } Else {    
     Write-Host ("A CSV report of calendar items is available in {0}" -f $CSVOutputFile)
 }  
+
+Write-Host ""
+Write-Host "Here's a snapshot of the domains users are sharing files with..."
+$AuditReport | Group-Object TargetDomain -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
 
 Write-Host "All done..."
 
