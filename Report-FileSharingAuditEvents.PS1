@@ -1,6 +1,9 @@
 # Report-FileSharingEvents.ps1
 # Report audit events for file sharing events from SharePoint Online and OneDrive for Business whenn sharing occurs with tenant or guest
-# accounts. Excludes sharing for SharePoint Embedded and apps that use SharePoint Embedded.
+# accounts. Excludes sharing for SharePoint Embedded and apps that use SharePoint Embedded. The script uses the Microsoft Graph AuditLog
+# Query API to fetch audit records for processing. You could replace the API withe the Search-UnifiedAuditLog cmdlet from the Exchange
+# Online PowerShell module, which is used to fetch details about sensitivity labels to resolve the details found in audit events.
+# Make sure that you run the script in a session where the signed-in account holds the Exchange administrator role or equivalent.
 
 # V1.0 6-Apr-2025
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-FileSharingAuditEvents.PS1
