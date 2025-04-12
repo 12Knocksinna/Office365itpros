@@ -5,7 +5,7 @@
 # V1.0 12-Apr-2025
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Add-OwnerstoApps.PS1
 
-Connect-MgGraph -Scopes Application.Read.All, User.ReadBasic.All, Organization.Read.All
+Connect-MgGraph -Scopes Application.ReadWrite.All, User.ReadBasic.All, Directory.Read.All
 
 $Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -notin $Modules) {
