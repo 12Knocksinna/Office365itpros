@@ -1,5 +1,9 @@
 # Add-OwnerToApps.PS1
-# Look for Entra ID registered apps without owners and add the last person to update the app or its creator as the owner
+# Look for Entra ID registered apps without owners and add the last person to update the app or its creator as the owner. The information
+# about the user who last managed apps comes from audit records.
+
+# V1.0 12-Apr-2025
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Add-OwnerstoApps.PS1
 
 Connect-MgGraph -Scopes Application.Read.All, User.ReadBasic.All, Organization.Read.All
 
