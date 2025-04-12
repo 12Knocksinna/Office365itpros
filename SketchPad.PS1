@@ -621,6 +621,10 @@ $Participant2 = @{}
 $Participant2.add("address","otto.flick@office365itpros.com")
 $Participant2.add("name", "Otto.Flick")
 
+$Participant3 = @{}
+$Participant3.add("address","kim.akers@office365itpros.com")
+$Participant3.add("name", "Kim Akers")
+
 $EventAttendee1 = @{}
 $EventAttendee1.add("emailaddress", $Participant1)
 $EventAttendee1.Add("type", "required")
@@ -629,7 +633,11 @@ $EventAttendee2 = @{}
 $EventAttendee2.add("emailaddress", $Participant2)
 $EventAttendee2.Add("type", "optional")
 
-$EventAttendees = $EventAttendee1, $EventAttendee2
+$EventAttendee3 = @{}
+$EventAttendee3.add("emailaddress", $Participant2)
+$EventAttendee3.Add("type", "optional")
+
+$EventAttendees = $EventAttendee1, $EventAttendee2, $EventAttendee3
 
 $Event.Add("attendees", $EventAttendees)
 
@@ -648,4 +656,158 @@ $NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $Event
     
  $NewEvent = Update-MgUserEvent -UserId $userId -EventId $NewEvent.Id -BodyParameter $UpdateEventDetails
 
- Update-MgUserEvent -Userid $Userid -Eventid $newEvent.Id -IsOnlineMeeting:$true -Importance High -OnlineMeetingProvider 'TeamsforBusiness' -ReminderMinutesBeforeStart 30
+ Update-MgUserEvent -Userid $Userid -Eventid $NewEvent.Id -IsOnlineMeeting:$true -Importance High -OnlineMeetingProvider 'TeamsforBusiness' -ReminderMinutesBeforeStart 30
+
+# Update with attendees - rewrite attendee list
+
+$Participant1 = @{}
+$Participant1.Add("address","James.Ryan@office365itpros.com")
+$Participant1.Add("name", "James Ryan")
+
+$Attendee1 = @{}
+$Attendee1.Add("type","required")
+$Attendee1.Add("Emailaddress", $Participant1)
+
+[array]$Participants = $Attendee1
+$Event = @{}
+$Event.Add("attendees", $Participants)
+
+
+# New recurring event
+[array]$DaysOfWeek = "Tuesday"
+$RecurringPattern = @{}
+$RecurringPattern.Add("type", "weekly")
+$RecurringPattern.Add("interval", 1)
+$RecurringPattern.Add("daysOfWeek",  $DaysOfWeek)
+$RecurringPattern.Add("firstDayOfWeek", "monday")
+
+$RecurringRange = @{}
+$RecurringRange.Add("startdate", "2025-04-15T09:00:00")
+$RecurringRange.Add("enddate", "2025-04-15T09:00:00")
+$RecurringRange.Add("recurrenceRangeType", "endDate")
+
+$RecurrenceRange = @{}
+$RecurrenceRange.Add("pattern", $RecurringPattern)
+$RecurrenceRange.Add("range", $RecurringRange)
+
+$Event = @{}
+$Event.Add("recurrence", $RecurrenceRange)
+
+$EventBody = @{}
+$EventBody.Add("contentType", "HTML")
+$EventBody.Add("content", "Weekly update meeting")
+
+$EventStart = @{}
+$EventStart.Add("dateTime", "2025-04-15T09:00:00")
+$EventStart.Add("timeZone", "UTC")
+
+$EventEnd = @{}
+$EventEnd.Add("dateTime", "2025-04-15T09:30:00")
+$EventEnd.Add("timeZone", "UTC")
+
+$EventLocation = @{}
+$EventLocation.Add("displayName", "Royal Garden Hotel, London")
+
+$Event.Add("subject", "TEC Roadshow")
+$Event.Add("body", $EventBody)
+$Event.Add("start", $EventStart)
+$Event.Add("end", $EventEnd)
+$Event.Add("location", $EventLocation)
+$Event.Add("allowNewTimeProposals", $true)
+$Event.Add("transactionId", (New-Guid))
+
+# hash table for attendees
+$EventAttendees = @()
+
+# Each attendde defined as email address and name
+$Participant1 = @{}
+$Participant1.add("address","lotte.vetler@office365itpros.com")
+$Participant1.add("name", "Lotte Vetler")
+
+$Participant2 = @{}
+$Participant2.add("address","otto.flick@office365itpros.com")
+$Participant2.add("name", "Otto.Flick")
+
+$Participant3 = @{}
+$Participant3.add("address","kim.akers@office365itpros.com")
+$Participant3.add("name", "Kim Akers")
+
+$EventAttendee1 = @{}
+$EventAttendee1.add("emailaddress", $Participant1)
+$EventAttendee1.Add("type", "required")
+
+$EventAttendee2 = @{}
+$EventAttendee2.add("emailaddress", $Participant2)
+$EventAttendee2.Add("type", "optional")
+
+$EventAttendee3 = @{}
+$EventAttendee3.add("emailaddress", $Participant2)
+$EventAttendee3.Add("type", "optional")
+
+$EventAttendees = $EventAttendee1, $EventAttendee2, $EventAttendee3
+
+$Event.Add("attendees", $EventAttendees)
+
+$Uri =("https://graph.microsoft.com/v1.0/users/{0}/calendar/events" -f $userId)
+$NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $Event
+
+# Doesn't work at present - The property 'attendees' does not exist on type 'microsoft.graph.attende
+$UpdatedEvent = Update-MgUserEvent -UserId $Userid -Eventid $NewEvent.Id -Attendees $Event
+
+
+
+[array]$Records = Search-unifiedauditlog -StartDate (Get-Date).AddDays(-30) -EndDate (Get-Date) `
+    -Formatted -ObjectIds "*.agent" -Operations FileUploaded -ResultSize 5000 -SessionCommand ReturnLargeset
+If ($Records) {
+    $Records = $records | Sort-Object Identity -Unique
+    Write-Host ("{0} audit records found" -f $Records.Count)
+} Else {
+    Write-Host "No audit records found"
+    Break
+}
+
+$AgentReport = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Rec in $Records) {
+    $AuditData = $Rec.AuditData | ConvertFrom-Json
+ 
+    $ReportLine = [PSCustomObject][Ordered]@{
+        TimeStamp       = Get-Date ($AuditData.CreationTime) -format 'dd-MMM-yyyy HH:mm'
+        User            = $AuditData.UserId
+        Action          = $AuditData.Operation
+        SiteURL         = $AuditData.SiteURL
+        Agent           = $AuditData.SourceFileName
+
+    }
+    $AgentReport.Add($ReportLine)
+}
+$AgentReport = $AgentReport | Sort-Object {$_.TimeStamp -as [datetime]} -Descending
+$AgentReport | Out-GridView -Title "Custom SharePoint Agent Creation"
+
+Write-Host ""
+Write-Host "Custom agents created in these SharePoint Online sites"
+$AgentReport | Group-Object SiteURL -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
+Write-Host ""
+Write-Host "Custom agents created by these users"
+$AgentReport | Group-Object User -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
+
+
+# More
+
+Connect-MgGraph -scopes Application.Read.All, User.ReadBasic.All, Organization.Read.All, RoleManagement.Read.Directory
+
+[array]$Apps = Get-MgApplication -All -Property displayName, Id, AppId, Owners, CreatedDateTime, SIgninAudience, PublisherDomain
+# $applications = Invoke-MgGraphRequest -Method GET -Uri "/v1.0/myorganization/applications/?`$select=displayName,id,appId,createdDateTime" -OutputType PSObject | Select -Expand Value
+
+$totalApps = $applications.Count
+$currentApp = 0
+
+$applications | foreach { 
+    $currentApp++
+    Write-Progress -Activity "Processing Applications" -Status "$currentApp out of $totalApps applications" -PercentComplete (($currentApp / $totalApps) * 100) -CurrentOperation "Current app: $($_.displayName)"
+    $owners = Invoke-MgGraphRequest -Method GET -Uri "/v1.0/applications/$($_.id)/owners?`$select=userPrincipalName" -OutputType PSObject | Select -Expand Value | Select -expand userPrincipalName
+    $owners = $owners -join [environment]::NewLine
+    $_ | Add-Member -MemberType NoteProperty -Name "Owners" -Value $owners
+}
+Write-Progress -Status "complete" -Completed -CurrentOperation "All applications processed"
+
+$applications | Out-GridView
