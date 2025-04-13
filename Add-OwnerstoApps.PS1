@@ -48,8 +48,11 @@ Write-Host ("Audit records found for {0} applications" -f $UniqueApps.count)
 }
 
 # Find the set of app registrations for the tenant
-[array]$Apps = Get-MgApplication -All -Property displayName, Id, AppId, Owners, CreatedDateTime, SIgninAudience, PublisherDomain
+[array]$Apps = Get-MgApplication -All -Property displayName, Id, AppId, Owners, CreatedDateTime, SigninAudience, PublisherDomain
 Write-Host ("{0} registered applications found in Entra ID - now checking each app" -f $Apps.count)
+
+# If you want just apps with no owners, use this command:
+# [array]$Apps = Get-MgApplication -Filter "owners/`$count eq 0" -CountVariable CountVar -ConsistencyLevel eventual -All -Property displayName, Id, AppId, Owners, CreatedDateTime, SigninAudience, PublisherDomain
 
 [int]$UpdatedApps = 0
 $AppReport = [System.Collections.Generic.List[Object]]::new()
