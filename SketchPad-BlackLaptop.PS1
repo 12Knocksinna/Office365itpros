@@ -584,7 +584,6 @@ ForEach ($Rec in $Records) {
 
 $PriorityCleanupReport | Group-Object Mailbox -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
 
-$UserId = (Get-MgUser -UserId (Get-MgContext).Account).Id
 # Create simple calendar appointment
 $EventBody = @{}
 $EventBody.Add("contentType", "HTML")
@@ -601,8 +600,10 @@ $EventEnd.Add("timeZone", "Central Standard Time")
 $EventLocation = @{}
 $EventLocation.Add("displayName", "Minneapolis")
 
+# Bring all the event details together into a hash table for the payload
 $EventDetails = @{}
-$EventDetails.Add("subject", "The Experts Conference 2025")
+$EventDetails.Add("subject", "The Experts Conference (TEC) 2025" – Best Conference Ever)
+
 $EventDetails.Add("body", $EventBody)
 $EventDetails.Add("start", $EventStart)
 $EventDetails.Add("end", $EventEnd)
@@ -611,58 +612,85 @@ $EventDetails.Add("allowNewTimeProposals", $true)
 $EventDetails.Add("transactionId", (New-Guid))
 
 # hash table for attendees
-$EventAttendees = @()
+#$EventAttendees = @()
 
 # Each attendde defined as email address and name
-$Participant1 = @{}
-$Participant1.add("address","lotte.vetler@office365itpros.com")
-$Participant1.add("name", "Lotte Vetler")
+#$Participant1 = @{}
+#$Participant1.add("address","lotte.vetler@office365itpros.com")
+#$Participant1.add("name", "Lotte Vetler")
 
-$Participant2 = @{}
-$Participant2.add("address","otto.flick@office365itpros.com")
-$Participant2.add("name", "Otto.Flick")
+#$Participant2 = @{}
+#$Participant2.add("address","otto.flick@office365itpros.com")
+#$Participant2.add("name", "Otto.Flick")
 
-$Participant3 = @{}
-$Participant3.add("address","kim.akers@office365itpros.com")
-$Participant3.add("name", "Kim Akers")
+#$Participant3 = @{}
+#$Participant3.add("address","kim.akers@office365itpros.com")
+#$Participant3.add("name", "Kim Akers")
 
-$EventAttendee1 = @{}
-$EventAttendee1.add("emailaddress", $Participant1)
-$EventAttendee1.Add("type", "required")
+#$EventAttendee1 = @{}
+#$EventAttendee1.add("emailaddress", $Participant1)
+#$EventAttendee1.Add("type", "required")
 
-$EventAttendee2 = @{}
-$EventAttendee2.add("emailaddress", $Participant2)
-$EventAttendee2.Add("type", "optional")
+#$EventAttendee2 = @{}
+#$EventAttendee2.add("emailaddress", $Participant2)
+#$EventAttendee2.Add("type", "optional")
 
-$EventAttendee3 = @{}
-$EventAttendee3.add("emailaddress", $Participant3)
-$EventAttendee3.Add("type", "optional")
+#$EventAttendee3 = @{}
+#$EventAttendee3.add("emailaddress", $Participant2)
+#$EventAttendee3.Add("type", "optional")
 
-$EventAttendees = $EventAttendee1, $EventAttendee2, $EventAttendee3
+#$EventAttendees = $EventAttendee1, $EventAttendee2, $EventAttendee3
 
+# Input array for event participants
+$ParticipantsArray = @(
+    @{ name = "Kim Akers"; emailaddress = "kim.akers@office365itpros.com"; state = "required" },
+    @{ name = "Lotte Vetler"; emailaddress = "lotte.vetler@office365itpros.com"; state = "optional" },
+    @{ name = "James Ryan"; emailaddress = "james.ryan@office365itpros.com"; state = "optional" },
+    @{ name = "Otto Flick"; emailaddress = "otto.flick@office365itpros.com"; state = "required" }
+)
+
+# Create hash tables for each participant
+$EventAttendees = @()
+foreach ($Participant in $ParticipantsArray) {
+    $ParticipantHash = @{
+        address = $Participant.emailaddress
+        name    = $Participant.name
+    }
+
+    $EventAttendee = @{
+        emailaddress = $ParticipantHash
+        type         = $Participant.state
+    }
+
+    $EventAttendees += $EventAttendee
+}
+
+# Add the attendees to the event
 $EventDetails.Add("attendees", $EventAttendees)
 
-$Uri =("https://graph.microsoft.com/v1.0/users/{0}/calendar/events" -f $userId)
+$Uri =("https://graph.microsoft.com/v1.0/users/{0}/calendar/events/" -f $userId)
 $NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $EventDetails
 
-$UpdateEventDetails = @{}
-$UpdateEventDetails.Add("isOnlineMeeting", $true)
-$UpdateEventDetails.Add("onlineMeetingProvider", "teamsForBusiness")
-$UpdateEventDetails.Add("isReminderOn", $true)
-$UpdateEventDetails.Add("reminderMinutesBeforeStart", 30)
 
-$Uri = ("https://graph.microsoft.com/v1.0/{0}/events/{1}" -f $UserId, $NewEvent.Id)
-$UpdatedEvent = Invoke-MgGraphRequest -Uri $Uri -Method PATCH -Body $UpdateEventDetails
+ $UpdateEventDetails = @{}
+ $UpdateEventDetails.Add("isOnlineMeeting", $true)
+ $UpdateEventDetails.Add("onlineMeetingProvider", "teamsForBusiness")
+ $UpdateEventDetails.Add("isReminderOn", $true)
+ $UpdateEventDetails.Add("reminderMinutesBeforeStart", 90)
+ $UpdateEventDetails.Add("categories", @("Conference", "Travel"))
+
     
-$NewEvent = Update-MgUserEvent -UserId $userId -EventId $NewEvent.Id -BodyParameter $UpdateEventDetails
+ $UpdatedEvent = Invoke-MgGraphRequest -Uri $Uri -Method PATCH -Body $EventDetails
+    
+ $NewEvent = Update-MgUserEvent -UserId $userId -EventId $NewEvent.Id -BodyParameter $UpdateEventDetails
 
-Update-MgUserEvent -Userid $Userid -Eventid $NewEvent.Id -IsOnlineMeeting:$true -Importance High -OnlineMeetingProvider 'TeamsforBusiness' -ReminderMinutesBeforeStart 30
+ Update-MgUserEvent -Userid $Userid -Eventid $NewEvent.Id -IsOnlineMeeting:$true -Importance High -OnlineMeetingProvider 'TeamsforBusiness' -ReminderMinutesBeforeStart 30
 
 # Update with attendees - rewrite attendee list
 
 $Participant1 = @{}
-$Participant1.Add("address","James.Ryan@office365itpros.com")
-$Participant1.Add("name", "James Ryan")
+$Participant1.Add("address","Lotte.Vetler@office365itpros.com")
+$Participant1.Add("name", "Lotte Vetler")
 
 $Attendee1 = @{}
 $Attendee1.Add("type","required")
@@ -690,8 +718,8 @@ $RecurrenceRange = @{}
 $RecurrenceRange.Add("pattern", $RecurringPattern)
 $RecurrenceRange.Add("range", $RecurringRange)
 
-$EventDetails = @{}
-$EventDetails.Add("recurrence", $RecurrenceRange)
+$Event = @{}
+$Event.Add("recurrence", $RecurrenceRange)
 
 $EventBody = @{}
 $EventBody.Add("contentType", "HTML")
@@ -708,13 +736,13 @@ $EventEnd.Add("timeZone", "UTC")
 $EventLocation = @{}
 $EventLocation.Add("displayName", "Royal Garden Hotel, London")
 
-$EventDetails.Add("subject", "TEC Roadshow")
-$EventDetails.Add("body", $EventBody)
-$EventDetails.Add("start", $EventStart)
-$EventDetails.Add("end", $EventEnd)
-$EventDetails.Add("location", $EventLocation)
-$EventDetails.Add("allowNewTimeProposals", $true)
-$EventDetails.Add("transactionId", (New-Guid))
+$Event.Add("subject", "TEC Roadshow")
+$Event.Add("body", $EventBody)
+$Event.Add("start", $EventStart)
+$Event.Add("end", $EventEnd)
+$Event.Add("location", $EventLocation)
+$Event.Add("allowNewTimeProposals", $true)
+$Event.Add("transactionId", (New-Guid))
 
 # hash table for attendees
 $EventAttendees = @()
@@ -746,13 +774,13 @@ $EventAttendee3.Add("type", "optional")
 
 $EventAttendees = $EventAttendee1, $EventAttendee2, $EventAttendee3
 
-$EventDetails.Add("attendees", $EventAttendees)
+$Event.Add("attendees", $EventAttendees)
 
 $Uri =("https://graph.microsoft.com/v1.0/users/{0}/calendar/events" -f $userId)
-$NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $EventDetails
+$NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $Event
 
 # Doesn't work at present - The property 'attendees' does not exist on type 'microsoft.graph.attende
-$UpdatedEvent = Update-MgUserEvent -UserId $Userid -Eventid $NewEvent.Id -Attendees $EventDetails
+$UpdatedEvent = Update-MgUserEvent -UserId $Userid -Eventid $NewEvent.Id -Attendees $Event
 
 
 
@@ -793,3 +821,20 @@ $AgentReport | Group-Object User -NoElement | Sort-Object Count -Descending | Fo
 
 # More
 
+
+# Delete an event
+$Uri = ("https://graph.microsoft.com/v1.0/users/{0}/events/{1}" -f $UserId, $NewEvent.Id)   
+Invoke-MgGraphRequest -Uri $Uri -Method DELETE
+
+# Permanently Delete an event   
+$Uri = ("https://graph.microsoft.com/v1.0/users/{0}/events/{1}/permanentDelete" -f $UserId, $NewEvent.Id)
+Invoke-MgGraphRequest -Uri $Uri -Method POST
+
+
+# Cancel
+$CancelMessage = @{}
+$CancelMessage.Add("comment", "Cancelling because I can't go to TEC 2025! (sad)")
+
+
+$Uri = ("https://graph.microsoft.com/v1.0/users/{0}/events/{1}/cancel" -f $UserId, $NewEvent.Id)
+Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $CancelMessage
