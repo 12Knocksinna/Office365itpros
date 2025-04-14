@@ -587,62 +587,89 @@ $PriorityCleanupReport | Group-Object Mailbox -NoElement | Sort-Object Count -De
 # Create simple calendar appointment
 $EventBody = @{}
 $EventBody.Add("contentType", "HTML")
-$EventBody.Add("content", "The TEC Roadshow 2005 London event starts with registration and breakfast at 8:30AM. The first session will commence at 9:30AM")
+$EventBody.Add("content", "The TEC 2025 comference event starts with registration and breakfast at 8:30AM. The first session will commence at 9:30AM")
 
 $EventStart = @{}
-$EventStart.Add("dateTime", "2025-04-07T09:00:00")
-$EventStart.Add("timeZone", "UTC")
+$EventStart.Add("dateTime", "2025-09-30T09:00:00")
+$EventStart.Add("timeZone", "Central Standard Time")
 
 $EventEnd = @{}
-$EventEnd.Add("dateTime", "2025-04-07T17:00:00")
-$EventEnd.Add("timeZone", "UTC")
+$EventEnd.Add("dateTime", "2025-10-01T17:00:00")
+$EventEnd.Add("timeZone", "Central Standard Time")
 
 $EventLocation = @{}
-$EventLocation.Add("displayName", "Royal Garden Hotel, London")
+$EventLocation.Add("displayName", "Minneapolis")
 
-$Event = @{}
-$Event.Add("subject", "TEC Roadshow")
-$Event.Add("body", $EventBody)
-$Event.Add("start", $EventStart)
-$Event.Add("end", $EventEnd)
-$Event.Add("location", $EventLocation)
-$Event.Add("allowNewTimeProposals", $true)
-$Event.Add("transactionId", (New-Guid))
+# Bring all the event details together into a hash table for the payload
+$EventDetails = @{}
+$EventDetails.Add("subject", "The Experts Conference (TEC) 2025" – Best Conference Ever)
+
+$EventDetails.Add("body", $EventBody)
+$EventDetails.Add("start", $EventStart)
+$EventDetails.Add("end", $EventEnd)
+$EventDetails.Add("location", $EventLocation)
+$EventDetails.Add("allowNewTimeProposals", $true)
+$EventDetails.Add("transactionId", (New-Guid))
 
 # hash table for attendees
-$EventAttendees = @()
+#$EventAttendees = @()
 
 # Each attendde defined as email address and name
-$Participant1 = @{}
-$Participant1.add("address","lotte.vetler@office365itpros.com")
-$Participant1.add("name", "Lotte Vetler")
+#$Participant1 = @{}
+#$Participant1.add("address","lotte.vetler@office365itpros.com")
+#$Participant1.add("name", "Lotte Vetler")
 
-$Participant2 = @{}
-$Participant2.add("address","otto.flick@office365itpros.com")
-$Participant2.add("name", "Otto.Flick")
+#$Participant2 = @{}
+#$Participant2.add("address","otto.flick@office365itpros.com")
+#$Participant2.add("name", "Otto.Flick")
 
-$Participant3 = @{}
-$Participant3.add("address","kim.akers@office365itpros.com")
-$Participant3.add("name", "Kim Akers")
+#$Participant3 = @{}
+#$Participant3.add("address","kim.akers@office365itpros.com")
+#$Participant3.add("name", "Kim Akers")
 
-$EventAttendee1 = @{}
-$EventAttendee1.add("emailaddress", $Participant1)
-$EventAttendee1.Add("type", "required")
+#$EventAttendee1 = @{}
+#$EventAttendee1.add("emailaddress", $Participant1)
+#$EventAttendee1.Add("type", "required")
 
-$EventAttendee2 = @{}
-$EventAttendee2.add("emailaddress", $Participant2)
-$EventAttendee2.Add("type", "optional")
+#$EventAttendee2 = @{}
+#$EventAttendee2.add("emailaddress", $Participant2)
+#$EventAttendee2.Add("type", "optional")
 
-$EventAttendee3 = @{}
-$EventAttendee3.add("emailaddress", $Participant2)
-$EventAttendee3.Add("type", "optional")
+#$EventAttendee3 = @{}
+#$EventAttendee3.add("emailaddress", $Participant2)
+#$EventAttendee3.Add("type", "optional")
 
-$EventAttendees = $EventAttendee1, $EventAttendee2, $EventAttendee3
+#$EventAttendees = $EventAttendee1, $EventAttendee2, $EventAttendee3
 
-$Event.Add("attendees", $EventAttendees)
+# Input array for event participants
+$ParticipantsArray = @(
+    @{ name = "Kim Akers"; emailaddress = "kim.akers@office365itpros.com"; state = "required" },
+    @{ name = "Lotte Vetler"; emailaddress = "lotte.vetler@office365itpros.com"; state = "optional" },
+    @{ name = "James Ryan"; emailaddress = "james.ryan@office365itpros.com"; state = "optional" },
+    @{ name = "Otto Flick"; emailaddress = "otto.flick@office365itpros.com"; state = "required" }
+)
+
+# Create hash tables for each participant
+$EventAttendees = @()
+foreach ($Participant in $ParticipantsArray) {
+    $ParticipantHash = @{
+        address = $Participant.emailaddress
+        name    = $Participant.name
+    }
+
+    $EventAttendee = @{
+        emailaddress = $ParticipantHash
+        type         = $Participant.state
+    }
+
+    $EventAttendees += $EventAttendee
+}
+
+# Add the attendees to the event
+$EventDetails.Add("attendees", $EventAttendees)
 
 $Uri =("https://graph.microsoft.com/v1.0/users/{0}/calendar/events" -f $userId)
-$NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $Event
+$NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $EventDetails
 
 
  $UpdateEventDetails = @{}
@@ -651,7 +678,7 @@ $NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $Event
  $UpdateEventDetails.Add("isReminderOn", $true)
  $UpdateEventDetails.Add("reminderMinutesBeforeStart", 30)
 
- $Uri = ("https://graph.microsoft.com/v1.0/{0}/events/{1}" -f $UserId, $NewEvent.Id)
+ $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/events/{1}" -f $UserId, $NewEvent.Id)
  $UpdatedEvent = Invoke-MgGraphRequest -Uri $Uri -Method PATCH -Body $UpdateEventDetails
     
  $NewEvent = Update-MgUserEvent -UserId $userId -EventId $NewEvent.Id -BodyParameter $UpdateEventDetails
@@ -811,3 +838,8 @@ $applications | foreach {
 Write-Progress -Status "complete" -Completed -CurrentOperation "All applications processed"
 
 $applications | Out-GridView
+
+
+
+# Output the attendees
+$EventAttendees
