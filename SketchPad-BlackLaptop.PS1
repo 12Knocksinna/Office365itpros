@@ -602,7 +602,7 @@ $EventLocation.Add("displayName", "Minneapolis")
 
 # Bring all the event details together into a hash table for the payload
 $EventDetails = @{}
-$EventDetails.Add("subject", "The Experts Conference (TEC) 2025" – Best Conference Ever)
+$EventDetails.Add("subject", "The Experts Conference (TEC) 2025 – Best Conference Ever")
 
 $EventDetails.Add("body", $EventBody)
 $EventDetails.Add("start", $EventStart)
@@ -838,3 +838,113 @@ $CancelMessage.Add("comment", "Cancelling because I can't go to TEC 2025! (sad)"
 
 $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/events/{1}/cancel" -f $UserId, $NewEvent.Id)
 Invoke-MgGraphRequest -Uri $Uri -Method POST -Body $CancelMessage
+
+# Recurring meeting
+
+# Create the basics for a calendar meeting
+$EventBody = @{}
+$EventBody.Add("contentType", "HTML")
+$EventBody.Add("content", "Regular project get-together to report progress and drink coffee")
+
+$EventStart = @{}
+$EventStart.Add("dateTime", "2025-04-21T08:30:00")
+$EventStart.Add("timeZone", "Central Standard Time")
+
+$EventEnd = @{}
+$EventEnd.Add("dateTime", "2025-04-21T09:15:00")
+$EventEnd.Add("timeZone", "Central Standard Time")
+
+$EventLocation = @{}
+$EventLocation.Add("displayName", "Teams Meeting")
+
+# Bring all the event details together into a hash table for the payload
+$EventDetails = @{}
+$EventDetails.Add("subject", "Weekly Project Bagpuss Update")
+
+$EventDetails.Add("body", $EventBody)
+$EventDetails.Add("start", $EventStart)
+$EventDetails.Add("end", $EventEnd)
+$EventDetails.Add("location", $EventLocation)
+$EventDetails.Add("allowNewTimeProposals", $true)
+$EventDetails.Add("transactionId", (New-Guid))
+
+$ParticipantsArray = @(
+    @{ name = "Kim Akers"; emailaddress = "kim.akers@office365itpros.com"; state = "required" },
+    @{ name = "Lotte Vetler"; emailaddress = "lotte.vetler@office365itpros.com"; state = "optional" },
+    @{ name = "James Ryan"; emailaddress = "james.ryan@office365itpros.com"; state = "optional" },
+    @{ name = "Otto Flick"; emailaddress = "otto.flick@office365itpros.com"; state = "required" }
+)
+
+# Create hash tables for each participant
+$EventAttendees = @()
+foreach ($Participant in $ParticipantsArray) {
+    $ParticipantHash = @{
+        address = $Participant.emailaddress
+        name    = $Participant.name
+    }
+
+    $EventAttendee = @{
+        emailaddress = $ParticipantHash
+        type         = $Participant.state
+    }
+
+    $EventAttendees += $EventAttendee
+}
+
+# Add the attendees to the event
+$EventDetails.Add("attendees", $EventAttendees)
+
+# Make sure it's a Teams meeting
+$EventDetails.Add("isOnlineMeeting", $true)
+$EventDetails.Add("onlineMeetingProvider", "teamsForBusiness")
+$EventDetails.Add("isReminderOn", $true)
+$EventDetails.Add("reminderMinutesBeforeStart", 30)
+$EventDetails.Add("categories", @("Project Bagpuss", "Review call"))
+
+$Recurrence = @{}
+
+$Pattern = @{}
+$Pattern.Add("type", "weekly")  
+$Pattern.Add("interval", 1)
+$Pattern.Add("month", 0)
+$Pattern.Add("dayOfMonth", 0)
+$Pattern.Add("daysOfWeek", @("monday"))
+$Pattern.Add("firstDayOfWeek", "monday")
+$Pattern.Add("index", "first")
+
+$Range = @{}
+$Range.Add("type", "endDate")
+$Range.Add("startDate", "2025-04-21")
+$Range.Add("endDate", "2025-05-21")     
+$Range.Add("recurrenceTimeZone", "Central Standard Time")
+$Range.Add("numberOfOccurrences", 0)
+
+$Recurrence.Add("pattern", $Pattern)
+$Recurrence.Add("range", $Range)    
+
+$EventDetails.Add("recurrence", $Recurrence)
+
+$Uri =("https://graph.microsoft.com/v1.0/users/{0}/calendar/events/" -f $userId)
+$NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $EventDetails
+
+
+$Report = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Item in $Data) {
+    $ReportLine = [PSCustomObject][Ordered]@{
+        Subject    = $Item.Subject
+        PatternMonth    = $Item.Recurrence.Pattern.month
+        PatternDayOfMonth = $Item.Recurrence.Pattern.dayOfMonth
+        PatternDaysOfWeek = $Item.Recurrence.Pattern.daysOfWeek -join ", "
+        PatternType = $Item.Recurrence.Pattern.type
+        PatternInterval = $Item.Recurrence.Pattern.interval
+        PatternIndex = $Item.Recurrence.Pattern.index
+        PatternfirstDayOfWeek = $Item.Recurrence.Pattern.firstDayOfWeek
+        RecurrenceType = $Item.Recurrence.Range.type
+        RecurrenceStartDate = $Item.Recurrence.Range.startDate
+        RecurrenceEndDate = $Item.Recurrence.Range.endDate
+        RecurrenceNumberOfOccurrences = $Item.Recurrence.Range.numberOfOccurrences
+        RecurrenceTimeZone = $Item.Recurrence.Range.recurrenceTimeZone
+    }
+    $Report.Add($ReportLine)
+}
+$Report | Out-GridView
