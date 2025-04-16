@@ -6,10 +6,6 @@
 
 Connect-MgGraph -NoWelcome -Scopes User.ReadWrite.All
 
-$DefaultSponsorId = (Get-MgUser -UserId James.Ryan@office365itpros.com).Id
-$Body = @{}
-$Body.Add("@odata.id", "https://graph.microsoft.com/beta/users/$DefaultSponsorId")
-
 Write-Host "Finding guest accounts to analyze..." -ForegroundColor Green
 [array]$Guests = Get-MgUser -Filter "userType eq 'Guest'" -All `
     -Property Id, DisplayName, Sponsors, CreatedDateTime, SignInActivity, Mail -ExpandProperty Sponsors | Sort-Object DisplayName
