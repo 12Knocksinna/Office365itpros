@@ -2,7 +2,7 @@
 # Report the sponsors assigned to Entra ID guest accounts
 
 # V1.0 15-Apr-2025
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-EntraIDGuestSponsors.PS1
 
 Connect-MgGraph -NoWelcome -Scopes User.ReadWrite.All
 
