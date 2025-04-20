@@ -75,7 +75,7 @@ While ($SearchFinished -eq $false) {
     }
 }
 
-$AuditRecords = [System.Collections.Generic.List[string]]::new()
+$AuditRecords =     
 $Uri = ("https://graph.microsoft.com/beta/security/auditLog/queries/{0}/records?`$top=999" -f $AuditJob.Id)
 [array]$AuditSearchRecords = Invoke-MgGraphRequest -Uri $Uri -Method GET
 [array]$AuditRecords = $AuditSearchRecords.value
