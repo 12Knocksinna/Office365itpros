@@ -16,6 +16,17 @@ If ("ExchangeOnlineManagement" -Notin $Modules) {
     Connect-ExchangeOnline -showBanner:$false -UserPrincipalName (Get-MgContext).Account
 }
 
+# Check permissions available to the signed-in account and disconnect from the Graph if the requisite permissions are not available
+[string[]]$CurrentScopes = (Get-MgContext).Scopes
+[string[]]$RequiredScopes = @('AuditLog.Read.All','User.ReadBasic.All')
+
+$CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
+If ($CheckScopes.Count -ne 2) { 
+    Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f $RequiredScopes) -ForegroundColor Red
+    Disconnect-Graph
+    Break
+}
+
 Write-Host "Checking for sensitivity labels..." -ForegroundColor Yellow
 # Connect to compliance endpoint to retrieve details of sensitivity labels
 Connect-IPPSSession -ShowBanner:$false -UserPrincipalName (Get-MgContext).Account
