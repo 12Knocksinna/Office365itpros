@@ -3,7 +3,7 @@
 # litigation holds can be removed
 
 # V1.0 20-Apr-2025
-# GitHub Link: 
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Switch-LitigationHoldsForEDiscovery.PS1
 
 # Check permissions available to the signed-in account and disconnect from the Graph if the requisite permissions are not available
 [string[]]$CurrentScopes = (Get-MgContext).Scopes
@@ -75,7 +75,7 @@ Write-Host "Creating standard eDiscovery case to replace litigation holds..." -F
 $Case = New-ComplianceCase -Description "eDiscovery case to replace litigation holds for mailboxes" -Name "eDiscovery Case to Replace Litigation Holds"
 
 If ($Case) {
-    Write-Host ("eDiscovery case created {0} - now applying hold to {1} mailboxes and {2} OneDrive accounts" -f $Case.Name, $MailboxesToHold.Count, $OneDriveToHold.Count) -ForegroundColor Green
+    Write-Host ("eDiscovery case created {0} - now applying holds to {1} mailboxes and {2} OneDrive accounts" -f $Case.Name, $MailboxesToHold.Count, $OneDriveToHold.Count) -ForegroundColor Green
     New-CaseHoldPolicy -Name "eDiscovery Replace Litigtion Hold Policy" -Case $Case.Name -ExchangeLocation $MailboxesToHold 
     New-CaseHoldRule -Name "eDiscovery Replace Litigation Hold Rule" -Policy "eDiscovery Replace Litigtion Hold Policy" -ContentMatchQuery ""
     Set-CaseHoldPolicy -Identity "eDiscovery Replace Litigtion Hold Policy" -AddSharePointLocation $OneDriveToHold 
