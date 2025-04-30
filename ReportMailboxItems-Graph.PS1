@@ -181,7 +181,7 @@ If ($Mbx.RecipientTypeDetails -ne 'UserMailbox') { Write-Host "This script can o
 $FolderList = [System.Collections.Generic.List[Object]]::new()
 Write-Host ("Checking mailbox information for mailbox {0} ({1})" -f $Mbx.DisplayName, $Mbx.UserPrincipalName)   
 # Get list of folders in the mailbox
-$Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders?includeHiddenFolders=true" -f $Mbx.ExternalDirectoryObjectId)
+$Uri = ("https://graph.microsoft.com/v1.0/users/{0}/MailFolders?includeHiddenFolders=true&`$Top=500" -f $Mbx.ExternalDirectoryObjectId)
 [array]$AllFolders = Get-GraphData -Uri $Uri -AccessToken $Token
 # Get list of folders that we want to process
 $AllFolders = $AllFolders | Where-Object {$_.displayName -Notin $FoldersToIgnore} | Sort-Object DisplayName
@@ -196,20 +196,22 @@ ForEach ($F in $AllFolders) {
 [array]$FoldersWithChildFolders = $AllFolders | Where-Object {$_.ChildFolderCount -gt 0}
 
 ForEach ($ChildFolder in $FoldersWithChildFolders) {
-  [array]$ChildFolders = UnpackFolders -FolderId $ChildFolder.Id -UserId $Mbx.ExternalDirectoryObjectId 
-  ForEach ($ChildFolderProcess in $ChildFolders) {
-     $FolderLine = [PSCustomObject][Ordered]@{
-      Id          = $ChildFolderProcess.Id
-      DisplayName = $ChildFolderProcess.DisplayName } 
-     $FolderList.Add($FolderLine)
-  } #End Foreach ChildFolder
+    [array]$ChildFolders = UnpackFolders -FolderId $ChildFolder.Id -UserId $Mbx.ExternalDirectoryObjectId 
+    ForEach ($ChildFolderProcess in $ChildFolders) {
+      $FolderLine = [PSCustomObject][Ordered]@{
+        Id          = $ChildFolderProcess.Id
+        DisplayName = $ChildFolderProcess.DisplayName } 
+      $FolderList.Add($FolderLine)
+    } #End Foreach ChildFolder
 }
    
 # Remove any blank folders that might have been returned by the Graph
 $FolderList = $FolderList | Where-Object {$_.DisplayName -ne $Null }| Sort-Object DisplayName
 Clear-Host
 
-If (!($FolderList)) { Write-Host ("Can't find any folders in the {0} mailbox - script exiting..." -f $Mbx.displayname); break }
+If (!($FolderList)) { 
+  Write-Host ("Can't find any folders in the {0} mailbox - script exiting..." -f $Mbx.displayname); break 
+}
 $ReportList = [System.Collections.Generic.List[Object]]::new()
 $ProgDelta = 100/($FolderList.Count); $i = 0; $Progress = 0
 ForEach ($Folder in $FolderList) {
