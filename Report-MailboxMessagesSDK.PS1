@@ -1,6 +1,6 @@
 # Report-MailboxMessagesSDK.PS1
 # V1.0
-# GitHub Link: 
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-MailboxMessagesSDK.PS1
 
 # A script to demonstrate how to use Graph API queries to read the folders and folder items from an Exchange Online mailbox.
 # By default, the script looks for items more than a year old (easily changed) in a single mailbox. Originally written using
@@ -92,8 +92,9 @@ Function UnpackFolders {
         
 # End Functions
 
-$AppId = "d58578ac-7cb4-4b5a-a296-f19218a03f11"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+# Define your app ID and tenant ID here. The app must have the Mail.ReadWrite permission assigned to it in Entra ID
+$AppId = "Your app ID"
+$TenantId = "Your Tenant ID"
 $Thumbprint = "32C9529B1FFD08BCD483A5D98807E47A472C5318"
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint
 
@@ -106,7 +107,7 @@ Clear-Host
 # Check that we have the necessary Exchange Online module loaded
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -notin $Modules) {
-    Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break
+    Connect-ExchangeOnline -ShowBanner:$False
 }
 
 # Who are we processing?
