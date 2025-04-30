@@ -1,5 +1,11 @@
-# Clean-MailboxMessages.PS1
+# Report-MailboxMessagesSDK.PS1
 # V1.0
+# GitHub Link: 
+
+# A script to demonstrate how to use Graph API queries to read the folders and folder items from an Exchange Online mailbox.
+# By default, the script looks for items more than a year old (easily changed) in a single mailbox. Originally written using
+# Graph API requests https://github.com/12Knocksinna/Office365itpros/blob/master/ReportMailboxItems-Graph.PS1 and covered in 
+# the article https://practical365.com/mailbox-contents-report/, this version uses the Microsoft Graph PowerShell SDK to do the same thing.
 
 function FormatFileSize {
     # Format File Size nicely
@@ -209,7 +215,6 @@ $Elapsed = FormatDuration $Elapsed
 Write-Host ("Elapsed time {0}" -f $Elapsed)
 Write-Host ""
 Write-Host ("{0} messages found" -f $ReportList.Count)
-
 
 Write-Host "Generating report..."
 If (Get-Module ImportExcel -ListAvailable) {
