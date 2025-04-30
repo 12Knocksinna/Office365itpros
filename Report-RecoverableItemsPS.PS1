@@ -17,7 +17,6 @@ $StartDate = Get-Date ($StartDate) -format "dd-MMM-yyyy hh:mm"
 [datetime]$EndDate = Get-Date -format "dd-MMM-yyyy hh:mm"
 
 Write-Host "Scanning for mailboxes..."
-[array]$NoReportFolders = @("Audits", "Calendar Logging")
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | Sort-Object DisplayName
 If (!($Mbx)) {
     Write-Host "No mailboxes found - exiting!"; break
