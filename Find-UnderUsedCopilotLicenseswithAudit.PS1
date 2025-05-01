@@ -41,9 +41,8 @@ Connect-MgGraph -Scopes AuditLog.Read.All, User.ReadWrite.All, Reports.Read.All,
 [guid]$CopilotSKUId = "639dec6b-bb19-468b-871c-c5c441c4b0cb"
 
 Write-Host "Scanning for user accounts with Microsoft 365 Copilot licenses..."
-[array]$Users = Get-MgUser -Filter "usertype eq 'Member' and assignedLicenses/any(s:s/skuId eq $CopilotSkuId)" `
-    -ConsistencyLevel Eventual -CountVariable Licenses -All -Sort 'displayName' `
-    -Property Id, displayName, signInActivity, userPrincipalName -PageSize 999
+[array]$Users = Get-MgUser -Filter "assignedLicenses/any(s:s/skuId eq $CopilotSkuId)" `
+    -All -Sort 'displayName' -Property Id, displayName, signInActivity, userPrincipalName -PageSize 500
 
 If (!$Users) {
     Write-Host "No users with Microsoft 365 Copilot licenses found"

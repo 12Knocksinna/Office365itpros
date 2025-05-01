@@ -2,7 +2,7 @@
 # Simple script to show how to combine the usage data for Microsoft 365 Copilot with user details.
 
 # V1.0 1-May-2025
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-CopllotUsageWithUserDetail.PS1
 
 # Connect to the Graph
 Connect-MgGraph -Scopes "Reports.Read.All", "User.Read.All" -ErrorAction Stop -NoWrite
