@@ -87,7 +87,7 @@ While ($null -ne $NextLink) {
 If ($UsageData) {
     Write-Host ("{0} Microsoft 365 Copilot usage records fetched" -f $UsageData.Count)
     # Get the date of the usage data
-    [datetime]$ReportRefreshDate =  $Userdata[0].'reportRefreshDate'
+    [datetime]$ReportRefreshDate =  $UsageData[0].'reportRefreshDate'
 } Else {
     Write-Host "No Microsoft 365 Copilot usage data found"
     Break
