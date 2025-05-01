@@ -120,6 +120,18 @@ If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $false -and $ConcealedN
     Update-MgAdminReportSetting -BodyParameter $Parameters
 }
  
+Write-Host ""
+Write-Host "Here are the departments where people who don't use Copilot work:" -ForegroundColor Green
+$GroupedReport = $Report | Where-Object { $_.LastUsedDate -eq $null } |
+    Group-Object -Property Department | ForEach-Object {
+        [PSCustomObject]@{
+            Department = $_.Name
+            UserCount  = $_.Group.Count
+        }
+    }
+
+$GroupedReport | Sort-Object -Property Department | Format-Table -AutoSize
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 

@@ -948,3 +948,16 @@ ForEach ($Item in $Data) {
     $Report.Add($ReportLine)
 }
 $Report | Out-GridView
+
+
+# Group records by Department and count users with a LastUsedDate value
+$GroupedReport = $Report | Where-Object { $_.LastUsedDate -eq $null } |
+    Group-Object -Property Department | ForEach-Object {
+        [PSCustomObject]@{
+            Department = $_.Name
+            UserCount  = $_.Group.Count
+        }
+    }
+
+# Output the report
+$GroupedReport | Sort-Object -Property Department | Format-Table -AutoSize
