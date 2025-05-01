@@ -5,7 +5,16 @@
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-CopllotUsageWithUserDetail.PS1
 
 # Connect to the Graph
-Connect-MgGraph -Scopes "Reports.Read.All", "User.Read.All" -ErrorAction Stop -NoWrite
+Connect-MgGraph -Scopes "Reports.Read.All", "User.Read.All", "ReportSettings.ReadWrite.All" -ErrorAction Stop -NoWrite
+
+$ConcealedNames = $false
+Write-Host "Checking tenant settings for usage data obfuscation..."
+If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $true) {
+    $Parameters = @{ displayConcealedNames = $false }
+    Write-Host "Switching tenant settings to allow access to unobfuscated usage data..."
+    Update-MgAdminReportSetting -BodyParameter $Parameters
+    $ConcealedNames = $true
+}
 
 Write-Host "Finding Microsoft 365 Copilot usage data..." -ForegroundColor Green
 $Uri = "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUsageUserDetail(period='D90')"
@@ -39,7 +48,7 @@ If ($CopilotUsageData) {
 
 Write-Host "Finding users with a Microsoft 365 Copilot license..." -ForegroundColor Green
 [array]$UserData = Get-MgUser -All -Filter "assignedLicenses/any(s:s/skuId eq 639dec6b-bb19-468b-871c-c5c441c4b0cb)" `
-    -Property Id, DisplayName, Department, JobTitle, UserPrincipalName, Mail 
+    -Property Id, DisplayName, Department, JobTitle, UserPrincipalName, Mail -PageSize 500
 If ($UserData.Count -eq 0) {
     Write-Host "No users found with a Microsoft 365 Copilot license" -ForegroundColor Red
     break
@@ -103,6 +112,14 @@ ForEach ($User in $UserData) {
 Write-Host ("All done. {0} users have Microsoft 365 Copilot licenses and usage data was found for {1} users." -f $UserData.Count, `
     ($Report | Where-Object {$_.LastUsedDate -ne $null}).count) -ForegroundColor Green
 $Report | Sort-Object DisplayName | Out-GridView -Title ("Microsoft 365 Copilot Usage Report using data refreshed on {0}" -f (Get-Date $ReportRefreshDate -format 'dd-MMM-yyyy')) 
+
+# Reset tenant obfuscation settings to True if we switched the setting earlier
+If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $false -and $ConcealedNames -eq $true) {
+    Write-Host "Resetting tenant settings to obfuscate usage data..."
+    $Parameters = @{ displayConcealedNames = $True }
+    Update-MgAdminReportSetting -BodyParameter $Parameters
+}
+ 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
