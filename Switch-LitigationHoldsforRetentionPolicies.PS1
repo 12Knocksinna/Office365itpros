@@ -104,15 +104,6 @@ If ($ObfuscationChanged) {
 Write-Host "Creating Microsoft 365 retention policy to replace litigation holds..." -ForegroundColor Yellow
 $NewPolicy = New-RetentionCompliancePolicy -Name "Litigation Hold Retention Policy" -ExchangeLocation $MailboxesToHold -OneDriveLocation $OneDriveToHold  `
     	-Comment ("Retention policy to replace litigation holds created by Switch-LitigationHoldsforRetentionPolicies.PS1 script on {0}" -f (Get-Date).ToString("dd-MMM-yyyy")) `
-        -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date).AddDays(365) -EnableRetentionPolicy $true `
-        -RetentionAction KeepAndDelete -RetentionDuration 365 -RetentionDurationType Days `
-        -Mode Retention -AllowNotEnabledForLocations $true -AllowNotEnabledForLocations $true `
-        -ExchangeLocationType All `
-        -OneDriveLocationType All `
-        -SharePointLocationType All `
-        -TeamsLocationType All `
-        -YammerLocationType All `
-        -Comment "Created by Switch-LitigationHoldsforRetentionPolicies.PS1 script"
 If ($NewPolicy) {
     Write-Host ("Retention policy {0} created" -f $NewPolicy.Name) -ForegroundColor Green
     $NewPolicyRule = New-RetentionComplianceRule -Name LitigationHoldRule -Policy "Litigation Hold Retention Policy" -RetentionDuration unlimited `
@@ -130,7 +121,8 @@ If ($NewPolicy) {
 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
