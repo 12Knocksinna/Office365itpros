@@ -132,6 +132,26 @@ $GroupedReport = $Report | Where-Object { $_.LastUsedDate -eq $null } |
 
 $GroupedReport | Sort-Object -Property Department | Format-Table -AutoSize
 
+Write-Host "Generating report..."
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Copilot Usage.xlsx"
+    If (Test-Path $ExcelOutputFile) {
+        Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+    }
+    $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Copilot Usage Report" -Title ("Copilot Usage Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) `
+        -TitleBold -TableName "CopilotUsage"
+} Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Copilot Usage.CSV"
+    $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+}
+ 
+If ($ExcelGenerated) {
+    Write-Host ("An Excel report of Copilot usage with account data is available in {0}" -f $ExcelOutputFile)
+} Else {    
+    Write-Host ("A CSV report of Copilot usage with account data is available in {0}" -f $CSVOutputFile)
+}  
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
