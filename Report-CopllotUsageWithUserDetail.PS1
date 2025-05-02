@@ -5,7 +5,7 @@
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-CopllotUsageWithUserDetail.PS1
 
 # Connect to the Graph
-Connect-MgGraph -Scopes "Reports.Read.All", "User.Read.All", "ReportSettings.ReadWrite.All" -ErrorAction Stop -NoWrite
+Connect-MgGraph -Scopes "Reports.Read.All", "User.Read.All", "ReportSettings.ReadWrite.All" 
 
 $ConcealedNames = $false
 Write-Host "Checking tenant settings for usage data obfuscation..."
