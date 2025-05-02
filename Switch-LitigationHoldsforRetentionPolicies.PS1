@@ -1,9 +1,10 @@
-# Switch-LitigationHoldsForEDiscovery.ps1
-# A script to move all mailboes with litigation hold enabled to an eDiscovery case. Once the eDiscovery hold is active, the
-# litigation holds can be removed
+# Switch-LitigationHoldsforRetentionPolicies.PS1
+# A scipt to move mailboxes on litigation hold to a Microsoft 365 retention policy.
 
-# V1.0 20-Apr-2025
-# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Switch-LitigationHoldsForEDiscovery.PS1
+# V1.0 2-May-2025
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Switch-LitigationHoldsforRetentionPolicies.PS1
+# Similar to https://github.com/12Knocksinna/Office365itpros/blob/master/Switch-LitigationHoldsForEDiscovery.PS1 which switches litigation holds to eDiscovery holds
+# as explained in https://office365itpros.com/2025/04/24/litigation-hold-ediscovery/
 
 # Check permissions available to the signed-in account and disconnect from the Graph if the requisite permissions are not available
 
@@ -90,6 +91,8 @@ If ($MailboxesToHold.Count -gt 1000) {
     Write-Host ("There are {0} mailboxes to place on hold. eDiscovery standard cases are limited to 1000 mailboxes. Please split the mailboxes into smaller groups and run the script again." -f $MailboxesToHold.Count) -ForegroundColor Red
 }
 
+[string[]]$OneDriveToHold = $MbxReport.OneDriveUrl | Sort-Object -Unique
+
 # Reset tenant obfuscation settings to True
 If ($ObfuscationChanged) {
     If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $False) {
@@ -98,29 +101,33 @@ If ($ObfuscationChanged) {
     }
 }
 
-[string[]]$OneDriveToHold = $MbxReport.OneDriveUrl | Sort-Object -Unique
-
-Write-Host "Creating standard eDiscovery case to replace litigation holds..." -ForegroundColor Yellow
-$Case = New-ComplianceCase -Description "eDiscovery Case for Mailbox Litigation Holds" -Name "eDiscovery Case to Replace Mailbox Litigation Holds"
-
-If ($Case) {
-    Write-Host ("eDiscovery case created {0} - now applying holds to {1} mailboxes and {2} OneDrive accounts" -f $Case.Name, $MailboxesToHold.Count, $OneDriveToHold.Count) -ForegroundColor Green
-    $HoldPolicy = New-CaseHoldPolicy -Name "Hold Policy for Mailboxes on Litigation Hold" -Case $Case.Name -ExchangeLocation $MailboxesToHold `
-        -SharePointLocation $OneDriveToHold -Comment "Hold policy for mailboxes and OneDrive accounts to replace litigation holds"
-
-    $HoldRule = New-CaseHoldRule -Name "Hold Policy Litigation Rule 1" -Policy $HoldPolicy.Name -ContentMatchQuery ""
-    # Set-CaseHoldPolicy -Identity "eDiscovery Replace Litigtion Hold Policy" -AddSharePointLocation $OneDriveToHold 
+Write-Host "Creating Microsoft 365 retention policy to replace litigation holds..." -ForegroundColor Yellow
+$NewPolicy = New-RetentionCompliancePolicy -Name "Litigation Hold Retention Policy" -ExchangeLocation $MailboxesToHold -OneDriveLocation $OneDriveToHold  `
+    	-Comment ("Retention policy to replace litigation holds created by Switch-LitigationHoldsforRetentionPolicies.PS1 script on {0}" -f (Get-Date).ToString("dd-MMM-yyyy")) `
+        -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date).AddDays(365) -EnableRetentionPolicy $true `
+        -RetentionAction KeepAndDelete -RetentionDuration 365 -RetentionDurationType Days `
+        -Mode Retention -AllowNotEnabledForLocations $true -AllowNotEnabledForLocations $true `
+        -ExchangeLocationType All `
+        -OneDriveLocationType All `
+        -SharePointLocationType All `
+        -TeamsLocationType All `
+        -YammerLocationType All `
+        -Comment "Created by Switch-LitigationHoldsforRetentionPolicies.PS1 script"
+If ($NewPolicy) {
+    Write-Host ("Retention policy {0} created" -f $NewPolicy.Name) -ForegroundColor Green
+    $NewPolicyRule = New-RetentionComplianceRule -Name LitigationHoldRule -Policy "Litigation Hold Retention Policy" -RetentionDuration unlimited `
+        -Comment "Created by Switch-LitigationHoldsforRetentionPolicies.PS1 script" 
+    If ($NewPolicyRule) {
+        Write-Host ("Retention rule {0} created" -f $NewPolicyRule.Name) -ForegroundColor Green
+    } Else {
+        Write-Host "Failed to create retention rule" -ForegroundColor Red
+        Break
+    }
 } Else {
-    Write-Host "An error occurred creating the eDiscovery case" -ForegroundColor Red
+    Write-Host "Failed to create retention policy" -ForegroundColor Red
     Break
 }
 
-If ($HoldRule) {
-    Write-Host ("Hold policy {0} created with rule {1}" -f $HoldPolicy.Name, $HoldRule.Name) -ForegroundColor Green
-    Write-Host "The litigation hold replacement eDiscovery case is now active. After 3 hours it should be safe to remove the litigation holds from the mailboxes." -ForegroundColor Green
-} Else {
-    Write-Host "An error occurred creating the eDiscovery hold policy and rule" -ForegroundColor Red
-}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
