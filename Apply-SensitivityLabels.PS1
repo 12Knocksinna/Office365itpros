@@ -5,6 +5,8 @@
 # See https://practical365.com/sharepoint-online-files-report/ for more information.
 # V1.0 21-May-2024
 
+# Uses the Sites.ReadWrite.All permissions to assign sensitivity labels to files in a SharePoint Online document library.
+
 # Run the script with the name of the site to process.
 # .\Apply-SensitivityLabels.PS1 -SiteName "Contoso"
 
@@ -216,7 +218,6 @@ $FilesPerMinute = [math]::Round(($ReportData.Count / ($ElapsedTime.TotalSeconds 
 Write-Host ""
 Write-Host ("Processed {0} files in {1} folders in {2}:{3} minutes ({4} files/minute)" -f `
    $ReportData.Count, $TotalFolders, $ElapsedTime.Minutes, $ElapsedTime.Seconds, $FilesPerMinute)
-
 
 $ReportData | Out-GridView -Title ("Files in {0} document library for the {1} site" -f $DriveName, $SiteName)
 $ReportData | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
