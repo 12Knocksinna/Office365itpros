@@ -1,9 +1,10 @@
-# Apply-SensitivityLabels.PS1
-# A version of the script to apply sensitivity labels to files from a SharePoint Online document library 
+# Update-SensitivityLabels.PS1
+# A version of the script to apply sensitivity labels to files from a SharePoint Online document library. This version
+# overwrites the sensitivity label for files that are already labelled. The script can be used to apply a new label to files
 # Based on https://github.com/12Knocksinna/Office365itpros/blob/master/Report-SPOFilesDocumentLibrary.PS1
-# This script is https://github.com/12Knocksinna/Office365itpros/blob/master/Apply-SensitivityLabels.PS1
+# This script is https://github.com/12Knocksinna/Office365itpros/blob/master/Update-SensitivityLabels.PS1
 # See https://practical365.com/sharepoint-online-files-report/ for more information.
-# V1.0 21-May-2024
+# V1.0 06-May-2025
 
 # Uses the Sites.ReadWrite.All permission to assign sensitivity labels to files in a SharePoint Online document library.
 
@@ -32,29 +33,14 @@ function Get-DriveItems {
 
     # Process the files to find each has a sensitivity label. If not, label it
     ForEach ($File in $Files) {  
-        $SensitivityLabelName = $null; $SensitivityLabelInfo = $Null; $Status = $false
+        $Status = $false
         $FileType = $File.Name.Split(".")[1]
         If ($FileType -in $ValidFileTypes) { 
-            $Uri = ("https://graph.microsoft.com/V1.0/sites/{0}/drive/items/{1}/extractSensitivityLabels" -f $Site.Id, $File.id)
             Try {
-                [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
-                } Catch {
-                    Write-Host ("Error reading sensitivity label data from file {0}" -f $File.Name) -ForegroundColor Yellow
-                    # PDFs often return errors when reading sensitivity label info, so I ignore them and only accept the error for Office documents
-                    If ($FileType.ToUpper() -ne "PDF") {
-                        $SensitivityLabelName = "Error"
-                    }
-                }
-        }         
-        If (($null -eq $SensitivityLabelInfo.labels.sensitivityLabelId) -and ($FileType -in $ValidFileTypes) -and $SensitivityLabelName -ne "Error") {
-            Write-Host ("Assigning sensitivity label to {0}" -f $File.Name)
-            $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/assignSensitivityLabel" -f $DriveId, $File.Id)
-            Try {
-                Invoke-MgGraphRequest -Method "POST" -Uri $Uri -Body $AssignmentPayload -OutputType PSObject
-                $Status = $true # set so that we report the update
+                Set-MgDriveItemSensitivityLabel -DriveId $driveId -DriveItemId $File.Id -SensitivityLabelId $SensitivityLabelId -ErrorAction Stop
+                $Status = $true
             } Catch {
-                $Error[0].Exception.Message
-                Write-Host ("Failed to assign sensitivity label to file {0}" -f $File.Name ) -ForegroundColor Red
+                Write-Host ("Error applying label {0} to {1} ({2})" -f $SensitivityLabelName, $File.Name, $_.Exception.Message) -ForegroundColor Red
             }
         }
 
@@ -117,23 +103,18 @@ function FormatFileSize {
 Disconnect-MgGraph -ErrorAction SilentlyContinue
 
 # Insert values for your tenant and app here
-$AppId = "43685887-266e-46cf-915b"
-$TenantId = "-14fc-43a2-9a7a-d2e27f4f3478"
-$CertThumbprint = "F79286DB88C21491110109A0222348FACF694CBD"
+$AppId = "282eb7dc-9c47-4f13-9620-d8471178b8ad"
+$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$CertThumbprint = "6FBD36F588E12DE291100371E16219863E399818"
 # Guid for sensitivity label to apply - againm from your tenant
 $Global:SensitivityLabelId = "27451a5b-5823-4853-bcd4-2204d03ab477"
-$Global:AssignedSensitivityLabelName = "Internal"
+$Global:SensitivityLabelName = "Public"
 
-# Parameters to assign a sensitivity label
-$Global:AssignmentPayload = @{}
-$AssignmentPayload.Add("AssignmentMethod", "Auto")
-$AssignmentPayload.Add("Justification", "API application of label")
-$AssignmentPayload.Add("SensitivityLabelId", $SensitivityLabelId)
 
 # Connect to the Microsoft Graph
 Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertThumbprint
 
-Write-Host "Setting up to assign Sensitivity labels to unlabelled files..."
+Write-Host "Setting up to assign Sensitivity labels to all files in the target document libraries..."
 $Global:SensitivityLabelsAvailable = $true
 [array]$Global:ValidfileTypes = "docx", "pptx", "xlsx", "pdf"
 
@@ -178,10 +159,12 @@ If (!($Site)) {
 If (!($Drives)) {
     Write-Host "No document libraries found in the site" -ForegroundColor Red
     Break
+} Else {
+    $Drives = $Drives | Where-Object {$_.Name -ne 'Preservation Hold Library'}
 }
 
 If ($Drives.Count -eq 1) { # Only one drive found - go ahead
-    $Drive = $Drives
+    $Drive = $Drives 
     $DriveName = $Drive.Name
     Write-Host "Found drive to process:" $DriveName 
 } Elseif ($Drives.Count -gt 1) { # More than one drive found. Ask which to use
