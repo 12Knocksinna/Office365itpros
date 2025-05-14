@@ -2,7 +2,7 @@
 # a script to disable Copilot Studio in Microsoft 365 by removing the Copilot Studio service plan from users with Microsoft 365 Copilot licenses
 # V1.0 14-May-2025
 
-# GitHub Link: 
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Disable-CopilotStudio.PS1
 
 Connect-MgGraph -Scopes "User.ReadWrite.All" -ErrorAction Stop
 
