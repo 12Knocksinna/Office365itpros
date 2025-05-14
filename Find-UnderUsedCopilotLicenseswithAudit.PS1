@@ -116,7 +116,7 @@ $AuditQueryParameters.Add("filterEndDateTime", $AuditQueryEnd)
 # Submit the audit query
 # Too many problems with this beta cmdlet so we'll use the Graph API instead
 # $AuditJob = New-MgBetaSecurityAuditLogQuery -BodyParameter $AuditQueryParameters
-$Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
+$Uri = "https://graph.microsoft.com/V1.0/security/auditLog/queries"
 $AuditJob = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $AuditQueryParameters
 
 # Check the audit query status every 20 seconds until it completes
