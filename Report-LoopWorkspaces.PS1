@@ -77,33 +77,55 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
     # Get detail of the workspace
     $LoopSpaceDetails =  Get-SPOContainer -Identity $LoopSpace.ContainerId
     # Get detail about the owner
-    [array]$Owners = $null
     [array]$Owners = $LoopSpaceDetails.Owners
-    ForEach ($Owner in $Owners) {
-        $LicenseFound = $Null; $LoopLicenseStatus = "Unlicensed";  $LicenseName = $Null
-        # Find if the Loop service plan is successfully provisioned or is awaiting provisioning for the account
-        [array]$UserLicenseData = Get-MgUserLicenseDetail -UserId $Owner
-        $LoopLicense = $UserLicenseData | Select-Object -ExpandProperty ServicePlans | `
-             Where-Object {$_.ServicePlanId -eq $LoopServicePlan} | Select-Object -ExpandProperty ProvisioningStatus
-        If ($LoopLicense -in 'Success', 'PendingProvisioning') {
-            $LicenseOK++
-            $LoopLicenseStatus = "OK"
-        }
-        # Find what SKU the Loop service plan belongs to
-        $User = Get-MgUser -UserId $Owner -Property Id, displayName, department, UserPrincipalName
-        [array]$SKUs = $UserLicenseData.SkuId
-        ForEach ($Sku in $Skus) {
-            $LicenseFound = $LoopValidLicenses[$Sku]
-            If ($LicenseFound) {
-                $LicenseName = $LicenseFound
+    If ($Owners) {
+        ForEach ($Owner in $Owners) {
+            $LicenseFound = $Null; $LoopLicenseStatus = "Unlicensed";  $LicenseName = $Null
+            # Find if the Loop service plan is successfully provisioned or is awaiting provisioning for the account
+            [array]$UserLicenseData = Get-MgUserLicenseDetail -UserId $Owner
+            $LoopLicense = $UserLicenseData | Select-Object -ExpandProperty ServicePlans | `
+                Where-Object {$_.ServicePlanId -eq $LoopServicePlan} | Select-Object -ExpandProperty ProvisioningStatus
+            If ($LoopLicense -in 'Success', 'PendingProvisioning') {
+                $LicenseOK++
+                $LoopLicenseStatus = "OK"
             }
+            # Find what SKU the Loop service plan belongs to
+            Try {
+                $User = Get-MgUser -UserId $Owner -Property Id, displayName, department, UserPrincipalName -ErrorAction Stop
+                $OwnerName = $User.DisplayName
+                $UserUPN = $User.UserPrincipalName
+                $UserDepartment = $User.Department
+                [array]$SKUs = $UserLicenseData.SkuId
+                ForEach ($Sku in $Skus) {
+                    $LicenseFound = $LoopValidLicenses[$Sku]
+                    If ($LicenseFound) {
+                        $LicenseName = $LicenseFound
+                    }
+                }           
+            } Catch {
+                Write-Host ("Unable to find user {0} - skipping" -f $Owner) -ForegroundColor Red
+                Continue
+            } 
         }
+    } Else {
+        $Members = "Microsoft 365 Group"
+        $LicenseName = "Microsoft 365 Group"
+        $LoopLicenseStatus = "OK"
+        $OwnerName = "Microsoft 365 Group"
+        $UserUPN = $null
+        $UserDepartment = $null
     }
+
     [array]$Members = $Null
     [array]$Managers = $LoopSpaceDetails.Managers
     ForEach ($Manager in $Managers) {
-        $Member = Get-MgUser -UserId $Manager
-        $Members += $Member.DisplayName
+        Try {
+            $Member = Get-MgUser -UserId $Manager -ErrorAction Stop
+            $Members += $Member.DisplayName
+        } Catch {
+            Continue # Probably a group that the Get-SPOContainer doesn't report yet
+        }
+   
     }
 
     $StorageUsed = "{0:N2}" -f ($LoopSpaceDetails.StorageUsedInBytes/1MB)
@@ -114,9 +136,9 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
         App                 = $LoopSpaceDetails.OwningApplicationName
         'Workspace Name'    = $LoopSpace.ContainerName
         Description         = $LoopSpace.Description
-        Owner               = $User.DisplayName
-        UPN                 = $User.UserPrincipalName
-        Department          = $User.Department
+        Owner               = $OwnerName
+        UPN                 = $UserUPN
+        Department          = $UserDepartment
         License             = $LoopLicenseStatus
         Product             = $LicenseName
         Members             = ($Members -Join ", ")
@@ -127,7 +149,7 @@ ForEach ($LoopSpace in $LoopWorkspaces) {
     $Report.Add($ReportLine)
 }
 
-$Report | Out-GridView -Title "Details of Loop Workspaces" -OutputMode Multiple
+$Report | Out-GridView -Title "Details of Loop Workspaces" 
 $Users = $Report | Select-Object Owner, License | Sort-Object Owner -Unique
 $Report | Export-CSV -NoTypeInformation $CSVOutputFile
 

@@ -11,13 +11,11 @@ Connect-MgGraph -Scopes "User.ReadWrite.All" -ErrorAction Stop
 [array]$ExcludedUsers = "eff4cd58-1bb8-4899-94de-795f656b4a18"
 
 # Find if any groups assign Copilot licenses and extract the identifiers for their members
-[array]$Groups = Get-MgGroup -All -Property Id, DisplayName, assignedLicenses | Where-Object {$_.AssignedLicenses -ne $null } | Select-Object Id, DisplayName, AssignedLicenses
+[array]$Groups = Get-MgGroup -Filter "assignedLicenses/any(s:s/skuId eq $CopilotSkuId)" -All -Property Id, DisplayName, AssignedLicenses
 ForEach ($Group in $Groups) {
-    If ($CopilotSkuId.Guid -in $Group.AssignedLicenses.SkuId) {
-        Write-Host "Copilot license found in group" $Group.DisplayName
-        [array]$Members = Get-MgGroupMember -GroupId $Group.Id -All -PageSize 500 | Select-Object -ExpandProperty Id
-         $ExcludedUsers += $Members
-    }
+    Write-Host "Copilot license found in group" $Group.DisplayName
+    [array]$Members = Get-MgGroupMember -GroupId $Group.Id -All -PageSize 500 | Select-Object -ExpandProperty Id
+    $ExcludedUsers += $Members
 }
  
 # Remove any duplicates
