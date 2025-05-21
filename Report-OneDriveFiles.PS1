@@ -4,6 +4,7 @@
 # described in the article https://practical365.com/sharepoint-site-files-report/
 # This script is https://github.com/12Knocksinna/Office365itpros/blob/master/Report-OneDriveFiles.PS1
 # V1.0 19-Apr-2024
+# V1.1 21-May-2025 Replaced Graph API with Get-MgUserDefaultDrive 
 
 function Get-DriveItems {
     [CmdletBinding()]
@@ -209,14 +210,12 @@ If ($RetentionLabels) {
     $Global:RetentionLabelsAvailable = $false
 }
 
-$Global:Site = ("https://graph.microsoft.com/v1.0/users/{0}/drive/" -f $Account)
-[array]$OneDriveInfo = Invoke-MgGraphRequest -Uri $Site -Method Get
+# Find user's OneDrive for Business account
+[array]$OneDriveInfo =  Get-MgUserDefaultDrive -UserId $Account
 
-# Could also do:
-# $User = Get-MgUser -UserId $Account
-# $OneDriveInfo = Get-MgUserDrive -UserId $User.id | Where-Object {$_.Name -like "*OneDrive*"}
 If (!($OneDriveInfo)) { # Nothing found
-    Write-Host "No matching OneDrive found - exiting"; break 
+    Write-Host ("No matching OneDrive for Business account found for {0} - exiting" -f $Account)
+    break 
 } Else {
     Write-Host ("Found OneDrive account owned by {0} to process. URL: {1}" -f $OneDriveInfo.owner.user.displayName, $OneDriveInfo.WebUrl)
     $Global:OneDriveName = $OneDriveInfo.name
