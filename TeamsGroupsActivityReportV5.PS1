@@ -39,6 +39,7 @@
 # =======
 # Needs the following Graph application permissions:
 # Group.Read.All, Reports.Read.All, User.Read.All, GroupMember.Read.All, Sites.Read.All, Organization.Read.All (or Directory.Read.All)
+# Requires Member.Read.Hidden if any of the groups have hidden members
 #
 #+-------------------------- Functions etc. -------------------------
 
