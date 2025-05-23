@@ -22,12 +22,12 @@ Write-Host "Finding user accounts to analyze departments..."
         Write-Host ("Administrative unit already exists for {0}" -f $DisplayName)
     } Else {
     # Create the new AU
-    $NewAUParameters = @{
-        displayName = $DisplayName
-        description = $Description
-        isMemberManagementRestricted = $false
-       }
-       $NewAdminUnit = (New-MgBetaAdministrativeUnit -BodyParameter $NewAUParameters)
+        $NewAUParameters = @{
+            displayName = $DisplayName
+            description = $Description
+            isMemberManagementRestricted = $false
+        }
+        $NewAdminUnit = (New-MgBetaAdministrativeUnit -BodyParameter $NewAUParameters)
     }
     # If the create worked, update the new AU to make it a dynamic AU with a membership rule
     If ($NewAdminUnit) {
@@ -40,12 +40,12 @@ Write-Host "Finding user accounts to analyze departments..."
 	      membershipRule = $MembershipRule
         }
         Try {
-            Update-MgBetaAdministrativeUnit -AdministrativeUnitId $NewAdminUnit.Id -BodyParameter $UpdateAUParameters
+            Update-MgBetaAdministrativeUnit -AdministrativeUnitId $NewAdminUnit.Id -BodyParameter $UpdateAUParameters -ErrorAction Stop
+            Write-Host ("Created dynamic administrative unit for the {0} department called {1}" -f $Department, $NewAdminUnit.DisplayName)
         } Catch {
             Write-Host ("Error updating {0} with dynamie properties" -f $NewAdminUnit.DisplayName )
         }
-        Write-Host ("Created dynamic administrative unit for the {0} department called {1}" -f $Department, $NewAdminUnit.DisplayName)
-        
+           
     }
  } # End Foreach department
 
