@@ -1,9 +1,11 @@
 # Create-EntraIDDynamicAUs.PS1
 # Example script to illustrate how to create dynamic administrative units for every department in
 # an organization
+
+# Updated 23-May-2025 to add Graph V1.0 SDK cmdlets and specxify proper permission
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Create-EntraIDDynamicAUs.PS1
 
-Connect-MgGraph -NoWelcome -Scopes Directory.ReadWrite.All
+Connect-MgGraph -NoWelcome -Scopes 	AdministrativeUnit.ReadWrite.All
 Write-Host "Finding user accounts to analyze departments..."
 [array]$Users = Get-MgUser -All -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
  -ConsistencyLevel eventual -CountVariable UsersFound -Property Id, UserPrincipalName, Department 
@@ -12,7 +14,7 @@ Write-Host "Finding user accounts to analyze departments..."
  Write-Host ("Creating dynamic administrative units for the following departments: {0}" -f ($Departments -Join ", "))
  # Retrieve current AUs because we should check them before creating another dynamic AU for 
  # a department if one already exists
- [array]$CurrentAUs = Get-MgBetaAdministrativeUnit
+ [array]$CurrentAUs = Get-MgDirectoryAdministrativeUnit -All
 
  ForEach ($Department in $Departments) {
     $Description = ("Dynamic administrative unit created for the {0} department created {1}" -f $Department, (Get-Date))
@@ -27,7 +29,7 @@ Write-Host "Finding user accounts to analyze departments..."
             description = $Description
             isMemberManagementRestricted = $false
         }
-        $NewAdminUnit = (New-MgBetaAdministrativeUnit -BodyParameter $NewAUParameters)
+        $NewAdminUnit = (New-MgDirectoryAdministrativeUnit -BodyParameter $NewAUParameters)
     }
     # If the create worked, update the new AU to make it a dynamic AU with a membership rule
     If ($NewAdminUnit) {
@@ -40,7 +42,7 @@ Write-Host "Finding user accounts to analyze departments..."
 	      membershipRule = $MembershipRule
         }
         Try {
-            Update-MgBetaAdministrativeUnit -AdministrativeUnitId $NewAdminUnit.Id -BodyParameter $UpdateAUParameters -ErrorAction Stop
+            Update-MgDirectoryAdministrativeUnit -AdministrativeUnitId $NewAdminUnit.Id -BodyParameter $UpdateAUParameters -ErrorAction Stop
             Write-Host ("Created dynamic administrative unit for the {0} department called {1}" -f $Department, $NewAdminUnit.DisplayName)
         } Catch {
             Write-Host ("Error updating {0} with dynamie properties" -f $NewAdminUnit.DisplayName )
