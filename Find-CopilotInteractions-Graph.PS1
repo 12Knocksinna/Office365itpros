@@ -1,5 +1,6 @@
 # Find Copilot interactions for a user between two dates using the aiInteractionHistory API
 # V1.0 4-Dec-2024
+# V1.1 24-May-2025 added $Top parameter to the API call to fetch 100 records at a time, which seems to be the current maximum
 
 # Requires an app with User.Read.All and AiEnterpriseInteraction.Read.All permissions
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-CopilotInteractions-Graph.PS1
