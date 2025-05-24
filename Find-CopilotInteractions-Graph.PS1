@@ -30,7 +30,7 @@ If ("639dec6b-bb19-468b-871c-c5c441c4b0cb" -notin $UserLicenses) {
     Break
 }
 
-$Uri = ("https://graph.microsoft.com/beta/copilot/users/{0}/interactionHistory/getAllEnterpriseInteractions?`$filter=createdDateTime gt {1} and createdDateTime lt {2}" `
+$Uri = ("https://graph.microsoft.com/beta/copilot/users/{0}/interactionHistory/getAllEnterpriseInteractions?`$top=100&`$filter=createdDateTime gt {1} and createdDateTime lt {2}" `
     -f $User.Id, $StartDate, $EndDate)
 Write-Host ("Searching for Copilot interactions for {0} between {1} and {2}" -f $User.DisplayName, $StartDateForReport, $EndDateForReport)
 [array]$CopilotData = $null
