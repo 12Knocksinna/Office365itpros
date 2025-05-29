@@ -50,45 +50,25 @@ Function FormatDuration ([TimeSpan]$Duration) {
     return $DurationStr
 }
 
-Function UnpackFolders {
-        # Unpack a set of folders to return their ids and displaynames - we go down 4 levels, which is quite enough
-        # Input parameter is the identifier of a top-level mailbox folder
-        
-        param (
-          [parameter(mandatory = $True)]
-           $FolderId, 
-          [parameter(mandatory = $true) ]
-          $UserId
-        )
-        
-        $Level3 = $Null; $Level4 = $Null; $Level2 = $Null; $NFF2 = $Null; $NFF3 = $Null
-        # Get folders in the child folder
-           [array]$Output = $Null
-           # Get-MgUserMailFolderChildFolder -UserId $userId -MailFolderId $mailFolderId
-           $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $FolderId)
-           [array]$Level1 = Invoke-MgGraphRequest -Uri $Uri -Method Get | Select-Object -ExpandProperty Value
-           $Output = $Level1
-           $Level2 = $Level1 | Where-Object {$_.ChildFolderCount -gt 0}
-           If ($Level2) {
-              ForEach ($NF2 in $Level2) {
-               $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF2.Id)
-               [array]$NFF2 = Invoke-MgGraphRequest -Uri $Uri -Method Get | Select-Object -ExpandProperty Value
-               $Output = $Output + $NFF2 }}
-           $Level3 = $NFF2 | Where-Object {$_.ChildFolderCount -gt 0}
-           If ($Level3) {
-             ForEach ($NF3 in $Level3) {
-              $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF3.Id)
-               [array]$NFF3 = Invoke-MgGraphRequest -Uri $Uri -Method Get | Select-Object -ExpandProperty Value
-             $Output = $Output + $NFF3 }}
-           $Level4 = $NFF3 | Where-Object {$_.ChildFolderCount -gt 0}
-           If ($Level4) {
-             ForEach ($NF4 in $Level4) {
-              $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF4.Id)
-               [array]$NFF4 = Invoke-MgGraphRequest -Uri $Uri -Method Get | Select-Object -ExpandProperty Value
-             $Output = $Output + $NFF4 }
-         }
-          Return $Output
- }
+function Get-SubFoldersRecursive {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$FolderId,
+        [Parameter(Mandatory = $true)]
+        [string]$UserId
+    )
+
+    $SubFolders = @()
+    # Get direct child folders
+    [array]$ChildFolders = Get-MgUserMailFolderChildFolder -UserId $UserId -MailFolderId $FolderId -All
+
+    foreach ($Child in $ChildFolders) {
+        $SubFolders += $Child
+        # Recursively get subfolders of this child
+        $SubFolders += Get-SubFoldersRecursive -FolderId $Child.Id -UserId $UserId
+    }
+    return $SubFolders
+}
         
 # End Functions
 
@@ -123,8 +103,10 @@ If ($Mbx.RecipientTypeDetails -ne 'UserMailbox') {
 }
 [datetime]$StartTime = Get-Date
 
-$Uri = ("https://graph.microsoft.com/v1.0/users/{0}/MailFolders?includeHiddenFolders=true&`$Top=500" -f $Mbx.ExternalDirectoryObjectId)
-[array]$AllFolders = Invoke-MgGraphRequest -Uri $Uri -Method Get | Select-Object -ExpandProperty Value
+#$Uri = ("https://graph.microsoft.com/v1.0/users/{0}/MailFolders?includeHiddenFolders=true&`$Top=500" -f $Mbx.ExternalDirectoryObjectId)
+#[array]$AllFolders = Invoke-MgGraphRequest -Uri $Uri -Method Get | Select-Object -ExpandProperty Value
+
+[array]$AllFolders = Get-MgUserMailFolder -UserId $userId -IncludeHiddenFolders:$true -All
 If ($AllFolders.Count -eq 0) { 
     Write-Host "No folders found in the mailbox - exiting"; break 
 } Else {
@@ -141,8 +123,11 @@ ForEach ($F in $AllFolders) {
     $FolderList.Add($FolderLine)
 } 
 
+# Find folders with child folders
+[array]$FoldersWithChildFolders = $AllFolders | Where-Object {$_.ChildFolderCount -gt 0}
+
 ForEach ($ChildFolder in $FoldersWithChildFolders) {
-    [array]$ChildFolders = UnpackFolders -FolderId $ChildFolder.Id -UserId $Mbx.ExternalDirectoryObjectId 
+    [array]$ChildFolders = Get-SubFoldersRecursive -FolderId $ChildFolder.Id -UserId $Mbx.ExternalDirectoryObjectId 
     ForEach ($ChildFolderProcess in $ChildFolders) {
         $FolderLine = [PSCustomObject][Ordered]@{
             Id          = $ChildFolderProcess.Id
@@ -152,7 +137,7 @@ ForEach ($ChildFolder in $FoldersWithChildFolders) {
 }
 
 # Remove any blank folders that might have been returned by the Graph
-$FolderList = $FolderList | Where-Object {$_.DisplayName -ne $Null }| Sort-Object DisplayName
+$FolderList = $FolderList | Where-Object {$null -ne $_.DisplayName} | Sort-Object DisplayName
 
 If (!($FolderList)) { 
     Write-Host ("Can't find any folders in the {0} mailbox - script exiting..." -f $Mbx.displayname); break 
