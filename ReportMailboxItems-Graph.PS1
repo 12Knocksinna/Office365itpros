@@ -88,43 +88,24 @@ function Get-GraphData {
     }
 }
 
-Function UnpackFolders {
-# Unpack a set of folders to return their ids and displaynames - we go down 4 levels, which is quite enough
-# Input parameter is the identifier of a top-level mailbox folder
+function Get-SubFoldersRecursive {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$FolderId,
+        [Parameter(Mandatory = $true)]
+        [string]$UserId
+    )
 
-param (
-  [parameter(mandatory = $True)]
-   $FolderId, 
-  [parameter(mandatory = $true) ]
-  $UserId
-)
+    $SubFolders = @()
+    # Get direct child folders
+    [array]$ChildFolders = Get-MgUserMailFolderChildFolder -UserId $UserId -MailFolderId $FolderId -All
 
-$Level3 = $Null; $Level4 = $Null; $Level2 = $Null; $NFF2 = $Null; $NFF3 = $Null
-# Get folders in the child folder
-   [array]$Output = $Null
-   $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $FolderId)
-   [array]$Level1 = Get-GraphData -Uri $Uri -AccessToken $Token
-   $Output = $Level1
-   $Level2 = $Level1 | Where-Object {$_.ChildFolderCount -gt 0}
-   If ($Level2) {
-      ForEach ($NF2 in $Level2) {
-       $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF2.Id)
-       [array]$NFF2 = Get-GraphData -Uri $Uri -AccessToken $Token
-       $Output = $Output + $NFF2 }}
-   $Level3 = $NFF2 | Where-Object {$_.ChildFolderCount -gt 0}
-   If ($Level3) {
-     ForEach ($NF3 in $Level3) {
-      $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF3.Id)
-       [array]$NFF3 = Get-GraphData -Uri $Uri -AccessToken $Token
-     $Output = $Output + $NFF3 }}
-   $Level4 = $NFF3 | Where-Object {$_.ChildFolderCount -gt 0}
-   If ($Level4) {
-     ForEach ($NF4 in $Level4) {
-      $Uri = $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders/{1}/childfolders" -f $UserId, $NF4.Id)
-       [array]$NFF4 = Get-GraphData -Uri $Uri -AccessToken $Token
-     $Output = $Output + $NFF4 }
- }
-  Return $Output
+    Foreach ($Child in $ChildFolders) {
+        $SubFolders += $Child
+        # Recursively get subfolders of this child
+        $SubFolders += Get-SubFoldersRecursive -FolderId $Child.Id -UserId $UserId
+    }
+    return $SubFolders
 }
 
 # End Functions
@@ -196,7 +177,7 @@ ForEach ($F in $AllFolders) {
 [array]$FoldersWithChildFolders = $AllFolders | Where-Object {$_.ChildFolderCount -gt 0}
 
 ForEach ($ChildFolder in $FoldersWithChildFolders) {
-    [array]$ChildFolders = UnpackFolders -FolderId $ChildFolder.Id -UserId $Mbx.ExternalDirectoryObjectId 
+    [array]$ChildFolders = Get-SubFoldersRecursive -FolderId $ChildFolder.Id -UserId $Mbx.ExternalDirectoryObjectId 
     ForEach ($ChildFolderProcess in $ChildFolders) {
       $FolderLine = [PSCustomObject][Ordered]@{
         Id          = $ChildFolderProcess.Id
