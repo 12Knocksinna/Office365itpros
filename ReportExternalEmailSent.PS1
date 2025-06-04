@@ -1,22 +1,24 @@
 # ReportExternalEmailSent.PS1
 # Script to demonstrate how to create a report about the external email activity of individuals identified through 
-# membership of a distribution group
+# membership of a distribution group. See https://office365itpros.com/2022/04/13/message-tracing-email-activity/ for details
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportExternalEmailSent.PS1
 # Uses cmdlets from the Exchange Online module and the Microsoft Graph PowerShell SDK.
 
 # Check that we have the necessary modules loaded
 $ModulesLoaded = Get-Module | Select-Object Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) 
+   {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break
+}
 
 # Connect to the Microsoft Graph PowerShell SDK so that we can send email
-Connect-MgGraph -Scope "Mail.Send, Mail.ReadWrite"
+Connect-MgGraph -Scope "Mail.Send, Mail.ReadWrite" -NoWelcome
 
 $TenantName = (Get-OrganizationConfig).DisplayName
 $StartDate = (Get-Date).AddDays(-10)
 $EndDate = Get-Date
-$ExternalCSVFile = "c:\temp\ExternalEmailSent.html"
+$ExternalHTMLFile = "c:\temp\ExternalEmailSent.html"
 
-[array]$Users = Get-DistributionGroupMember -Identity Monitored.Users
+[array]$Users = Get-DistributionGroupMember -Identity Monitored.Users | Select-Object DisplayName, PrimarySmtpAddress, RecipientTypeDetails
 # Drop anything else but mailboxes
 [array]$Users = $Users | Where-Object {$_.RecipientTypeDetails -eq "UserMailbox"}
 
@@ -25,16 +27,20 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
    Write-Host ("Checking messages sent by {0}" -f $User.DisplayName)
    # Get message information for the last ten days and filter so that we end up with just external addresses
-   [string]$SenderAddress = $User.PrimarySmtpAddress
-   [array]$Messages = Get-MessageTrace -StartDate $StartDate -EndDate $EndDate -SenderAddress $SenderAddress -Status Delivered | Where-Object {$_.RecipientAddress -notlike "*@Office365itpros*"}
+   [string]$SenderAddress = $User.PrimarySmtpAddress.toString()
+   # Old code - Get-MessageTrace cmdlet will be deprecated in the future, so we use Get-MessageTraceV2 instead
+   # [array]$Messages = Get-MessageTrace -StartDate $StartDate -EndDate $EndDate -SenderAddress $SenderAddress -Status Delivered | Where-Object {$_.RecipientAddress -notlike "*@Office365itpros*"}
+   [array]$Messages = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate -SenderAddress $SenderAddress -Status Delivered | Where-Object {$_.RecipientAddress -notlike "*@Office365itpros*"}
+   
    ForEach ($M in $Messages) {
-     $ReportLine = [PSCustomObject][Ordered]@{
-          Date      = Get-Date($M.Received) -format g 
-          User      = $M.SenderAddress
-          Recipient = $M.RecipientAddress
-          Subject   = $M.Subject
-          MessageId = $M.MessageId }
-     $Report.Add($ReportLine)
+      $ReportLine = [PSCustomObject][Ordered]@{
+         Date      = Get-Date($M.Received) -format g 
+         User      = $M.SenderAddress
+         Recipient = $M.RecipientAddress
+         Subject   = $M.Subject
+         MessageId = $M.MessageId 
+      }
+      $Report.Add($ReportLine)
    } #End Foreach messages
 } # End ForEach Users
 
@@ -66,30 +72,53 @@ $Htmlend = "</tbody></table></body></html>'"
 $Body = $HTMLStart + $DataLines + $HTMLEnd
 $Body | Out-File $ExternalCSVFile
 
-# Define who the message comes from and the recipient (the person who manages the DL)
-$MsgFrom = $O365Cred.UserName
+# Define who the message comes from (the signed in user for the Graph session) and the recipient (the person who manages the DL)
+$MsgFrom = (Get-MgContext).Account
 [string]$EmailRecipient = (Get-DistributionGroup -Identity Monitored.Users).ManagedBy
 [string]$EmailRecipientAddress = (Get-EXOMailbox -Identity $EmailRecipient).PrimarySmtpAddress
 $MsgSubject = "User External Email Report"
+
+# Add the CSV as an attachment
+$AttachmentFile = $ExternalHTMLFile
+$Attachment = (Get-Item -Path $AttachmentFile).Name
+$EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
+
+$MsgAttachments = @(
+    @{
+	"@odata.type" = "#microsoft.graph.fileAttachment"
+	Name = ($AttachmentFile -split '\\')[-1]
+	ContentBytes = $EncodedAttachmentFile
+	}
+)
 
 # Add the recipient using the mailbox's primary SMTP address
 $EmailAddress  = @{address = $EmailRecipientAddress} 
 $EmailToRecipient = @{EmailAddress = $EmailAddress}  
 Write-Host "Sending report to" $EmailRecipientAddress
-$htmlHeader = "<h2>User External Email Activity Report</h2>"    
+$HtmlHeader = "<h2>User External Email Activity Report</h2>"    
 $HtmlMsg = "</body></html>" + $htmlheader + $Body + "<p>"
      
 # Construct the message body
-     $MessageBody = @{
-         content = "$($HtmlMsg)"
-         ContentType = 'html'
-     }
-# Create a draft message in the signed-in user's mailbox
-$NewMessage = New-MgUserMessage -UserId $MsgFrom -Body $MessageBody -ToRecipients $EmailToRecipient -Subject $MsgSubject
-# Send the message
-Send-MgUserMessage -UserId $MsgFrom -MessageId $NewMessage.Id  
+$MessageBody = @{
+   Content = "$($HtmlMsg)"
+   ContentType = 'html'
+}
 
-Write-Host ("Report emailed to {0} and HTML file is available at {1}" -f $EmailRecipientAddress, $ExternalCSVFile)
+# Create a draft message in the signed-in user's mailbox
+Try {
+   Write-Host "Creating message to send..."
+   $NewMessage = New-MgUserMessage -UserId $MsgFrom -Body $MessageBody -ToRecipients $EmailToRecipient -Subject $MsgSubject -Attachments $MsgAttachments -ErrorAction Stop
+# Send the message
+} Catch {
+   Write-Host "Error creating message: $($_.Exception.Message)"
+   Break
+}
+Try {
+   Send-MgUserMessage -UserId $MsgFrom -MessageId $NewMessage.Id -ErrorAction Stop
+   Write-Host ("Report emailed to {0} and HTML file is available at {1}" -f $EmailRecipientAddress, $ExternalHTMLFile)
+} Catch {
+   Write-Host "Error sending message: $($_.Exception.Message)"
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
