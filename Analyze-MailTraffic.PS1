@@ -14,7 +14,7 @@ If ($Null -eq (Get-ConnectionInformation)) {
 $StartDate = (Get-Date).AddDays(-10)
 $EndDate = (Get-Date)
 
-Write-Host ("Message trace data will be analyzed between {0} and {1}" -f $StartDate, $EndDate)
+Write-Host ("Message trace data will be analyzed between {0} and {1}" -f (Get-Date $StartDate -format 'dd-MMM-yyyy HH:mm'), (Get-Date $EndDate -format 'dd-MMM-yyyy HH:mm'))
 Write-Host "Fetching message trace data to analyze"
 $MoreMessagesAvailable = $true
 [array]$Messages = $Null
@@ -83,8 +83,8 @@ ForEach ($M in $Messages) {
 
 Write-Host ""
 # Report the top 10 domains for outbound messages
-Write-Host "Top 10 domains for outbound messages"
-Write-Host "------------------------------------"
+Write-Host ("Top 10 domains for outbound messages between {0} and {1}" -f (Get-Date $StartDate -format 'dd-MMM-yyyy HH:mm'), (Get-Date $EndDate -format 'dd-MMM-yyyy HH:mm'))
+Write-Host "------------------------------------------------------------------------------------"
 $OutboundMessages | Group-Object RecipientDomain -NoElement | Sort-Object Count -Descending | Select-Object -First 10 | Format-Table Name, Count -AutoSize
 Write-Host ""
 # And the same for inbound messages
