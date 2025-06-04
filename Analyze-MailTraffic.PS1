@@ -21,7 +21,9 @@ $MoreMessagesAvailable = $true
 [int]$BatchSizeForMessages = 2000
     # original code [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate -PageSize 1000 -Page $i -Status "Delivered"
 Try {
-    [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate -ResultSize $BatchSizeForMessages -Status "Delivered" -ErrorAction Stop
+    # The warning action is suppressed here because we don't want to see warnings when more data is available
+    [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate `
+        	-ResultSize $BatchSizeForMessages -Status "Delivered" -ErrorAction Stop -WarningAction SilentlyContinue
     $Messages += $MessagePage
 } Catch {
     Write-Host ("Error fetching message trace data: {0}" -f $_.Exception.Message)
@@ -35,18 +37,21 @@ If ($MessagePage.count -eq $BatchSizeForMessages) {
         $LastMessageFetchedRecipient = $LastMessageFetched.RecipientAddress
         # Fetch the next page of messages
         [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $LastMessageFetchedDate `
-            -StartingRecipientAddress $LastMessageFetchedRecipient -ResultSize $BatchSizeForMessages -Status "Delivered" -ErrorAction Stop
+            -StartingRecipientAddress $LastMessageFetchedRecipient -ResultSize $BatchSizeForMessages -Status "Delivered" -ErrorAction Stop -WarningAction SilentlyContinue
         If ($MessagePage) {
             $Messages += $MessagePage
         }
     } While ($MessagePage.count -eq $BatchSizeForMessages)
-} Else {
-    Write-Host "No more messages available."
-    $MoreMessagesAVailable = $false
 }
-   
 # Remove Exchange Online public folder hierarchy synchronization messages
 $Messages = $Messages | Where-Object {$_.Subject -NotLike "*HierarchySync*"}
+# Now, do we have any mesasages to process?
+If ($Messages.count -eq 0) {
+    Write-Host "No messages found for analysis"
+    Break
+} Else {
+    Write-Host ("After excluding system messages, there are {0} messages for analysis" -f $Messages.count)
+}
 
 [array]$Domains = Get-AcceptedDomain | Select-Object -ExpandProperty DomainName
 
