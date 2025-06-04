@@ -78,15 +78,13 @@ $MsgFrom = (Get-MgContext).Account
 [string]$EmailRecipientAddress = (Get-EXOMailbox -Identity $EmailRecipient).PrimarySmtpAddress
 $MsgSubject = "User External Email Report"
 
-# Add the CSV as an attachment
-$AttachmentFile = $ExternalHTMLFile
-$Attachment = (Get-Item -Path $AttachmentFile).Name
-$EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
+# Add the HTML file as an attachment
+$EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($ExternalHTMLFile))
 
 $MsgAttachments = @(
     @{
 	"@odata.type" = "#microsoft.graph.fileAttachment"
-	Name = ($AttachmentFile -split '\\')[-1]
+	Name = ($ExternalHTMLFile -split '\\')[-1]
 	ContentBytes = $EncodedAttachmentFile
 	}
 )
