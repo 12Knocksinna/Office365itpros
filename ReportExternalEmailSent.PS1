@@ -4,6 +4,8 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportExternalEmailSent.PS1
 # Uses cmdlets from the Exchange Online module and the Microsoft Graph PowerShell SDK.
 
+# Updated 4-June-2025 to replace Get-MessageTrace with Get-MessageTraceV2, which is the cmdlet that will be used in the future.
+
 # Check that we have the necessary modules loaded
 $ModulesLoaded = Get-Module | Select-Object Name
 If (!($ModulesLoaded -match "ExchangeOnlineManagement")) 
