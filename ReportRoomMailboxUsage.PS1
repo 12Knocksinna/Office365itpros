@@ -72,7 +72,7 @@ function Get-GraphData {
 function GetAccessToken {
 # function to return an Oauth access token
 
-# Define the values applicable for the application used to connect to the Graph
+# Define the values applicable for the application used to connect to the Graph (these are dummy values just to show how)
 $AppId = "a6a7d55c-a847-443d-b7b9-f24b67ec4709"
 $TenantId = "c662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $AppSecret = '_O28Q~.QZNE5QJ4pOCaxqTSx13dbkDI2_2Ns5blI'
