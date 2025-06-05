@@ -24,7 +24,7 @@ ForEach ($Device in $Devices) {
   Try {
     [array]$OwnerIds = Get-MgDeviceRegisteredOwner -DeviceId $Device.Id
     $DeviceOwner = Get-MgUser -UserId $OwnerIds[0].Id `
-     -Property Id, displayName, Department, OfficeLocation, City, Country, UserPrincipalName
+     -Property Id, displayName, Department, OfficeLocation, City, Country, UserPrincipalName -ErrorAction Stop
     }
   Catch { 
     Write-Host ("Error fetching owners for {0}" -f $Device.DisplayName)
@@ -33,7 +33,7 @@ ForEach ($Device in $Devices) {
   $ReportLine = [PSCustomObject][Ordered]@{
    Device              = $Device.DisplayName
    Id                  = $Device.Id
-  "Device last signed in"= $Device.ApproximateLastSignInDateTime
+  "Device last signed in" = $Device.ApproximateLastSignInDateTime
   "Days since sign in" = (New-TimeSpan($Device.ApproximateLastSignInDateTime)).Days
    Owner               = $DeviceOwner.DisplayName
    OwnerUPN            = $DeviceOwner.UserPrincipalName
