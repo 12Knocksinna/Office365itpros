@@ -4,6 +4,7 @@
 # A version that uses the Graph SDK is available at https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RoomMailboxUsage.PS1
 
 # Requires the Graph Calendar.Read.All and Place.Read.All application permissions
+# Graph SDK version available at: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RoomMailboxUsage.PS1
 
 # Some functions to get going
 

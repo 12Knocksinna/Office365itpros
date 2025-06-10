@@ -46,18 +46,18 @@ $EndDate = (Get-Date).AddDays(1).toString('dd-MMM-yyyy')
 $ReportingPeriodDays = (($End - $Start).Days)-1
 
 Write-Host "Looking for room mailboxes and workspaces..."
-[Array]$RoomMailboxes = Get-MgPlaceAsRoom -All -PageSize 500
+[array]$RoomMailboxes = Get-MgPlaceAsRoom -All -PageSize 500
 If (!($RoomMailboxes)) {
     Write-Host "No room mailboxes found - exiting" ; break
 }
 # No SDK cmdlet available for workspaces, so we need to run a Graph API request
 $Uri = "https://graph.microsoft.com/beta/places/microsoft.graph.workspace"
-[array]$WorkSpaces = Invoke-MgGraphRequest -Uri $Uri -Method GET
+[array]$WorkSpaces = Invoke-MgGraphRequest -Uri $Uri -Method GET -OutputType PSObject -ErrorAction Stop
 
-$WorkSpaces = $WorkSpaces.Value
+$WorkSpaces = $WorkSpaces.Value | Select-Object Id, displayName, Phone, EmailAddress, Type, Capacity, Location 
 # Combine workspaces with room mailboxes if any are found
 If ($WorkSpaces) { 
-    $RoomMailboxes = $RoomMailboxes + $WorkSpaces
+    $RoomMailboxes = $WorkSpaces + $RoomMailboxes
 }
 # Eliminate any room mailboxes or workspaces that don't have an email address
 $RoomMailboxes = $RoomMailboxes | Where-Object {$_.EmailAddress -ne $Null} | Sort-Object DisplayName
@@ -122,6 +122,11 @@ ForEach ($Room in $RoomMailboxes) {
      } #End ForEach Event
     } #End if
 } #End ForEach Room
+
+If ($TotalEvents -eq 0) {
+    Write-Host "No calendar events found in the reporting period - exiting" 
+    break
+}
 
 $TotalEvents = $CalendarInfo.Count
 [array]$TopRooms = $CalendarInfo | Group-Object Room -NoElement | Sort-Object Count -Descending | Select-Object Name, Count
