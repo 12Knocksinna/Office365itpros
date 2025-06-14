@@ -226,6 +226,7 @@ ForEach ($Record in $AuditRecords) {
     $Report.Add($ReportLine)
 }
 
+$Report = $Report | Sort-Object {$_.CreatedDateTime -as [datetime]} -Descending
 # Define HTML style with improved row color for visibility
 $HtmlStyle = @"
 <style>
@@ -266,9 +267,7 @@ $CSVFile = "$env:TEMP\CriticalAppManagementAuditEvents.csv"
 $HtmlReport | Out-File -FilePath $ReportFile -Encoding utf8
 $Report | Export-Csv -Path $CSVFile -NoTypeInformation -Encoding UTF8
 Write-Host "HTML report created: $ReportFile"
-Dir $Env:TEMP\CriticalAppManagementAuditEvents.* | Format-Table Name, Length, LastWriteTime
 
-$Attachment = (Get-Item -Path $CSVFile).Name
 $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($CSVFile))
 
 $MsgAttachments = @(
@@ -304,8 +303,7 @@ $EmailParameters.Add('isDeliveryReceiptRequested', $true)
 
 # Send the message
 Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters
-
-
+Write-Output "Report emailed to $($MsgTo.emailAddress.address)"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
