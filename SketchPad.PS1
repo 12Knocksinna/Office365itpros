@@ -793,3 +793,64 @@ $AgentReport | Group-Object User -NoElement | Sort-Object Count -Descending | Fo
 
 # More
 
+# Example: Build attractive HTML report for app role assignment audit records
+
+# Sample data (replace with your actual records)
+$Records = @(
+    [PSCustomObject]@{
+        CreatedDateTime     = '13-Jun-2025 12:56:09'
+        Action             = 'App role assignment added to service principal'
+        Application        = 'SDKAutomation'
+        User               = 'Tony.Redmond@redmondassociates.org'
+        GrantSource        = 'Microsoft Graph permission'
+        SourceId           = '5e1e9171-754d-478c-812c-f1755a9a4c2d'
+        'New Permissions'  = 'Read audit logs data from all services'
+        ServicePrincipalId = '553a9e20-35ee-4ed1-b53e-ed32133996ae'
+        AuditRecordId      = '0298fe74-2160-4ec5-bf89-f0f50e7898e1'
+        Operation          = 'Add app role assignment to service principal'
+    }
+    # Add more records as needed
+)
+
+# Define HTML style with improved row color for visibility
+$HtmlStyle = @"
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; background: #f4f6f8; color: #222; }
+h1 { background: #0078d4; color: #fff; padding: 16px; border-radius: 6px 6px 0 0; margin-bottom: 0; }
+table { border-collapse: collapse; width: 100%; background: #fff; border-radius: 0 0 6px 6px; overflow: hidden; }
+th, td { padding: 10px 12px; text-align: left; }
+th { background: #e5eaf1; color: #222; }
+tr { background: #fff; color: #222; }
+tr:nth-child(even) { background: #f0f4fa; color: #222; }
+tr:hover { background: #d0e7fa; color: #222; }
+.caption { font-size: 14px; color: #555; margin-bottom: 12px; }
+</style>
+"@
+
+# Convert records to HTML table
+$HtmlTable = $Report | Select-Object `
+    CreatedDateTime, Action, Application, User, GrantSource, SourceId, 'New Permissions', ServicePrincipalId |
+    ConvertTo-Html -Fragment -PreContent "<div class='caption'>App Role Assignment Audit Records</div>"
+
+# Compose full HTML
+$HtmlReport = @"
+<html>
+<head>
+$HtmlStyle
+<title>App Role Assignment Audit Report</title>
+</head>
+<body>
+<h1>App Role Assignment Audit Report</h1>
+<p>Report generated: $(Get-Date -Format 'dd-MMM-yyyy HH:mm')</p>
+$HtmlTable
+</body>
+</html>
+"@
+
+# Output to file or display
+$ReportPath = "$env:TEMP\AppRoleAssignmentAuditReport.html"
+$HtmlReport | Out-File -FilePath $ReportPath -Encoding utf8
+Write-Host "HTML report created: $ReportPath"
+Start-Process $ReportPath
+
+
