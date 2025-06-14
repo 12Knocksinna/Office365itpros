@@ -279,7 +279,8 @@ $MsgAttachments = @(
 	}
 )
 
-# Build the array of a single TO recipient detailed in a hash table
+# Build the array of a single TO recipient detailed in a hash table - make sure that you add your preferred email address here.
+# The address can be any emailable object, including a user, group, or distribution list.
 $ToRecipients = @{}
 $ToRecipients.Add("emailAddress",@{'address'="tony.redmond@office365itpros.com"})
 [array]$MsgTo = $ToRecipients
