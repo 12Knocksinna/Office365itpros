@@ -1,6 +1,6 @@
 # Report-AppAuditEvents.PS1
-# Version 1.0 1-June-2025
-# GitHub link: 
+# Version 1.0 14-June-2025
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-AppAuditEvents.PS1
 
 # This scripts uses the AuditLog Query Graph API to fetch audit events for app creation and updates to report the 
 # information to administrators.
@@ -9,7 +9,21 @@
 # Requires Application.Read.All to read applications and service principals
 # Requires DelegatedPermissionGrant.Read.All to read delegated permission grants
 
-Connect-MgGraph -Identity -NoWelcome
+If ([Environment]::UserInteractive) { 
+    # We're running interactively...
+    Write-Host "Running interactively..."
+    Connect-MgGraph -NoWelcome -Scopes User.Read.All
+    # Define message sender for email sent at the end of the script
+    $MsgFrom = (Get-MgContext).Account
+    Write-Host "Email will be sent from $MsgFrom"
+} Else { 
+    # We're not, so likely in Azure Automation
+    Write-Output "Script executing as a Azure Automation runbook..."
+    Connect-MgGraph -Identity -NoWelcome
+    # Define the message sender - change this value to the email address of the account that will send the message
+    $MsgFrom = 'Customer.Services@office365itpros.com'
+    Write-Output "Email will be sent from $MsgFrom"
+}
 
 $AuditJobName = ("Audit job created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
 $AuditQueryStart = ((Get-Date).AddDays(-90).toString('yyyy-MM-ddTHH:mm:ss'))
@@ -265,8 +279,6 @@ $MsgAttachments = @(
 	}
 )
 
-# Define who’s sending the message
-$MsgFrom = 'Customer.Services@office365itpros.com'
 # Build the array of a single TO recipient detailed in a hash table
 $ToRecipients = @{}
 $ToRecipients.Add("emailAddress",@{'address'="tony.redmond@office365itpros.com"})
