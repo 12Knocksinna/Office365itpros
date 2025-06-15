@@ -287,10 +287,11 @@ $HtmlTable = $Report | Select-Object `
     CreatedDateTime, Action, Application, User, GrantSource, SourceId, 'New Permissions', ServicePrincipalId |
     ConvertTo-Html -Fragment -PreContent "<div class='caption'>Critical App Management Audit Events for Tenant Administrators to Review</div>"
 
+# Generate warnings about high-priority permissions if any are found in apps
 If ($ProblemApps) {
     $HtmlTable2 = $ProblemApps | Select-Object `
     CreatedDateTime, Application, User,  'High Priority Permissions', Operation |
-    ConvertTo-Html -Fragment -PreContent "<div class='caption'>Applications Detected wit new High-Priority Permissions</div>"
+    ConvertTo-Html -Fragment -PreContent "<div class='caption'>Applications Detected with new High-Priority Permissions</div>"
 } Else {
     $HtmlTable2 = "<div class='caption'>No applications with high-priority permissions detected.</div>"
 }
