@@ -25,6 +25,18 @@ If ([Environment]::UserInteractive) {
     Write-Output "Email will be sent from $MsgFrom"
 }
 
+# Check for required permissions
+[array]$RequiredPermissions = @('AuditLogsQuery.Read.All', 'Mail.Send', 'Application.Read.All', 'DelegatedPermissionGrant.Read.All')    
+[array]$CurrentPermissions = Get-MgContext | Select-Object -ExpandProperty Scopes
+$MissingPermissions = $RequiredPermissions | Where-Object { $_ -notin $CurrentPermissions }
+If ($MissingPermissions.Count -gt 0) {
+    Write-Output ("The following required permissions are missing: {0}" -f ($MissingPermissions -join ', '))
+    Write-Output "Please ensure that the account has the required permissions and try again."
+    Break
+} Else {
+    Write-Output "All required permissions are present."
+}
+
 $AuditJobName = ("Audit job created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
 $AuditQueryStart = ((Get-Date).AddDays(-90).toString('yyyy-MM-ddTHH:mm:ss'))
 $AuditQueryEnd = ((Get-Date).toString('yyyy-MM-ddTHH:mm:ss'))
@@ -41,8 +53,12 @@ $Uri = "https://graph.microsoft.com/beta/security/auditLog/queries"
 $AuditJob = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $AuditQueryParameters
 
 If ($null -eq $AuditJob) {
-    Write-Host "Failed to create audit query job. Please check the code and permissions and try again."
+    Write-Output "Failed to create audit query job. Please check the code and permissions and try again."
     Exit
+ } Else {
+    Write-Output ("Audit query job {0} created with ID {1}" -f $AuditJobName, $AuditJob.id)
+    Write-Output ("Query start time: {0}, end time: {1}" -f $AuditQueryStart, $AuditQueryEnd)
+    Write-Output ("Operations to search for: {0}" -f ($AuditOperationFilters -join ', '))
 }
 
 # Check the audit query status every 20 seconds until it completes
@@ -57,7 +73,7 @@ $AuditQueryStatus = Invoke-MgGraphRequest -Uri $Uri -Method Get
 
 While ($SearchFinished -eq $false) {
     $i++
-    Write-Host ("Waiting for audit search to complete. Check {0} after {1} seconds. Current state {2}" -f $i, $SecondsElapsed, $AuditQueryStatus.status)
+    #Write-Host ("Waiting for audit search to complete. Check {0} after {1} seconds. Current state {2}" -f $i, $SecondsElapsed, $AuditQueryStatus.status)
     If ($AuditQueryStatus.status -eq 'succeeded') {
         $SearchFinished = $true
     } Else {
@@ -84,9 +100,11 @@ While ($null -ne $NextLink) {
 
 Write-Host ("Audit query {0} returned {1} records" -f $AuditJobName, $AuditRecords.Count)
 If ($AuditRecords.Count -eq 0) {
-    Write-Host "No audit records found for the specified time period and operations."
+    Write-Output "No audit records found for the specified time period and operations."
     Exit
-} 
+} Else {
+    Write-Output ("Found {0} app management audit records for the specified time period" -f $AuditRecords.Count)
+}
 # Make sure that the audit records are sorted by date
 $AuditRecords = $AuditRecords | Sort-Object CreatedDateTime -Descending
 
@@ -227,7 +245,29 @@ ForEach ($Record in $AuditRecords) {
 }
 
 $Report = $Report | Sort-Object {$_.CreatedDateTime -as [datetime]} -Descending
-# Define HTML style with improved row color for visibility
+
+# Quick and dirty check if any of the apps have high-priority permissions assigned.
+$ProblemApps = [System.Collections.Generic.List[Object]]::new()
+[array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", "Sites.Read.All", "Files.ReadWrite.All", "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All"
+ForEach ($R in $Report) {
+    [array]$PermissionsToCheck = $R.'New Permissions'.Split(' ')
+    [array]$HighPriorityPermissionsFound = $PermissionstoCheck | Where-Object { $_ -in $HighPriorityPermissions } 
+    [string]$HighPriorityPermissionsFoundString = $HighPriorityPermissionsFound -join ', '
+    If ($HighPriorityPermissionsFoundString) {
+        $ReportLine = [PSCustomObject] @{
+            CreatedDateTime     = $R.CreatedDateTime
+            Application         = $R.Application
+            User                = $R.User
+            GrantSource         = $R.GrantSource
+            SourceId            = $R.SourceId
+            'High Priority Permissions'   = $HighPriorityPermissionsFoundString
+
+            Operation           = $R.Operation
+        }
+        $ProblemApps.Add($ReportLine) }
+}   
+
+# Define HTML style 
 $HtmlStyle = @"
 <style>
 body { font-family: Segoe UI, Arial, sans-serif; background: #f4f6f8; color: #222; }
@@ -247,6 +287,10 @@ $HtmlTable = $Report | Select-Object `
     CreatedDateTime, Action, Application, User, GrantSource, SourceId, 'New Permissions', ServicePrincipalId |
     ConvertTo-Html -Fragment -PreContent "<div class='caption'>Critical App Management Audit Events for Tenant Administrators to Review</div>"
 
+$HtmlTable2 = $ProblemApps | Select-Object `
+    CreatedDateTime, Application, User,  'High Priority Permissions', Operation |
+    ConvertTo-Html -Fragment -PreContent "<div class='caption'>Applications Detected wit new High-Priority Permissions</div>"
+
 # Compose full HTML
 $HtmlReport = @"
 <html>
@@ -255,8 +299,10 @@ $HtmlStyle
 <title>App Critical Audit Events Report</title>
 </head>
 <body>
-<h1>Details of Critical Audit Events for App Management</h1>
 <p>Report generated: $(Get-Date -Format 'dd-MMM-yyyy HH:mm')</p>
+<h1>High Priority App Management Audit Events Detected</h1>
+$HtmlTable2
+<h1>Details of Critical App Management Audit Events</h1>
 $HtmlTable
 </body>
 </html>
@@ -266,7 +312,7 @@ $ReportFile = "$env:TEMP\CriticalAppManagementAuditEvents.html"
 $CSVFile = "$env:TEMP\CriticalAppManagementAuditEvents.csv"
 $HtmlReport | Out-File -FilePath $ReportFile -Encoding utf8
 $Report | Export-Csv -Path $CSVFile -NoTypeInformation -Encoding UTF8
-Write-Host "HTML report created: $ReportFile"
+Write-Output ("Output files created: {0} and {1}" -f $ReportFile, $CSVFile)
 
 $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($CSVFile))
 
@@ -302,8 +348,12 @@ $EmailParameters.Add('saveToSentItems', $true)
 $EmailParameters.Add('isDeliveryReceiptRequested', $true)
 
 # Send the message
-Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters
-Write-Output "Report emailed to $($MsgTo.emailAddress.address)"
+Try {
+    Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
+    Write-Output "Report emailed to $($MsgTo.emailAddress.address)"
+} Catch {
+    Write-Output ("Failed to send email report. Error: {0}" -f $_.Exception.Message)
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 

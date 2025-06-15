@@ -854,3 +854,7 @@ Write-Host "HTML report created: $ReportPath"
 Start-Process $ReportPath
 
 
+# Example: Convert comma-separated string to array
+$csvString = "apple,banana,orange,grape"
+$array = $csvString -split ','
+# $array now contains: 'apple', 'banana', 'orange', 'grape'
