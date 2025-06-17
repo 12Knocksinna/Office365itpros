@@ -114,7 +114,7 @@ $ExportFile = "C:\temp\UpdatedBannedPasswords.csv"
 [array]$PolicyValues =  Get-MgBetaDirectorySetting -DirectorySettingId $Policy.Id | Select-Object -ExpandProperty Values
 [array]$CurrentBannedList = $PolicyValues | Where-Object {$_.Name -eq "BannedPasswordList"} | Select-Object -ExpandProperty Value
 [array]$CurrentBannedList = $CurrentBannedList -Split([char]9)
-$CurrentBannedList | Sort-Object -Unique | Export-CSV -Path $ExportFile -NoTypeInformation -Encoding UTF8
+$CurrentBannedList | Sort-Object -Unique | Out-File -Path $ExportFile 
 Write-Host ("Banned password list updated and exported to {0}" -f $ExportFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
