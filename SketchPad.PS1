@@ -854,7 +854,48 @@ Write-Host "HTML report created: $ReportPath"
 Start-Process $ReportPath
 
 
-# Example: Convert comma-separated string to array
-$csvString = "apple,banana,orange,grape"
-$array = $csvString -split ','
-# $array now contains: 'apple', 'banana', 'orange', 'grape'
+[array]$Users = Get-MgUser -All -filter "usertype eq 'Member' and accountEnabled eq true" `
+     -Property "id,displayName"
+
+Set-MgRequestContext -MaxRetry 3 -RetryDelay 3
+
+
+[array]$Users = Get-MgUser -All -filter "usertype eq 'Member' and accountEnabled eq true" `
+     -Property "id,displayName"     
+[int]$Pause = 2500
+[int]$i=0   
+$Report = [System.Collections.Generic.List[Object]]::new()
+ForEach ($User in $Users) {
+    $i++
+    Write-Host ("Checking user {0} {1}" -f $i, $User.DisplayName)
+    $Uri = ("https://graph.microsoft.com/v1.0/users/{0}?`$select=id,displayName,userPrincipalName,lastSigninActivity" -f $User.Id)
+    Try {
+        $Data = Invoke-MgGraphRequest -Uri $Uri -Method GET -ResponseHeadersVariable $Response -ErrorAction Stop
+        If ($Data) {
+            $LastSignIn = $null
+            $LastSignIn = $Data.signInActivity.lastSignInDateTime
+            If ($null -ne $LastSignIn) {
+                $LastSignIn = Get-Date $LastSignIn -Format 'dd-MMM-yyyy HH:mm'
+            } Else {
+                $LastSignIn = "Never"
+            }
+            $ReportLine = [PSCustomObject][Ordered]@{
+                DisplayName       = $Data.displayName
+                UserPrincipalName = $Data.userPrincipalName
+                LastSignIn        = $LastSignIn
+            }
+            $Report.Add($ReportLine)
+        } Else {
+            Write-Host "No data found for user" $User.DisplayName
+        }
+    } Catch {
+        Write-Host "Error getting user" $User.DisplayName
+        Write-Host $_.Exception.Message
+        Continue
+    }   
+    If ($i % 5 -eq 0 -and $i -ne $Users.count) {
+        Write-Host "Processed $i users, pausing for $Pause milliseconds..."; Start-Sleep -Milliseconds $Pause
+    }
+}
+
+
