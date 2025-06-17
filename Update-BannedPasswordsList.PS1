@@ -82,8 +82,10 @@ If ($null -eq $Policy) {
     [array]$PolicyValues =  Get-MgBetaDirectorySetting -DirectorySettingId $Policy.Id | Select-Object -ExpandProperty Values
 
     # Extract the current banned password list and merge it with the new passwords
+    # If you don't want to include the current banned passwords, comment out the next 2 lines so that only passwords from the CSV file are used
     [array]$CurrentBannedList = $PolicyValues | Where-Object {$_.Name -eq "BannedPasswordList"} | Select-Object -ExpandProperty Value
     [array]$CurrentBannedList = $CurrentBannedList -Split([char]9)
+  
     [array]$NewBannedPasswords = $NewBannedPasswords + $CurrentBannedList | Sort-Object -Unique
 
     # Can only have 1000 banned passwords in the list, so trim if necessary
