@@ -6,7 +6,8 @@
 # Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-TeamsChatInfo.PS1
 # Referenced in article: https://practical365.com/delete-teams-chat-threads/
 
-# Connect to the Graph with the necessary permissions
+# Connect to the Graph with the necessary permissions (the article explains how to delete chat threads, which is why CHat.ManageDeletion.All is needed)
+# If you only want to report chat threads, then Chat.ReadWrite is sufficient.
 Connect-MgGraph -Scopes Chat.ReadWrite, Chat.ManageDeletion.All -NoWelcome
  # Find the object identifier for the signed-in user
 $Account = (Get-MgContext).Account
@@ -92,6 +93,27 @@ Write-Host ""
 
 # And here's what we found sorted by the last updated date
 $ChatReport | Select-Object ChatType, Tenant, Topic, Created, LastUpdated, NumberOfParticipants, Participants | Sort-Object LastUpdated -Descending | Out-GridView
+
+# Generate reports
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    $ExcelTitle = ("Teams Chats for {0}" -f $Account)
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $OutputXLSXFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TeamsChatListing.xlsx"
+    If (Test-Path $OutputXLSXFile) {
+        Remove-Item $OutputXLSXFile -ErrorAction SilentlyContinue
+    }
+    $ChatReport | Export-Excel -Path $OutputXLSXFile -WorksheetName "Teams Chats" -Title $ExcelTitle -TitleBold -TableName "TeamsChat" 
+} Else {
+    $OutputCSVFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TeamsChatListing.csv"
+    $ChatReport | Export-Csv -Path $OutputCSVFile -NoTypeInformation -Encoding Utf8
+}
+  
+If ($ExcelGenerated) {
+    Write-Host ("An Excel worksheet containing the report data is available in {0}" -f $OutputXLSXFile)
+} Else {
+    Write-Host ("A CSV file containing the report data is available in {0}" -f $OutputCSVFile)
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
