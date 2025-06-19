@@ -3,6 +3,7 @@
 # original code from ghdineshs@gmail.com
 # V1.0 
 # https://github.com/12Knocksinna/Office365itpros/edit/master/Report-PermissionConsentRequests.PS1
+# Used in: https://office365itpros.com/2023/12/22/admin-consent-requests/
 
 #Connect to Graph - I believe Directory.Read.All also suffices
 Connect-MgGraph -NoWelcome -Scopes ConsentRequest.Read.All

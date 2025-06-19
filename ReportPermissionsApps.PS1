@@ -2,6 +2,8 @@
 # A script using Azure Automation and a managed identity to scan for apps assigned high-priority permissions and report them
 # for administrator review
 
+# Used in https://office365itpros.com/2022/09/23/consent-permission-grants/
+
 Connect-MgGraph -Identity -Scopes Application.Read.All, AuditLog.Read.All
 
 # Get tenant information
