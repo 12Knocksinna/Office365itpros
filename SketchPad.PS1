@@ -899,3 +899,56 @@ ForEach ($User in $Users) {
 }
 
 
+Write-Host "Checkiung for OAuth2 Permission Grants..."
+# Get oAuth2PermissionGrant of Principal consent type (to impersonate a specific user)
+[array]$Grants = Get-MgOauth2PermissionGrant -Filter "consentType eq 'Principal'" -All
+
+Write-Host "Finding service principals..."
+# Find service principals and create a hash table for quick lookup
+[array]$ServicePrincipals = Get-MgServicePrincipal -All
+If ($ServicePrincipals) {
+    $SPHash = @{}
+    ForEach ($SP in $ServicePrincipals) {   
+        $SPHash.Add($SP.Id, $SP.DisplayName)
+        }
+} Else {
+    Write-Host "No service principals found"
+    Break
+}
+
+Write-Host "Looking for licensed users..."
+[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All -PageSize 999 | Sort-Object displayName 
+If ($Users) {
+    $UserHash = @{}
+    ForEach ($User in $Users) {     
+        $UserHash.Add($User.Id, $User) }
+} Else {
+    Write-Host "No licensed users found"
+    Break
+}
+
+Write-Host "Generating report for OAuth2 Permission Grants..."
+# Generate a report
+$Report = [System.Collections.Generic.List[Object]]::new()
+
+ForEach ($Grant in $Grants) {
+    $SP = $ServicePrincipals | Where-Object { $_.Id -eq $Grant.ClientId }
+  
+    If ($SP) {
+        $UserDetails = $UserHash[$Grant.PrincipalId]
+        $Resource = $SPHash[$Grant.ResourceId]
+        $ReportLine = [PSCustomObject][ordered]@{
+            Id              = $SP.Id
+            DisplayName     = $SP.DisplayName
+            AppId           = $SP.AppId
+            ConsentType     = $Grant.ConsentType
+            User            = $UserDetails.UserPrincipalName
+            UserDisplayName = $UserDetails.DisplayName
+            Scope           =  (($Grant.Scope.Trim().Split(" "))) -join ", "
+            Resource        = $Resource
+        }
+        $Report.Add($ReportLine)
+    }
+}
+
+$Report | Out-Gridview -Title "Specific principal delegated OAuth2 permission grants"

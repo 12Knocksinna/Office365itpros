@@ -2,6 +2,7 @@
 # A script to demonstrate how to report delegated permissions held by Entra ID user accounts
 # V1.0 4-June-2024
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-DelegatedPermissions.PS1
+# featured in https://office365itpros.com/2024/06/06/delegated-permissions-report/
 
 Connect-MgGraph -NoWelcome -Scopes Directory.Read.All
 # Find licensed users
