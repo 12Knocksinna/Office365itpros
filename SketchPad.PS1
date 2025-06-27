@@ -12,9 +12,6 @@ If ($Status) {
     Write-Output ("Updated document metadata for item {0} with title {1}" -f $ListItem.Id, $Params.Title)
 }
 
-
-
-
 # Report all OneDrive accounts
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
     -ConsistencyLevel eventual -CountVariable UsersFound -All -PageSize 500

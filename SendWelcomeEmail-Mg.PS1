@@ -88,13 +88,9 @@ Write-Host "All done. Messages sent!"
 Remove-item $attachmentfile
 Remove-item "c:\TempForScriptxxx"
 
-# Example of how to add BCC Recipients by building an array of addresses from some source info (in this case, another array)
-# $BCCRecipients = @("Brian.Weakliam@Office365itpros.com", "Kim.Akers@Office365itpros.com")
-# $BCC = $BCCRecipients | % {@{emailAddress = @{ address = $_ }}}
-
-
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
+
