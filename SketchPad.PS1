@@ -949,3 +949,29 @@ ForEach ($Grant in $Grants) {
 }
 
 $Report | Out-Gridview -Title "Specific principal delegated OAuth2 permission grants"
+
+[array]$Book25 = import-csv book2025Buyers.csv
+$Book25 = $Book25 | Sort-Object -Property Email -Unique
+[array]$Book26 = import-csv book2026Buyers.csv
+$Book26 = $Book26 | Sort-Object -Property Email -Unique
+$Book26Hash = @{}
+ForEach ($Buyer in $Book26) {
+    $Book26Hash.Add($Buyer.EmailTrim().ToLower(), $Buyer)
+}
+
+$Report = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Buyer in $Book25) {
+    $LookUpValue = $Buyer.Email.Trim().ToLower()
+    If ($null -eq $Book26Hash[$Buyer.Email]) {
+        $ReportLine = [PSCustomObject][Ordered]@{
+            Name            = $Buyer.Buyer
+            Email           = $Buyer.Email
+            Country         = $Buyer.Country
+            Date            = $Buyer.'Purchase Date'
+            Price           = $Buyer.Price
+            Tip             = $Buyer.'Tip ($)'
+        }
+        $Report.Add($ReportLine)
+    }
+}
+ $report | Export-Csv -Path "ToBuy.csv" -NoTypeInformation -Encoding UTF8

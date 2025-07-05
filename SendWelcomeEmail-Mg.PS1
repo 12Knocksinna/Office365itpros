@@ -43,35 +43,35 @@ $MsgSubject = "A warm welcome to $($TenantName)"
 [string]$CheckDate = (Get-Date).AddDays(-7)
 # Find all mailboxes created in the target period
 [array]$Users = (Get-ExoMailbox -Filter "WhenMailboxCreated -gt '$CheckDate'" -RecipientTypeDetails UserMailbox `
- -ResultSize Unlimited -Properties WhenMailboxCreated | Select-Object WhenMailboxCreated, DisplayName, UserPrincipalName, PrimarySmtpAddress)
+     -ResultSize Unlimited -Properties WhenMailboxCreated | Select-Object WhenMailboxCreated, DisplayName, UserPrincipalName, PrimarySmtpAddress)
 If (!($Users)) { 
      Write-Host ("No mailboxes found that were created before {0}. Exiting!" -f $CheckDate) 
+     Break
 }
 
 # Define attachment - I use a document on a web site here, but you could use a local file
 $WebAttachmentFile = "https://office365itpros.com/wp-content/uploads/2022/02/WelcomeToOffice365ITPros.docx"
 $AttachmentFile = "c:\temp\WelcomeNewEmployeeToOffice365itpros.docx"
 Invoke-WebRequest -uri $WebAttachmentFile -OutFile $AttachmentFile
-$Attachment = (Get-Item -Path $AttachmentFile).Name
 $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
 
 $MsgAttachment = @(
      @{
 	"@odata.type" = "#microsoft.graph.fileAttachment"
 	Name = ($AttachmentFile -split '\\')[-1]
-	ContentType = "text/plain"
 	ContentBytes = $EncodedAttachmentFile
 	}
-   )
+)
 
 # Create and send welcome email message to each of the new mailboxes
 ForEach ($User in $Users) {
       # Add the recipient using the mailbox's primary SMTP address
-      $EmailAddress  = @{address = $User.PrimarySmtpAddress} 
-      $EmailRecipient = @{EmailAddress = $EmailAddress}  
-      Write-Host "Sending welcome email to" $User.DisplayName
+     $EmailAddress  = @{address = $User.PrimarySmtpAddress} 
+     $EmailRecipient = @{EmailAddress = $EmailAddress}  
+     Write-Host "Sending welcome email to" $User.DisplayName
       # Customize the message 
-      $htmlHeaderUser = "<h2>New User " + $User.DisplayName + "</h2>"    
+     $HtmlHeaderUser = "<h2>New User " + $User.DisplayName + "</h2>" 
+     $HtmlBody = $HtmlHeaderUser + $HtmlBody + "<p><p>Created on: " + $User.WhenMailboxCreated + "</p>"   
       # Construct the message body
       $MessageBody = @{
            content = "$($HtmlBody)"
@@ -86,11 +86,9 @@ ForEach ($User in $Users) {
 Write-Host "All done. Messages sent!"
 # Clean up
 Remove-item $attachmentfile
-Remove-item "c:\TempForScriptxxx"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
-
