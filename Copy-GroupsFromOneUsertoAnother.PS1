@@ -200,6 +200,16 @@ ForEach ($GroupId in $GroupsToProcess) {
     }
 }
 
+Write-Host ("Finished copying groups from {0} to {1}." -f $SourceUser.DisplayName, $TargetUser.DisplayName) -ForegroundColor Green
+Write-Host ("Membership was added to a total of {0} groups." -f $Report.Count) -ForegroundColor Green
+
+$Report | Group-Object -Property Type | ForEach-Object {
+    $Type = $_.Name
+    $Count = $_.Count
+    Write-Host ("{0} groups of type {1} were processed." -f $Count, $Type) -ForegroundColor Cyan
+}
+
+$Report | Out-GridView -Title ("Group memberships added for {0}" -f $TargetUser.DisplayName)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
