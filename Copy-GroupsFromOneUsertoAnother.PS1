@@ -140,7 +140,7 @@ ForEach ($GroupId in $GroupsToProcess) {
               $ReportLine = [PSCustomObject]@{
                 GroupId = $Group.Id
                 Name    = $Group.DisplayName
-                Type    = "Microsoft 365 Group"
+                Type    = "Security Group"
                 Status  = "Failed"
                 Error   = $_.Exception.Message
             }
@@ -180,7 +180,7 @@ ForEach ($GroupId in $GroupsToProcess) {
               $ReportLine = [PSCustomObject]@{
                 GroupId = $Group.Id
                 Name    = $Group.DisplayName
-                Type    = "Distribution List"
+                Type    = "Mail-enabled Security Group"
                 Status  = "Success"
                 Error   = $null
             }
