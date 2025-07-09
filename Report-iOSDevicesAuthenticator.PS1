@@ -3,6 +3,9 @@
 # whose preferred secondary authentication method is set to "push" and then check the mobile devices associated with those users to fimd
 # if any devices run iOS.
 
+# V1.0 9-July-2025
+# GitHub link:
+
 # Connect to the Microsoft Graph and Exchange Online PowerShell modules
 Connect-MgGraph -Scopes UserAuthenticationMethod.ReadWrite.All, User.Read.All -NoWelcome
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
