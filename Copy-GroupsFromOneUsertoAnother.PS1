@@ -5,6 +5,7 @@
 # V1.0 1-Mar-2025
 # V2.0 7-July-2025. Added support for removing the original user from the groups after copying them to the target user.
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Copy-GroupsFromOneUsertoAnother.PS1
+# See article https://office365itpros.com/2025/07/08/copy-group-membership-powershell/
 
 param (
     [Parameter(Mandatory = $true, HelpMessage = "Enter the UPN for the source user for group memberships to copy from")]
@@ -215,7 +216,7 @@ ForEach ($GroupId in $GroupsToProcess) {
               $ReportLine = [PSCustomObject]@{
                 GroupId = $Group.Id
                 Name    = $Group.DisplayName
-                Type    = "Microsoft 365 Group"
+                Type    = "Security Group"
                 Status  = "Failed"
                 Error   = $_.Exception.Message
             }
