@@ -4,7 +4,7 @@
 # if any devices run iOS.
 
 # V1.0 9-July-2025
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-iOSDevicesAuthenticator.PS1
 
 # Connect to the Microsoft Graph and Exchange Online PowerShell modules
 Connect-MgGraph -Scopes UserAuthenticationMethod.ReadWrite.All, User.Read.All -NoWelcome
