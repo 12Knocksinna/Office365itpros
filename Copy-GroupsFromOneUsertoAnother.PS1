@@ -214,8 +214,8 @@ ForEach ($GroupId in $GroupsToProcess) {
             Write-Host ("Failed to add {0} to security group {1}: {2}" -f $TargetUser.DisplayName, $GroupDisplayName, $_.Exception.Message) -ForegroundColor Red
               $ReportLine = [PSCustomObject]@{
                 GroupId = $Group.Id
-                Name    = $GroupDisplayName
-                Type    = "Security group"
+                Name    = $Group.DisplayName
+                Type    = "Microsoft 365 Group"
                 Status  = "Failed"
                 Error   = $_.Exception.Message
             }
