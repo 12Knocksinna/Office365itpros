@@ -7,7 +7,7 @@
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-iOSDevicesAuthenticator.PS1
 
 # Connect to the Microsoft Graph and Exchange Online PowerShell modules
-Connect-MgGraph -Scopes UserAuthenticationMethod.ReadWrite.All, User.Read.All -NoWelcome
+Connect-MgGraph -Scopes UserAuthenticationMethod.Read.All, User.Read.All -NoWelcome
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ($Modules -notcontains 'ExchangeOnlineManagement') {
     Write-Host "Connecting to Exchange Online..." -ForegroundColor Yellow
