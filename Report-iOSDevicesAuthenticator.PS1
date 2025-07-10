@@ -28,7 +28,7 @@ ForEach ($User in $Users) {
         $Uri = ("https://graph.microsoft.com/beta/users/{0}/authentication/signInPreferences" -f $User.Id)
         $AuthData = Invoke-MgGraphRequest -Uri $Uri -Method Get -ErrorAction Stop 
     } Catch {
-        Write-Host "Failed to retrieve authentication methods for user $($User.displayName): $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Failed to retrieve sign-in preferences for user $($User.displayName): $($_.Exception.Message)" -ForegroundColor Red
         Continue
     }
     $ReportLine = [PSCustomObject]@{
