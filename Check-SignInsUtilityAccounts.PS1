@@ -2,7 +2,7 @@
 # Use the Microsoft Graph to check sign-ins for accounts that shoudn't be signing in, such as the accounts
 # used for break glass access, service accounts, and other utility accounts.
 
-# V1.01 2-Jul-2025
+# V1.01 12-Jul-2025
 # GitHub link:  https://github.com/12Knocksinna/Office365itpros/blob/master/Check-SignInsUtilityAccounts.PS1
 
 If ([Environment]::UserInteractive) { 
