@@ -89,10 +89,11 @@ $HtmlTable
 
 If ($Report) {
     # Create and send a message to the administrator
-    $MsgFrom = 'Customer.Services@office365itpros.com'
-    # Build the array of a single TO recipient detailed in a hash table
+    # Change this email address to be the sender of the message
+    $MsgFrom = 'Background.Monitoring.Service@office365itpros.com'
+    # Build the array of a single TO recipient detailed in a hash table - change this address to be the desired recipient of the mail
     $ToRecipient = @{}
-    $ToRecipient.Add("emailAddress",@{'address'="Tony.Redmond@office365itpros.com"})
+    $ToRecipient.Add("emailAddress",@{'address'="AdminsDL@office365itpros.com"})
     [array]$MsgTo = $ToRecipient
     # Define the message subject
     $MsgSubject = "Important: Sign-ins Detected for Utility Accounts"
