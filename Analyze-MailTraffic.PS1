@@ -4,6 +4,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Analyze-MailTraffic.PS1
 
 # Updated 4-June-2025 to replace Get-MessageTrace with Get-MessageTraceV2, which is the cmdlet that will be used in the future.
+# Updated 15-Jul-2025 to generate a HTML report of the results.
 
 # Check if we can run an Exchange Online cmdlet. If we can, go on, else connect to Exchange Online
 If ($Null -eq (Get-ConnectionInformation)) {
@@ -91,6 +92,83 @@ Write-Host ""
 Write-Host "Top 10 domains for inbound messages"
 Write-Host "-----------------------------------"
 $InboundMessages | Group-Object SenderDomain -NoElement | Sort-Object Count -Descending | Select-Object -First 10 | Format-Table Name, Count -AutoSize
+
+
+# Generate sortable HTML table with type-aware sorting - use number as the type for numeric values, date for dates, and string for text
+$HtmlHeader = @"
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Detailed Message Statistics</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; background: #f4f6f8; color: #222; }
+h1 { background: #0078d4; color: #fff; padding: 16px; border-radius: 6px 6px 0 0; margin-bottom: 20px; }
+table { width: 100%; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-collapse: collapse; }
+th, td { padding: 12px; text-align: left; }
+th { background: #e5eaf1; cursor: pointer; position: relative; }
+th:hover { background: #d0e7fa; }
+th::after { content: '↕'; position: absolute; right: 8px; opacity: 0.5; }
+tr:nth-child(even) { background: #f0f4fa; }
+tr:hover { background: #d0e7fa; }
+</style>
+<script>
+function parseValue(val, type) {
+    if(type === 'number') return parseFloat(val.replace(/,/g,'')) || 0;
+    if(type === 'date') return new Date(val);
+    return val.toLowerCase();
+}
+function sortTable(n, type) {
+    var table = document.getElementById('msgstats');
+    var rows = Array.from(table.rows).slice(1);
+    var dir = table.getAttribute('data-sortdir'+n) === 'asc' ? 'desc' : 'asc';
+    rows.sort(function(a, b) {
+        var x = parseValue(a.cells[n].innerText, type);
+        var y = parseValue(b.cells[n].innerText, type);
+        if(x < y) return dir === 'asc' ? -1 : 1;
+        if(x > y) return dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+    rows.forEach(function(row) { table.tBodies[0].appendChild(row); });
+    table.setAttribute('data-sortdir'+n, dir);
+}
+</script>
+</head>
+<body>
+<h1>Detailed Message Statistics</h1>
+<table id="msgstats">
+<thead>
+<tr>
+<th onclick="sortTable(0,'date')">Timestamp</th>
+<th onclick="sortTable(1,'string')">Sender</th>
+<th onclick="sortTable(2,'string')">Recipient</th>
+<th onclick="sortTable(3,'string')">Subject</th>
+<th onclick="sortTable(4,'string')">Direction</th>
+<th onclick="sortTable(5,'string')">SenderDomain</th>
+<th onclick="sortTable(6,'string')">RecipientDomain</th>
+</tr>
+</thead>
+<tbody>
+"@
+
+$Report = $Report | Sort-Object {$_.Timestamp -as [datetime]}, {$_.Recipient} -Descending
+$HtmlRows = foreach ($Row in $Report ) {
+    "<tr><td>$($row.Timestamp)</td><td>$($row.Sender)</td><td>$($row.Recipient)</td><td>$($row.Subject)</td><td>$($row.Direction)</td><td>$($row.SenderDomain)</td><td>$($row.RecipientDomain)</td></tr>"
+}
+
+$HtmlFooter = @"
+</tbody>
+</table>
+</body>
+</html>
+"@
+
+$ReportFile = "c:\temp\MessageStats.html"
+#Generate the full HTML content and save it to a file
+$HtmlFile = $HtmlHeader + ($HtmlRows -join "`n") + $HtmlFooter
+$HtmlFile | Out-File -FilePath $ReportFile -Encoding utf8
+
+Write-Host "Detailed message statistics saved to $ReportFile" -ForegroundColor Green
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
