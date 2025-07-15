@@ -16,9 +16,9 @@ If ([Environment]::UserInteractive) {
 }
 
 # Find marked utility accounts
-[array]$Users = Get-MgUser -Filter "(onPremisesExtensionAttributes/extensionAttribute1 eq 'BG' or onPremisesExtensionAttributes/extensionAttribute1 eq 'Utility') and userType eq 'Member'" -All -PageSize 250 -ConsistencyLevel eventual -CountVariable Records
+[array]$UtilityAccounts = Get-MgUser -Filter "(onPremisesExtensionAttributes/extensionAttribute1 eq 'BG' or onPremisesExtensionAttributes/extensionAttribute1 eq 'Utility') and userType eq 'Member'" -All -PageSize 250 -ConsistencyLevel eventual -CountVariable Records
 
-If ($Users) {
+If ($UtilityAccounts) {
     Write-Host "Found $($Users.Count) utility accounts to process..." -ForegroundColor Yellow
 } Else {
     Write-Host "No utility accounts found." -ForegroundColor Yellow
@@ -28,8 +28,8 @@ If ($Users) {
 Write-Host "Processing utility accounts..." -ForegroundColor Cyan
 $Report = [System.Collections.Generic.List[Object]]::new()
 
-ForEach ($User in $Users) {
-    Write-Host "Processing user: $($User.displayName)" -ForegroundColor Cyan
+ForEach ($User in $UtilityAccounts) {
+    Write-Host "Processing account: $($User.displayName)" -ForegroundColor Cyan
     Try {
         $UserId = $User.Id
         [array]$SignIn = Get-MgAuditLogSignIn -Filter "userid eq '$UserId'" -Top 1 -ErrorAction Stop
