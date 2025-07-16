@@ -9,14 +9,14 @@ If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connec
 $Mbx = (Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -Properties ForwardingSmtpAddress -ResultSize Unlimited)
 Write-Host $Mbx.Count "user and shared mailboxes found. Now checking..."
 $Report = [System.Collections.Generic.List[Object]]::new()
-$Count = 0; CLS; $MbxNumber = 0
+Clear-Host; $MbxNumber = 0
 ForEach ($M in $Mbx) {
     $MbxNumber++
     $ProgressBar = "Checking mailbox " + $M.DisplayName + " (" + $MbxNumber + " of " + $Mbx.Count + ")" 
     Write-Progress -Activity "Looking for forwarding settings and inbox rules" -Status $ProgressBar -PercentComplete ($MbxNumber/$Mbx.Count*100)
     Write-Host "Processing" $M.DisplayName
     $Rule = $Null
-    If ($M.ForwardingSmtpAddress -ne $Null) { # Mailbox has a forwarding address
+    If ($null  -ne $M.ForwardingSmtpAddress) { # Mailbox has a forwarding address
          $ReportLine = [PSCustomObject]@{
             Mailbox           = $M.DisplayName
             UPN               = $M.UserPrincipalName
@@ -27,15 +27,15 @@ ForEach ($M in $Mbx) {
             Enabled           = "N/A"}
        $Report.Add($ReportLine)
     } 
-    $InboxRules = (Get-InboxRule -Mailbox $M.Alias | ? {$_.ForwardTo -or $_.ForwardAsAttachmentTo -or $_.RedirectTo})
-    If ($InboxRules -ne $Null) {
+    [array]$InboxRules = (Get-InboxRule -Mailbox $M.ExternalDirectoryObjectId | Where-Object {$_.ForwardTo -or $_.ForwardAsAttachmentTo -or $_.RedirectTo})
+    If ($null -ne $InboxRules) {
        Write-Host "Processing inbox rules"
        ForEach ($Rule in $InboxRules) {
-          $Ex = $Null
+          $Ex = $null
           $ForwardTo = @()
-          $ForwardTo = ($Rule.ForwardTo | ? { ($_ -Match "SMTP") -or ($_ -Match "EX:") } )
-          $ForwardTo += ($Rule.ForwardAsAttachmentTo | ? {($_ -Match "SMTP") -or ($_ -Match "EX:")})
-          $ForwardTo += ($Rule.RedirectTo | ? {($_ -Match "SMTP") -or ($_ -Match "EX:")})
+          $ForwardTo = ($Rule.ForwardTo | Where-Object { ($_ -Match "SMTP") -or ($_ -Match "EX:") } )
+          $ForwardTo += ($Rule.ForwardAsAttachmentTo | Where-Object {($_ -Match "SMTP") -or ($_ -Match "EX:")})
+          $ForwardTo += ($Rule.RedirectTo | Where-Object {($_ -Match "SMTP") -or ($_ -Match "EX:")})
           If ($ForwardTo.Count -gt 0) {
              ForEach ($Recipient in $ForwardTo) {
                 If ($Recipient -Match "EX:") {
@@ -50,7 +50,7 @@ ForEach ($M in $Mbx) {
       
              Write-Host $M.RecipientTypeDetails $M.DisplayName "has a rule to forward email to" $EmailAddress -ForegroundColor Red
              # Remove the rule if the address is unknown to the directory
-             If ($Ex -eq $Null) {
+             If ($null -eq $Ex) {
                  Remove-InboxRule -Identity $Rule.Identity -Confirm:$False; $RuleRemoved = "Yes"
                  Write-Host "Rule" $Rule.Name "removed from mailbox!" }
              Else {
@@ -68,8 +68,8 @@ ForEach ($M in $Mbx) {
        }
      }
 }
-[array]$InboxRulesFound = $Report |?{$_.InboxRule -ne "N/A"}
-[array]$MailForwarding  = $Report |?{$_.InboxRule -eq "N/A"}
+[array]$InboxRulesFound = $Report | Where-Object {$_.InboxRule -ne "N/A"}
+[array]$MailForwarding  = $Report | Where-Object {$_.InboxRule -eq "N/A"}
 $MailboxesWithRules = $InboxRulesFound.Mailbox -join ", "
 $MailboxesForwarding =  $Mailforwarding.Mailbox -join ", "
 Write-Host ("{0} mailboxes found with forwarding addresses: {1}; {2} mailboxes found with forwarding inbox rules: {3}" -f $MailForwarding.Count, $MailboxesForwarding, $InboxRulesFound.Count, $MailboxesWithRules)

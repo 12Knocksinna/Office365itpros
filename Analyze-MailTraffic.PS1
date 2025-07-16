@@ -17,7 +17,7 @@ $EndDate = (Get-Date)
 
 Write-Host ("Message trace data will be analyzed between {0} and {1}" -f (Get-Date $StartDate -format 'dd-MMM-yyyy HH:mm'), (Get-Date $EndDate -format 'dd-MMM-yyyy HH:mm'))
 Write-Host "Fetching message trace data to analyze"
-$MoreMessagesAvailable = $true
+
 [array]$Messages = $Null
 [int]$BatchSizeForMessages = 2000
     # original code [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate -PageSize 1000 -Page $i -Status "Delivered"
