@@ -3,10 +3,10 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindAccountsWithForwarding.PS1
 
 # Check that the right modules are loaded
-$Modules = Get-Module
+[array]$Modules = Get-Module
 If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
 
-$Mbx = (Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -Properties ForwardingSmtpAddress -ResultSize Unlimited)
+[array]$Mbx = (Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -Properties ForwardingSmtpAddress -ResultSize Unlimited)
 Write-Host $Mbx.Count "user and shared mailboxes found. Now checking..."
 $Report = [System.Collections.Generic.List[Object]]::new()
 Clear-Host; $MbxNumber = 0
