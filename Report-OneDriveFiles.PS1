@@ -57,11 +57,11 @@ function Get-DriveItems {
         # Get retention label information
         If ($RetentionLabelsAvailable -eq $true) {
             Try {
-                $RetentionLabelInfo = $Null; $RetentionLabelName = $null
-                $RetentionlabelInfo = Get-MgDriveItemRetentionLabel -DriveId $OneDriveInfo.Id -DriveItemId $File.Id
+                $RetentionLabelInfo = $null; $RetentionLabelName = $null
+                $RetentionlabelInfo = Get-MgDriveItemRetentionLabel -DriveId $OneDriveInfo.Id -DriveItemId $File.Id -ErrorAction Stop
                 $RetentionLabelName = $RetentionLabelInfo.name
             } Catch {
-                Write-Host ("Error reading retention label data from file {0}" -f $File.Name) 
+                Write-Host ("Error reading retention label data from file {0}" -f $File.Name)
             }
         }
         If ($File.LastModifiedDateTime) {
