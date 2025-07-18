@@ -5,6 +5,7 @@
 # This script is https://github.com/12Knocksinna/Office365itpros/blob/master/Report-OneDriveFiles.PS1
 # V1.0 19-Apr-2024
 # V1.1 21-May-2025 Replaced Graph API with Get-MgUserDefaultDrive 
+# V1.2 18-Jul-2025 Replaced Invoke-MgGraphRequest with Get-MgDriveItemRetentionLabel
 
 function Get-DriveItems {
     [CmdletBinding()]
@@ -33,10 +34,10 @@ function Get-DriveItems {
             } Else {
                 $SensitivityLabelInfo = $Null
                 [string]$SensitivityLabelName = "None"
-                # Use Graph API to get sensitivity label information
+                # Use Graph API to get sensitivity label information. Errors here could be due to a password-protected file or a file with a sensitivity label from another tenant
                 $Uri = ("https://graph.microsoft.com/V1.0/users/{0}/drive/items/{1}/extractSensitivityLabels" -f $Account, $File.id)
                 Try {
-                    [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST 
+                    [array]$SensitivityLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method POST -ErrorAction Stop
                     If ($SensitivitylabelInfo.labels.count -eq 1) {
                         [string]$SensitivityLabelName = $SensitivityLabelsHash[$SensitivityLabelInfo.labels.sensitivitylabelid]
                     }
@@ -57,8 +58,7 @@ function Get-DriveItems {
         If ($RetentionLabelsAvailable -eq $true) {
             Try {
                 $RetentionLabelInfo = $Null; $RetentionLabelName = $null
-                $Uri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}/retentionLabel" -f $OneDriveInfo.id, $File.Id)
-                [array]$RetentionLabelInfo = Invoke-MgGraphRequest -Uri $Uri -Method Get
+                $RetentionlabelInfo = Get-MgDriveItemRetentionLabel -DriveId $OneDriveInfo.Id -DriveItemId $File.Id
                 $RetentionLabelName = $RetentionLabelInfo.name
             } Catch {
                 Write-Host ("Error reading retention label data from file {0}" -f $File.Name) 
@@ -187,7 +187,7 @@ Disconnect-MgGraph | Out-Null # Make sure that we sign out of existing sessions
 # User must have a valid license for OneDrive for Business...
 Connect-MgGraph -Scopes Files.Read.All, RecordsManagement.Read.All, InformationProtectionPolicy.Read -NoWelcome
 
-Write-Host "Setting up for the OneDrive for Business account files report..."
+Write-Host "Getting ready for the OneDrive for Business account files report..."
 # Discover if the tenant uses sensitivity labels
 $Account = (Get-MgContext).Account
 [array]$SensitivityLabels = Get-MgBetaUserSecurityInformationProtectionSensitivityLabel -UserId $Account
