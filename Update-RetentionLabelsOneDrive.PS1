@@ -195,7 +195,7 @@ Write-Host ("A total of {0} files were reassigned with the {1} retention label" 
 $ODBFiles | Select-Object FileName, Folder, Author, Created, Modified, Size, DaysOld, 'Retention Label', 'Sensitivity Label' | `
     Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding UTF8
 
-Write-Host ("CSV file created at {0}" -f $CSVOutputFile) -ForegroundColor Green
+Write-Host ("CSV file containing details of relabeled files available at {0}" -f $CSVOutputFile) -ForegroundColor Green
 
 Write-Host ("Processed {0} files in {1} folders in {2}:{3} minutes ({4} files/minute)" -f `
    $ODBFiles.Count, $TotalFolders, $ElapsedTime.Minutes, $ElapsedTime.Seconds, $FilesPerMinute)
