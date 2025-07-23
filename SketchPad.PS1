@@ -975,3 +975,8 @@ ForEach ($Buyer in $Book25) {
     }
 }
  $report | Export-Csv -Path "ToBuy.csv" -NoTypeInformation -Encoding UTF8
+
+# Convert UNIX epoch time (seconds since 1970-01-01) to PowerShell DateTime
+$UnixEpochValue = 1752763429
+$Date = [DateTimeOffset]::FromUnixTimeSeconds($UnixEpochValue).ToLocalTime().DateTime
+Write-Host "UNIX epoch $UnixEpochValue is" $(Get-Date $Date -format 'dd-MMM-yyyy HH:mm')
