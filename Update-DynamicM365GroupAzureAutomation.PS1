@@ -4,7 +4,7 @@
 # lose their manager status are removed from the group.
 
 # V1.0 22-Jul-2025
-# GitHub Link: https://github.com/Office365ITPros/Update-DynamicM365GroupAzureAutomation
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Update-DynamicM365GroupAzureAutomation.PS1
 
 If ([Environment]::UserInteractive) { 
     # We're running interactively...
