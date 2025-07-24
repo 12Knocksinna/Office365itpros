@@ -1,8 +1,9 @@
 # Report-IndividualUserSessions.PS1
 # An example script to report the events for an individual user session based on the session identifier assigned by Entra ID.
+# Microsoft Blog: https://techcommunity.microsoft.com/blog/microsoft-entra-blog/strengthen-identity-threat-detection-and-response-with-linkable-token-identifier/4434615
 
 # V1.0 22-Jul-2025
-# GitHub Link:  
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-IndividualUserSessions.PS1
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -notin $Modules) {
