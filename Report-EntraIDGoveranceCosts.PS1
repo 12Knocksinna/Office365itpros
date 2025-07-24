@@ -7,7 +7,7 @@
 Connect-MgGraph -Scopes AuditLog.Read.All, User.Read.All -NoWelcome
 
 Write-Host "Fetching audit records for the current month to check usage of Entra ID Governance features"
-[string]$FirstDayOfMonth = (Get-Date -Day 1).ToString('yyyy-MM-ddT00:00:00Z')
+$FirstDayOfMonth = (Get-Date -Day 1).ToString('yyyy-MM-ddT00:00:00Z')
 [array]$AuditRecords = Get-MgAuditLogDirectoryAudit -All -Filter "activityDateTime ge $FirstDayOfMonth and result eq 'success'"
 
 If ($AuditRecords.Count -eq 0) {
