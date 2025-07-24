@@ -129,7 +129,6 @@ If ($ExcelGenerated) {
     Write-Host ("A CSV file containing the report data is available in {0}" -f $OutputCSVFile)
 }
 
-
 # Unsupported record types: PlannerTask, Discovery, AzureActiveDirectoryStsLogon
 # unsupported operations: Add member to group, MoveToDeletedItems
 # Session Id is only available after a successful authentication, so some records will not have a session ID.
