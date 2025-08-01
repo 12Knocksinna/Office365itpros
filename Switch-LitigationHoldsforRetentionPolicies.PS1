@@ -86,9 +86,10 @@ ForEach ($M in $Mbx) {
 # Create arrays of the mailbioxes and OneDrive accounts to place on hold
 [string[]]$MailboxesToHold = $MbxReport.UserPrincipalName
 
-# Can't have more than 1,000 mailboxes on hold for a single case: https://learn.microsoft.com/en-us/purview/ediscovery-create-holds?WT.mc_id=M365-MVP-9501#ediscovery-hold-limits
+# Can't have more than 1,000 mailboxes as locations for a retention policy: https://learn.microsoft.com/en-us/microsoft-365/compliance/retention-limits?view=o365-worldwide#locations-for-retention-policies
 If ($MailboxesToHold.Count -gt 1000) { 
-    Write-Host ("There are {0} mailboxes to place on hold. eDiscovery standard cases are limited to 1000 mailboxes. Please split the mailboxes into smaller groups and run the script again." -f $MailboxesToHold.Count) -ForegroundColor Red
+    Write-Host ("There are {0} shared mailboxes to place on hold. Retention policy locations are limited to 1000 mailboxes. Please split the mailboxes into smaller groups and run the script again." -f $MailboxesToHold.Count) -ForegroundColor Red
+    Break   
 }
 
 [string[]]$OneDriveToHold = $MbxReport.OneDriveUrl | Sort-Object -Unique
