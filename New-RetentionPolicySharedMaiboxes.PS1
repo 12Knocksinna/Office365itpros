@@ -2,7 +2,7 @@
 # A script to add shared mailboxes to a dedicated Microsoft 365 retention policy.
 
 # V1.0 2-August-2025
-# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/New-RetentionPolicySharedMailboxes.PS1
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/New-RetentionPolicySharedMaiboxes.PS1
 # Similar to https://github.com/12Knocksinna/Office365itpros/blob/master/Switch-LitigationHoldsForEDiscovery.PS1 which switches litigation holds to eDiscovery holds
 # as explained in https://office365itpros.com/2025/04/24/litigation-hold-ediscovery/
 
