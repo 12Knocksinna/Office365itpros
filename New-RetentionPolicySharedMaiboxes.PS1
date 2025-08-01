@@ -6,29 +6,18 @@
 # Similar to https://github.com/12Knocksinna/Office365itpros/blob/master/Switch-LitigationHoldsForEDiscovery.PS1 which switches litigation holds to eDiscovery holds
 # as explained in https://office365itpros.com/2025/04/24/litigation-hold-ediscovery/
 
-# Check permissions available to the signed-in account and disconnect from the Graph if the requisite permissions are not available
-
-[string[]]$RequiredScopes = @("Sites.Read.All","User.ReadBasic.All", "Reports.Read.All", "ReportSettings.ReadWrite.All")    
-Connect-MgGraph -NoWelcome -Scopes $RequiredScopes
-
-[string[]]$CurrentScopes = (Get-MgContext).Scopes
-
-$CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
-If ($CheckScopes.Count -ne 4) { # Must have all 4 required scopes
-    Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f ($RequiredScopes -join ", ")) -ForegroundColor Red
-    Disconnect-Graph
-    Break
-}
-
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ("ExchangeOnlineManagement" -Notin $Modules) {
     Write-Host "Connecting to Exchange Online..." -ForegroundColor Yellow
     Connect-ExchangeOnline -showBanner:$false -UserPrincipalName (Get-MgContext).Account
 }
 
+# Connect to the Security & Compliance Center PowerShell
+Write-Host "Connecting to Security & Compliance Center PowerShell..." -ForegroundColor Yellow
 Connect-IPPSSession -ShowBanner:$false -UserPrincipalName (Get-MgContext).Account
-Shared
+
 # Find shared mailboxes
+Write-Host "Finding shared mailboxes..." -ForegroundColor Yellow
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails SharedMailbox -ResultSize Unlimited
 If ($Mbx) {
     # Only take mailboxes with unlimited hold duration
@@ -60,7 +49,7 @@ If ($MbxReport.Count -gt 1000) {
 
 Write-Host "Creating Microsoft 365 retention policy for shared mailboxes..." -ForegroundColor Yellow
 $NewPolicy = New-RetentionCompliancePolicy -Name "Shared Mailboxes Retention Policy" -ExchangeLocation $MailboxesToHold `
-    -Comment ("Retention policy for shared mailboxes created by New-RetentionPolicySharedMailboxes.PS1 script on {0}" -f (Get-Date).ToString("dd-MMM-yyyy")) `
+    -Comment ("Retention policy for shared mailboxes created by New-RetentionPolicySharedMailboxes.PS1 script on {0}" -f (Get-Date).ToString("dd-MMM-yyyy")) 
 If ($NewPolicy) {
     Write-Host ("Retention policy {0} created" -f $NewPolicy.Name) -ForegroundColor Green
     $NewPolicyRule = New-RetentionComplianceRule -Name TwoYearSharedMailboxRetention -Policy "Shared Mailboxes Retention Policy" -RetentionDuration 730 `

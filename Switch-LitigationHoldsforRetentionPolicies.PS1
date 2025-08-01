@@ -104,7 +104,7 @@ If ($ObfuscationChanged) {
 
 Write-Host "Creating Microsoft 365 retention policy to replace litigation holds..." -ForegroundColor Yellow
 $NewPolicy = New-RetentionCompliancePolicy -Name "Litigation Hold Retention Policy" -ExchangeLocation $MailboxesToHold -OneDriveLocation $OneDriveToHold  `
-    	-Comment ("Retention policy to replace litigation holds created by Switch-LitigationHoldsforRetentionPolicies.PS1 script on {0}" -f (Get-Date).ToString("dd-MMM-yyyy")) `
+    	-Comment ("Retention policy to replace litigation holds created by Switch-LitigationHoldsforRetentionPolicies.PS1 script on {0}" -f (Get-Date).ToString("dd-MMM-yyyy")) 
 If ($NewPolicy) {
     Write-Host ("Retention policy {0} created" -f $NewPolicy.Name) -ForegroundColor Green
     $NewPolicyRule = New-RetentionComplianceRule -Name LitigationHoldRule -Policy "Litigation Hold Retention Policy" -RetentionDuration unlimited `
