@@ -65,6 +65,14 @@ If ($NewPolicy) {
     Break
 }
 
+Write-Host "Updating shared mailboxes to remove Exchange retention policies..." -ForegroundColor Yellow
+ForEach ($M in $Mbx) {
+    $MbxIdentity = $M.ExternalDirectoryObjectId
+    Write-Host ("Removing retention policies from shared mailbox {0}" -f $M.DisplayName) -ForegroundColor Yellow
+    Set-Mailbox -Identity $MbxIdentity -RetentionPolicy $null
+}
+
+Write-Host ("{0} shared mailboxes updated to use the {1} Microsoft 365 retention policy" -f $Mbx.count, $NewPolicy.Name) -ForegroundColor Green
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
