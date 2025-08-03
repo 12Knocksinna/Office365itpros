@@ -87,13 +87,13 @@ If ($NewLocationsCount -gt 1000) {
 # Do the actual work to remove and add locations - depending on what we found, we issue the appropriate command
 If ($RemovedLocations.count -gt 0 -and $NewLocations.count -gt 0) {
     Write-Output "Updating locations for retention policy $PolicyName"
-   # Set-RetentionCompliancePolicy -Identity $Policy.Name -RemoveExchangeLocation $RemovedLocations -AddExchangeLocation $NewLocations
+    Set-RetentionCompliancePolicy -Identity $Policy.Name -RemoveExchangeLocation $RemovedLocations -AddExchangeLocation $NewLocations
 } Elseif ($RemovedLocations.count -eq 0 -and $NewLocations.count -gt 0) {
     Write-Output "Adding locations to retention policy $PolicyName"
-    #Set-RetentionCompliancePolicy -Identity $Policy.Name -AddExchangeLocation $NewLocations
+    Set-RetentionCompliancePolicy -Identity $Policy.Name -AddExchangeLocation $NewLocations
 } ElseIf ($RemovedLocations.count -gt 0 -and $NewLocations.count -eq 0) {
     Write-Output "Removing locations from retention policy $PolicyName"
-    #Set-RetentionCompliancePolicy -Identity $Policy.Name -RemoveExchangeLocation $RemovedLocations
+    Set-RetentionCompliancePolicy -Identity $Policy.Name -RemoveExchangeLocation $RemovedLocations
 } Else {
     Write-Output "No changes to make to retention policy $PolicyName"
 }
