@@ -238,6 +238,7 @@ ForEach ($GroupId in $GroupsToProcess) {
             $Report.Add($ReportLine)
             If ($RemoveOriginalUser) {
                 $Outcome = Remove-UserFromDistributionList -UserId $SourceUser.Id -GroupId $Group.Id -GroupName $GroupDisplayName
+                Write-Host $Outcome -ForegroundColor Yellow
             }
         } Catch {
             Write-Host ("Failed to add {0} to distribution list {1}: {2}" -f $TargetUser.DisplayName, $Group.DisplayName, $_.Exception.Message) -ForegroundColor Red
@@ -266,6 +267,7 @@ ForEach ($GroupId in $GroupsToProcess) {
             $Report.Add($ReportLine)
             If ($RemoveOriginalUser) {
                 $Outcome = Remove-UserFromDistributionList -UserId $SourceUser.Id -GroupId $Group.Id -GroupName $GroupDisplayName
+                Write-Host $Outcome -ForegroundColor Yellow
             }
         } Catch {
             Write-Host ("Failed to add {0} to mail-enabled security group {1}: {2}" -f $TargetUser.DisplayName, $Group.DisplayName, $_.Exception.Message) -ForegroundColor Red
