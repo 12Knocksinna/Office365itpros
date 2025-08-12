@@ -208,7 +208,7 @@ ForEach ($GroupId in $GroupsToProcess) {
             }
             $Report.Add($ReportLine)
             If ($RemoveOriginalUser) {
-                $Outcome = Remove-UserFromM365Group -UserId $SourceUser.Id -GroupId $Group.Id -GroupName
+                $Outcome = Remove-UserFromM365Group -UserId $SourceUser.Id -GroupId $Group.Id -GroupName $GroupDisplayName
                 Write-Host $Outcome -ForegroundColor Yellow
             }
         } Catch {
