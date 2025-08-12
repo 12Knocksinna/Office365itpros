@@ -3,6 +3,7 @@
 # Showing how to use https://learn.microsoft.com/en-us/graph/api/authenticationmethodsroot-list-usermfasigninsummary?view=graph-rest-beta
 
 # version 1.0 11-Aug-2025
+# Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-NonMFASignIns.PS1
 
 Connect-MgGraph -Scopes "AuditLog.Read.All"
 
