@@ -131,7 +131,7 @@ ForEach ($GroupId in $SourceGroups) {
 
 # If there are no groups to copy fromt the source user to the target user, exit the script
 If ($GroupsToProcess.Count -eq 0) {
-    Write-Host "No new groups to copy from $($SourceUser.DisplayName) to $($TargetUserName)." -ForegroundColor Yellow
+    Write-Host "No new groups to copy from $($SourceUser.DisplayName) to $($TargetUser.DisplayName)." -ForegroundColor Yellow
     Break
 }
 
