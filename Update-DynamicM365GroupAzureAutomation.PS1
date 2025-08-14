@@ -54,7 +54,7 @@ While ($Data.count -ne 0) {
 Write-Output "Removing users who are no longer managers from the group"
 ForEach ($Id in $MembersToRemove) {
     Try {
-       # Remove-MgGroupMember -GroupId $TargetGroup.Id -DirectoryObjectId $Id -ErrorAction Stop
+        Remove-MgGroupMember -GroupId $TargetGroup.Id -DirectoryObjectId $Id -ErrorAction Stop
         Write-Host "Removed user with ID $Id from group $($TargetGroup.DisplayName)"
     } Catch {
         Write-Error "Failed to remove user with ID $Id from group: $_"
