@@ -1,8 +1,14 @@
 # Remove-ObsoleteMobileDevices.PS1
-# An example script to show how to remove obsolete mobile device partnerships from user mailboxes
+# An example script to show how to remove obsolete mobile device partnerships from user mailboxes. Users can't do this any longer
+# because Microsoft has removed the options to manage mobile devices from OWA and the new Outlook: https://office365itpros.com/2025/08/15/mobile-device-management-owa/
+
+# This script fetches all user mailboxes, finds the device partnerships that exist for each mailbox, and checks the date of the last
+# successful synchronization for each device. If a device hasn't synchronized in more than a year (adjustable), it's deemed to be obsolete
+# and be a candidate for removal. The administrator can use the set of obsolete devices found by the script to remove the partnerships for
+# the devices.
 
 # V1.0 14-Aug-2025
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-ObsoleteMobileDevices.PS1
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ($Modules -notcontains "ExchangeOnlineManagement") {
@@ -37,7 +43,7 @@ ForEach ($M in $Mbx) {
             $LastSyncTime = $null
             $ObsoleteDevice = $false
             Try {
-                $DeviceStats = Get-MobileDeviceStatistics -Id $Device.Identity -ErrorAction Stop
+                $DeviceStats = Get-ExoMobileDeviceStatistics -Id $Device.Identity -ErrorAction Stop
             } Catch {
                 Write-Host ("Failed to get statistics for device {0} - {1}" -f $Device.DeviceId, $_.Exception.Message) -ForegroundColor Yellow
                 Continue
@@ -73,6 +79,7 @@ ForEach ($M in $Mbx) {
     }
 }
 
+# Extract the obsolete devices from the full set
 [array]$ObsoleteDevices = $Report | Where-Object { $_.ObsoleteDevice -eq $true }
 [array]$ObsoleteMailboxes = ($ObsoleteDevices | Select-Object -ExpandProperty User | Get-Unique)
 Write-Host ""
@@ -82,11 +89,37 @@ Write-Host ("Obsolete devices were found with partnerships with {0} mailboxes ({
 
 $ObsoleteDevices | Out-GridView -Title "Obsolete Mobile Devices Report"
 
+Write-Host "Generating an Excel or CSV report containing details of obsolete mobile devices"
+# Generate reports
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    $ExcelTitle = ("Obsolete mobile devices report for {0}" -f (Get-Date -Format 'dd-MMM-yyyy'))
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $OutputXLSXFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\ObsoleteMobileDevices.xlsx"
+    If (Test-Path $OutputXLSXFile) {
+        Remove-Item $OutputXLSXFile -ErrorAction SilentlyContinue
+    }
+    $ObsoleteDevices | Export-Excel -Path $OutputXLSXFile -WorksheetName "Obsolete Mobile Devices" -Title $ExcelTitle -TitleBold -TableName "ObsoleteDevices" -AutoSize
+} Else {
+    $OutputCSVFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\ObsoleteMobileDevices.csv"
+    $ObsoleteDevices | Export-Csv -Path $OutputCSVFile -NoTypeInformation -Encoding Utf8
+}
+  
+If ($ExcelGenerated) {
+    Write-Host ("An Excel worksheet containing the report data is available in {0}" -f $OutputXLSXFile)
+} Else {
+    Write-Host ("A CSV file containing the report data is available in {0}" -f $OutputCSVFile)
+}
+
+# Ask the user if they want to remove the obsolete devices
+Write-Host ""
+Write-Host "IMPORTANT: You should review the obsolete mobile device data before removing any device partnerships." -ForegroundColor Red
+Write-Host ""
 $GoAhead = Read-Host "Do you want to remove the obsolete mobile devices? (Y/N)"
 If ($GoAhead.tolower() -eq "y") {
     ForEach ($Device in $ObsoleteDevices) {
         Try {
-            #Remove-MobileDevice -Identity $Device.Identity -Confirm:$false -ErrorAction Stop
+            Remove-MobileDevice -Identity $Device.Identity -Confirm:$false -ErrorAction Stop
             Write-Host ("Removed obsolete mobile device {0} for user {1}" -f $Device.'Mobile Device Id', $Device.User) -ForegroundColor Green
         } Catch {
             Write-Host ("Failed to remove mobile device {0} for user {1} - {2}" -f $Device.'Mobile Device Id', $Device.User, $_.Exception.Message) -ForegroundColor Red

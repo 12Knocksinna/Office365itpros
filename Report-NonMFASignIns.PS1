@@ -58,14 +58,14 @@ If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
     $ExcelTitle = ("Non-MFA sign-ins for period {0} to {1}" -f $StartDate, $EndDate)
     Import-Module ImportExcel -ErrorAction SilentlyContinue
-    $OutputXLSXFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\NonMFASignInsxlsx"
+    $OutputXLSXFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\NonMFASignIns.xlsx"
     If (Test-Path $OutputXLSXFile) {
         Remove-Item $OutputXLSXFile -ErrorAction SilentlyContinue
     }
     $Report | Export-Excel -Path $OutputXLSXFile -WorksheetName "Non-MFA Sign-Ins" -Title $ExcelTitle -TitleBold -TableName "NonMFASignIns" -AutoSize
 } Else {
     $OutputCSVFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\NonMFASignIns.csv"
-    $FullReport | Export-Csv -Path $OutputCSVFile -NoTypeInformation -Encoding Utf8
+    $Report | Export-Csv -Path $OutputCSVFile -NoTypeInformation -Encoding Utf8
 }
   
 If ($ExcelGenerated) {
