@@ -125,8 +125,10 @@ If ($GoAhead.tolower() -eq "y") {
             Write-Host ("Failed to remove mobile device {0} for user {1} - {2}" -f $Device.'Mobile Device Id', $Device.User, $_.Exception.Message) -ForegroundColor Red
         }
     }
+} Else {
+    Write-Host "No devices removed" -ForegroundColor Yellow
+    Write-Host "You can edit the output file containing obsolete mobile device data and make changes there before using the file as input to remove devices."
 }
-
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
