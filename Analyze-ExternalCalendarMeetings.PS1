@@ -1,0 +1,87 @@
+# Analyze-ExternalCalendarMeetings.PS1
+# Find out what external domains users who attend meetings belong to
+
+# V1.0 19-Aug-2025
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Analyze-ExternalCalendarMeetings.PS1
+
+# Define the credentials to be used to allow the SDK to access user calendars using application permissions
+$Thumbprint = '6FBD36F588E12DE291100371E16219863E399818'
+$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$AppId = 'a4cfce82-2b2f-4c87-b32f-6cb32b5fdc5b'
+
+# Permissions used
+# User.ReadBasic.All
+# Group.Read.All
+# GroupMember.Read.All
+# Calendars.Read
+# Domain.Read.All
+
+Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint
+
+# Get the domains defined for the tenant
+[array]$Domains = Get-MgDomain -All | Select-Object -ExpandProperty Id | Sort-Object
+
+[array]$Users = 'Tony.Redmond@redmondassociates.org', 'Lotte.Vetler@office365itpros.com'
+
+# Start and end dates for the reporting period
+$StartDate = (Get-Date).AddDays(-365)
+$EndDate = (Get-Date).AddDays(1)
+  
+$CalendarInfo = [System.Collections.Generic.List[Object]]::new() 
+[array]$DomainsFound = $null
+
+ForEach ($User in $Users) {
+    Write-Host "Processing calendar for $User"
+ 
+    [array]$CalendarData = Get-MgUserCalendarView -UserId $User -StartDateTime $StartDate -EndDateTime $EndDate -All -PageSize 250 
+    # Drop cancelled events and filter to get online meetings - if you want to exclude private events from the set, use Where-Object {$_.isCancelled -eq $False -and $_.sensitivity -ne "private"}
+    $CalendarData = $CalendarData | Where-Object {$_.isCancelled -eq $False -and $_.isOnlineMeeting -eq $True}
+    
+    If ($CalendarData) {
+        Write-Host ("Found {0} online meetings for {1}" -f $CalendarData.Count, $User)
+    } Else {
+        Continue
+    }   
+
+    [array]$UserDomainsFound = $null
+    # Extract attendees and find what domains they come from
+    ForEach ($CalendarEvent in $CalendarData) {
+
+        #   Check if the meeting organizer is from our tenant. If not, the event is organized elsewhere and we ignore it
+        $Organizer = $CalendarEvent.organizer.emailaddress
+        If ($Organizer.address.Split("@")[1] -notin $Domains) {
+            Continue
+        }
+        # Get the set of attendees and extract the domains for attendees not in our tenant
+        [array]$EventAttendees = $CalendarEvent.attendees.emailaddress
+        If ($EventAttendees) {
+            ForEach ($Attendee in $EventAttendees) {
+                $AttendeeDomain = $Attendee.Address.Split('@')[1]
+                If ($AttendeeDomain -notin $Domains) {
+                    $UserDomainsFound += $AttendeeDomain
+                }
+            }
+        }
+    }
+
+    $DomainsFound = $DomainsFound + $UserDomainsFound  
+
+    $ReportLine = [PSCustomObject]@{
+        User            = $User
+        MeetingCount    = $CalendarData.Count
+        ExternalDomains = $UserDomainsFound -join "; "
+    }
+    $CalendarInfo.Add($ReportLine)
+
+}
+
+[array]$UniqueDomains = $DomainsFound | Sort-Object -Unique
+
+Write-Host "Unique domains found" ($UniqueDomains -join "; ")
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# first validating the code in a non-production environment.
