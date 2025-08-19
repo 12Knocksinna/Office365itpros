@@ -9,8 +9,12 @@ $Thumbprint = '6FBD36F588E12DE291100371E16219863E399818'
 $TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $AppId = 'a4cfce82-2b2f-4c87-b32f-6cb32b5fdc5b'
 
+$GroupName = "Test Users for Graph Scripts"
+$ExoServicePlan1 = "9aaf7827-d63c-4b61-89c3-182f06f82e5c"
+$ExoServicePlan2 = "efb87545-963c-4e0d-99df-69c6916d9eb0"
+
 # Permissions used
-# User.ReadBasic.All
+# User.ReadB.All
 # Group.Read.All
 # GroupMember.Read.All
 # Calendars.Read
@@ -18,10 +22,18 @@ $AppId = 'a4cfce82-2b2f-4c87-b32f-6cb32b5fdc5b'
 
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint
 
+# See if a group exists containing the user accounts for testing. If not, find all user accounts licensed with an Exchange service plan
+Try {
+    $Group = Get-MgGroup -Filter "displayName eq '$GroupName'" -ErrorAction Stop
+    $GroupMembers = Get-MgGroupMember -Group $Group.Id
+    [array]$Users = $GroupMembers | Select-Object -ExpandProperty Id
+} Catch {
+    [array]$Users = Get-MgUser -Filter "assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan1 and capabilityStatus eq 'Enabled') or assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan2 and capabilityStatus eq 'Enabled')" `
+        -ConsistencyLevel eventual -CountVariable Test -All -PageSize 500 | Select-Object -ExpandProperty Id
+}
+
 # Get the domains defined for the tenant
 [array]$Domains = Get-MgDomain -All | Select-Object -ExpandProperty Id | Sort-Object
-
-[array]$Users = 'Tony.Redmond@redmondassociates.org', 'Lotte.Vetler@office365itpros.com'
 
 # Start and end dates for the reporting period
 $StartDate = (Get-Date).AddDays(-365)
@@ -69,7 +81,7 @@ ForEach ($User in $Users) {
     $ReportLine = [PSCustomObject]@{
         User            = $User
         MeetingCount    = $CalendarData.Count
-        ExternalDomains = $UserDomainsFound -join "; "
+        ExternalDomains = ($UserDomainsFound | Sort-Object -Unique) -join "; "
     }
     $CalendarInfo.Add($ReportLine)
 
