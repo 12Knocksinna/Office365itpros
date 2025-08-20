@@ -6,7 +6,7 @@
 
 # Define the credentials to be used to allow the SDK to access user calendars using application permissions
 $Thumbprint = '6FBD36F588E12DE291100371E16219863E399818'
-$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $AppId = 'a4cfce82-2b2f-4c87-b32f-6cb32b5fdc5b'
 
 # Permissions used
@@ -16,13 +16,15 @@ $AppId = 'a4cfce82-2b2f-4c87-b32f-6cb32b5fdc5b'
 # Calendars.Read - Read user calendars
 # Domain.Read.All - Read accepted domains defined for the tenant
 
-Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint
+Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint -NoWelcome
+Clear-Host
 
 # Define the GUID for the Teams service plan
 $TeamsServicePlanId = '57ff2da0-773e-42df-b2af-ffb7a2317929'
 # Define the name of an Entra ID group whose members are used to test the script (or run the script for a subset of users)
 $GroupName = "Test Users for Graph Scripts"
 # See if the test group exists containing the user accounts for testing. If not, find all user accounts licensed with a Teams service plan
+Write-Host "Finding user accounts to analyze..."
 Try {
     $Group = Get-MgGroup -Filter "displayName eq '$GroupName'" -ErrorAction Stop
     $GroupMembers = Get-MgGroupMember -Group $Group.Id
@@ -32,7 +34,15 @@ Try {
         -ConsistencyLevel eventual -CountVariable Test -All -PageSize 500 | Select-Object -ExpandProperty Id
 }
 
+If ($Users.Count -eq 0) {
+    Write-Host "No users found in the group or with the Teams service plan. Exiting script."
+    Break
+} Else {
+    Write-Host ("Found {0} users to analyze" -f $Users.Count)
+}
+
 # Get the domains defined for the tenant
+Write-Host ("Finding domains defined for tenant {0}" -f $TenantId)
 [array]$Domains = Get-MgDomain -All | Select-Object -ExpandProperty Id | Sort-Object
 
 # Start and end dates for the reporting period
@@ -88,8 +98,8 @@ ForEach ($User in $Users) {
 }
 
 [array]$UniqueDomains = $DomainsFound | Sort-Object -Unique
-
-Write-Host "Unique domains found" ($UniqueDomains -join "; ")
+Write-Host ""
+Write-Host "All done... Unique domains found" ($UniqueDomains -join "; ")
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
