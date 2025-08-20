@@ -6,15 +6,11 @@
 
 # Define the credentials to be used to allow the SDK to access user calendars using application permissions
 $Thumbprint = '6FBD36F588E12DE291100371E16219863E399818'
-$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $AppId = 'a4cfce82-2b2f-4c87-b32f-6cb32b5fdc5b'
 
-# Define the GUIDs for the Exchange Online service plans
-$ExoServicePlan1 = "9aaf7827-d63c-4b61-89c3-182f06f82e5c"
-$ExoServicePlan2 = "efb87545-963c-4e0d-99df-69c6916d9eb0"
-
 # Permissions used
-# User.ReadB.All - Read user account information, including licenses.
+# User.Read.All - Read user account information, including licenses.
 # Group.Read.All - Read test group info.
 # GroupMember.Read.All - Read members of the test group
 # Calendars.Read - Read user calendars
@@ -22,15 +18,17 @@ $ExoServicePlan2 = "efb87545-963c-4e0d-99df-69c6916d9eb0"
 
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint
 
+# Define the GUID for the Teams service plan
+$TeamsServicePlanId = '57ff2da0-773e-42df-b2af-ffb7a2317929'
 # Define the name of an Entra ID group whose members are used to test the script (or run the script for a subset of users)
 $GroupName = "Test Users for Graph Scripts"
-# See if the test group exists containing the user accounts for testing. If not, find all user accounts licensed with an Exchange service plan
+# See if the test group exists containing the user accounts for testing. If not, find all user accounts licensed with a Teams service plan
 Try {
     $Group = Get-MgGroup -Filter "displayName eq '$GroupName'" -ErrorAction Stop
     $GroupMembers = Get-MgGroupMember -Group $Group.Id
     [array]$Users = $GroupMembers | Select-Object -ExpandProperty Id
 } Catch {
-    [array]$Users = Get-MgUser -Filter "assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan1 and capabilityStatus eq 'Enabled') or assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan2 and capabilityStatus eq 'Enabled')" `
+    [array]$Users = Get-MgUser -Filter "assignedPlans/any(c:c/servicePlanId eq $TeamsServicePlanId and capabilityStatus eq 'Enabled')" `
         -ConsistencyLevel eventual -CountVariable Test -All -PageSize 500 | Select-Object -ExpandProperty Id
 }
 
@@ -48,7 +46,7 @@ ForEach ($User in $Users) {
     Write-Host "Processing calendar for $User"
  
     [array]$CalendarData = Get-MgUserCalendarView -UserId $User -StartDateTime $StartDate -EndDateTime $EndDate -All -PageSize 250 
-    # Drop cancelled events and filter to get online meetings - if you want to exclude private events from the set, use Where-Object {$_.isCancelled -eq $False -and $_.sensitivity -ne "private"}
+    # Drop cancelled events and filter to get online meetings - if you want to exclude private events from the set, use Where-Object {$_.sensitivity -ne "private"}
     $CalendarData = $CalendarData | Where-Object {$_.isCancelled -eq $False -and $_.isOnlineMeeting -eq $True}
     
     If ($CalendarData) {
@@ -61,7 +59,7 @@ ForEach ($User in $Users) {
     # Extract attendees and find what domains they come from
     ForEach ($CalendarEvent in $CalendarData) {
 
-        #   Check if the meeting organizer is from our tenant. If not, the event is organized elsewhere and we ignore it
+        # Check if the meeting organizer is from our tenant. If not, the event is organized elsewhere and we ignore it
         $Organizer = $CalendarEvent.organizer.emailaddress
         If ($Organizer.address.Split("@")[1] -notin $Domains) {
             Continue
