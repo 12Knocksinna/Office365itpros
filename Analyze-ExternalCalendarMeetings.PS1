@@ -6,7 +6,7 @@
 
 # Define the credentials to be used to allow the SDK to access user calendars using application permissions
 $Thumbprint = '6FBD36F588E12DE291100371E16219863E399818'
-$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $AppId = 'a4cfce82-2b2f-4c87-b32f-6cb32b5fdc5b'
 
 # Permissions used
