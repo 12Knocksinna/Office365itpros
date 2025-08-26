@@ -2,6 +2,7 @@
 # A script showing how to use the Microsoft Graph PowerShell SDK to identify users who might be suitable to 
 # receive Copilot for Microsoft 365 licenses
 # V1.0 15-Feb-2024
+# V1.1 26-Aug-2025 Use cmdlet instead of direct call for data obfuscation settings
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Find-CandidateCopilotUsers.PS1
 # See https://practical365.com/copilot-for-microsoft-365-licenses-decision/ for an article explaining how to use
 # this script.
@@ -9,16 +10,14 @@
 Connect-MgGraph -NoWelcome -Scopes Reports.Read.All, ReportSettings.ReadWrite.All, User.Read.All
 
 $TempDownloadFile = "c:\temp\x.csv"
-$ObscureFlag = $false
+$ObfuscationChanged = $false
 $CSVOutputFile = "C:\temp\CopilotUserAnalysis.CSV"
 
-$Uri = "https://graph.microsoft.com/beta/admin/reportSettings"
 # Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
-$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri $Uri
-If ($DisplaySettings['displayConcealedNames'] -eq $true) { # data is obscured, so let's reset it to allow the report to run
-   $ObscureFlag = $true
-   Write-Host "Setting tenant data concealment for reports to False" -foregroundcolor red
-   Invoke-MgGraphRequest -Method PATCH -Uri $Uri -Body (@{"displayConcealedNames"= $false} | ConvertTo-Json) 
+If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $True) {
+   $Parameters = @{ displayConcealedNames = $False }
+   Update-MgAdminReportSetting -BodyParameter $Parameters
+   $ObfuscationChanged = $true
 }
 
 # This command finds user accounts with an eligible Copilot base license. It specifies the SKU identifers for
@@ -28,7 +27,7 @@ Write-Host "Finding user accounts to check..."
 [array]$Users = Get-MgUser -Filter "assignedLicenses/any(s:s/skuId eq 6fd2c87f-b296-42f0-b197-1e91e994b900) `
     or assignedLicenses/any(s:s/skuid eq c7df2760-2c81-4ef7-b578-5b5392b571df) `
     or assignedLicenses/any(s:s/skuid eq 05e9a617-0261-4cee-bb44-138d3ef5d965) `
-    or assignedLicenses/any(s:s/skuid eq 06ebc4ee-1bb5-47dd-8120-11324bc54e06)" `
+    or assignedLicenses/any(s:s/skuid eq 3271cf8e-2be5-4a09-a549-70fd05baaa17)" `
     -ConsistencyLevel Eventual -CountVariable Licenses -All -Sort 'displayName' `
     -Property Id, displayName, signInActivity, userPrincipalName -PageSize 999
 
@@ -139,11 +138,13 @@ Write-Host ""
 $CopilotRecommendations
 
 # Switch the tenant report obscure data setting back if necessary
-If ($ObscureFlag -eq $True) {
-    Write-Host "Resetting tenant data concealment for reports to True" -foregroundcolor red
-    Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/beta/admin/reportSettings' `
-     -Body (@{"displayConcealedNames"= $true} | ConvertTo-Json) 
+If ($ObfuscationChanged) {
+    If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $False) {
+       $Parameters = @{ displayConcealedNames = $True }
+       Update-MgAdminReportSetting -BodyParameter $Parameters
+    }
 }
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
