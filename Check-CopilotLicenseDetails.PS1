@@ -3,7 +3,7 @@
 # Just like the ExRCA Copilot license check
 
 # V1.0 26-Aug-2025
-# GitHub: https://github.com/Office365ITPros/Check-CopilotLicenseDetails
+# GitHub: https://github.com/12Knocksinna/Office365itpros/blob/master/Check-CopilotLicenseDetails.PS1
 
 # Signed=in user needs permission to manage user accounts
 Connect-MgGraph -NoWelcome -Scopes User.Read.All
