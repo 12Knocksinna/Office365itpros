@@ -6,11 +6,57 @@
 
 # V1.0 27-Aug-2025
 
+Function Update-MessageAttachments {
+    [cmdletbinding()]
+    Param(
+        [array]$ListOfAttachments 
+    )
+    # Function to create an array of message attachments
+    [array]$MsgAttachments = $null
+    ForEach ($File in $ListOfAttachments) {
+        $ConvertedContent = [Convert]::ToBase64String([IO.File]::ReadAllBytes($File))
+        $FileExtension = [System.IO.Path]::GetExtension($File) 
+        Switch ($FileExtension) {
+            ".pdf" {
+                $ContentType = "application/pdf"
+            }
+            ".docx" {
+                $ContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            }
+            ".xlsx" {
+                $ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }   
+            ".pptx" {
+                $ContentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            }   
+            ".jpg" {
+                $ContentType = "image/jpeg"
+            }   
+            ".png" {
+                $ContentType = "image/png"
+            }   
+            default {
+                $ContentType = "application/octet-stream"
+            }
+        }
+        $AttachmentDetails = @{
+            "@odata.type" = "#microsoft.graph.fileAttachment"
+            Name = $File
+            ContentType = $ContentType
+            ContentBytes = $ConvertedContent
+        }
+        $MsgAttachments += $AttachmentDetails
+    }
+    Return $MsgAttachments  
+}
+
+$Interactive = $false
 
 If ([Environment]::UserInteractive) { 
     # We're running interactively...
     Write-Host "Script running interactively... connecting to the Graph" -ForegroundColor Yellow
     Connect-MgGraph -NoWelcome
+    $Interactive = $true
     [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
     If ("ExchangeOnlineManagement" -Notin $Modules) {
         Write-Host "Connecting to Exchange Online..." -ForegroundColor Yellow
@@ -179,7 +225,7 @@ function sortTable(n, type) {
 <th onclick="sortTable(0,'string')">UserPrincipalName</th>
 <th onclick="sortTable(1,'string')">Name</th>
 <th onclick="sortTable(2,'string')">LastAppSignIn</th>
-<th onclick="sortTable(3,'string')">LastAppSignInDate</th>
+<th onclick="sortTable(3,'date')">LastAppSignInDate</th>
 <th onclick="sortTable(4,'string')">AuditLogApp</th>
 <th onclick="sortTable(5,'string')">AuditLogAction</th>
 <th onclick="sortTable(6,'date')">AuditLogTimeStamp</th>
@@ -200,30 +246,94 @@ $HtmlFooter = @"
 "@
 
 #Generate the full HTML content and save it to a file
-$HTMLReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\LastAppAccessbyUsers.html"
+$CurrentFolder = (Get-Location).Path
+If ($Interactive) {
+    $HTMLReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\LastAppAccessbyUsers.html"
+} Else {
+    $HTMLReportFile = $CurrentFolder + "\LastAppAccessbyUsers.html"
+}
+
 $HTMLFile = $HtmlHeader + ($HtmlRows -join "`n") + $HtmlFooter
 $HTMLFile | Out-File -FilePath $HTMLReportFile -Encoding utf8
+
+
 
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
     Import-Module ImportExcel -ErrorAction SilentlyContinue
-    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\LastAppAccessbyUsers.xlsx"
-    If (Test-Path $ExcelOutputFile) {
-        Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+    If ($Interactive) {
+        $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\LastAppAccessbyUsers.xlsx"
+        If (Test-Path $ExcelOutputFile) {
+            Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+        } 
+    } Else {
+        # Simple file name when run in Azure Automation
+        $ExcelOutputFile = $CurrentFolder +  "\LastAppAccessbyUsers.xlsx"
     }
     $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Last App Access byUsers" -Title ("Last App Access by Users Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "LastAppAccessByUsers" 
 } Else {
-    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\LastAppAccessbyUsers.CSV"
+    If ($Interactive) {
+        $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\LastAppAccessbyUsers.CSV"
+    } Else {
+        $CSVOutputFile = $CurrentFolder + "\LastAppAccessbyUsers.CSV"
+    }
     $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
 }
  
-If ($ExcelGenerated) {
-    Write-Host ("An Excel report about the last app access by users is available in {0}" -f $ExcelOutputFile)
-} Else {
-    Write-Host ("A CSV report about the last app access by users is available in {0}" -f $CSVOutputFile)
-}
+# If we're running interactively, the script outputs details to the console and tells the user where to find the reports. If not,
+# we assume that the code is running in Azure Automation and we send an email with the reports attached.
+If ($Interactive) {
+    If ($ExcelGenerated) {
+        Write-Host ("An Excel report about the last app access by users is available in {0}" -f $ExcelOutputFile)
+    } Else {
+        Write-Host ("A CSV report about the last app access by users is available in {0}" -f $CSVOutputFile)
+    }
+    Write-Host "Data for last app access by users is also available in a HTML format at $HTMLReportFile" 
 
-Write-Host "Data for last app access by users is also available in a HTML format at $HTMLReportFile" 
+} Else {
+          
+    If ($ExcelGenerated) {
+        [array]$InputAttachments = $ExcelOutputFile, $HTMLReportFile  
+    } Else {
+        [array]$InputAttachments = $HTMLReportFile, $CSVOutputFile
+    }
+
+    [array]$MsgAttachments = Update-MessageAttachments -ListOfAttachments $InputAttachments
+    # Define who’s sending the message
+    $MsgFrom = 'Customer.Services@office365itpros.com'
+    # Build the array of a single TO recipient detailed in a hash table
+    $ToRecipient = @{}
+    $ToRecipient.Add("emailAddress",@{'address'="Ken.Bowers@office365itpros.com"})
+    [array]$MsgTo = $ToRecipient
+    # Define the message subject
+    $MsgSubject = "Important: Last Apps Accessed by Users Report"
+    # Create the HTML content
+    $HtmlMsg = "</body></html><p>The output files for the <b>Last Apps Accessed by Users Report</b> are attached to this message. Please review the information at your convenience</p>"
+    # Construct the message body 	
+    $MsgBody = @{}
+    $MsgBody.Add('Content', "$($HtmlMsg)")
+    $MsgBody.Add('ContentType','html')
+
+    # Build the parameters to submit the message
+    $Message = @{}
+    $Message.Add('subject', $MsgSubject)
+    $Message.Add('toRecipients', $MsgTo)
+    $Message.Add('body', $MsgBody)
+    $Message.Add("attachments", $MsgAttachments)
+
+    $EmailParameters = @{}
+    $EmailParameters.Add('message', $Message)
+    $EmailParameters.Add('saveToSentItems', $true)
+    $EmailParameters.Add('isDeliveryReceiptRequested', $true)
+
+    # Send the message
+    Try {
+        Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
+        Write-Output ("Last User Access to Apps reports emailed to {0}" -f $ToRecipient.emailAddress.address)
+    } Catch {
+        Write-Output "Unable to send email"
+    }
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
