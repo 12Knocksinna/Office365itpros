@@ -2,6 +2,8 @@
 # Use the Entra ID sign-in audit log and the Microsoft 365 audit log to report the last Microsoft 365 app
 # accessed by users
 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-LastAppAccessedByUsers.PS1
+
 # V1.0 27-Aug-2025
 
 
@@ -64,7 +66,7 @@ ForEach ($User in $Users) {
         $AuditLogTimeStamp = Get-Date ($AuditLogs.CreationDate) -format 'dd-MMM-yyyy HH:mm:ss'
     }
 
-    # Modify the audit app to make it more readable - Audit log record types are defined at https://learn.microsoft.com/en-us/graph/api/resources/auditlog?view=graph-rest-1.0
+    # Modify the audit app to make it more readable - Audit log record types are defined at https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema?WT.mc_id=M365-MVP-9501#auditlogrecordtype
     Switch ($AuditLogApp) {
         "Exchang*" {            
             $AuditLogApp = "Exchange Online"
@@ -112,3 +114,11 @@ ForEach ($User in $Users) {
 [datetime]$EndProcessing = Get-Date
 $TimeRequired = $EndProcessing - $StartProcessing
 Write-Host ("Time taken to process {0} users: {1}" -f $users.count, $TimeRequired.totalSeconds) -ForegroundColor Green
+
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
+# the Internet without first validating the code in a non-production environment. 

@@ -2,7 +2,8 @@
 # Find inactive distribution lists based on the message trace information, which means we can only go back ten days...
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindInactiveDLs.PS1
 
-# Updated 28-Oct-2023
+# Updated 27-Aug-2025 for the new Message trace
+
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ($Modules -notcontains "ExchangeOnlineManagement") {
     Write-Host "Connecting to Exchange Online..."
@@ -13,27 +14,48 @@ $EndDate = Get-Date
 $StartDate = $EndDate.AddDays(-10)
 $CSVFile = "c:\Temp\ListofDLs.csv"
 [array]$Messages = $Null 
+[int]$BatchSizeForMessages = 2000
+
 $Report = [System.Collections.Generic.List[Object]]::new()
-$Page = 1 
+
 Write-Host "Collecting message trace data for the last 10 days"
-Do 
-{ 
-    [array]$CurrentMessages = (Get-MessageTrace -Status Expanded -PageSize 5000 -Page $Page `
-       -StartDate $StartDate -EndDate $EndDate | Select-Object RecipientAddress, Received)
-    $Page++ 
-    $Messages += $CurrentMessages 
-} 
-Until ($Null -eq $CurrentMessages) 
+Try {
+    # The warning action is suppressed here because we don't want to see warnings when more data is available
+    [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate `
+        	-ResultSize $BatchSizeForMessages -Status "Expanded" -ErrorAction Stop -WarningAction SilentlyContinue
+    $Messages += $MessagePage
+} Catch {
+    Write-Host ("Error fetching message trace data: {0}" -f $_.Exception.Message)
+    Break
+}
+If ($MessagePage.count -eq $BatchSizeForMessages) {
+    Do {
+        Write-Host ("Fetched {0} messages so far" -f $Messages.count)
+        $LastMessageFetched = $MessagePage[-1]
+        $LastMessageFetchedDate = $LastMessageFetched.Received.ToString("O")
+        $LastMessageFetchedRecipient = $LastMessageFetched.RecipientAddress
+        # Fetch the next page of messages
+        [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $LastMessageFetchedDate `
+            -StartingRecipientAddress $LastMessageFetchedRecipient -ResultSize $BatchSizeForMessages -Status "Delivered" -ErrorAction Stop -WarningAction SilentlyContinue
+        If ($MessagePage) {
+            $Messages += $MessagePage
+        }
+    } While ($MessagePage.count -eq $BatchSizeForMessages)
+}
+
+# Remove Exchange Online public folder hierarchy synchronization messages
+$Messages = $Messages | Where-Object {$_.Subject -NotLike "*HierarchySync*"}
 
 [array]$MessageTable = ($Messages | Sort-Object RecipientAddress -Unique)
 [array]$DLs = Get-DistributionGroup -ResultSize Unlimited -RecipientTypeDetails 'MailUniversalDistributionGroup'
 Write-Host ("Processing {0} distribution lists..." -f $DLs.count)
 [int]$ActiveStatusCount = 0
 ForEach ($DL in $DLs) {
-   $LastActiveDate = $Null
-   If ($MessageTable -Match $DL.PrimarySMTPAddress) {
+   $LastActiveDate = $null
+   If ($MessageTable.recipientaddress -Match $DL.PrimarySMTPAddress) {
       $ActiveStatus = "Active"; $ActiveStatusCount++
       $LastActiveDate = $MessageTable | Where-Object {$_.RecipientAddress -eq $DL.PrimarySMTPAddress} | Select-Object -ExpandProperty Received
+      $LastActiveDate = Get-Date ($LastActiveDate) -format 'dd-MMM-yyyy HH:mm:ss'
       Write-Host ("{0} is active - message found on {1}" -f $DL.DisplayName, $LastActiveDate) -Foregroundcolor Yellow 
    } Else {
       $ActiveStatus = "Inactive"
@@ -47,7 +69,7 @@ ForEach ($DL in $DLs) {
    $Text = ("DL state checked on {0} and determined as {1}. Last message addressed on {2}" `
          -f (Get-Date -format g), $ActiveStatus, $LastActiveDate )
       # This line updates the DL with details of the assessment. Comment it out if you don't want to do this
-   Set-DistributionGroup -Identity $DL.Alias -CustomAttribute15 $Text
+   Set-DistributionGroup -Identity $DL.ExternalDirectoryObjectId -CustomAttribute15 $Text
 }
 
 $Report | Export-CSV $CSVFile -NoTypeInformation

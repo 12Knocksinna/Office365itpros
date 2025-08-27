@@ -20,7 +20,7 @@ Write-Host "Fetching message trace data to analyze"
 
 [array]$Messages = $Null
 [int]$BatchSizeForMessages = 2000
-    # original code [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate -PageSize 1000 -Page $i -Status "Delivered"
+    # original code [array]$MessagePage = Get-MessageTrace -StartDate $StartDate -EndDate $EndDate -PageSize 1000 -Page $i -Status "Delivered"
 Try {
     # The warning action is suppressed here because we don't want to see warnings when more data is available
     [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate `
@@ -46,7 +46,7 @@ If ($MessagePage.count -eq $BatchSizeForMessages) {
 }
 # Remove Exchange Online public folder hierarchy synchronization messages
 $Messages = $Messages | Where-Object {$_.Subject -NotLike "*HierarchySync*"}
-# Now, do we have any mesasages to process?
+# Now, do we have any messsages to process?
 If ($Messages.count -eq 0) {
     Write-Host "No messages found for analysis"
     Break
