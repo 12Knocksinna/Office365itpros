@@ -91,9 +91,12 @@ If ($Interactive) {
 
 # Get licensed member accounts for the tenant, excluding utility accounts
 [array]$Users = Get-MgUser -All -PageSize 500 -Filter "usertype eq 'member' and accountenabled eq true and employeeType ne 'Utility' and assignedLicenses/`$count ne 0" `
-    -Sort displayName -ConsistencyLevel Eventual -CountVariable Count -Property DisplayName, UserPrincipalName, id, employeeType, userType, accountEnabled
+    -Sort displayName -ConsistencyLevel Eventual -CountVariable Count -Property DisplayName, UserPrincipalName, id, employeeType, userType, signinactivity, accountEnabled
 
 # $Users = $Users | Where-Object {$_.DisplayName -NotMatch "admin|test|service|breakglass|break glass|monitor|audit|helpdesk|it dept|itdept|it team|itteam|exchange admin|exchangeadmin|sharepoint admin|sharepointadmin|onedrive admin|onedriveadmin|teams admin|teamsadmin"}
+
+# Switch to control whether we check Entra ID sign-in logs or just use the signinActivity property of the user object
+$CheckEntra = $true
 
 If ($Users) {
     Write-Host "Found $($Users.Count) user accounts to process."
@@ -109,67 +112,79 @@ If ($Users) {
 ForEach ($User in $Users) {
     $i++
     Write-Host ("Checking sign-in records and audit records for {0} {1}/{2}" -f $User.DisplayName, $i, $Users.Count)
-    $LastAppSignIn = $null; $LastAppSignInDate = $null; $AuditLogTimeStamp = $null
-    # Check Entra ID sign-in logs
-    $UPN = $User.UserPrincipalName.tolower()
-    [array]$Logs = Get-MgAuditLogSignIn -Filter "userPrincipalName eq '$UPN'" -Top 3
-    If ($Logs) {
-        [array]$AppNames = $Logs.AppDisplayName | Sort-Object -Unique
-        $LastAppSignIn = $AppNames -join "; "
-        $LastAppSignInDate = Get-Date ($Logs[0].CreatedDateTime) -format 'dd-MMM-yyyy HH:mm:ss'
+    $LastAppSignIn = $null; $LastAppSignInDate = $null; $AuditLogTimeStamp = $null; $AuditLogApps = $null; $UserId = $null; $AuditLogActions = $null; $AuditLogTimeStamp = $null
+    [array]$AuditLogAppsPrint = $null
+    [array]$Logs = $null; [array]$AuditLogs = $null
+    If ($CheckEntra) {
+        # Check Entra ID sign-in logs
+        $UserId = $User.Id
+        [array]$Logs = Get-MgAuditLogSignIn -Filter "UserId eq '$UserId'" -Top 3
+        If ($Logs) {
+            [array]$AppNames = $Logs.AppDisplayName | Sort-Object -Unique
+            $LastAppSignIn = $AppNames -join "; "
+            $LastAppSignInDate = Get-Date ($Logs[0].CreatedDateTime) -format 'dd-MMM-yyyy HH:mm:ss'
+        } Else {
+            $LastAppSignIn = "No Entra ID sign-in records found"
+            $LastAppSignInDate = "No sign-ins over the last 30 days"
+        }
+    } Else { # Rely on the signinActivity property of the user object
+        $LastAppSignIn = "Entra ID sign-in records not checked"
+        If ($User.signinActivity.lastSignInDateTime) {
+        $LastAppSignInDate = Get-Date ($User.signinActivity.lastSignInDateTime) -format 'dd-MMM-yyyy HH:mm:ss'
+        } Else {
+            $LastAppSignInDate = "Never signed in"
+        }
     }
     # Check Microsoft 365 audit log
-    [array]$AuditLogs = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-90) -EndDate (Get-Date) -UserIds $UPN -ResultSize 3 -Formatted  
+    [array]$AuditLogs = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-90) -EndDate (Get-Date) -UserIds $User.UserPrincipalName -ResultSize 3 -Formatted  
     If ($AuditLogs) {
         [array]$AuditLogApps = $AuditLogs.RecordType | Sort-Object -Unique
         [array]$AuditLogActions = $AuditLogs.Operations | Sort-Object -Unique
         $AuditLogTimeStamp = Get-Date ($AuditLogs[0].CreationDate) -format 'dd-MMM-yyyy HH:mm:ss'
-    }
-
-    [array]$AuditLogAppsPrint = $null
-    ForEach ($App in $AuditLogApps) {
-
-        # Modify the record type contained in the audit records to make it more understandable - Audit log record types are defined at https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema?WT.mc_id=M365-MVP-9501#auditlogrecordtype
-        Switch -Wildcard ($App) {
-            "Exchang*" {            
-                $AuditLogAppsPrint = "Exchange Online"
-            }
-            "AzureActiveDirectory*" {
-                $AuditLogAppsPrint += "Entra ID"
-            }
-            "SharePoint*" {
-                $AuditLogAppsPrint += "SharePoint Online"
-            }
-            "CopilotInteraction" {
-                $AuditLogAppsPrint += "Microsoft 365 Copilot"
+       
+        ForEach ($App in $AuditLogApps) {
+            # Modify the record type contained in the audit records to make it more understandable - Audit log record types are defined at https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema?WT.mc_id=M365-MVP-9501#auditlogrecordtype
+            Switch -Wildcard ($App) {
+                "Exchang*" {            
+                    $AuditLogAppsPrint = "Exchange Online"
+                }
+                "AzureActiveDirectory*" {
+                    $AuditLogAppsPrint += "Entra ID"
+                }
+                "SharePoint*" {
+                    $AuditLogAppsPrint += "SharePoint Online"
+                }
+                "CopilotInteraction" {
+                    $AuditLogAppsPrint += "Microsoft 365 Copilot"
+                }   
+                "MicrosoftTeams" {
+                    $AuditLogAppsPrint += "Microsoft Teams"
+                }
+                "MIP*" {
+                    $AuditLogAppsPrint += "Microsoft Information Protection"
+                }
+                "Compliance*" {
+                    $AuditLogAppsPrint += "Microsoft Purview Compliance"
+                }
+                "Planner*" {
+                    $AuditLogAppsPrint += "Microsoft Planner"
+                }
+                "Power*" {
+                    $AuditLogAppsPrint += "Microsoft Power Platform"
+                }
+                "Project*" {
+                    $AuditLogAppsPrint += "Microsoft Project"
+                }
             }   
-            "MicrosoftTeams" {
-                $AuditLogAppsPrint += "Microsoft Teams"
-            }
-            "MIP*" {
-                $AuditLogAppsPrint += "Microsoft Information Protection"
-            }
-            "Compliance*" {
-                $AuditLogAppsPrint += "Microsoft Purview Compliance"
-            }
-            "Planner*" {
-                $AuditLogAppsPrint += "Microsoft Planner"
-            }
-            "Power*" {
-                $AuditLogAppsPrint += "Microsoft Power Platform"
-            }
-            "Project*" {
-                $AuditLogAppsPrint += "Microsoft Project"
-            }
         }
     }
 
     If ($Logs.count -gt 0 -or $AuditLogs.count -gt 0) {
         $Report.Add([PSCustomObject][ordered]@{
-            UserPrincipalName       = $UPN
+            UserPrincipalName       = $User.UserPrincipalName
             Name                    = $User.DisplayName
             LastAppSignIn           = $LastAppSignIn
-            LastAppSignInDate       = $LastAppSignInDate
+            LastEntraSignInDate     = $LastAppSignInDate
             AuditLogApp             = $AuditLogAppsPrint -join ", "
             AuditLogAction          = $AuditLogActions -join ", "
             AuditLogTimeStamp       = $AuditLogTimeStamp
@@ -232,7 +247,7 @@ function sortTable(n, type) {
 <th onclick="sortTable(0,'string')">UserPrincipalName</th>
 <th onclick="sortTable(1,'string')">Name</th>
 <th onclick="sortTable(2,'string')">LastAppSignIn</th>
-<th onclick="sortTable(3,'date')">LastAppSignInDate</th>
+<th onclick="sortTable(3,'date')">LastEntraSignInDate</th>
 <th onclick="sortTable(4,'string')">AuditLogApp</th>
 <th onclick="sortTable(5,'string')">AuditLogAction</th>
 <th onclick="sortTable(6,'date')">AuditLogTimeStamp</th>
@@ -242,7 +257,7 @@ function sortTable(n, type) {
 "@
 
 $HtmlRows = foreach ($Row in $Report ) {
-    "<tr><td>$($row.UserPrincipalName)</td><td>$($row.Name)</td><td>$($row.LastAppSignIn)</td><td>$($row.LastAppSignInDate)</td><td>$($row.AuditLogApp)</td><td>$($row.AuditLogAction)</td><td>$($row.AuditLogTimeStamp)</td></tr>"
+    "<tr><td>$($row.UserPrincipalName)</td><td>$($row.Name)</td><td>$($row.LastAppSignIn)</td><td>$($row.LastEntraSignInDate)</td><td>$($row.AuditLogApp)</td><td>$($row.AuditLogAction)</td><td>$($row.AuditLogTimeStamp)</td></tr>"
 }
 
 $HtmlFooter = @"
