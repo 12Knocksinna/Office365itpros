@@ -1,6 +1,8 @@
 # Report-LastAppAccessedByUsers.PS1
 # Use the Entra ID sign-in audit log and the Microsoft 365 audit log to report the last Microsoft 365 app
-# accessed by users
+# accessed by users. The script generates a report in HTML and either CSV or Excel format. If run interactively,
+# the script outputs the location of the reports to the console. If run in Azure Automation, the script emails the reports
+# to a specified recipient.
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-LastAppAccessedByUsers.PS1
 
@@ -50,6 +52,7 @@ Function Update-MessageAttachments {
     Return $MsgAttachments  
 }
 
+# Flag to let script code know if we're running interactively or within Azure Automation
 $Interactive = $false
 
 If ([Environment]::UserInteractive) { 
@@ -68,18 +71,22 @@ If ([Environment]::UserInteractive) {
     Connect-MgGraph -Identity
     $Tenant = Get-MgOrganization
     # Connect with a managed identity
-    Connect-ExchangeOnline -Identity -Organization $Tenant.Id
+    $TenantDomain = $Tenant.VerifiedDomains | Where-Object {$_.isDefault -eq $true} | Select-Object -ExpandProperty Name
+    Connect-ExchangeOnline -ManagedIdentity -Organization $TenantDomain
+    $CurrentFolder = (Get-Location).Path
 }
 
-# Check that we have the right permissions
-[string[]]$CurrentScopes = (Get-MgContext).Scopes
-[string[]]$RequiredScopes = @('AuditLog.Read.All','User.Read.All', 'Reports.Read.All')
+# Check that we have the right permissions - in Azure Automation, we assume that the automation account has the right permissions
+If ($Interactive) {
+    [string[]]$CurrentScopes = (Get-MgContext).Scopes
+    [string[]]$RequiredScopes = @('AuditLog.Read.All','User.Read.All','Mail.Send')
 
-$CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
-If ($CheckScopes.Count -ne 3) { 
-    Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f $RequiredScopes) -ForegroundColor Red
-    Disconnect-Graph
-    Break
+    $CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
+    If ($CheckScopes.Count -ne 3) { 
+        Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f $RequiredScopes) -ForegroundColor Red
+        Disconnect-Graph
+        Break
+    }
 }
 
 # Get licensed member accounts for the tenant, excluding utility accounts
@@ -246,7 +253,6 @@ $HtmlFooter = @"
 "@
 
 #Generate the full HTML content and save it to a file
-$CurrentFolder = (Get-Location).Path
 If ($Interactive) {
     $HTMLReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\LastAppAccessbyUsers.html"
 } Else {
@@ -255,8 +261,6 @@ If ($Interactive) {
 
 $HTMLFile = $HtmlHeader + ($HtmlRows -join "`n") + $HtmlFooter
 $HTMLFile | Out-File -FilePath $HTMLReportFile -Encoding utf8
-
-
 
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
@@ -299,9 +303,9 @@ If ($Interactive) {
     }
 
     [array]$MsgAttachments = Update-MessageAttachments -ListOfAttachments $InputAttachments
-    # Define who’s sending the message
+    # Define who’s sending the message - change this to an appropriate account in your tenant
     $MsgFrom = 'Customer.Services@office365itpros.com'
-    # Build the array of a single TO recipient detailed in a hash table
+    # Build the array of a single TO recipient detailed in a hash table - change this to the appropriate recipient for your tenant
     $ToRecipient = @{}
     $ToRecipient.Add("emailAddress",@{'address'="Ken.Bowers@office365itpros.com"})
     [array]$MsgTo = $ToRecipient
