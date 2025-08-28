@@ -144,6 +144,7 @@ ForEach ($User in $Users) {
        
         ForEach ($App in $AuditLogApps) {
             # Modify the record type contained in the audit records to make it more understandable - Audit log record types are defined at https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema?WT.mc_id=M365-MVP-9501#auditlogrecordtype
+            # Not all record types are covered here, so feel free to add more as needed
             Switch -Wildcard ($App) {
                 "Exchang*" {            
                     $AuditLogAppsPrint = "Exchange Online"
@@ -195,8 +196,13 @@ ForEach ($User in $Users) {
 $TimeRequired = $EndProcessing - $StartProcessing
 $Minutes = [math]::Floor($TimeRequired.TotalSeconds / 60)
 $Seconds = [math]::Round($TimeRequired.TotalSeconds % 60, 2)
-Write-Host ("Total processing time for {0} users: {1}m {2}s" -f $users.count, $Minutes, $Seconds) -ForegroundColor Cyan
-Write-Host ("Average required per user {0} seconds" -f [math]::Round($TimeRequired.TotalSeconds / $users.count, 2))
+If ($Interactive) {
+    Write-Host ("Total processing time for {0} users: {1}m {2}s" -f $users.count, $Minutes, $Seconds) -ForegroundColor Cyan
+    Write-Host ("Average required per user {0} seconds" -f [math]::Round($TimeRequired.TotalSeconds / $users.count, 2)) -ForegroundColor Cyan
+} Else {
+    Write-Output ("Total processing time for {0} users: {1}m {2}s" -f $users.count, $Minutes, $Seconds) 
+    Write-Output ("Average required per user {0} seconds" -f [math]::Round($TimeRequired.TotalSeconds / $users.count, 2)) 
+}
 
 # Create a nice HTML report
 # Generate sortable HTML table with type-aware sorting - use number as the type for numeric values, date for dates, and string for text
