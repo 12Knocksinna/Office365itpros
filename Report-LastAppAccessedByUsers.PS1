@@ -8,6 +8,12 @@
 
 # V1.0 27-Aug-2025
 
+Param
+(
+  [Parameter (Mandatory= $true)]
+  [string]$DestinationEmailAddress
+)
+
 Function Update-MessageAttachments {
     [cmdletbinding()]
     Param(
@@ -87,6 +93,11 @@ If ($Interactive) {
         Disconnect-Graph
         Break
     }
+}
+
+# Make sure that we have a good email address to send the output message to
+ If (!($DestinationEmailAddress)) {
+        $DestinationEmailAddress = 'Ken.Bowers@office365itpros.com'
 }
 
 # Get licensed member accounts for the tenant, excluding utility accounts
@@ -328,7 +339,7 @@ If ($Interactive) {
     $MsgFrom = 'Customer.Services@office365itpros.com'
     # Build the array of a single TO recipient detailed in a hash table - change this to the appropriate recipient for your tenant
     $ToRecipient = @{}
-    $ToRecipient.Add("emailAddress",@{'address'="Ken.Bowers@office365itpros.com"})
+    $ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
     [array]$MsgTo = $ToRecipient
     # Define the message subject
     $MsgSubject = "Important: Last Apps Accessed by Users Report"
