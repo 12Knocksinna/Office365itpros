@@ -74,7 +74,7 @@ If ([Environment]::UserInteractive) {
 } Else { 
     # We're not, so likely in Azure Automation
     Write-Host "Running the script to identify the last app accessed by Users" 
-    Connect-MgGraph -Identity
+    Connect-MgGraph -Identity -NoWelcome
     $Tenant = Get-MgOrganization
     # Connect with a managed identity
     $TenantDomain = $Tenant.VerifiedDomains | Where-Object {$_.isDefault -eq $true} | Select-Object -ExpandProperty Name
