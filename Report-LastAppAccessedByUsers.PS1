@@ -95,10 +95,20 @@ If ($Interactive) {
     }
 }
 
-# Make sure that we have a good email address to send the output message to
- If (!($DestinationEmailAddress)) {
-        $DestinationEmailAddress = 'Ken.Bowers@office365itpros.com'
+# Make sure that we have a good email address to send the output message to - input the appropriate value for your tenant
+$DefaultEmailAddress = "Ken.Bowers@office365itpros.com"
+If (!($DestinationEmailAddress)) {
+    $DestinationEmailAddress = $DefaultEmailAddress
 }
+
+# Validate that the destination email address is in the correct format
+If ($DestinationEmailAddress -notmatch '^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,}$') {
+    If ($Interactive) {
+        $DestinationEmailAddress = $DefaultEmailAddress
+    }
+    Write-Host "The provided DestinationEmailAddress '$DestinationEmailAddress' is not a valid email address format. Default address used." -ForegroundColor Red
+}
+
 
 # Get licensed member accounts for the tenant, excluding utility accounts
 [array]$Users = Get-MgUser -All -PageSize 500 -Filter "usertype eq 'member' and accountenabled eq true and employeeType ne 'Utility' and assignedLicenses/`$count ne 0" `
