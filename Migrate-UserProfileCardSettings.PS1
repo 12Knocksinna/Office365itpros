@@ -3,13 +3,15 @@
 # properties with standard Entra ID properties.
 
 # V1.0 3-Sept-2025
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Migrate-UserProfileCardSettings.PS1
 
 # Use  Get-MgAdminPeopleProfileCardProperty | Format-List to see the set of custom properties defined for the Microsoft 365 profile card
 # For this example, we use
 # CustomAttribute12 = Employee Id   - Replaced by Entra ID EmployeeId
 # CustomAttribute11 = Employee Type - Replaced by EntraID EmployeeType
 # CustomAttribute15 = Cost Center   - Replaced by CostCenter
+
+# Your tenant might use different attributes...
 
 # The signed-in user must have Global Administrator or People Administrator role. The PeopleSettings.ReadWrite.All permission
 # does not support app-only mode.
@@ -39,17 +41,22 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 [int]$i = 0
 ForEach ($User in $Users) {
     $i++
-    Write-Host ("Processing user {0} of {1}: {2}" -f ++$i, $Count, $User.DisplayName) -ForegroundColor Yellow
+    Write-Host ("Processing user {0} of {1}: {2}" -f $i, $Count, $User.DisplayName) -ForegroundColor Yellow
     # Fetch the data from the on-premises extension attributes
     $CostCenter = $User.onpremisesExtensionAttributes.extensionAttribute15
     $EmployeeId = $User.onpremisesExtensionAttributes.extensionAttribute12
     $EmployeeType = $User.onpremisesExtensionAttributes.extensionAttribute11
-    $Division = 'Corporate Services'
+    $Division = $User.department
+
+    If ($null -eq $CostCenter) { $CostCenter = "Not defined" }
+    If ($null -eq $EmployeeId) { $EmployeeId = "Not defined" }
+    If ($null -eq $EmployeeType) { $EmployeeType = "Permanent" } 
+    If ($null -eq $Division) { $Division = "HQ" }
 
     $Parameters = @{
         employeeOrgData = @{
             "costCenter" = $CostCenter
-            "division" = $User.Department
+            "division" = $Division
         }
         EmployeeId = $EmployeeId
         EmployeeType = $EmployeeType
@@ -68,12 +75,12 @@ ForEach ($User in $Users) {
     } Catch {
         Write-Host ("Failed to update user {0}: {1}" -f $User.DisplayName, $_.Exception.Message) -ForegroundColor Red
     }
-
 }
+
 # Now remove the old custom attributes
 
 Write-Host "Removing old custom attributes from profile card" -ForegroundColor Green
-Remove-MgAdminPeopleProfileCardProperty -ProfileCardPropertyId CustomAttribute11
+Remove-MgAdminPeopleProfileCardProperty -ProfileCardPropertyId CustomAttribute11 
 Remove-MgAdminPeopleProfileCardProperty -ProfileCardPropertyId CustomAttribute12
 Remove-MgAdminPeopleProfileCardProperty -ProfileCardPropertyId CustomAttribute15
 
