@@ -48,8 +48,9 @@ ForEach ($User in $Users) {
     $EmployeeType = $User.onpremisesExtensionAttributes.extensionAttribute11
     $Division = $User.department
 
+    # Set some default values if values are missing in the custom attributes
     If ($null -eq $CostCenter) { $CostCenter = "Not defined" }
-    If ($null -eq $EmployeeId) { $EmployeeId = "Not defined" }
+    If ($null -eq $EmployeeId) { $EmployeeId = "000000" }
     If ($null -eq $EmployeeType) { $EmployeeType = "Permanent" } 
     If ($null -eq $Division) { $Division = "HQ" }
 
