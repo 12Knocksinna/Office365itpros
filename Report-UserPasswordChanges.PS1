@@ -6,6 +6,7 @@
 # V1.1 17-Mar-2024
 # V1.2 12-June-2024 Add check for per-user MFA state
 # V1.3 20-June-2024 Add better output for authentication methods registered for a user
+# V1.4 18-Sep-2025  Updated with SDK cmdlets
 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-UserPasswordChanges.PS1
 
@@ -84,7 +85,7 @@ function Get-AuthMethods {
 Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All, UserAuthenticationMethod.Read.All, Policy.ReadWrite.AuthenticationMethod
 
 [string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
-$Version = "1.3"
+$Version = "1.4"
 $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.CSV"
 $ReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.html"
 
@@ -109,38 +110,20 @@ If (Test-Path $UserSignInDataFile) {
 }
 
 Write-Host "Retrieving user details"
-# We use a Graph API request here instead of an SDK cmdlet because the Last successful interactive sign in data is
-# unavailable in SDK V2.19
+[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member' and accountEnabled ne false" -ConsistencyLevel eventual `
+    -CountVariable UsersFound -Property id, displayName, userprincipalname, usertype, signInActivity, SignInSessionsValidFromDateTime, LastPasswordChangeDateTime, passwordPolicies `
+    -All -PageSize 500 -Sort displayName
 
-$ContentType = "application/json"
-$Headers = @{ConsistencyLevel="Eventual"}  
-$Uri = "https://graph.microsoft.com/beta/users?`$count=true&`$filter=(assignedLicenses/`$count ne 0 and userType eq 'Member')&$`top=999&`$select=id, displayName, userprincipalname, usertype, signInActivity, SignInSessionsValidFromDateTime, LastPasswordChangeDateTime, passwordPolicies"
-[array]$Data = Invoke-MgGraphRequest -Uri $Uri -Headers $Headers -ContentType $ContentType -Method Get
-[array]$Users = $Data.Value
+Write-Host ("All available user accounts fetched ({0}) - now processing report" -f $Users.count) -ForegroundColor Yellow
 
-If (!($Users)) {
-    Write-Host "Can't find any users... exiting!" ; break
-}
+# Get MFA data
+[array]$MFAData = Get-MgReportAuthenticationMethodUserRegistrationDetail -All -PageSize 500
+$MFAData = $MFAData | Where-Object {$_.userType -eq 'Member'}
 
-# Paginate until we have all the user accounts
-$Nextlink = $Data.'@odata.nextLink'
-While ($null -ne $Nextlink) {
-    Write-Host ("Fetching more user accounts - currently at {0}" -f $Users.count)
-    [array]$Data = Invoke-MgGraphRequest -Uri $Nextlink -Headers $Headers -ContentType $ContentType -Method Get
-    $Users = $Users += $Data.Value
-    $Nextlink = $Data.'@odata.nextLink'
- }
- Write-Host ("All available user accounts fetched ({0}) - now processing report" -f $Users.count) -ForegroundColor Yellow
-
- $Users = $Users | Sort-Object displayName
- # Get MFA data
- [array]$MFAData = Get-MgBetaReportAuthenticationMethodUserRegistrationDetail -All -PageSize 999
- $MFAData = $MFAData | Where-Object {$_.userType -eq 'Member'}
-
- # Report what we've found
- $Report = [System.Collections.Generic.List[Object]]::new()
- [int]$i = 0
- ForEach ($User in $Users) {
+# Report what we've found
+$Report = [System.Collections.Generic.List[Object]]::new()
+[int]$i = 0
+ForEach ($User in $Users) {
     $i++
     Write-Host ("Processing {0} ({1}/{2})..." -f $User.displayname, $i, $Users.count)
     $DaysSinceLastSignIn = $null; $DaysSinceLastSuccessfulSignIn = $null
@@ -178,8 +161,11 @@ While ($null -ne $Nextlink) {
     }
 
     # Get per-user MFA data if possible
-    $Uri = ("https://graph.microsoft.com/beta/users/{0}/authentication/requirements" -f $User.id)
-    $Data = Invoke-MgGraphRequest -Uri $Uri -Method Get
+    Try {  
+        $Data = Get-MgBetaUserAuthenticationRequirement -UserId $User.Id -ErrorAction Stop
+    } Catch {
+        Write-Host ("Failed to retrieve MFA requirements for user {0}: {1}" -f $User.displayName, $_.Exception.Message) -ForegroundColor Red
+    }
 
     # Make sure dates are all in a common format
     If ($LastSignIn) {
@@ -193,6 +179,30 @@ While ($null -ne $Nextlink) {
     }
     If ($SessionTokensValidFrom) {
         $SessionTokensValidFromOutput = (Get-Date $SessionTokensValidFrom -format 'dd-MMM-yyyy HH:mm')
+    }
+
+    Switch ($UserMFAStatus.UserPreferredMethodForSecondaryAuthentication) {
+        "sms" {
+            $PreferredMethod = "SMS"
+        }
+       "voice" {
+            $PreferredMethod = "Voice call"
+        }
+        "mobileAppNotification" {
+            $PreferredMethod = "Authenticator app notification"
+        }
+        "mobileAppCode" {
+            $PreferredMethod = "Authenticator app code"
+        }
+        "email" {
+            $PreferredMethod = "Email"
+        }
+        "push" {
+            $PreferredMethod = "Push notification to device"
+        }
+        Default {
+            $PreferredMethod = $UserMFAStatus.UserPreferredMethodForSecondaryAuthentication
+        }
     }
 
     If ($MFADataAvailable) {
@@ -220,8 +230,7 @@ While ($null -ne $Nextlink) {
             'MFA capable'                      = $UserMFAStatus.IsMfaCapable
             'MFA registered'                   = $UserMFAStatus.IsMfaRegistered
             'MFA last used'                    = $MFAVerifiedDate
-            'MFA default method'               = $UserMFAStatus.DefaultMfaMethod
-            'Secondary auth. method'           = $UserMFAStatus.UserPreferredMethodForSecondaryAuthentication
+            'Preferred MFA method'             = $PreferredMethod
             'Per user MFA state'               = $Data.perUserMfaState
         }
     } Else {
@@ -242,14 +251,13 @@ While ($null -ne $Nextlink) {
             'Admin flag'                       = $UserMFAStatus.isAdmin
             'MFA capable'                      = $UserMFAStatus.IsMfaCapable
             'MFA registered'                   = $UserMFAStatus.IsMfaRegistered
-            'MFA default method'               = $UserMFAStatus.DefaultMfaMethod
-            'Secondary auth. method'           = $UserMFAStatus.UserPreferredMethodForSecondaryAuthentication
+            'Preferred MFA method'             = $PreferredMethod
             'Per user MFA state'               = $Data.perUserMfaState
         }
     }
     # Output report line
     $Report.Add($DataLine)
- }
+}
  
 # Now to generate a HTML report
 Write-Host "Generating HTML report..."
@@ -281,7 +289,7 @@ $HTMLHead="<html>
 # First, convert the CA Policies report to HTML and then import it into an XML structure
 
 $HTMLTable = $Report | Select-Object User, UPN, 'Last password change', 'Days since password change', 'Last successful sign in', 'Days since sign in', 'Password policies applied', `
-    'Authentication methods', 'Admin flag', 'MFA capable', 'MFA registered', 'MFA last used', 'MFA default method', 'Secondary auth. method', 'Per user MFA state' | ConvertTo-Html -Fragment
+    'Authentication methods', 'Admin flag', 'MFA capable', 'MFA registered', 'MFA last used', 'Preferred MFA method', 'Per user MFA state' | ConvertTo-Html -Fragment
 [xml]$XML = $HTMLTable
 # Create an attribute class to use, name it, and append to the XML table attributes
 $TableClass = $XML.CreateAttribute("class")
@@ -305,8 +313,8 @@ ForEach ($TableRow in $XML.table.SelectNodes("tr")) {
         $TableRow.SelectNodes("td")[10].SetAttribute("class","mfaregistered")
     }
     # Per-user MFA status
-    If (($TableRow.td) -and ([string]$TableRow.td[14] -in $PerUserMFAStates)) {
-        $TableRow.SelectNodes("td")[14].SetAttribute("class","mfaperuserenabled")
+    If (($TableRow.td) -and ([string]$TableRow.td[13] -in $PerUserMFAStates)) {
+        $TableRow.SelectNodes("td")[13].SetAttribute("class","mfaperuserenabled")
     }
 }
 # Wrap the output table with a div tag
