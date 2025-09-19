@@ -280,7 +280,7 @@ $HTMLHead="<html>
 	   </style>
 	   <body>
            <div align=center>
-           <p><h1>User Passwords and Authentication Report</h1></p>
+           <p><h1>User Password and Authentication Report</h1></p>
            <p><h2><b>For the " + $Orgname + " tenant</b></h2></p>
            <p><h3>Generated: " + $RunDate + "</h3></p></div>"
 
