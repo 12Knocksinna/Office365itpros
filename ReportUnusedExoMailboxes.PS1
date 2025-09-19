@@ -2,16 +2,24 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportUnusedExoMailboxes.PS1
 # Find and report unused Exchange Online mailboxes
 # Needs to connect to Exchange Online and the Microsoft Graph PowerShell SDK
-# Updated for Graph SDK V2
-
-$ModulesLoaded = Get-Module | Select-Object Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+# V1.1 Updated for Graph SDK V2
+# V1.2 19-Sep-2025 Make sure that the Graph connection happens before Exchange Online to ensure that a mismatch doesn't happen with
+# the MSAL assemblies. Also removed the post tom Teams channel via a webhook and replaced it with an email to a specified address. The email
+# could be sent to a Teams channel, if you add the email address of the channel
 
 # Connect to the Microsoft Graph PowerShell SDK so that we can read sign in data
 Connect-MgGraph -Scopes User.Read.All, AuditLog.Read.All -NoWelcome
 
+# Check for Exchange Online
+$ModulesLoaded = Get-Module | Select-Object Name
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {
+  Write-Host "Loading Exchange Online PowerShell module" -ForegroundColor Yellow
+  Connect-ExchangeOnline -ShowBanner:$False
+}
+
 # Find mailboxes and check if they are unused
-$Now = Get-Date -format s; [int]$i = 0
+$Now = Get-Date -format s
+[int]$i = 0
 Write-Host "Looking for User Mailboxes..."
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox -ResultSize Unlimited | `
     Select-Object DisplayName, DistinguishedName, UserPrincipalName, ExternalDirectoryObjectId | Sort-Object DisplayName
@@ -32,7 +40,7 @@ Write-Host "Looking for User Mailboxes..."
     $LastActive = ($xml.Properties.MailboxTable.Property | Where-Object {$_.Name -eq "LastUserActionWorkloadAggregateTime"}).Value 
     
     # This massaging of dates is to accommodate the different U.S. date format returned by Export-MailboxDiagnosticsData
-    [datetime]$LastActiveDateTime | Out-Null
+    [datetime]$LastActiveDateTime = Get-Date
     If ([string]::IsNullOrEmpty($LastActive)) {
         $DaysSinceActive = "N/A"
     }
@@ -48,8 +56,8 @@ Write-Host "Looking for User Mailboxes..."
     # Get Mailbox statistics
     $Stats = (Get-ExoMailboxStatistics -Identity $M.DistinguishedName)
     $MbxSize = ($Stats.TotalItemSize.Value.ToString()).Split("(")[0] 
-    # Get last Sign in from Azure AD sign in logs
-    $LastUserSignIn = $Null
+    # Get last Sign in from Entra ID sign in logs
+    $LastUserSignIn = $null
     $LastUserSignIn = (Get-MgAuditLogSignIn -Filter "UserId eq '$($M.ExternalDirectoryObjectId)'" -Top 1).CreatedDateTime
     If ($LastUserSignIn) {
        $LastUserSignInDate = Get-Date($LastUserSignIn) -format g 
@@ -78,49 +86,39 @@ $Report | Sort-Object DaysSinceActive -Descending | Out-GridView
 
 # Extract the mailboxes that are inactive for more than 60 days but only take 25 because that's how much we can post in Teams
 [array]$UnusedMailboxes = $Report | Where-Object {$_.DaysSinceActive -ge 60 } | Sort-Object DaysSinceActive -Descending | Select-Object -First 25
-If ($UnusedMailboxes.Count -eq 0) { Write-Host "No unused mailboxes found!" ; break }
+If ($UnusedMailboxes.Count -eq 0) { 
+  Write-Host "No unused mailboxes found!" ; break 
+}
 
-# Critical - make sure that you change this line to point to the webhook URI for the Teams channel you want to use
-$WebHookUri = "https://office365itpros.webhook.office.com/webhookb2/672b3d70-31db-4c8c-b2d9-6b0892cd5b5b@b662313f-14fc-43a2-9a7a-d2e27f4f3478/IncomingWebhook/d5e79ee65089445c8d0b28ba3a15b123/eff4cd58-1bb8-4899-94de-795f656b4a18"
+# The original script posted to a Teams channel. Changed in this version to email to an address
+$MsgFrom = (Get-MgContext).Account
+$MsgSubject = "Report of possibly unused Exchange Online mailboxes"
+$ToRecipient = @{}
+# Update the target email address here
+$ToRecipient.Add("emailAddress",@{'address'="Help.Desk@office365itpros.com"})
+[array]$MsgTo = $ToRecipient
+$HtmlMsg = $UnusedMailboxes | Select-Object Mailbox, DaysSinceActive, LastEmail, LastActive, LastLogonExo, LastLogonAD | ConvertTo-Html -Fragment
+# Construct the message body 	
+$MsgBody = @{}
+$MsgBody.Add('Content', "$($HtmlMsg)")
+$MsgBody.Add('ContentType','html')
 
-$InactiveTable = [System.Collections.Generic.List[Object]]::new() 
-$UserImage = "https://i0.wp.com/office365itpros.com/wp-content/uploads/2022/04/pexels-photo-5605061.jpeg?ssl=1&resize=438%2C438"
-ForEach ($R in $UnusedMailboxes) {
-     $UserData = @{
-     ActivityTitle = "$($R.Mailbox)"
-     ActivitySubTitle = "-----------------------------------------------"
-     ActivityText = "$($R.Mailbox)'s last email activity was on $($R.LastEmail)"
-     ActivityImage = $UserImage
-     Facts = @(
-        @{    
-      name  = 'Mailbox:'
-      value = $R.Mailbox     },
-    @{
-      name  = 'Days since last active:'
-      value = $R.DaysSinceActive   },
-    @{
-      name  = 'Last Email activity:'
-      value = $R.LastEmail     },
-    @{
-      name  = 'Days since last activity:'
-      value = $R.LastActive  },
-    @{
-      name  = 'Last logon:'
-      value = $R.LastLogon    } )
-    }
-   $InactiveTable.Add($UserData)
-  # Write-Host $R.Mailbox $R.LastEmail $DaysSince 
-} # End ForEach 
+# Build the parameters to submit the message
+$Message = @{}
+$Message.Add('subject', $MsgSubject)
+$Message.Add('toRecipients', $MsgTo)
+$Message.Add('body', $MsgBody)
+$EmailParameters = @{}
+$EmailParameters.Add('message', $Message)
+$EmailParameters.Add('saveToSentItems', $true)
+$EmailParameters.Add('isDeliveryReceiptRequested', $true)
 
-$Body = ConvertTo-Json -Depth 8 @{
-    Title = "Possibly Inactive Exchange Online Mailboxes"
-    Text  = "Here are the top $($InactiveTable.Count) mailboxes with no detected email activity"
-    Sections = $InactiveTable }
-# Post to the channel
-Write-Host "Posting unused mailbox information to Teams" -ForegroundColor Yellow
-$Status = Invoke-RestMethod -uri $WebHookUri -Method Post -body $body -ContentType 'application/json' 
-If ($Status) {
-  Write-Host "Message posted to channel successfully"
+# Send the message
+Try {
+  Write-Host "Sending email to $($MsgTo.emailAddress.address)" -ForegroundColor Yellow
+  Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters
+} Catch {
+  Write-Host "Failed to send email to $($MsgTo.emailAddress.address)" -ForegroundColor Red
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
