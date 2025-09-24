@@ -3,6 +3,9 @@
 $DataFolder = "c:\temp\MtData\"
 $CSVFile = "c:\temp\HistoricalMessageTrace.CSV"
 
+# Get accepted domains
+[array]$Domains = Get-AcceptedDomain | Select-Object -ExpandProperty DomainName
+
 [array]$DataFiles = Get-ChildItem -Path $DataFolder | Select-Object -ExpandProperty Name
 
 If (!($DataFiles)) {
@@ -31,6 +34,11 @@ ForEach ($File in $DataFiles) {
                     $RecipientInfo.Add($RecipientLine)
                 }    
                 $SenderDomain  = $Line.Sender_address.Split("@")[1]
+                If ($SenderDomain -in $Domains) {
+                    $Direction = "Originating" 
+                } Else {
+                    $Direction = "Incoming"
+                }
                 $ReportLine = [PSCustomObject]@{ 
                       Timestamp        = $Line.origin_timestamp_utc
                       Sender           = $Line.sender_address
@@ -42,7 +50,7 @@ ForEach ($File in $DataFiles) {
                       Message_id       = $Line.message_id
                       Sender_Domain    = $SenderDomain
                       Client_IP        = $Line.original_client_ip
-                      Direction        = $Line.directionality
+                      Direction        = $Direction
                 }
                 $Report.Add($ReportLine) 
             }
