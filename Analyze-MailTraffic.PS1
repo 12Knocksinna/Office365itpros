@@ -8,7 +8,7 @@
 
 # Check if we can run an Exchange Online cmdlet. If we can, go on, else connect to Exchange Online
 If ($Null -eq (Get-ConnectionInformation)) {
-    Connect-ExchangeOnline
+    Connect-ExchangeOnline -ShowBanner:$False -ErrorAction Stop
 }
 
 # Message trace date is kept for a maximum of 10 days
