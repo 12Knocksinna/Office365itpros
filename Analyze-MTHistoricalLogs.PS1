@@ -3,7 +3,7 @@
 # downloaded from the EAC and stored in a folder. The processed data is exported to a CSV file and displayed in a grid view.
 
 # V1.1          24 September 2025
-# GitHub Link:
+# GitHub Link:  https://github.com/12Knocksinna/Office365itpros/blob/master/Analyze-MTHistoricalLogs.PS1
 # Article link: https://practical365.com/inbound-email-traffic-report-90-days/
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
@@ -71,8 +71,7 @@ ForEach ($File in $DataFiles) {
                         Direction        = $Direction
                     }
                       $Report.Add($ReportLine) 
-                    }
-                  
+                }  
             }
         }
 }
