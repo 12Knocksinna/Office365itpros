@@ -1,5 +1,12 @@
 # Analyze-MTHistoricalLogs.PS1
 # Folder where the historical message tracking logs downloaded from Exchange Online are stored
+
+[array]$Modules = Get-Module | Select-Object -ExpandProperty Name
+If (!($Modules -contains "ExchangeOnlineManagement")) {
+    Write-Host "Loading ExchangeOnlineManagement module"
+    Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop
+}
+
 $DataFolder = "c:\temp\MtData\"
 $CSVFile = "c:\temp\HistoricalMessageTrace.CSV"
 
