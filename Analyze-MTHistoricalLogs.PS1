@@ -1,5 +1,10 @@
 # Analyze-MTHistoricalLogs.PS1
-# Folder where the historical message tracking logs downloaded from Exchange Online are stored
+# A script to analyze the historical message tracking logs downloaded from Exchange Online. As input, the script uses all the CSV files
+# downloaded from the EAC and stored in a folder. The processed data is exported to a CSV file and displayed in a grid view.
+
+# V1.1          24 September 2025
+# GitHub Link:
+# Article link: https://practical365.com/inbound-email-traffic-report-90-days/
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If (!($Modules -contains "ExchangeOnlineManagement")) {
@@ -7,6 +12,7 @@ If (!($Modules -contains "ExchangeOnlineManagement")) {
     Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop
 }
 
+# Folder where the historical message tracking logs downloaded from Exchange Online are stored
 $DataFolder = "c:\temp\MtData\"
 $CSVFile = "c:\temp\HistoricalMessageTrace.CSV"
 
@@ -22,12 +28,13 @@ If (!($DataFiles)) {
 
 Write-Host ("Preparing to process {0} historical message trace data files..." -f $DataFiles.count)
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
+[array]$BadOutcomes = "Receive, Fail", "Receive, Deliver, Quarantined", "Receive, Deliver, FilteredAsSpam"
 
 ForEach ($File in $DataFiles) {
     $MtDataFile = $DataFolder + $File
     [array]$MtData = Import-CSV -Path $MtDataFile -Encoding unicode
         ForEach ($Line in $MtData) {
-            If (!([string]::IsNullOrEmpty($Line.origin_timestamp_utc))) {
+            If (!([string]::IsNullOrEmpty($Line.origin_timestamp_utc))){
                 [array]$RecipientStatus = $Line.Recipient_Status.split(";")
                 # array of individual recipients for a message
                 $RecipientInfo = [System.Collections.Generic.List[Object]]::new()
@@ -46,25 +53,32 @@ ForEach ($File in $DataFiles) {
                 } Else {
                     $Direction = "Incoming"
                 }
-                $ReportLine = [PSCustomObject]@{ 
-                      Timestamp        = $Line.origin_timestamp_utc
-                      Sender           = $Line.sender_address
-                      Subject          = $Line.message_subject
-                      Recipient        = $Line.Recipient_Status
-                      RecipientInfo    = $RecipientInfo
-                      Outcome          = $RecipientOutcome 
-                      Bytes            = $Line.total_bytes
-                      Message_id       = $Line.message_id
-                      Sender_Domain    = $SenderDomain
-                      Client_IP        = $Line.original_client_ip
-                      Direction        = $Direction
-                }
-                $Report.Add($ReportLine) 
+                # Only report on messages with a good outcome
+                If (!($RecipientOutcome -in $BadOutcomes)) {
+                    $ReportLine = [PSCustomObject]@{ 
+                        Timestamp        = $Line.origin_timestamp_utc
+                        Sender           = $Line.sender_address
+                        Subject          = $Line.message_subject
+                        Recipient        = $RecipientInfo.Recipient
+                        RecipientDomain  = $RecipientInfo.Recipient.Split("@")[1]
+                        RecipientStatus  = $Line.Recipient_Status
+                        RecipientInfo    = $RecipientInfo
+                        Outcome          = $RecipientOutcome 
+                        Bytes            = $Line.total_bytes
+                        Message_id       = $Line.message_id
+                        Sender_Domain    = $SenderDomain
+                        Client_IP        = $Line.original_client_ip
+                        Direction        = $Direction
+                    }
+                      $Report.Add($ReportLine) 
+                    }
+                  
             }
         }
 }
 
-$Report | Sort-Object TimeStamp | Select-Object Timestamp, Sender, Subject, Recipient | Out-GridView
+$Report = $Report | Sort-Object Sender, @{Expression = { $_.Timestamp -as [datetime] }; Descending = $true}
+$Report | Select-Object Timestamp, Sender, Subject, Recipient | Out-GridView
 $Report | Export-CSV -NoTypeInformation $CSVFile
 
 # Split into outbound and inbound files (when we have data files containing both types of data)
@@ -73,6 +87,11 @@ $InboundEmail = $Report | Where-Object {$_.Direction -eq 'Incoming'} | Sort-Obje
 
 Write-Host ("{0} records found for inbound email" -f $InboundEmail.count)
 Write-Host ("{0} records found for outbound email" -f $OutboundEmail.count)
+
+# Create an array of the latest messages sent or received by each email address in the tenant
+[array]$SenderAddresses = $Report | Where-Object {$_.Sender_domain -in $Domains} | Sort-Object {$_.Timestamp -as [datetime]} -Descending | Group-Object Sender |  ForEach-Object { $_.Group | Select-Object -First 1 }
+[array]$RecipientAddresses = $Report | Where-Object {$_.RecipientDomain -in $Domains} | Sort-Object {$_.Timestamp -as [datetime]} -Descending | Group-Object Recipient |  ForEach-Object { $_.Group | Select-Object -First 1 }
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
