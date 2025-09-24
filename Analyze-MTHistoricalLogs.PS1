@@ -87,11 +87,6 @@ $InboundEmail = $Report | Where-Object {$_.Direction -eq 'Incoming'} | Sort-Obje
 Write-Host ("{0} records found for inbound email" -f $InboundEmail.count)
 Write-Host ("{0} records found for outbound email" -f $OutboundEmail.count)
 
-# Create an array of the latest messages sent or received by each email address in the tenant
-[array]$SenderAddresses = $Report | Where-Object {$_.Sender_domain -in $Domains} | Sort-Object {$_.Timestamp -as [datetime]} -Descending | Group-Object Sender |  ForEach-Object { $_.Group | Select-Object -First 1 }
-[array]$RecipientAddresses = $Report | Where-Object {$_.RecipientDomain -in $Domains} | Sort-Object {$_.Timestamp -as [datetime]} -Descending | Group-Object Recipient |  ForEach-Object { $_.Group | Select-Object -First 1 }
-
-
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
