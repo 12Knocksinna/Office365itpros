@@ -5,24 +5,21 @@
 # have not been used to send or receive email in the last 10 days. The script uses historical message trace data downloaded from Exchange Online.
 # 
 # V1.0         24 September 2025
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-UnusedProxyAddresses-90days.PS1
 
 # The first part of this script is code taken from Analyze-MTHistoricalLogs.PS1 to read the historical message trace data downloaded from Exchange Online.
 # The second part determines which proxy addresses assigned to user and shared mailboxes have not been used to send or receive email in the last 90 days.
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If (!($Modules -contains "ExchangeOnlineManagement")) {
-    Write-Host "Loading ExchangeOnlineManagement module"
+    Write-Host "Connecting to Exchange Online..."
     Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop
+    # Get accepted domains
+    [array]$Domains = Get-AcceptedDomain | Select-Object -ExpandProperty DomainName
 }
 
-# Folder where the historical message tracking logs downloaded from Exchange Online are stored
+# Folder where the historical message tracking logs downloaded from Exchange Online are stored. Change this to the folder you use.
 $DataFolder = "c:\temp\MtData\"
-$CSVFile = "c:\temp\HistoricalMessageTrace.CSV"
-
-# Get accepted domains
-[array]$Domains = Get-AcceptedDomain | Select-Object -ExpandProperty DomainName
-
 # Find the set of downloaded historical message trace data files to process
 [array]$DataFiles = Get-ChildItem -Path $DataFolder | Select-Object -ExpandProperty Name
 
@@ -33,8 +30,11 @@ If (!($DataFiles)) {
 
 Write-Host ("Preparing to process {0} historical message trace data files..." -f $DataFiles.count)
 $Report = [System.Collections.Generic.List[Object]]::new() # Create output file for report
+# Define a set of bad outcomes from message trace data entries that we don't need to report on. These include
+# messages intercepted as spam, quarantined messages, and failed messages.
 [array]$BadOutcomes = "Receive, Fail", "Receive, Deliver, Quarantined", "Receive, Deliver, FilteredAsSpam"
 
+Write-Host "Analyzing historical message trace data..."
 ForEach ($File in $DataFiles) {
     $MtDataFile = $DataFolder + $File
     [array]$MtData = Import-CSV -Path $MtDataFile -Encoding unicode
@@ -82,7 +82,6 @@ ForEach ($File in $DataFiles) {
 }
 
 $Report = $Report | Sort-Object Sender, @{Expression = { $_.Timestamp -as [datetime] }; Descending = $true}
-$Report | Select-Object Timestamp, Sender, Subject, Recipient | Out-GridView
 
 # Create an array of the latest messages sent or received by each email address in the tenant
 [array]$SenderAddresses = $Report | Where-Object {$_.Sender_domain -in $Domains} | Sort-Object {$_.Timestamp -as [datetime]} -Descending | Group-Object Sender |  ForEach-Object { $_.Group | Select-Object -First 1 }
@@ -91,6 +90,7 @@ $Report | Select-Object Timestamp, Sender, Subject, Recipient | Out-GridView
 Write-Host ("{0} unique sender addresses found in the last 90 days" -f $SenderAddresses.count)
 Write-Host ("{0} unique recipient addresses found in the last 90 days" -f $RecipientAddresses.count)
 Write-Host "Now checking for unused proxy addresses assigned to mailboxes..."
+[array]$Mailboxes = Get-ExoMailbox -ResultSize Unlimited -Properties EmailAddresses -RecipientTypeDetails UserMailbox, SharedMailbox | Sort-Object DisplayName
 
 $UnusedProxyReport = [System.Collections.Generic.List[Object]]::new() 
 ForEach ($Mbx in $Mailboxes) {

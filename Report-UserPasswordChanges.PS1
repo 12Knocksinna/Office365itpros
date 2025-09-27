@@ -126,7 +126,6 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
     $i++
     Write-Host ("Processing {0} ({1}/{2})..." -f $User.displayname, $i, $Users.count)
-    $DaysSinceLastSignIn = $null; $DaysSinceLastSuccessfulSignIn = $null
     $DaysSincePasswordChange = $null; $PasswordPoliciesOutput = $null
     $DaysSinceLastSignIn = "N/A"; $DaysSinceLastSuccessfulSignIn = "N/A"
     
