@@ -1,8 +1,11 @@
 # Remove-InactiveUserAccounts.PS1
-# An Azure Automation runbbook to remove inactive user accounts from Entra ID
+# An Azure Automation runbbook to remove inactive user accounts from Entra ID. The idea is that we find accounts that havebn't signed in for more than
+# a threshold period expressed in days (90 days by default). The accounts are disabled and marked with an extension attribute to identify them as inactive.
+# The disabled accounts are then deleted the next time the script runs if they remain disabled. The script generates a report of the accounts it disables
+# and emails the report to a specified address.
 # 
 # V1.0 27-Sep0-2025
-# Github Link:
+# Github Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-InactiveUserAccounts.PS1
 
 
 # Define theidentifier for the group holding details of accounts we want to review for inactivity. This could be a dynamic group.
