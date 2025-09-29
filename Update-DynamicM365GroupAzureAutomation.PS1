@@ -5,6 +5,7 @@
 
 # V1.0 22-Jul-2025
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Update-DynamicM365GroupAzureAutomation.PS1
+# Article link: https://practical365.com/diy-dynamic-microsoft-365-group/
 
 If ([Environment]::UserInteractive) { 
     # We're running interactively...
@@ -54,7 +55,7 @@ While ($Data.count -ne 0) {
 Write-Output "Removing users who are no longer managers from the group"
 ForEach ($Id in $MembersToRemove) {
     Try {
-        Remove-MgGroupMember -GroupId $TargetGroup.Id -DirectoryObjectId $Id -ErrorAction Stop
+        Remove-MgGroupMemberByRef -GroupId $TargetGroup.Id -DirectoryObjectId $Id -ErrorAction Stop
         Write-Host "Removed user with ID $Id from group $($TargetGroup.DisplayName)"
     } Catch {
         Write-Error "Failed to remove user with ID $Id from group: $_"
