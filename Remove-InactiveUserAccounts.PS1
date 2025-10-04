@@ -4,7 +4,7 @@
 # The disabled accounts are then deleted the next time the script runs if they remain disabled. The script generates a report of the accounts it disables
 # and emails the report to a specified address.
 # 
-# V1.0 27-Sep0-2025
+# V1.0 27-Sep-2025
 # Github Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-InactiveUserAccounts.PS1
 
 
