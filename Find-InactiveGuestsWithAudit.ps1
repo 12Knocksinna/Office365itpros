@@ -44,6 +44,9 @@ If ($Interactive) {
     }
 }
 
+# Change this to the email address of the recipient of the report
+$DestinationEmailAddress = "customer.services@office365itpros.com"
+
 # Find information about sharing events so that we know  when someone has been invited to the tenant
 $ShareDateStart = (Get-Date).AddDays(-365)
 $EndDate = (Get-Date).AddDays(1)
@@ -323,9 +326,11 @@ If (Get-Module ImportExcel -ListAvailable) {
         Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
     } 
     $InactiveGuests | Export-Excel -Path $ExcelOutputFile -WorksheetName "Inactive Guests" -Title ("Inactive Guests Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveGuests" 
+    $AttachmentFile = $ExcelOutputFile
 } Else {
     $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveGuests.CSV"
     $InactiveGuests | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+    $AttachmentFile = $CSVOutputFile
 }
 
 If ($ExcelGenerated) {
@@ -334,6 +339,58 @@ If ($ExcelGenerated) {
     Write-Host ("CSV output file written to {0}" -f $CSVOutputFile)
 }   
 
+# Encount the output file to an email
+$EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
+# Encode the HTML report too
+$EncodedHTMLReportFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($HTMLReportFile))
+
+$MsgAttachments = @(
+    @{
+        '@odata.type' = '#microsoft.graph.fileAttachment'
+        Name = (Split-Path $AttachmentFile -Leaf)
+        ContentBytes = $EncodedAttachmentFile
+        ContentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    },
+    @{
+        '@odata.type' = '#microsoft.graph.fileAttachment'
+        Name = (Split-Path $HTMLReportFile -Leaf)
+        ContentBytes = $EncodedHTMLReportFile
+        ContentType = 'text/html'
+    }
+)
+
+# Build the array of a single TO recipient detailed in a hash table - change this to the appropriate recipient for your tenant
+$ToRecipient = @{}
+$ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
+[array]$MsgTo = $ToRecipient
+# Define the message subject
+$MsgSubject = "Important: Inactive Guests Report"
+# Create the HTML content
+$HtmlMsg = "</body></html><p>The output files for the <b>Inactive Guests Report</b> are attached to this message. Please review the information at your convenience</p>"
+# Construct the message body 	
+$MsgBody = @{}
+$MsgBody.Add('Content', "$($HtmlMsg)")
+$MsgBody.Add('ContentType','html')
+# Build the parameters to submit the message
+$Message = @{}
+$Message.Add('subject', $MsgSubject)
+$Message.Add('toRecipients', $MsgTo)
+$Message.Add('body', $MsgBody)
+$Message.Add("attachments", $MsgAttachments)
+
+$EmailParameters = @{}
+$EmailParameters.Add('message', $Message)
+$EmailParameters.Add('saveToSentItems', $true)
+$EmailParameters.Add('isDeliveryReceiptRequested', $true)
+
+# Send the message
+Try {
+    Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
+    Write-Output ("Inactive guest account report emailed to {0}" -f $ToRecipient.emailAddress.address)
+} Catch {
+    Write-Output "Unable to send email"
+    Write-Output $_.Exception.Message
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
