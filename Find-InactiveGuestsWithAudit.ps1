@@ -2,10 +2,47 @@
 # A script to find inactive Entra ID guests and report what they've been doing
 
 # V1.0 5-Oct-2025
-# GitHub Link: 
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-InactiveGuestsWithAudit.ps1
 
-Connect-MgGraph -Scopes "User.Read.All","AuditLog.Read.All" -NoWelcome
-Connect-ExchangeOnline -ShowBanner:$false
+# Flag to let script code know if we're running interactively or within Azure Automation
+$Interactive = $false
+
+# Determine if we're interactive or not
+If ([Environment]::UserInteractive) { 
+    # We're running interactively...
+    Write-Host "Script running interactively... connecting to the Graph" -ForegroundColor Yellow
+    Connect-MgGraph -NoWelcome -Scopes User.Read.All, AuditLog.Read.All, Mail.Send
+    $Interactive = $true
+    [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
+    If ("ExchangeOnlineManagement" -Notin $Modules) {
+        Write-Host "Connecting to Exchange Online..." -ForegroundColor Yellow
+        Connect-ExchangeOnline -ShowBanner:$false 
+    }
+    $MsgFrom = (Get-MgContext).Account
+} Else { 
+    # We're not, so likely in Azure Automation
+    Write-Host "Running the script to identify the last app accessed by Users" 
+    Connect-MgGraph -Identity -NoWelcome
+    $Tenant = Get-MgOrganization
+    # Connect with a managed identity
+    $TenantDomain = $Tenant.VerifiedDomains | Where-Object {$_.isDefault -eq $true} | Select-Object -ExpandProperty Name
+    Connect-ExchangeOnline -ManagedIdentity -Organization $TenantDomain
+    $CurrentFolder = (Get-Location).Path
+    $MsgFrom = "no-reply@office365itpros.com"
+}
+
+# Check that we have the right permissions - in Azure Automation, we assume that the automation account has the right permissions
+If ($Interactive) {
+    [string[]]$CurrentScopes = (Get-MgContext).Scopes
+    [string[]]$RequiredScopes = @('AuditLog.Read.All','User.Read.All','Mail.Send')
+
+    $CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
+    If ($CheckScopes.Count -ne 3) { 
+        Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f $RequiredScopes) -ForegroundColor Red
+        Disconnect-Graph
+        Break
+    }
+}
 
 # Find information about sharing events so that we know  when someone has been invited to the tenant
 $ShareDateStart = (Get-Date).AddDays(-365)
@@ -71,18 +108,20 @@ ForEach ($Record in $InvitationData) {
 $SharingData  = $SharingData | Sort-Object {$_.TimeStamp -as [datetime]} -Descending
 
 $StartDate = (Get-Date).AddDays(-30)
+[datetime]$StartProcessing = Get-Date
 
 # Define the audit records used to figure out what guests have been doing
 [array]$Operations = "FileAccessed","FileModified","FileUploaded","FileDeleted","FileDownloaded","MessageSent", "ReactedToMessage", "MessageRead", "MessageDeleted"
 
 # Find all guests - a complex query is used to sort the retrieved results
+Write-Output "Retrieving guest accounts..."
 [array]$Guests = Get-MgUser -Filter "usertype eq 'Guest'" -PageSize 500 -All  `
     -Property DisplayName,UserPrincipalName,SignInActivity,Mail,Sponsors,Id,CreatedDateTime -ExpandProperty Sponsors | Sort-Object displayName
 If ($Guests.Count -eq 0) {
     Write-Host "No guest users found."
     break
 } Else {
-    Write-Host ("Found {0} guest users" -f $Guests.Count)
+    Write-Host ("Found {0} guest users." -f $Guests.Count)
 }
 
 [int]$i = 0
@@ -127,29 +166,62 @@ ForEach ($Guest in $Guests) {
         [datetime]$LastSignIn = $Guest.signInActivity.lastSignInDateTime
         $DaysSinceLastSignIn = (New-TimeSpan $LastSignIn).Days
     }
-   
+
+    # Is there a photo for the guest?
+    $Status = Get-MgUserPhoto -UserId $Guest.Id -ErrorAction SilentlyContinue
+    If ($Status) {
+        $HasPhoto = $true
+    } Else {
+        $HasPhoto = $false
+    }
+    # Is the guest a member of any groups?
+    $MemberOf = Get-MgUserMemberOf -UserId $Guest.Id | Where-Object {$_.AdditionalProperties.'@odata.type' -eq '#microsoft.graph.group'} -ErrorAction SilentlyContinue
+    If ($MemberOf) {
+        $GroupsCount = $MemberOf.Count
+        $GroupsNames = $MemberOf.additionalProperties.displayName -join "; "
+    } Else {
+        $GroupsCount = 0
+        $GroupsNames = $null
+    }
+
     $ReportItem = [PSCustomObject]@{
-        DisplayName                     = $Guest.DisplayName
+        Guest                           = $Guest.DisplayName
         UserPrincipalName               = $Guest.UserPrincipalName
         Email                           = $Guest.Mail
         Sponsors                        = ($Guest.Sponsors | ForEach-Object { Get-MgUser -UserId $_.Id | Select-Object -ExpandProperty DisplayName }) -join "; "
         'Creation Date'                 = Get-Date $Guest.CreatedDateTime -format 'dd-MMMM-yyyy HH:mm'
         'Days since creation'           = (New-TimeSpan $Guest.CreatedDateTime).Days
-        'Date of Last Audit Activity'   = If ($LastActivity) { Get-Date $LastActivity.CreationDate -format 'dd-MMMM-yyyy HH:mm'} else { $null }
+        'Date Last Audit Activity'      = If ($LastActivity) { Get-Date $LastActivity.CreationDate -format 'dd-MMMM-yyyy HH:mm'} else { $null }
         'Last Audit Activity'           = If ($LastActivity) { $LastActivity.Operations } else { $null }
         'Number of Audit Activities'    = $Records.Count
         'Top 3 activities'              = $TopActivities
         'Last administrator action'     = $InvitedTimeStamp
         'Administrator'                 = $InvitedSource
-        LastSignInDateTime              = $LastSignIn
-        DaysSinceLastSignIn             = $DaysSinceLastSignIn
-        LastSuccessfulSignInDateTime    = $LastSuccessfulSignIn
+        'Last Signin'                   = $LastSignIn
+        'Days since last signin'        = $DaysSinceLastSignIn
+        'Date of last successful signin'= $LastSuccessfulSignIn
         DaysSinceLastSuccessfulSignIn   = $DaysSinceLastSuccessfulSignIn
         EmailDomain                     = ($Guest.Mail -split "@")[1]
+        HasPhoto                        = $HasPhoto
+        '# of groups guest is member of'= $GroupsCount
+        'Groups guest is member of'     = $GroupsNames
+        Id                              = $Guest.Id
         'Guest status'                  = $GuestStatus
     }
     $Report.Add($ReportItem)
 
+}
+
+[datetime]$EndProcessing = Get-Date
+$TimeRequired = $EndProcessing - $StartProcessing
+$Minutes = [math]::Floor($TimeRequired.TotalSeconds / 60)
+$Seconds = [math]::Round($TimeRequired.TotalSeconds % 60, 2)
+If ($Interactive) {
+    Write-Host ("Total processing time for {0} accounts: {1}m {2}s" -f $Guests.count, $Minutes, $Seconds) -ForegroundColor Cyan
+    Write-Host ("Average required per user {0} seconds" -f [math]::Round($TimeRequired.TotalSeconds / $Guests.count, 2)) -ForegroundColor Cyan
+} Else {
+    Write-Output ("Total processing time for {0} accounts: {1}m {2}s" -f $Guests.count, $Minutes, $Seconds) 
+    Write-Output ("Average required per user {0} seconds" -f [math]::Round($TimeRequired.TotalSeconds / $Guests.count, 2)) 
 }
 
 [array]$InactiveGuests = $Report | Where-Object { $_.'Guest status' -eq "Inactive" } | Sort-Object DisplayName
@@ -159,6 +231,88 @@ Write-Host ("Found {0} inactive guests ({1})" -f $InactiveGuests.Count,($Inactiv
 Write-Host ""
 Write-Host "Inactive guests come from these domains"
 $InactiveGuests | Group-Object EmailDomain | Sort-Object Count -Descending | Format-Table Name,Count -AutoSize
+
+# Create a nice HTML report
+# Generate sortable HTML table with type-aware sorting - use number as the type for numeric values, date for dates, and string for text
+$HtmlHeader = @"
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Inactive Guest Accounts Report</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; background: #f4f6f8; color: #222; }
+h1 { background: #0078d4; color: #fff; padding: 16px; border-radius: 6px 6px 0 0; margin-bottom: 20px; }
+table { width: 100%; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-collapse: collapse; }
+th, td { padding: 12px; text-align: left; }
+th { background: #e5eaf1; cursor: pointer; position: relative; }
+th:hover { background: #d0e7fa; }
+th::after { content: '↕'; position: absolute; right: 8px; opacity: 0.5; }
+tr:nth-child(even) { background: #f0f4fa; }
+tr:hover { background: #d0e7fa; }
+</style>
+<script>
+function parseValue(val, type) {
+    if(type === 'number') return parseFloat(val.replace(/,/g,'')) || 0;
+    if(type === 'date') return new Date(val);
+    return val.toLowerCase();
+}
+function sortTable(n, type) {
+    var table = document.getElementById('GuestStats');
+    var rows = Array.from(table.rows).slice(1);
+    var dir = table.getAttribute('data-sortdir'+n) === 'asc' ? 'desc' : 'asc';
+    rows.sort(function(a, b) {
+        var x = parseValue(a.cells[n].innerText, type);
+        var y = parseValue(b.cells[n].innerText, type);
+        if(x < y) return dir === 'asc' ? -1 : 1;
+        if(x > y) return dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+    rows.forEach(function(row) { table.tBodies[0].appendChild(row); });
+    table.setAttribute('data-sortdir'+n, dir);
+}
+</script>
+</head>
+<body>
+<h1>Inactive Guest Accounts Report</h1>
+<table id="GuestStats">
+<thead>
+<tr>
+<th onclick="sortTable(0,'string')">Guest</th>
+<th onclick="sortTable(1,'string')">Email</th>
+<th onclick="sortTable(2,'string')">Sponsors</th>
+<th onclick="sortTable(3,'date')">Creation date</th>
+<th onclick="sortTable(4,'date')">Date last audit activity</th>
+<th onclick="sortTable(5,'number')">Number of audit activities</th>
+<th onclick="sortTable(6,'string')">Top 3 activities</th>
+<th onclick="sortTable(7,'string')">Guest status</th>
+</tr>
+</thead>
+<tbody>
+"@
+
+$HtmlRows = foreach ($Row in $Report ) {
+    "<tr><td>$($row.Guest)</td><td>$($row.Email)</td><td>$($row.Sponsors)</td><td>$($row.'Creation date')</td><td>$($row.'Date last audit activity')</td><td>$($row.'Number of audit activities')</td><td>$($row.'Top 3 activities')</td><td>$($row.'Guest status')</td></tr>"
+}
+
+$HtmlFooter = @"
+</tbody>
+</table>
+</body>
+</html>
+"@
+
+#Generate the full HTML content and save it to a file
+If ($Interactive) {
+    $HTMLReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveGuests.html"
+} Else {
+    $HTMLReportFile = $CurrentFolder + "\InactiveGuests.html"
+}
+
+$HTMLFile = $HtmlHeader + ($HtmlRows -join "`n") + $HtmlFooter
+$HTMLFile | Out-File -FilePath $HTMLReportFile -Encoding utf8
+Write-Host ("HTML report written to {0}" -f $HTMLReportFile) -ForegroundColor Green
+
 
 # And generate an output file
 If (Get-Module ImportExcel -ListAvailable) {
