@@ -69,6 +69,7 @@ ForEach ($Record in $InvitationData) {
 }
 
 $SharingData  = $SharingData | Sort-Object {$_.TimeStamp -as [datetime]} -Descending
+
 $StartDate = (Get-Date).AddDays(-30)
 
 # Define the audit records used to figure out what guests have been doing
@@ -76,7 +77,7 @@ $StartDate = (Get-Date).AddDays(-30)
 
 # Find all guests - a complex query is used to sort the retrieved results
 [array]$Guests = Get-MgUser -Filter "usertype eq 'Guest'" -PageSize 500 -All  `
-    -Property DisplayName,UserPrincipalName,SignInActivity,Mail,Sponsors,Id -ExpandProperty Sponsors | Sort-Object displayName
+    -Property DisplayName,UserPrincipalName,SignInActivity,Mail,Sponsors,Id,CreatedDateTime -ExpandProperty Sponsors | Sort-Object displayName
 If ($Guests.Count -eq 0) {
     Write-Host "No guest users found."
     break
@@ -108,7 +109,8 @@ ForEach ($Guest in $Guests) {
     }
      
     # Can we find when the guest was invited to the tenant?
-    $Invitation = $SharingData | Where-Object { $_.Guest -eq $Guest.UserPrincipalName } 
+    [array]$Invitation = $SharingData | Where-Object { $_.Guest -eq $Guest.UserPrincipalName.tolower() } | `
+        Sort-Object {$_.TimeStamp -as [datetime]} -Descending | Select-Object -First 1
     If ($Invitation) {
         $InvitedTimeStamp = Get-Date $Invitation.Timestamp -Format 'dd-MMMM-yyyy HH:mm'
         $InvitedSource = $Invitation.InvitationSource
@@ -131,12 +133,14 @@ ForEach ($Guest in $Guests) {
         UserPrincipalName               = $Guest.UserPrincipalName
         Email                           = $Guest.Mail
         Sponsors                        = ($Guest.Sponsors | ForEach-Object { Get-MgUser -UserId $_.Id | Select-Object -ExpandProperty DisplayName }) -join "; "
+        'Creation Date'                 = Get-Date $Guest.CreatedDateTime -format 'dd-MMMM-yyyy HH:mm'
+        'Days since creation'           = (New-TimeSpan $Guest.CreatedDateTime).Days
         'Date of Last Audit Activity'   = If ($LastActivity) { Get-Date $LastActivity.CreationDate -format 'dd-MMMM-yyyy HH:mm'} else { $null }
         'Last Audit Activity'           = If ($LastActivity) { $LastActivity.Operations } else { $null }
         'Number of Audit Activities'    = $Records.Count
         'Top 3 activities'              = $TopActivities
-        'Invited On'                    = $InvitedTimeStamp
-        'Invited By'                    = $InvitedSource
+        'Last administrator action'     = $InvitedTimeStamp
+        'Administrator'                 = $InvitedSource
         LastSignInDateTime              = $LastSignIn
         DaysSinceLastSignIn             = $DaysSinceLastSignIn
         LastSuccessfulSignInDateTime    = $LastSuccessfulSignIn
@@ -149,11 +153,33 @@ ForEach ($Guest in $Guests) {
 }
 
 [array]$InactiveGuests = $Report | Where-Object { $_.'Guest status' -eq "Inactive" } | Sort-Object DisplayName
+Write-Host ""
 Write-Host ("Found {0} inactive guests ({1})" -f $InactiveGuests.Count,($InactiveGuests.Count/$Report.Count).toString("P")) -ForegroundColor Green
 
 Write-Host ""
 Write-Host "Inactive guests come from these domains"
 $InactiveGuests | Group-Object EmailDomain | Sort-Object Count -Descending | Format-Table Name,Count -AutoSize
+
+# And generate an output file
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $true
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveGuests.xlsx"
+    If (Test-Path $ExcelOutputFile) {
+        Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+    } 
+    $InactiveGuests | Export-Excel -Path $ExcelOutputFile -WorksheetName "Inactive Guests" -Title ("Inactive Guests Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveGuests" 
+} Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveGuests.CSV"
+    $InactiveGuests | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+}
+
+If ($ExcelGenerated) {
+    Write-Host ("Excel worksheet output written to {0}" -f $ExcelOutputFile)
+} Else {
+    Write-Host ("CSV output file written to {0}" -f $CSVOutputFile)
+}   
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
