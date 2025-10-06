@@ -1,7 +1,7 @@
 # Find-InactiveGuestsWithAudit.PS1
 # A script to find inactive Entra ID guests and report what they've been doing
 
-# V1.0 5-Oct-2025
+# V1.0.1 6-Oct-2025
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-InactiveGuestsWithAudit.ps1
 
 # Flag to let script code know if we're running interactively or within Azure Automation
@@ -11,7 +11,7 @@ $Interactive = $false
 If ([Environment]::UserInteractive) { 
     # We're running interactively...
     Write-Host "Script running interactively... connecting to the Graph" -ForegroundColor Yellow
-    Connect-MgGraph -NoWelcome -Scopes User.Read.All, AuditLog.Read.All, Mail.Send
+    Connect-MgGraph -NoWelcome -Scopes User.Read.All, AuditLog.Read.All, Mail.Send, Organization.Read.All
     $Interactive = $true
     [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
     If ("ExchangeOnlineManagement" -Notin $Modules) {
@@ -34,10 +34,10 @@ If ([Environment]::UserInteractive) {
 # Check that we have the right permissions - in Azure Automation, we assume that the automation account has the right permissions
 If ($Interactive) {
     [string[]]$CurrentScopes = (Get-MgContext).Scopes
-    [string[]]$RequiredScopes = @('AuditLog.Read.All','User.Read.All','Mail.Send')
+    [string[]]$RequiredScopes = @('AuditLog.Read.All','User.Read.All','Mail.Send', 'Organization.Read.All')
 
     $CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
-    If ($CheckScopes.Count -ne 3) { 
+    If ($CheckScopes.Count -ne 4) { 
         Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f $RequiredScopes) -ForegroundColor Red
         Disconnect-Graph
         Break
@@ -47,7 +47,7 @@ If ($Interactive) {
 # Change this to the email address of the recipient of the report
 $DestinationEmailAddress = "customer.services@office365itpros.com"
 
-# Find information about sharing events so that we know  when someone has been invited to the tenant
+# Find information about sharing events so that we know  when someone has been invited to the tenant or otherwise updated (like being added to a group)
 $ShareDateStart = (Get-Date).AddDays(-365)
 $EndDate = (Get-Date).AddDays(1)
 # SharePoint Sharing Invitation
@@ -215,6 +215,8 @@ ForEach ($Guest in $Guests) {
 
 }
 
+$Report = $Report | Sort-Object Guest
+
 [datetime]$EndProcessing = Get-Date
 $TimeRequired = $EndProcessing - $StartProcessing
 $Minutes = [math]::Floor($TimeRequired.TotalSeconds / 60)
@@ -316,7 +318,6 @@ $HTMLFile = $HtmlHeader + ($HtmlRows -join "`n") + $HtmlFooter
 $HTMLFile | Out-File -FilePath $HTMLReportFile -Encoding utf8
 Write-Host ("HTML report written to {0}" -f $HTMLReportFile) -ForegroundColor Green
 
-
 # And generate an output file
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $true
@@ -325,11 +326,11 @@ If (Get-Module ImportExcel -ListAvailable) {
     If (Test-Path $ExcelOutputFile) {
         Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
     } 
-    $InactiveGuests | Export-Excel -Path $ExcelOutputFile -WorksheetName "Inactive Guests" -Title ("Inactive Guests Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveGuests" 
+    $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Inactive Guests" -Title ("Inactive Guests Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveGuests" 
     $AttachmentFile = $ExcelOutputFile
 } Else {
     $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveGuests.CSV"
-    $InactiveGuests | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+    $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
     $AttachmentFile = $CSVOutputFile
 }
 
