@@ -1,4 +1,10 @@
 # Office365itpros
 Office 365 for IT Pros PowerShell examples
 
-We store PowerShell examples from the Office 365 for IT Pros ebook here. For more information about the book, see https://office365foritpros.com. We document how we use the scripts at https://office365itpros.com/office-365-github-repository/
+This repository holds PowerShell examples used in:
+
+The Office 365 for IT Pros ebook https://gum.co/O365IT/
+The Automating Microsoft 365 with PowerShell eBook  https://o365itpros.gumroad.com/l/M365PS
+Articles published on Office365itpros.com and Practical365.com
+
+For more information, see https://office365itpros.com. We document how we use the scripts at https://office365itpros.com/office-365-github-repository/
