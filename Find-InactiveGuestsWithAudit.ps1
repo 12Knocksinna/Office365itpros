@@ -113,8 +113,9 @@ $SharingData  = $SharingData | Sort-Object {$_.TimeStamp -as [datetime]} -Descen
 $StartDate = (Get-Date).AddDays(-30)
 [datetime]$StartProcessing = Get-Date
 
-# Define the audit records used to figure out what guests have been doing
-[array]$Operations = "FileAccessed","FileModified","FileUploaded","FileDeleted","FileDownloaded","MessageSent", "ReactedToMessage", "MessageRead", "MessageDeleted"
+# Define the audit records used to figure out the important events to indicate what guests have been doing
+[array]$Operations = "FileAccessed","FileModified","FileUploaded","FileDeleted","FileDownloaded","MessageSent", "ReactedToMessage",`
+     "MessageRead", "MessageDeleted", "TaskCompleted", "TaskRead", "TaskAssigned", "SensitivityLabeledFileOpened", "TeamsSessionStarted", "UserLoggedIn", "SignInEvent"
 
 # Find all guests - a complex query is used to sort the retrieved results
 Write-Output "Retrieving guest accounts..."
@@ -200,10 +201,10 @@ ForEach ($Guest in $Guests) {
         'Top 3 activities'              = $TopActivities
         'Last administrator action'     = $InvitedTimeStamp
         'Administrator'                 = $InvitedSource
-        'Last Signin'                   = $LastSignIn
+        'Last Signin'                   = Get-Date ($LastSignIn) -format 'dd-MMMM-yyyy HH:mm'
         'Days since last signin'        = $DaysSinceLastSignIn
-        'Date of last successful signin'= $LastSuccessfulSignIn
-        DaysSinceLastSuccessfulSignIn   = $DaysSinceLastSuccessfulSignIn
+        'Date of last successful signin'= Get-Date ($LastSuccessfulSignIn) -format 'dd-MMMM-yyyy HH:mm'
+        'Days since last successful signin' = $DaysSinceLastSuccessfulSignin
         EmailDomain                     = ($Guest.Mail -split "@")[1]
         HasPhoto                        = $HasPhoto
         '# of groups guest is member of'= $GroupsCount
@@ -287,17 +288,18 @@ function sortTable(n, type) {
 <th onclick="sortTable(1,'string')">Email</th>
 <th onclick="sortTable(2,'string')">Sponsors</th>
 <th onclick="sortTable(3,'date')">Creation date</th>
-<th onclick="sortTable(4,'date')">Date last audit activity</th>
-<th onclick="sortTable(5,'number')">Number of audit activities</th>
-<th onclick="sortTable(6,'string')">Top 3 activities</th>
-<th onclick="sortTable(7,'string')">Guest status</th>
+<th onclick="sortTable(4,'date')">Date of last successful signin</th>
+<th onclick="sortTable(5,'date')">Date last audit activity</th>
+<th onclick="sortTable(6,'number')">Number of audit activities</th>
+<th onclick="sortTable(7,'string')">Top 3 activities</th>
+<th onclick="sortTable(8,'string')">Guest status</th>
 </tr>
 </thead>
 <tbody>
 "@
 
 $HtmlRows = foreach ($Row in $Report ) {
-    "<tr><td>$($row.Guest)</td><td>$($row.Email)</td><td>$($row.Sponsors)</td><td>$($row.'Creation date')</td><td>$($row.'Date last audit activity')</td><td>$($row.'Number of audit activities')</td><td>$($row.'Top 3 activities')</td><td>$($row.'Guest status')</td></tr>"
+    "<tr><td>$($row.Guest)</td><td>$($row.Email)</td><td>$($row.Sponsors)</td><td>$($row.'Creation date')</td><td>$($row.'Date of last successful signin')</td><td>$($row.'Date last audit activity')</td><td>$($row.'Number of audit activities')</td><td>$($row.'Top 3 activities')</td><td>$($row.'Guest status')</td></tr>"
 }
 
 $HtmlFooter = @"
