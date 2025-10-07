@@ -28,10 +28,10 @@ ForEach ($M in $Mbx) {
     $ExoPlan1Found = $false; $ExoPlan2Found = $false; $LogsFound = "No"
     Write-Output ("Checking sign-in records for {0}" -f $M.DisplayName)
     $UserId = $M.ExternalDirectoryObjectId
-    [array]$Logs = Get-MgAuditLogSignIn -Filter "userid eq '$UserId'" -Top 1
+    [array]$Logs = Get-MgAuditLogSignIn -Filter "userid eq '$UserId' and Status/ErrorCode ne 0" -Top 1
     If ($Logs) {
         $LogsFound = "Yes"
-        Write-Host ("Sign-in records found for shared mailbox {0}" -f $M.DisplayName) -ForegroundColor Red
+        Write-Host ("Successful sign-in records found for shared mailbox {0}" -f $M.DisplayName) -ForegroundColor Red
         # Check if the shared mailbox is licensed
         $User = Get-MgUser -UserId $M.ExternalDirectoryObjectId -Property UserPrincipalName, AccountEnabled, Id, DisplayName, assignedPlans
         [array]$ExoPlans = $User.AssignedPlans | Where-Object {$_.Service -eq 'exchange' -and $_.capabilityStatus -eq 'Enabled'}
