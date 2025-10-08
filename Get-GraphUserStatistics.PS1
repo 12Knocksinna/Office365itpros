@@ -1,9 +1,12 @@
 # Get-GraphUserStatistics.ps1
-# Example of using the Microsoft Graph PowerShell SDK to get usage data for Entra ID accounts from multiple Microsoft 365 workloads.
-# Based on original script that used Graph API requests...
+# Example of using the Microsoft Graph PowerShell SDK to get usage report data for Entra ID accounts from multiple Microsoft 365 workloads.
+# Upgrade from the original script (GetGraphUserStatisticsReport.PS1) that uses Graph API requests...
 
+# Version 2.1 8-Oct-2025    SDK cmdlets used, email of report added, lots more error handling
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Get-GraphUserStatistics.PS1
-# Version 2.1 8-Oct-2025
+
+# Note: Guest user activity is not recorded by the Graph - only tenant accounts are processed
+# Original article https://office365itpros.com/2020/09/14/office-365-user-activity-report/ (2020) and then https://office365itpros.com/2022/08/08/microsoft-365-user-activity-2022/ (2022)
 
 # Flag to let script code know if we're running interactively or within Azure Automation
 $Interactive = $false
@@ -17,10 +20,12 @@ If ([Environment]::UserInteractive) {
     $Interactive = $true
     # Email address to use when sending email from interactive session
     $MsgFrom = (Get-MgContext).Account
+    $HomeDomain = (Get-MgOrganization).VerifiedDomains | Where-Object { $_.IsDefault -eq $true } | Select-Object -ExpandProperty Name
+    $BaseOneDriveDomain = "https://"+$HomeDomain.Split(".")[0]+"-my.sharepoint.com/personal/"
     
 } Else { 
     # We're not, so likely in Azure Automation
-    Write-Host "Running the script to identify the last app accessed by Users" 
+    Write-Output "Executing the runbook to create the last activity report for user member accounts..." 
     Connect-MgGraph -Identity -NoWelcome
     # Email address to use when sending email from Azure Automation
     $MsgFrom = "no-reply@office365itpros.com"
@@ -29,10 +34,10 @@ If ([Environment]::UserInteractive) {
 # Check that we have the right permissions - in Azure Automation, we assume that the automation account has the right permissions
 If ($Interactive) {
     [string[]]$CurrentScopes = (Get-MgContext).Scopes
-    [string[]]$RequiredScopes = @('Reports.Read.All','ReportSettings.ReadWrite.All','User.Read.All','Mail.Send')
+    [string[]]$RequiredScopes = @('Reports.Read.All','ReportSettings.ReadWrite.All','User.Read.All','Mail.Send','Organization.Read.All')
 
     $CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
-    If ($CheckScopes.Count -ne 4) { 
+    If ($CheckScopes.Count -ne 5) { 
         Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f $RequiredScopes) -ForegroundColor Red
         Disconnect-Graph
         Break
@@ -86,7 +91,7 @@ Try {
     Invoke-MgGraphRequest -Uri $TeamsUserReportsURI -Method Get -OutputFilePath $TeamsDataFile
     [array]$TeamsUserData = Import-Csv -Path $TeamsDataFile 
 } Catch {
-    Write-Host "Error fetching Teams user activity data: $_" -ForegroundColor Red
+    Write-Output "Error fetching Teams user activity data: $_" 
 }   
 
 # Fetch OneDrive user activity data
@@ -97,7 +102,7 @@ Try {
     Invoke-MgGraphRequest -Uri $OneDriveUsageURI -Method Get -OutputFilePath $OneDriveDataFile
     [array]$OneDriveData = Import-Csv -Path $OneDriveDataFile 
 } Catch {
-    Write-Host "Error fetching OneDrive user activity data: $_" -ForegroundColor Red
+    Write-Output "Error fetching OneDrive user activity data: $_" 
 }
 
 # Fetch Exchange Online data
@@ -108,7 +113,7 @@ Try {
     Invoke-MgGraphRequest -Uri $EmailReportsURI -Method Get -OutputFilePath $EmailDataFile
     [array]$EmailData = Import-Csv -Path $EmailDataFile 
 } Catch {
-    Write-Host "Error fetching Exchange email activity data: $_" -ForegroundColor Red 
+    Write-Output "Error fetching Exchange email activity data: $_" 
 }
 
 # Fetch mailbox usage data
@@ -119,7 +124,7 @@ Try {
     Invoke-MgGraphRequest -Uri $MailboxUsageReportsURI -Method Get -OutputFilePath $EmailStorageDataFile
     [array]$MailboxData = Import-Csv -Path $EmailStorageDataFile 
 } Catch {
-    Write-Host "Error fetching Exchange mailbox usage data: $_" -ForegroundColor Red 
+    Write-Output "Error fetching Exchange mailbox usage data: $_"  
 }
 
 # Get SharePoint usage data
@@ -130,7 +135,7 @@ Try {
     Invoke-MgGraphRequest -Uri $SPOUsageReportsUri -Method Get -OutputFilePath $SPODataFile
     [array]$SPOData = Import-Csv -Path $SPODataFile
 } Catch {
-    Write-Host "Error fetching SharePoint Online user activity data: $_" -ForegroundColor Red
+    Write-Output "Error fetching SharePoint Online user activity data: $_" 
 }
 
 Write-Host "Fetching Viva Engage user activity data from the Graph..."
@@ -141,18 +146,18 @@ Try {
     Invoke-MgGraphRequest -Uri $YammerUsageReportsUri -Method Get -OutputFilePath $YammerDataFile
     [array]$YammerData = Import-Csv -Path $YammerDataFile
 } Catch {
-    Write-Host "Error fetching Viva Engage user activity data: $_" -ForegroundColor Red
+    Write-Output "Error fetching Viva Engage user activity data: $_" 
 }
 
 # Create the hash table for the usage data fetched for each account
 $DataTable = @{}
 # Get User sign in data
-Write-Host "Fetching user account data from the Graph..."
+Write-Output "Fetching user account data from the Graph..."
 Try {
     [array]$Users = Get-MgUser -All -PageSize 500 -filter "userType eq 'Member'" `
         -Property DisplayName, UserPrincipalName, signInActivity, Mail, Id, CreatedDateTime, AccountEnabled
 } Catch {
-    Write-Host "Error fetching user sign-in data: $_" -ForegroundColor Red
+    Write-Output "Error fetching user sign-in data: $_" 
 }   
 
 # If necessary, reset tenant obfuscation settings to True
@@ -164,7 +169,7 @@ If ($ObfuscationChanged) {
 }
 
 $StartTime2 = Get-Date
-Write-Host "Processing activity data fetched from the Graph..."
+Write-Output "Processing activity data fetched from the Graph..."
 # Process Teams Data
 ForEach ($T in $TeamsUserData) {
     If ([string]::IsNullOrEmpty($T."Last Activity Date")) { 
@@ -271,12 +276,19 @@ ForEach ($O in $OneDriveData) {
         $OneDriveLastActivity = Get-Date($O."Last Activity Date") -format "dd-MMM-yyyy" 
         $OneDriveDaysSinceActive = (New-TimeSpan($OneDriveLastActivity)).Days 
     }
+    If ($Interactive) {
+        $ODSite = $O."Owner Principal Name" -replace "@","_" -replace "\.","_"
+        $ODSite = $BaseOneDriveDomain + $ODSite
+    } Else {
+        # Use the Graph to find the OneDrive site URL and return in the same format as the interactive version
+        $ODSite = ((Get-MgUserDefaultDrive -UserId $O."Owner Principal Name").WebUrl).Split("/Documents")[0]
+    }
     $ReportLine  = [PSCustomObject] @{          
         ODUPN               = $O."Owner Principal Name"
         ODDisplayName       = $O."Owner Display Name"
         ODLastActive        = $OneDriveLastActivity    
         ODDaysSinceActive   = $OneDriveDaysSinceActive    
-        ODSite              = $O."Site URL"
+        ODSite              = $ODSite
         ODFileCount         = [int]$O."File Count"
         ODStorageUsed       = [Math]::Round($O."Storage Used (Byte)"/1GB,4) 
         ODQuota             = [Math]::Round($O."Storage Allocated (Byte)"/1GB,2) 
@@ -311,20 +323,22 @@ ForEach ($Y in $YammerUsage) {
     $DataTable[$Y."User Principal Name"] = $NewData 
 }
 
-Clear-Host
-
 $StartTime3 = Get-Date
 # Set up progress bar
-$ProgressDelta = 100/($Users.Count); $PercentComplete = 0; $UserNumber = 0
+If ($Interactive) {
+    $ProgressDelta = 100/($Users.Count); $PercentComplete = 0; $UserNumber = 0
+}
 $OutData = [System.Collections.Generic.List[Object]]::new() # Create merged output file
 
 # Process each user to extract Exchange, Teams, OneDrive, SharePoint, and Yammer (Viva Engage) statistics for their activity
 ForEach ($User in $Users) {
     $U = $User.UserPrincipalName
     $UserNumber++
-    $CurrentStatus = $U + " ["+ $UserNumber +"/" + $Users.Count + "]"
-    Write-Progress -Activity "Extracting information for user" -Status $CurrentStatus -PercentComplete $PercentComplete
-    $PercentComplete += $ProgressDelta
+    If ($Interactive) {
+        $CurrentStatus = $U + " ["+ $UserNumber +"/" + $Users.Count + "]"
+        Write-Progress -Activity "Extracting information for user" -Status $CurrentStatus -PercentComplete $PercentComplete
+        $PercentComplete += $ProgressDelta
+    }
    
     $UserData = $DataTable[$U]  # Extract data for the user - everything is in a single keyed access to the hash table
 
@@ -393,7 +407,6 @@ ForEach ($User in $Users) {
  
     # Fetch the sign in data if available
     $LastAccountSignIn = $Null; $DaysSinceSignIn = 0
-    #$LastAccountSignIn = $User.SignInActivity.LastSuccessfulSignInDateTime
     If ($null -eq $User.SignInActivity.LastSuccessfulSignInDateTime) { 
         $LastAccountSignIn = "No sign in data found"; $DaysSinceSignIn = "N/A"
     } Else { 
@@ -431,49 +444,48 @@ ForEach ($User in $Users) {
     If ((![string]::IsNullOrEmpty($ExoUPN))) {
     # Build a line for the report file with the collected data for all workloads and write it to the list
     $OutLine  = [PSCustomObject] @{          
-        UPN                     = $U
-        DisplayName             = (Out-String -InputObject $UserData.ExoDisplayName).Trim()
-        Status                  = $AccountStatus
-        LastSignIn              = $LastAccountSignIn
-        DaysSinceSignIn         = $DaysSinceSignIn 
-        EXOLastActive           = $ExoLastActive  
-        EXODaysSinceActive      = $ExoDaysSinceActive  
-        EXOQuotaUsed            = (Out-String -InputObject $UserData.MbxQuotaUsed).Trim()
-        EXOItems                = (Out-String -InputObject $UserData.MbxItems).Trim()
-        EXOSendCount            = (Out-String -InputObject $UserData.ExoSendCount).Trim()
-        EXOReadCount            = (Out-String -InputObject $UserData.ExoReadCount).Trim()
-        EXOReceiveCount         = (Out-String -InputObject $UserData.ExoReceiveCount).Trim()
-        TeamsLastActive         = $TeamsLastActive
-        TeamsDaysSinceActive    = $TeamsDays 
-        TeamsChannelChat        = (Out-String -InputObject $UserData.TeamsChannelChats).Trim()
-        TeamsPrivateChat        = (Out-String -InputObject $UserData.TeamsPrivateChats).Trim()
-        TeamsMeetings           = (Out-String -InputObject $UserData.TeamsMeetings).Trim()
-        TeamsCalls              = (Out-String -InputObject $UserData.TeamsCalls).Trim()
-        SPOLastActive           = $SPOLastActive
-        SPODaysSinceActive      = $SPODays 
-        SPOViewedEditedFiles    = (Out-String -InputObject $UserData.SPOViewedEdited).Trim()
-        SPOSyncedFiles          = (Out-String -InputObject $UserData.SPOSyncedFileCount).Trim()
-        SPOSharedExtFiles       = (Out-String -InputObject $UserData.SPOSharedExt).Trim()
-        SPOSharedIntFiles       = (Out-String -InputObject $UserData.SPOSharedInt).Trim()
-        SPOVisitedPages         = (Out-String -InputObject $UserData.SPOVisitedPages).Trim()
-        OneDriveLastActive      = $ODLastActive
-        OneDriveDaysSinceActive = $ODDaysSinceActive
-        OneDriveFiles           = $ODFiles
-        OneDriveStorage         = $ODStorage
-        OneDriveQuota           = $ODQuota
-        YammerLastActive        = $YammerLastActive  
-        YammerDaysSinceActive   = $YammerDaysSinceActive
-        YammerPosts             = $YammerPosts
-        YammerReads             = $YammerReads
-        YammerLikes             = $YammerLikes
-        License                 = (Out-String -InputObject $UserData.TeamsLicense).Trim()
-        OneDriveSite            = (Out-String -InputObject $UserData.ODSite).Trim()
-        IsDeleted               = (Out-String -InputObject $UserData.ExoIsDeleted).Trim()
-        EXOReportDate           = (Out-String -InputObject $UserData.ExoReportDate).Trim()
-        TeamsReportDate         = (Out-String -InputObject $UserData.TeamsReportDate).Trim()
-        UsageFigure             = $AverageDaysSinceUse
-        CreatedDate             = Get-Date $User.CreatedDateTime -Format 'dd-MMM-yyyy HH:mm'
-        AccountEnabled          = $User.AccountEnabled
+        UPN                                     = $U
+        DisplayName                             = (Out-String -InputObject $UserData.ExoDisplayName).Trim()
+        'Active Status'                         = $AccountStatus
+        'Last successful sign in'               = $LastAccountSignIn
+        'Days since sign in'                    = $DaysSinceSignIn 
+        'Last active in EXO'                    = $ExoLastActive  
+        'Days since active in EXO'              = $ExoDaysSinceActive  
+        'EXO Quota used'                        = (Out-String -InputObject $UserData.MbxQuotaUsed).Trim()
+        'Items in EXO mailbox'                  = (Out-String -InputObject $UserData.MbxItems).Trim()
+        'EXO messages sent'                     = (Out-String -InputObject $UserData.ExoSendCount).Trim()
+        'EXO messages read'                     = (Out-String -InputObject $UserData.ExoReadCount).Trim()
+        'EXO messages received'                 = (Out-String -InputObject $UserData.ExoReceiveCount).Trim()
+        'Last active in Teams'                  = $TeamsLastActive
+        'Days since active in Teams'            = $TeamsDays 
+        'Number of channel messages'            = (Out-String -InputObject $UserData.TeamsChannelChats).Trim()
+        'Number of chat messages'               = (Out-String -InputObject $UserData.TeamsPrivateChats).Trim()
+        'Number of meetings'                    = (Out-String -InputObject $UserData.TeamsMeetings).Trim()
+        'Number of Teams calls'                 = (Out-String -InputObject $UserData.TeamsCalls).Trim()
+        'Last active in SPO'                    = $SPOLastActive
+        'Days since last active in SPO'         = $SPODays 
+        'Number of SPO files edited'            = (Out-String -InputObject $UserData.SPOViewedEdited).Trim()
+        'Number of SPO files synced'            = (Out-String -InputObject $UserData.SPOSyncedFileCount).Trim()
+        'Number of SPO files shared (Ext)'      = (Out-String -InputObject $UserData.SPOSharedExt).Trim()
+        'Number of SPO files shared (int)'      = (Out-String -InputObject $UserData.SPOSharedInt).Trim()
+        'Number of SPO pages visited'           = (Out-String -InputObject $UserData.SPOVisitedPages).Trim()
+        'Last active in OneDrive'               = $ODLastActive
+        'Days since last active in OneDrive'    = $ODDaysSinceActive
+        'Number of OneDrive files'              = $ODFiles
+        'OneDrive storage used'                 = $ODStorage
+        'OneDrive quota assigned'               = $ODQuota
+        'Last active in Viva Engage'            = $YammerLastActive
+        'Days since last active in Viva Engage' = $YammerDaysSinceActive
+        'Number of Viva Engage posts'           = $YammerPosts
+        'Number of Viva Engage reads'           = $YammerReads
+        'Number of Viva Engage reactions'       = $YammerLikes
+        'Assigned licenses'                     = (Out-String -InputObject $UserData.TeamsLicense).Trim()
+        'OneDrive site URL'                     = (Out-String -InputObject $UserData.ODSite).Trim()
+        'EXO data from'                         = (Out-String -InputObject $UserData.ExoReportDate).Trim()
+        'Teams data from'                       = (Out-String -InputObject $UserData.TeamsReportDate).Trim()
+        'Average days since use'                = $AverageDaysSinceUse
+        'Account created date'                  = Get-Date $User.CreatedDateTime -Format 'dd-MMM-yyyy HH:mm'
+        'Account enabled'                       = $User.AccountEnabled
         }
     $OutData.Add($OutLine)
     }
@@ -491,18 +503,20 @@ $PrepElapsed = $PrepTime.Minutes.ToString() + ":" + $PrepTime.Seconds.ToString()
 $ReportElapsed = $ReportTime.Minutes.ToString() + ":" + $ReportTime.Seconds.ToString()
 $ScriptElapsed = $ScriptTime.Minutes.ToString() + ":" + $ScriptTime.Seconds.ToString()
 
-Write-Host " "
-Write-Host ("Statistics for {0}" -f $ReportName) -ForegroundColor Yellow
-Write-Host "------------------------------------------------------"
-Write-Host "Time to fetch data from Microsoft Graph:" $GraphElapsed
-Write-Host "Time to prepare date for processing:    " $PrepElapsed
-Write-Host "Time to create report from data:        " $ReportElapsed
-Write-Host "Total time for script:                  " $ScriptElapsed
-Write-Host "Total accounts processed:               " $Outdata.count
-Write-Host "Accounts processsed per minute:         " $AccountsPerMinute
-Write-Host " "
+Write-Output " "
+Write-Output ("Statistics for {0}" -f $ReportName) 
+Write-Output "------------------------------------------------------"
+Write-Output "Time to fetch data from Microsoft Graph:" $GraphElapsed
+Write-Output "Time to prepare date for processing:    " $PrepElapsed
+Write-Output "Time to create report from data:        " $ReportElapsed
+Write-Output "Total time for script:                  " $ScriptElapsed
+Write-Output "Total accounts processed:               " $Outdata.count
+Write-Output "Accounts processsed per minute:         " $AccountsPerMinute
+Write-Output " "
 
-$OutData | Sort-Object {$_.ExoLastActive -as [DateTime]} -Descending | Out-GridView -Title "User Activity Summary"
+If ($Interactive) {
+    $OutData | Sort-Object {$_.ExoLastActive -as [DateTime]} -Descending | Out-GridView -Title "User Activity Summary"
+}
 
 $OutData = $OutData | Sort-Object UPN 
 # And generate an output file
@@ -522,9 +536,9 @@ If (Get-Module ImportExcel -ListAvailable) {
 }
 
 If ($ExcelGenerated) {
-    Write-Host ("Excel worksheet output written to {0}" -f $ExcelOutputFile)
+    Write-Output ("Excel worksheet output written to {0}" -f $ExcelOutputFile)
 } Else {
-    Write-Host ("CSV output file written to {0}" -f $CSVOutputFile)
+    Write-Output ("CSV output file written to {0}" -f $CSVOutputFile)
 }   
 
 # Prepare to send the email
@@ -574,8 +588,6 @@ Try {
 }
 
 Write-Output "All done"
-
-
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
