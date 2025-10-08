@@ -120,7 +120,8 @@ $StartDate = (Get-Date).AddDays(-30)
 # Find all guests - a complex query is used to sort the retrieved results
 Write-Output "Retrieving guest accounts..."
 [array]$Guests = Get-MgUser -Filter "usertype eq 'Guest'" -PageSize 500 -All  `
-    -Property DisplayName,UserPrincipalName,SignInActivity,Mail,Sponsors,Id,CreatedDateTime -ExpandProperty Sponsors | Sort-Object displayName
+    -Property DisplayName,UserPrincipalName,SignInActivity,Mail,Sponsors,Id,CreatedDateTime,AccountEnabled,EmployeeLeaveDateTime -ExpandProperty Sponsors `
+    | Sort-Object displayName
 If ($Guests.Count -eq 0) {
     Write-Host "No guest users found."
     break
@@ -187,6 +188,10 @@ ForEach ($Guest in $Guests) {
         $GroupsCount = 0
         $GroupsNames = $null
     }
+    # Is the guest account disabled or is the employee leave date time property populated
+    If ($Guest.AccountEnabled -eq $false -or $null -ne $Guest.EmployeeLeaveDateTime) {
+        $GuestStatus = "Inactive"
+    }
 
     $ReportItem = [PSCustomObject]@{
         Guest                           = $Guest.DisplayName
@@ -210,6 +215,8 @@ ForEach ($Guest in $Guests) {
         '# of groups guest is member of'= $GroupsCount
         'Groups guest is member of'     = $GroupsNames
         Id                              = $Guest.Id
+        AccountEnabled                  = $Guest.AccountEnabled
+        'Employee Leave Date'           = If ($Guest.EmployeeLeaveDateTime) { Get-Date $Guest.EmployeeLeaveDateTime -format 'dd-MMMM-yyyy HH:mm' } else { $null }
         'Guest status'                  = $GuestStatus
     }
     $Report.Add($ReportItem)
@@ -394,6 +401,8 @@ Try {
     Write-Output "Unable to send email"
     Write-Output $_.Exception.Message
 }
+
+Write-Output "All done"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.

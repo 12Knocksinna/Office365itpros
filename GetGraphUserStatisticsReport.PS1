@@ -144,8 +144,8 @@ $Uri = "https://graph.microsoft.com/V1.0/users?`$select=displayName,userPrincipa
 [array]$UserSignInData = $SignInData | Where-Object {$_.UserType -eq "Member"} | Sort-Object UserPrincipalName -Unique
 # Update the user sign in hash table
 ForEach ($U in $UserSignInData) {
-   If ($U.SignInActivity.LastSignInDateTime) {
-      $LastSignInDate = Get-Date($U.SignInActivity.LastSignInDateTime) -format g
+   If ($U.SignInActivity.LastSuccessfulSignInDateTime) {
+      $LastSignInDate = Get-Date($U.SignInActivity.LastSuccessfulSignInDateTime) -format 'dd-MMM-yyyy HH:mm'
       $UserSignIns.Add([String]$U.UserPrincipalName, $LastSignInDate) 
    } Else {
       $UserSignIns.Add([String]$U.UserPrincipalName,$Null) 
