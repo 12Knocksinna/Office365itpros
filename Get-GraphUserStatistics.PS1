@@ -15,6 +15,7 @@ $ReportName = "Microsoft 365 User Activity Report V2.1"
 # Determine if we're interactive or not
 If ([Environment]::UserInteractive) { 
     # We're running interactively...
+    Clear-Host
     Write-Host "Script running interactively... connecting to the Graph" -ForegroundColor Yellow
     Connect-MgGraph -NoWelcome -Scopes User.Read.All, Reports.Read.All, ReportSettings.ReadWrite.All, Mail.Send, Organization.Read.All
     $Interactive = $true
@@ -233,6 +234,7 @@ ForEach ($M in $MailboxData) {
         MbxDaysSinceActive    = $ExoDaysSinceActive          
         MbxReportDate         = Get-Date($M."Report Refresh Date") -format "dd-MMM-yyyy"  
         MbxQuotaUsed          = [Math]::Round($M."Storage Used (Byte)"/1GB,2) 
+        MbxQuotaPercentUsed   = ($M.'Storage Used (Byte)'/$M.'Prohibit Send/Receive Quota (Byte)').toString('P')
         MbxItems              = [int]$M."Item Count"
         MbxRecordType         = "Exchange Storage"
     }
@@ -328,6 +330,7 @@ $StartTime3 = Get-Date
 If ($Interactive) {
     $ProgressDelta = 100/($Users.Count); $PercentComplete = 0; $UserNumber = 0
 }
+
 $OutData = [System.Collections.Generic.List[Object]]::new() # Create merged output file
 
 # Process each user to extract Exchange, Teams, OneDrive, SharePoint, and Yammer (Viva Engage) statistics for their activity
@@ -451,7 +454,8 @@ ForEach ($User in $Users) {
         'Days since sign in'                    = $DaysSinceSignIn 
         'Last active in EXO'                    = $ExoLastActive  
         'Days since active in EXO'              = $ExoDaysSinceActive  
-        'EXO Quota used'                        = (Out-String -InputObject $UserData.MbxQuotaUsed).Trim()
+        'EXO Quota used'                        = (Out-String -InputObject $UserData.MbxQuotaUsed).Trim() + " GB"
+        'EXO Quota % used'                      = (Out-String -InputObject $UserData.MbxQuotaPercentUsed).Trim()
         'Items in EXO mailbox'                  = (Out-String -InputObject $UserData.MbxItems).Trim()
         'EXO messages sent'                     = (Out-String -InputObject $UserData.ExoSendCount).Trim()
         'EXO messages read'                     = (Out-String -InputObject $UserData.ExoReadCount).Trim()
@@ -472,8 +476,9 @@ ForEach ($User in $Users) {
         'Last active in OneDrive'               = $ODLastActive
         'Days since last active in OneDrive'    = $ODDaysSinceActive
         'Number of OneDrive files'              = $ODFiles
-        'OneDrive storage used'                 = $ODStorage
-        'OneDrive quota assigned'               = $ODQuota
+        'OneDrive storage used'                 = $ODStorage + " GB"
+        'OneDrive quota assigned'               = $ODQuota + " GB"
+        'OneDrive quota used'                   = ($ODStorage/$ODQuota).ToString("P")
         'Last active in Viva Engage'            = $YammerLastActive
         'Days since last active in Viva Engage' = $YammerDaysSinceActive
         'Number of Viva Engage posts'           = $YammerPosts
@@ -498,20 +503,21 @@ $PrepTime = $StartTime3 - $StartTime2
 $ReportTime = $StartTime4 - $StartTime3
 $ScriptTime = $StartTime4 - $StartTime1
 $AccountsPerMinute = [math]::Round(($Outdata.count/($ScriptTime.TotalSeconds/60)),2)
-$GraphElapsed = $GraphTime.Minutes.ToString() + ":" + $GraphTime.Seconds.ToString()
-$PrepElapsed = $PrepTime.Minutes.ToString() + ":" + $PrepTime.Seconds.ToString()
-$ReportElapsed = $ReportTime.Minutes.ToString() + ":" + $ReportTime.Seconds.ToString()
-$ScriptElapsed = $ScriptTime.Minutes.ToString() + ":" + $ScriptTime.Seconds.ToString()
+$GraphElapsed = "{0}:{1:D2}" -f $GraphTime.Minutes, $GraphTime.Seconds
+$PrepElapsed = "{0}:{1:D2}" -f $Preptime.Minutes, $Preptime.Seconds
+$ReportElapsed = "{0}:{1:D2}" -f $ReportTime.Minutes, $ReportTime.Seconds
+$ScriptElapsed = "{0}:{1:D2}" -f $ScriptTime.Minutes, $ScriptTime.Seconds
+
 
 Write-Output " "
 Write-Output ("Statistics for {0}" -f $ReportName) 
 Write-Output "------------------------------------------------------"
-Write-Output "Time to fetch data from Microsoft Graph:" $GraphElapsed
-Write-Output "Time to prepare date for processing:    " $PrepElapsed
-Write-Output "Time to create report from data:        " $ReportElapsed
-Write-Output "Total time for script:                  " $ScriptElapsed
-Write-Output "Total accounts processed:               " $Outdata.count
-Write-Output "Accounts processsed per minute:         " $AccountsPerMinute
+Write-Output ("Time to fetch data from Microsoft Graph: {0}" -f $GraphElapsed)
+Write-Output ("Time to prepare date for processing:     {0}" -f $PrepElapsed)
+Write-Output ("Time to create report from data:         {0}" -f $ReportElapsed)
+Write-Output ("Total time for script:                   {0}" -f $ScriptElapsed)
+Write-Output ("Total accounts processed:                {0}" -f $Outdata.count)
+Write-Output ("Accounts processing rate per minute:     {0}" -f $AccountsPerMinute)   
 Write-Output " "
 
 If ($Interactive) {
