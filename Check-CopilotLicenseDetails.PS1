@@ -8,7 +8,7 @@
 # Signed=in user needs permission to manage user accounts
 Connect-MgGraph -NoWelcome -Scopes User.Read.All
 
-# Microsoft 365 Copilot SKU is the first value, the second SKY is for is a trial Copilot license.
+# Microsoft 365 Copilot SKU is the first value, the second SKU is for is a trial Copilot license.
 [array]$CopilotSKU = '639dec6b-bb19-468b-871c-c5c441c4b0cb', 'ea2d19f9-23bc-4f7f-9c12-a677b26a8e2a'
 $CopilotStudioPlan = 'fe6c28b3-d468-44ea-bbd0-a10a5167435c'
 $CopilotSharePointPlan = '0aedf20c-091d-420b-aadf-30c042609612'

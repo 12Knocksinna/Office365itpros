@@ -2,6 +2,7 @@
 # Simple script to show how to combine the usage data for Microsoft 365 Copilot with user details.
 
 # V1.0 1-May-2025
+# V1.1 09-Oct-2025
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-CopllotUsageWithUserDetail.PS1
 
 # Connect to the Graph
@@ -18,7 +19,7 @@ If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $true) {
 
 Write-Host "Finding Microsoft 365 Copilot usage data..." -ForegroundColor Green
 $Uri = "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUsageUserDetail(period='D90')"
-[array]$SearchRecords = Invoke-GraphRequest -Uri $Uri -Method Get
+[array]$SearchRecords = Invoke-GraphRequest -Uri $Uri -Method Get -OutputType PSObject
 If (!($SearchRecords)) {
     Write-Host "No usage data found for Microsoft 365 Copilot"
     Break
@@ -31,7 +32,7 @@ If (!($SearchRecords)) {
 $NextLink = $SearchRecords.'@Odata.NextLink'
 While ($null -ne $NextLink) {
     $SearchRecords = $null
-    [array]$SearchRecords = Invoke-MgGraphRequest -Uri $NextLink -Method GET 
+    [array]$SearchRecords = Invoke-MgGraphRequest -Uri $NextLink -Method GET -OutputType PsObject
     $CopilotUsageData += $SearchRecords.Value
     Write-Host ("{0} usage data records fetched so far..." -f $UsageData.count)
     $NextLink = $SearchRecords.'@odata.NextLink' 
@@ -46,13 +47,18 @@ If ($CopilotUsageData) {
     Break
 }
 
+# Find users with Microsoft 365 Copilot full and trial licenses
 Write-Host "Finding users with a Microsoft 365 Copilot license..." -ForegroundColor Green
-[array]$UserData = Get-MgUser -All -Filter "assignedLicenses/any(s:s/skuId eq 639dec6b-bb19-468b-871c-c5c441c4b0cb)" `
-    -Property Id, DisplayName, Department, JobTitle, UserPrincipalName, Mail -PageSize 500
+[array]$UserData = Get-MgUser -ConsistencyLevel eventual -CountVariable Var -Filter "assignedLicenses/any(s:s/skuId eq 639dec6b-bb19-468b-871c-c5c441c4b0cb) `
+    or assignedLicenses/any(s:s/skuid eq ea2d19f9-23bc-4f7f-9c12-a677b26a8e2a)" `
+    -Property Id, DisplayName, Department, JobTitle, UserPrincipalName, Mail -PageSize 500 -All
 If ($UserData.Count -eq 0) {
     Write-Host "No users found with a Microsoft 365 Copilot license" -ForegroundColor Red
     break
+} Else {
+    Write-Host ("{0} users found with a Microsoft 365 Copilot license" -f $UserData.Count) -ForegroundColor Green
 }
+
 
 Write-Host "Creating report..." -ForegroundColor Green
 $Report = [System.Collections.Generic.List[Object]]::new()
