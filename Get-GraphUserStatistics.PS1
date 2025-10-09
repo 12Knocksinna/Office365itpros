@@ -259,9 +259,9 @@ ForEach ($S in $SPOData) {
         SPOViewedEdited     = [int]$S."Viewed or Edited File Count"     
         SPOSyncedFileCount  = [int]$S."Synced File Count"
         SPOSharedExt        = [int]$S."Shared Externally File Count"
-        SPOSharedInt       = [int]$S."Shared Internally File Count"
-        SPOVisitedPages    = [int]$S."Visited Page Count" 
-        SPORecordType      = "SharePoint Usage"
+        SPOSharedInt        = [int]$S."Shared Internally File Count"
+        SPOVisitedPages     = [int]$S."Visited Page Count" 
+        SPORecordType       = "SharePoint Usage"
     }
     [Array]$ExistingData = $DataTable[$S."User Principal Name"] 
     [Array]$NewData = $ExistingData + $ReportLine
@@ -283,7 +283,10 @@ ForEach ($O in $OneDriveData) {
         $ODSite = $BaseOneDriveDomain + $ODSite
     } Else {
         # Use the Graph to find the OneDrive site URL and return in the same format as the interactive version
-        $ODSite = ((Get-MgUserDefaultDrive -UserId $O."Owner Principal Name").WebUrl).Split("/Documents")[0]
+        # This code is overkill, but it's to try and make it work in a runbook (works fine in app-only mode )
+        $User = $O."Owner Principal Name".trim()
+        $UserId = Get-MgUser -UserId $User | Select-Object -ExpandProperty Id
+        $ODSite = ((Get-MgUserDefaultDrive -UserId $UserId).WebUrl).Split("/Documents")[0]
     }
     $ReportLine  = [PSCustomObject] @{          
         ODUPN               = $O."Owner Principal Name"
