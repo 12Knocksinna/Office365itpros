@@ -18,7 +18,7 @@ If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $true) {
 }
 
 Write-Host "Finding Microsoft 365 Copilot usage data..." -ForegroundColor Green
-$Uri = "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUsageUserDetail(period='D90')"
+$Uri = "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUsageUserDetail(period='D180')"
 [array]$SearchRecords = Invoke-GraphRequest -Uri $Uri -Method Get -OutputType PSObject
 If (!($SearchRecords)) {
     Write-Host "No usage data found for Microsoft 365 Copilot"
