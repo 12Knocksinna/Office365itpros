@@ -92,10 +92,9 @@ If ($ExcelGenerated) {
     $OutputFile = $CSVOutputFile
 }
 
-
-# Encode the output file to an email
+# Encode the output file so that it can be added as an attachment to an email
 $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($OutputFile))
-
+# Create the attachments array
 $MsgAttachments = @(
     @{
         '@odata.type' = '#microsoft.graph.fileAttachment'
@@ -105,9 +104,12 @@ $MsgAttachments = @(
     }
 )
 
+# Create a string of domains to block for inclusion in the email body
 [string]$JunkEmailDomainsOutput = $JunkEmailDomains -join "', '"
 
-# Degfine the receipient (see earlier)
+$TransportRuleName = "Quarantine Traffic from Junk Email Domains " + (Get-Date -Format 'yyyy-MM-dd')
+
+# Define the message recipient (see earlier)
 $ToRecipient = @{}
 $ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
 [array]$MsgTo = $ToRecipient
@@ -116,8 +118,7 @@ $MsgSubject = "Important: Junk Email Domains Report"
 # Create the HTML content
 $HtmlMsg = "</body></html><p>The output file for the <b>Junk Email Domains Report</b> are attached to this message. Please review the information at your convenience and consider creating a transport rule to block these domains</p>"
 $HtmlMsg = $HtmlMsg + "<p>You can use PowerShell commands like this to create a transport rule to block these domains:<p></p>"
-$HtmlMsg = $HtmlMsg + "<p>New-TransportRule -Name 'Quarantine Traffic from Junk Email Domains' -SenderDomainIs '$JunkEmailDomainsOutput' -Mode Enforce  -Quarantine 1 -Comments 'Blocks messages from domains that send junk email'</p>"
-
+$HtmlMsg = $HtmlMsg + "<p>New-TransportRule -Name $TransportRuleName -SenderDomainIs '$JunkEmailDomainsOutput' -Mode Enforce  -Quarantine 1 -Comments 'Blocks messages from domains that send junk email'</p>"
 
 # Construct the message body 	
 $MsgBody = @{}
