@@ -9,7 +9,7 @@
 # Can only run in app-only mode, so define the settings to connect interactively using a certificate/
 # Alternatively, run this code in Azure Automation with a managed identity
 $Thumbprint = '0CF6CE3F3548FD73E7AC8CF20226ED447E125C71'
-$TenantId =  'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$TenantId =  'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $AppId = '9802440a-2c48-4e47-9eb8-f166ba99b11f'
 
 # For interactive use, the signed-in user must be an Exchange administrator
@@ -17,7 +17,7 @@ Connect-MgGraph -TenantId $TenantId -ClientId $AppId -CertificateThumbprint $Thu
 Connect-ExchangeOnline -ShowBanner:$false
 
 $DestinationEmailAddress = "customer.services@office365itpros.com"
-$MsgFrom = 'Tony.Redmond@office365itpros.com'
+$MsgFrom = 'no-reply@office365itpros.com'
 
 # Get mailboxes - users and shared
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited
