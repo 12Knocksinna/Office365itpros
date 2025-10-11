@@ -349,7 +349,7 @@ If ($ExcelGenerated) {
     Write-Host ("CSV output file written to {0}" -f $CSVOutputFile)
 }   
 
-# Encount the output file to an email
+# Encode the output file to an email
 $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
 # Encode the HTML report too
 $EncodedHTMLReportFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($HTMLReportFile))
