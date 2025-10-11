@@ -59,7 +59,6 @@ If ($UserData.Count -eq 0) {
     Write-Host ("{0} users found with a Microsoft 365 Copilot license" -f $UserData.Count) -ForegroundColor Green
 }
 
-
 Write-Host "Creating report..." -ForegroundColor Green
 $Report = [System.Collections.Generic.List[Object]]::new()
 

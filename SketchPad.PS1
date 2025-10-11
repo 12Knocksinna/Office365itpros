@@ -980,3 +980,33 @@ ForEach ($Buyer in $Book25) {
 $UnixEpochValue = 1752763429
 $Date = [DateTimeOffset]::FromUnixTimeSeconds($UnixEpochValue).ToLocalTime().DateTime
 Write-Host "UNIX epoch $UnixEpochValue is" $(Get-Date $Date -format 'dd-MMM-yyyy HH:mm')
+
+
+
+[Array]$Users = Get-MgUser -All -Sort DisplayName
+[Array]$ProcessedUsers = @()
+[int]$i=0
+Do {
+    ForEach ($User in $Users) {
+        $i++
+        Try {
+           #$Uri = "https://graph.microsoft.com/v1.0/users/{0}?`$select=id,displayName,userPrincipalName,signInActivity" -f $User.Id
+           #$Data = Invoke-MgGraphRequest -Method GET -Uri $Uri
+            $Data = Get-MgUser -UserId $User.Id -Property id,displayName,userPrincipalName,signInActivity -ErrorAction Stop
+            $ProcessedUsers += $Data
+            Write-Host ("Processed user {0} ({1})" -f $i, $User.DisplayName)
+        } Catch {
+            If ($_.Exception.Message -like "*Too many retries performed*") {
+                Write-Host ("Detected: Too many retries performed error when processing user {0}." -f $User.DisplayName) -ForegroundColor Red
+                # Wait 15 second then reattempt to process user
+                Start-Sleep -Seconds 15
+                Write-Host ("Retrying user {0}" -f $User.DisplayName)
+                $Data = Get-MgUser -UserId $User.Id -Property id,displayName,userPrincipalName,signInActivity
+                $ProcessedUsers += $Data
+            } Else {
+                Write-Host ("Other error: {0}" -f $_.Exception.Message)
+            }
+        }
+    }
+} While ($i -lt 500)
+
