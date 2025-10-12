@@ -6,8 +6,9 @@
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-JunkEmailDomains.PS1
 	
-# Can only run in app-only mode, so define the settings to connect interactively using a certificate/
-# Alternatively, run this code in Azure Automation with a managed identity
+# Can only run in app-only mode, so define the settings to connect interactively using a certificate. If using an app, make sure
+# that the appid, tenantid, and certificate thumbprint match your app registration.
+# Alternatively, you can run this code in Azure Automation and use a managed identity to authenticate
 $Thumbprint = '0CF6CE3F3548FD73E7AC8CF20226ED447E125C71'
 $TenantId =  'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $AppId = '9802440a-2c48-4e47-9eb8-f166ba99b11f'
@@ -16,8 +17,9 @@ $AppId = '9802440a-2c48-4e47-9eb8-f166ba99b11f'
 Connect-MgGraph -TenantId $TenantId -ClientId $AppId -CertificateThumbprint $Thumbprint -NoWelcome
 Connect-ExchangeOnline -ShowBanner:$false
 
-$DestinationEmailAddress = "customer.services@office365itpros.com"
-$MsgFrom = 'no-reply@office365itpros.com'
+# Change these variables to select the mailbox the message will come from and the destination SMTP address
+$DestinationEmailAddress = "SomeAdminUser@office365itpros.com"
+$MsgFrom = 'noreply@office365itpros.com'
 
 # Get mailboxes - users and shared
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited
