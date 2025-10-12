@@ -5,6 +5,20 @@
 # 1.0 11-Oct-2025
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-JunkEmailDomains.PS1
+
+Function Remove-FirstSubdomain {
+    param (
+        [Parameter(Mandatory)]
+        [string]$Domain
+    )
+    $parts = $Domain -split '\.'
+    if ($parts.Count -gt 2) {
+        return ($parts[1..($parts.Count - 1)] -join '.')
+    } else {
+        return $Domain
+    }
+}
+
 	
 # Can only run in app-only mode, so define the settings to connect interactively using a certificate. If using an app, make sure
 # that the appid, tenantid, and certificate thumbprint match your app registration.
@@ -48,6 +62,11 @@ ForEach ($M in $Mbx) {
         Continue
     } Else {    
         ForEach ($MailItem in $MailItems) {
+        $EmailDomain = ($MailItem.Sender.emailAddress.Address -split '@')[1]
+        # Extract the root domain unless it's a .onmicrosoft.com service domain
+        If ($EmailDomain -Notlike "*.onmicrosoft.com") {
+            $EmailDomain = Remove-FirstSubdomain -Domain $EmailDomain
+        }
         # Report each item found in the Junk Email folder
             $ReportItem = [PSCustomObject]@{
                 DisplayName             = $M.DisplayName
@@ -59,7 +78,7 @@ ForEach ($M in $Mbx) {
                 'Junk Mail Sender'      = $MailItem.Sender.emailAddress.Name
                 'Junk Mail Email'       = $MailItem.Sender.emailAddress.Address
                 'Junk Mail Subject'     = $MailItem.Subject
-                'Junk Mail Domain'      = ($MailItem.Sender.emailAddress.Address -split '@')[1]
+                'Junk Mail Domain'      = $EmailDomain
             }
             $Report.Add($ReportItem)
         }
@@ -67,9 +86,9 @@ ForEach ($M in $Mbx) {
 }
 # Extract the set of domains
 [array]$JunkEmailDomains = $Report | Group-Object 'Junk Mail Domain' -NoElement | Select-Object -ExpandProperty Name
-# Remove gmail.com, outlook.com, yahoo.com, etc.
+# Remove consumer domains like gmail.com, outlook.com, yahoo.com, etc.
 [array]$ConsumerDomains = @('gmail.com','outlook.com','yahoo.com','hotmail.com','live.com','aol.com','icloud.com','protonmail.com','zoho.com','gmx.com')
-$JunkEmailDomains = $JunkEmailDomains | Where-Object {$_ -and ($_ -notin $ConsumerDomains)} | Sort-Object
+$JunkEmailDomains = $JunkEmailDomains | Where-Object {$_ -and ($_ -notin $ConsumerDomains)} | Sort-Object -Unique
 
 Write-Host "Generating report..."
 If (Get-Module ImportExcel -ListAvailable) {
@@ -120,7 +139,7 @@ $MsgSubject = "Important: Junk Email Domains Report"
 # Create the HTML content
 $HtmlMsg = "</body></html><p>The output file for the <b>Junk Email Domains Report</b> are attached to this message. Please review the information at your convenience and consider creating a transport rule to block these domains</p>"
 $HtmlMsg = $HtmlMsg + "<p>You can use PowerShell commands like this to create a transport rule to block these domains:<p></p>"
-$HtmlMsg = $HtmlMsg + "<p>New-TransportRule -Name $TransportRuleName -SenderDomainIs '$JunkEmailDomainsOutput' -Mode Enforce  -Quarantine 1 -Comments 'Blocks messages from domains that send junk email'</p>"
+$HtmlMsg = $HtmlMsg + "<p>New-TransportRule -Name $TransportRuleName -SenderDomainIs '$JunkEmailDomainsOutput' -Mode Enforce  -Quarantine 1 -SenderAddressLocation 'HeaderOrEnvelope'-Comments 'Blocks messages from domains that send junk email'</p>"
 
 # Construct the message body 	
 $MsgBody = @{}
