@@ -18,10 +18,9 @@ Function Remove-FirstSubdomain {
         return $Domain
     }
 }
-
 	
-# Can only run in app-only mode, so define the settings to connect interactively using a certificate. If using an app, make sure
-# that the appid, tenantid, and certificate thumbprint match your app registration.
+# The script can only run in app-only mode, so define the settings to connect interactively using a certificate. If using an app, make sure
+# that the values for the appid, tenantid, and certificate thumbprint variables below match your app registration.
 # Alternatively, you can run this code in Azure Automation and use a managed identity to authenticate
 $Thumbprint = '0CF6CE3F3548FD73E7AC8CF20226ED447E125C71'
 $TenantId =  'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
