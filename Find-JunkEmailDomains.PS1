@@ -60,6 +60,7 @@ ForEach ($M in $Mbx) {
         Write-Host ("No items found in the Junk Email folder for {0}" -f $M.DisplayName) -ForegroundColor Yellow
         Continue
     } Else {    
+        Write-Host ("{0} items found in the Junk Email folder for {1}" -f $MailItems.Count, $M.DisplayName) -ForegroundColor Green
         ForEach ($MailItem in $MailItems) {
         $EmailDomain = ($MailItem.Sender.emailAddress.Address -split '@')[1]
         # Extract the root domain unless it's a .onmicrosoft.com service domain
@@ -97,8 +98,8 @@ If (Get-Module ImportExcel -ListAvailable) {
     If (Test-Path $ExcelOutputFile) {
         Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
     }
-    $JunkEmailDomains | Export-Excel -Path $ExcelOutputFile -WorksheetName "Junk Email Domains Report" -Title ("Junk Email Domains {0}" -f (Get-Date -format 'dd-MMM-yyyy')) `
-        -TitleBold -TableName "JunkEmailDomains "
+    $JunkEmailDomains | Export-Excel -Path $ExcelOutputFile -WorksheetName "JunkEmailDomains" -Title ("Junk Email Domains {0}" -f (Get-Date -format 'dd-MMM-yyyy')) `
+        -TitleBold -TableName "JunkEmailDomains"
 } Else {
     $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Junk Email Domains.CSV"
     $JunkEmailDomains | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
@@ -127,7 +128,7 @@ $MsgAttachments = @(
 # Create a string of domains to block for inclusion in the email body
 [string]$JunkEmailDomainsOutput = $JunkEmailDomains -join "', '"
 
-$TransportRuleName = "Quarantine Traffic from Junk Email Domains " + (Get-Date -Format 'yyyy-MM-dd')
+$TransportRuleName = "'Quarantine Traffic from Junk Email Domains'"
 
 # Define the message recipient (see earlier)
 $ToRecipient = @{}
@@ -138,7 +139,7 @@ $MsgSubject = "Important: Junk Email Domains Report"
 # Create the HTML content
 $HtmlMsg = "</body></html><p>The output file for the <b>Junk Email Domains Report</b> are attached to this message. Please review the information at your convenience and consider creating a transport rule to block these domains</p>"
 $HtmlMsg = $HtmlMsg + "<p>You can use PowerShell commands like this to create a transport rule to block these domains:<p></p>"
-$HtmlMsg = $HtmlMsg + "<p>New-TransportRule -Name $TransportRuleName -SenderDomainIs '$JunkEmailDomainsOutput' -Mode Enforce  -Quarantine 1 -SenderAddressLocation 'HeaderOrEnvelope'-Comments 'Blocks messages from domains that send junk email'</p>"
+$HtmlMsg = $HtmlMsg + "<p>New-TransportRule -Name $TransportRuleName -SenderDomainIs '$JunkEmailDomainsOutput' -Mode Enforce  -Quarantine 1 -SenderAddressLocation HeaderOrEnvelope -Comments 'Blocks messages from domains that send junk email'</p>"
 
 # Construct the message body 	
 $MsgBody = @{}
