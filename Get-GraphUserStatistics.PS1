@@ -283,7 +283,8 @@ ForEach ($O in $OneDriveData) {
         $ODSite = $BaseOneDriveDomain + $ODSite
     } Else {
         # Use the Graph to find the OneDrive site URL and return in the same format as the interactive version
-        # This code is overkill, but it's to try and make it work in a runbook (works fine in app-only mode )
+        # This code is overkill, and it works fine in app-only mode but the Get-MgUserDefaultDrive cmdlet fails in an Azure Automation runbook. The fix
+        # is to simply use the $BaseOneDriveDomain + the UPN with substitutions as done in the interactive code above.
         $User = $O."Owner Principal Name".trim()
         $UserId = Get-MgUser -UserId $User | Select-Object -ExpandProperty Id
         $ODSite = ((Get-MgUserDefaultDrive -UserId $UserId).WebUrl).Split("/Documents")[0]
