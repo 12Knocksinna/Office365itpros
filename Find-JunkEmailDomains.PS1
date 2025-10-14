@@ -6,16 +6,93 @@
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-JunkEmailDomains.PS1
 
-Function Remove-FirstSubdomain {
-    param (
-        [Parameter(Mandatory)]
-        [string]$Domain
+Function Get-PublicSuffix {
+    [CmdletBinding()]
+    param(
+        # Domain name (e.g., "11.pen-and-sword.uk", "www.bbc.co.uk")
+        [Parameter(Mandatory, ValueFromPipeline)]
+        [string]$Domain,
+
+        # Return registrable domain (eTLD+1) instead of just the public suffix
+        [switch]$Registrable,
+
+        # Force re-download of the Public Suffix List
+        [switch]$RefreshSuffixList
     )
-    $parts = $Domain -split '\.'
-    if ($parts.Count -gt 2) {
-        return ($parts[1..($parts.Count - 1)] -join '.')
-    } else {
-        return $Domain
+
+    begin {
+        # Cache PSL in script scope for the session
+        if (-not $script:__PSL -or $RefreshSuffixList) {
+            $uri = 'https://publicsuffix.org/list/public_suffix_list.dat'
+            $raw = Invoke-WebRequest -Uri $uri -UseBasicParsing | Select-Object -ExpandProperty Content -ErrorAction Stop
+            $rules = $raw -split "`n" | ForEach-Object {
+                $t = $_.Trim()
+                if ($t -and -not $t.StartsWith('//')) { $t }
+            }
+            $script:__PSL = [PSCustomObject]@{
+                Exceptions = $rules | Where-Object { $_.StartsWith('!') } | ForEach-Object { $_.Substring(1) }
+                Normals    = $rules | Where-Object { -not $_.StartsWith('!') }
+            }
+        }
+        $idn = [System.Globalization.IdnMapping]::new()
+    }
+
+    process {
+        if ([string]::IsNullOrWhiteSpace($Domain)) { return $null }
+
+        # Normalize domain
+        $trimmed = $Domain.Trim().TrimEnd('.').ToLowerInvariant()
+        if ($trimmed -match '^(?:\d{1,3}\.){3}\d{1,3}$') { return $null } # IP address check
+
+        $labels = ($trimmed -split '\.') | ForEach-Object { try { $idn.GetAscii($_) } catch { $_ } }
+        if ($labels.Count -eq 0) { return $null }
+
+        # Helper: rule match
+        function Test-RuleMatch($ruleLabels, $domainLabels) {
+            $ri = $ruleLabels.Count - 1
+            $di = $domainLabels.Count - 1
+            while ($ri -ge 0 -and $di -ge 0) {
+                $rule = $ruleLabels[$ri]
+                $dom  = $domainLabels[$di]
+                if ($rule -eq '*') { $ri--; $di--; continue }
+                if ($rule -ieq $dom) { $ri--; $di--; continue }
+                return $false
+            }
+            return ($ri -lt 0)
+        }
+
+        # PSL matching
+        $bestLen = 1
+        $matchedByExcept = $false
+
+        foreach ($ex in $script:__PSL.Exceptions) {
+            $exLabels = $ex -split '\.'
+            if (Test-RuleMatch $exLabels $labels) {
+                $len = [Math]::Max($exLabels.Count - 1, 1)
+                if ($len -gt $bestLen) { $bestLen = $len; $matchedByExcept = $true }
+            }
+        }
+
+        if (-not $matchedByExcept) {
+            foreach ($nr in $script:__PSL.Normals) {
+                $nrLabels = $nr -split '\.'
+                if (Test-RuleMatch $nrLabels $labels) {
+                    $len = $nrLabels.Count
+                    if ($len -gt $bestLen) { $bestLen = $len }
+                }
+            }
+        }
+
+        $suffix = ($labels[($labels.Count - $bestLen)..($labels.Count - 1)] -join '.')
+        if ($Registrable) {
+            if ($labels.Count -gt $bestLen) {
+                return ($labels[($labels.Count - ($bestLen + 1))..($labels.Count - 1)] -join '.')
+            } else {
+                return $null
+            }
+        } else {
+            return $suffix
+        }
     }
 }
 	
@@ -65,7 +142,7 @@ ForEach ($M in $Mbx) {
         $EmailDomain = ($MailItem.Sender.emailAddress.Address -split '@')[1]
         # Extract the root domain unless it's a .onmicrosoft.com service domain
         If ($EmailDomain -Notlike "*.onmicrosoft.com") {
-            $EmailDomain = Remove-FirstSubdomain -Domain $EmailDomain
+            $EmailDomain = Get-PublicSuffix -Domain $EmailDomain -Registrable 
         }
         # Report each item found in the Junk Email folder
             $ReportItem = [PSCustomObject]@{
@@ -87,7 +164,7 @@ ForEach ($M in $Mbx) {
 # Extract the set of domains
 [array]$JunkEmailDomains = $Report | Group-Object 'Junk Mail Domain' -NoElement | Select-Object -ExpandProperty Name
 # Remove consumer domains like gmail.com, outlook.com, yahoo.com, etc.
-[array]$ConsumerDomains = @('gmail.com','outlook.com','yahoo.com','hotmail.com','live.com','aol.com','icloud.com','protonmail.com','zoho.com','gmx.com')
+[array]$ConsumerDomains = @('gmail.com','outlook.com','yahoo.com','hotmail.com','live.com','aol.com','icloud.com','protonmail.com','zoho.com','gmx.com','msn.com')
 $JunkEmailDomains = $JunkEmailDomains | Where-Object {$_ -and ($_ -notin $ConsumerDomains)} | Sort-Object -Unique
 
 Write-Host "Generating report..."
