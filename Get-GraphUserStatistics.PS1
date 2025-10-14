@@ -48,7 +48,7 @@ If ($Interactive) {
 
 $StartTime1 = Get-Date
 # Define email address to receive the emailed copy of the report
-$DestinationEmailAddress = "tony.redmond@office365itpros.com"
+$DestinationEmailAddress = "someuser@office365itpros.com"
 
 # Check if report data is obfuscated in the tenant. If it is, turn obfuscation off so that we get real data for analysis
 $ObfuscationChanged = $false
