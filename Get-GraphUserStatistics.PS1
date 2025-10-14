@@ -20,10 +20,7 @@ If ([Environment]::UserInteractive) {
     Connect-MgGraph -NoWelcome -Scopes User.Read.All, Reports.Read.All, ReportSettings.ReadWrite.All, Mail.Send, Organization.Read.All
     $Interactive = $true
     # Email address to use when sending email from interactive session
-    $MsgFrom = (Get-MgContext).Account
-    $HomeDomain = (Get-MgOrganization).VerifiedDomains | Where-Object { $_.IsDefault -eq $true } | Select-Object -ExpandProperty Name
-    $BaseOneDriveDomain = "https://"+$HomeDomain.Split(".")[0]+"-my.sharepoint.com/personal/"
-    
+    $MsgFrom = (Get-MgContext).Account    
 } Else { 
     # We're not, so likely in Azure Automation
     Write-Output "Executing the runbook to create the last activity report for user member accounts..." 
@@ -31,6 +28,10 @@ If ([Environment]::UserInteractive) {
     # Email address to use when sending email from Azure Automation
     $MsgFrom = "no-reply@office365itpros.com"
 }
+
+# Set the home domain and base OneDrive domain to use when creating OneDrive URLs
+$HomeDomain = (Get-MgOrganization).VerifiedDomains | Where-Object { $_.IsDefault -eq $true } | Select-Object -ExpandProperty Name
+$BaseOneDriveDomain = "https://"+$HomeDomain.Split(".")[0]+"-my.sharepoint.com/personal/"
 
 # Check that we have the right permissions - in Azure Automation, we assume that the automation account has the right permissions
 If ($Interactive) {
