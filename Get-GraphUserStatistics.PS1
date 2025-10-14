@@ -434,19 +434,19 @@ ForEach ($User in $Users) {
    
     # Average days per workload used...
     $AverageDaysSinceUse = [Math]::Round((($ExoDays + $TeamsDays + $SPODays + $ODDays + $YammerDays)/5),2)
-
+    # Add icons to account status
     Switch ($AverageDaysSinceUse) { # Figure out if account is used
-        ({$PSItem -le 12})                         { $AccountStatus = "Heavy usage" }
-        ({$PSItem -ge 13 -and $PSItem -le 50} )    { $AccountStatus = "Moderate usage" }   
-        ({$PSItem -ge 51 -and $PSItem -le 120} )   { $AccountStatus = "Poor usage" }
-        ({$PSItem -ge 121 -and $PSItem -le 300 } ) { $AccountStatus = "Review account"  }
-        default                                    { $AccountStatus = "Account unused" }
+        ({$PSItem -le 12})                         { $AccountStatus = "🟩💪 Heavy usage" }
+        ({$PSItem -ge 13 -and $PSItem -le 50} )    { $AccountStatus = "🟨🙂 Moderate usage" }   
+        ({$PSItem -ge 51 -and $PSItem -le 120} )   { $AccountStatus = "🟧😐 Poor usage" }
+        ({$PSItem -ge 121 -and $PSItem -le 300 } ) { $AccountStatus = "🟦🧐 Review account"  }
+        default                                    { $AccountStatus = "🟥🚫 Account unused" }
     } # End Switch
 
     # And an override if someone has been active in just one workload in the last 14 days
     [int]$DaysCheck = 14 # Set this to your chosen value if you want to use a different period.
     If (($ExoDays -le $DaysCheck) -or ($TeamsDays -le $DaysCheck) -or ($SPODays -le $DaysCheck) -or ($ODDays -le $DaysCheck) -or ($YammerDays -le $DaysCheck)) {
-        $AccountStatus = "Account in use"
+        $AccountStatus = "🟢💪 Account in use"
     }
 
     If ((![string]::IsNullOrEmpty($ExoUPN))) {
