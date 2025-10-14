@@ -8,7 +8,13 @@
 # Note: Guest user activity is not recorded by the Graph - only tenant accounts are processed
 # Original article https://office365itpros.com/2020/09/14/office-365-user-activity-report/ (2020) and then https://office365itpros.com/2022/08/08/microsoft-365-user-activity-2022/ (2022)
 
-# Flag to let script code know if we're running interactively or within Azure Automation
+# Flag to let script code know if we're running interactively or within Azure Automation. Make sure that the following modules are installed:
+# Microsoft.Graph.Authentication
+# Microsoft.Graph.Users
+# Microsoft.Graph.Users.Actions
+# Microsoft.Graph.Reports
+# Microsoft.Graph.Identity.DirectoryManagement
+
 $Interactive = $false
 $ReportName = "Microsoft 365 User Activity Report V2.1"
 
