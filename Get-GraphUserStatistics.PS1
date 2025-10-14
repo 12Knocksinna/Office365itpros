@@ -436,8 +436,8 @@ ForEach ($User in $Users) {
     $AverageDaysSinceUse = [Math]::Round((($ExoDays + $TeamsDays + $SPODays + $ODDays + $YammerDays)/5),2)
 
     Switch ($AverageDaysSinceUse) { # Figure out if account is used
-        ({$PSItem -le 8})                          { $AccountStatus = "Heavy usage" }
-        ({$PSItem -ge 9 -and $PSItem -le 50} )     { $AccountStatus = "Moderate usage" }   
+        ({$PSItem -le 12})                         { $AccountStatus = "Heavy usage" }
+        ({$PSItem -ge 13 -and $PSItem -le 50} )    { $AccountStatus = "Moderate usage" }   
         ({$PSItem -ge 51 -and $PSItem -le 120} )   { $AccountStatus = "Poor usage" }
         ({$PSItem -ge 121 -and $PSItem -le 300 } ) { $AccountStatus = "Review account"  }
         default                                    { $AccountStatus = "Account unused" }
