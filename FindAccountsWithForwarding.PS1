@@ -4,17 +4,25 @@
 
 # Check that the right modules are loaded
 [array]$Modules = Get-Module
-If ("ExchangeOnlineManagement" -notin  $Modules.Name) {Write-Host "Please connect to Exchange Online Management  before continuing...";break}
+If ("ExchangeOnlineManagement" -notin  $Modules.Name) {
+   Connect-ExchangeOnline -ShowBanner:$False -ErrorAction Stop
+}
 
-[array]$Mbx = (Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -Properties ForwardingSmtpAddress -ResultSize Unlimited)
-Write-Host $Mbx.Count "user and shared mailboxes found. Now checking..."
+Write-Host "Finding user and shared mailboxes..."
+[array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -Properties ForwardingSmtpAddress -ResultSize Unlimited
+If (!$Mbx) {
+   Write-Host "No user or shared mailboxes found!" -ForegroundColor Yellow
+   Break
+} Else {
+   Write-Host ("{0} user and shared mailboxes found" -f $Mbx.Count) -ForegroundColor Green
+}
+
 $Report = [System.Collections.Generic.List[Object]]::new()
 Clear-Host; $MbxNumber = 0
 ForEach ($M in $Mbx) {
     $MbxNumber++
     $ProgressBar = "Checking mailbox " + $M.DisplayName + " (" + $MbxNumber + " of " + $Mbx.Count + ")" 
     Write-Progress -Activity "Looking for forwarding settings and inbox rules" -Status $ProgressBar -PercentComplete ($MbxNumber/$Mbx.Count*100)
-    Write-Host "Processing" $M.DisplayName
     $Rule = $Null
     If ($null  -ne $M.ForwardingSmtpAddress) { # Mailbox has a forwarding address
          $ReportLine = [PSCustomObject]@{
@@ -75,7 +83,7 @@ $MailboxesForwarding =  $Mailforwarding.Mailbox -join ", "
 Write-Host ("{0} mailboxes found with forwarding addresses: {1}; {2} mailboxes found with forwarding inbox rules: {3}" -f $MailForwarding.Count, $MailboxesForwarding, $InboxRulesFound.Count, $MailboxesWithRules)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# and/or a relevant article on https://office365itpros.com or https://www.pratical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
