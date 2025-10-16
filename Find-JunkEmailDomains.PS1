@@ -2,9 +2,16 @@
 # Find the domains that send our tenant junk email by examining the items in the Junk Email folder of each mailbox. The script
 # works by extracting the domain from each item found in user and shared mailboxes. You can then use the output to create
 # a report of the domains that send the most junk email to your tenant.
-# 1.0 11-Oct-2025
+# V1.0 11-Oct-2025
+# V1.16-Oct-2025 Added option to delete items found in the Junk Email folder after processing
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-JunkEmailDomains.PS1
+
+param(
+    # If set to $true, delete all items found in the Junk Email folder after processing
+    [Parameter(Mandatory)]
+    [bool]$DeleteItemsNow = $false
+)
 
 Function Get-PublicSuffix {
     [CmdletBinding()]
@@ -112,7 +119,7 @@ $DestinationEmailAddress = "SomeAdminUser@office365itpros.com"
 $MsgFrom = 'noreply@office365itpros.com'
 
 # Get mailboxes - users and shared
-[array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited
+[array]$Mbx = Get-ExoMailbox -RecipientTypeDetails UserMailbox, SharedMailbox -ResultSize Unlimited | Sort-Object DisplayName
 If (!($Mbx)) {
     Write-Host "No user or shared mailboxes found" -ForegroundColor Red
     Break
@@ -136,7 +143,7 @@ ForEach ($M in $Mbx) {
     If (!($MailItems)) {
         Write-Host ("No items found in the Junk Email folder for {0}" -f $M.DisplayName) -ForegroundColor Yellow
         Continue
-    } Else {    
+    } Else  {    
         Write-Host ("{0} items found in the Junk Email folder for {1}" -f $MailItems.Count, $M.DisplayName) -ForegroundColor Green
         ForEach ($MailItem in $MailItems) {
         $EmailDomain = ($MailItem.Sender.emailAddress.Address -split '@')[1]
@@ -159,8 +166,19 @@ ForEach ($M in $Mbx) {
             }
             $Report.Add($ReportItem)
         }
+        If ($DeleteItemsNow) {
+            Write-Host ("Deleting {0} spammy items from the Junk Email folder for {1}" -f $MailItems.Count, $M.DisplayName) -ForegroundColor Yellow
+            ForEach ($MailItem in $MailItems) {
+                Try {
+                    Remove-MgUserMailFolderMessage -UserId $M.ExternalDirectoryObjectId -MailFolderId $JunkEmailFolder.Id -MessageId $MailItem.Id -ErrorAction Stop
+                } Catch {
+                    Write-Host ("Failed to delete item {0} from the Junk Email folder for {1}" -f $MailItem.Id, $M.DisplayName) -ForegroundColor Red
+                }
+            }
+        }
     }
 }
+
 # Extract the set of domains
 [array]$JunkEmailDomains = $Report | Group-Object 'Junk Mail Domain' -NoElement | Select-Object -ExpandProperty Name
 # Remove consumer domains like gmail.com, outlook.com, yahoo.com, etc.

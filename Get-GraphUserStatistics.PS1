@@ -528,7 +528,7 @@ Write-Output ("Time to prepare date for processing:     {0}" -f $PrepElapsed)
 Write-Output ("Time to create report from data:         {0}" -f $ReportElapsed)
 Write-Output ("Total time for script:                   {0}" -f $ScriptElapsed)
 Write-Output ("Total accounts processed:                {0}" -f $Outdata.count)
-Write-Output ("Accounts processing rate per minute:     {0}" -f $AccountsPerMinute)   
+Write-Output ("Account processing rate per minute:     {0}" -f $AccountsPerMinute)   
 Write-Output " "
 
 If ($Interactive) {
