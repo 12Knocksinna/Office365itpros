@@ -11,48 +11,58 @@ If (!$Apps) {
 $AppReport = [System.Collections.Generic.List[Object]]::new()
 
 ForEach ($App in $Apps) {
-    $AppOwners = $null
+    $AppOwners = $null; $AppOwnersString = $null; $SPObjectId = $null; $SPOwners = $null; $ARAs = $null
     $AppOwners = (Get-MgApplicationOwner -ApplicationId $App.Id -All)
     If ($AppOwners) {
         $AppOwnersString = $AppOwners.additionalProperties.displayName -join "; "
     }
-    $AppCreatedDateTime = $App.CreatedDateTime
-    $AppUpdatedDateTime = $App.ModifiedDateTime
     $AppIdentifierUris = $App.IdentifierUris -join ";"
     $AppReplyUrls = $App.Web.RedirectUris -join ";"
-    $AppRequiredResourceAccess = @()
-    ForEach ($RRA in $App.RequiredResourceAccess) {
-        $ResourceAppId = $RRA.ResourceAppId
-        ForEach ($RA in $RRA.ResourceAccess) {
-            $RAEntry = "{0}:{1}" -f $ResourceAppId, $RA.Id
-            $AppRequiredResourceAccess += $RAEntry
-        }
+    
+    If ($App.ModifiedDateTime) {
+        $AppModifiedDateTime = Get-Date $App.ModifiedDateTime -Format "mm-MMM-yyyy HH:mm:ss"
+    } Else {
+        $AppModifiedDateTime = $null
     }
     $AppRequiredResourceAccessString = $AppRequiredResourceAccess -join ";"
     
-    # Get service principals for the app
-    [Array]$SPs = Get-MgServicePrincipal -Filter "appId eq '$AppId'" -All
-    If (!$SPs) {
-        Write-Output ("No service principals found for application {0}" -f $AppName)
+    # Get service principal for the app
+    $SP = Get-MgServicePrincipal -Filter "appId eq '$AppId'" -All
+    If (!$SP) {
+        Write-Output ("No service principal found for application {0}" -f $App.DisplayName)
         Continue
     } Else {
-        Write-Output ("{0} service principals found for application {1}" -f $SPs.Count, $AppName)  
-    }   
-    
-    ForEach ($SP in $SPs) {
-        $SPObjectId = $SP.Id
-        $SPOwners = (Get-MgServicePrincipalOwner -ServicePrincipalId $SPObjectId -All | Select-Object -ExpandProperty UserPrincipalName) -join ";"
-        $SPCreatedDateTime = $SP.CreatedDateTime
-        $SPUpdatedDateTime = $SP.AppRoleAssignmentRequired
-        # Get app role assignments for the service principal
-        [Array]$ARAs = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $SPObjectId -All
-        If (!$ARAs) {
-            Write-Output ("No app role assignments found for service principal {0}" -f $SP.DisplayName)
-            Continue
-        } Else {
-            Write-Output ("{0} app role assignments found for service principal {1}" -f $ARAs.Count, $SP.DisplayName)  
-        }
+        Write-Output ("Service principal found for application {1}" -f $App.DisplayName)  
+        
+            $SPOwners = (Get-MgServicePrincipalOwner -ServicePrincipalId $SP.Id -All | Select-Object -ExpandProperty UserPrincipalName) -join ";"
+            $SPAppRoleAssignmentRequired = $SP.AppRoleAssignmentRequired
+            # Get app role assignments for the service principal
+            [Array]$ARAs = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $SP.Id -All
+            If (!$ARAs) {
+                Write-Output ("No app role assignments found for service principal {0}" -f $SP.DisplayName)
+                Continue
+            } Else {
+                Write-Output ("{0} app role assignments found for service principal {1}" -f $ARAs.Count, $SP.DisplayName)  
+            }
+        
     }
+    $AppReportLine = [PSCustomObject]@{
+        AppName                      = $App.DisplayName
+        AppId                        = $App.AppId
+        AppObjectId                  = $App.Id
+        AppOwners                    = $AppOwnersString
+        AppCreatedDateTime           = Get-Date $App.CreatedDateTime -Format "dd-MMM-yyyy HH:mm:ss"
+        AppModifiedDateTime          = $AppModifiedDateTime
+        AppIdentifierUris            = $AppIdentifierUris
+        AppReplyUrls                 = $AppReplyUrls
+        
+        ServicePrincipalObjectId     = $SPObjectId
+        ServicePrincipalOwners       = $SPOwners
+        ServicePrincipalCreatedDateTime = Get-Date $SP.additionalProperties['createdDateTime'] -Format "mm-MMM-yyyy HH:mm:ss"
+        ServicePrincipalAppRoleAssignmentRequired = $SPAppRoleAssignmentRequired
+        ServicePrincipalAppRoleAssignmentsCount = $ARAs.Count
+    }   
+    $AppReport.Add($AppReportLine)
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
