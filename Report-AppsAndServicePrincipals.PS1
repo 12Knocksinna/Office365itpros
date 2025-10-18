@@ -26,26 +26,37 @@ $RightsManagementPermissions = @{}
 $RightsManagementApp = Get-MgServicePrincipal -Filter "DisplayName eq 'Microsoft Rights Management Services'"
 ForEach ($Role in $RightsManagementApp.AppRoles) { $RightsManagementPermissions.Add([string]$Role.Id, [string]$Role.Value) }
 
+# Delegated Graph permissions
+[array]$GraphDelegatedPermissions = $GraphApp.Oauth2PermissionScopes | Where-Object { $_.IsEnabled -eq $true }
+$GraphAppOauth2Permissions = @{}
+ForEach ($DelegatedPermission in $GraphDelegatedPermissions) { $GraphAppOauth2Permissions.Add([string]$DelegatedPermission.Id, [string]$DelegatedPermission.Value) }
+# Connect with elevated permissions to read app owners
+
 Connect-MgGraph RoleAssignmentSchedule.ReadWrite.Directory, Application.Read.All, Directory.Read.All
 
-Write-Host "Finding applications..."
-[Array]$ServicePrincipals = Get-MgServicePrincipal -All -Property Id, appId, displayName, Owners, appDisplayName, AppDescription, AppOwnerOrganizationId, AppRoles, AppRoleAssignments, Oauth2PermissionGrants, keyCredentials, VerifiedPublisher, ServicePrincipalType, createdDateTime, KeyCredentials, passwordCredentials
+Write-Host "Finding service principals..."
+[Array]$ServicePrincipals = Get-MgServicePrincipal -All  `
+    -Property Id, appId, displayName, Owners, appDisplayName, AppDescription, AppOwnerOrganizationId, AppRoles, AppRoleAssignments, `
+    Oauth2PermissionGrants, keyCredentials, VerifiedPublisher, ServicePrincipalType, createdDateTime, KeyCredentials, passwordCredentials, signInAudience
 
 If (!$ServicePrincipals) {
-    Write-Output "No applications found"
+    Write-Output "No service principals found"
     break
 } Else {
-    Write-Output ("{0} applications found" -f $Apps.Count)  
+    $ServicePrincipals = $ServicePrincipals | Sort-Object AppDisplayName
+    Write-Output ("{0} service principals found" -f $ServicePrincipals.Count)  
 }
 
 # Remove SharePoint helper apps https://learn.microsoft.com/en-us/answers/questions/1187017/sharepoint-online-client-extensibility-web-applica
 $ServicePrincipals = $ServicePrincipals | Where-Object DisplayName -notLike "SharePoint Online Client Extensibility Web Application Principal*"
+
 $AppReport = [System.Collections.Generic.List[Object]]::new()
 
-[init]$i=0
+[int]$i=0
 ForEach ($SP in $ServicePrincipals) {
     $i++
-    $AppOwners = $null; $AppOwnersString = $null; $SPObjectId = $null; $Name = $null
+    Write-Progress -Activity "Processing application $i of $($ServicePrincipals.Count): $($SP.DisplayName)" -PercentComplete (($i / $ServicePrincipals.Count) * 100)    
+    $AppOwners = $null; $AppOwnersString = $null
     $isApp = $true
     $AppId = $SP.AppId
     Try {
@@ -58,26 +69,20 @@ ForEach ($SP in $ServicePrincipals) {
             $AppOwnersString = $null
         }
         $AppIdentifierUris = $App.IdentifierUris -join ";"
-        $AppReplyUrls = $App.Web.RedirectUris -join ";"
-        $CreatedDateTime = Get-Date $App.CreatedDateTime -Format "dd-MMM-yyyy HH:mm:ss"
-        $SignInAudience = $App.SignInAudience
-           
-        If ($App.ModifiedDateTime) {
-            $AppModifiedDateTime = Get-Date $App.ModifiedDateTime -Format "mm-MMM-yyyy HH:mm:ss"
-        } Else {
-            $AppModifiedDateTime = $null
-        }
+        $AppRedirectUris = $App.Web.RedirectUris -join ";"
+        $CreatedDateTime = Get-Date $App.CreatedDateTime -Format "dd-MMM-yyyy HH:mm"
+     
         $AppName = $App.DisplayName
     } Catch {
         # No app found, so this service principal is probably an enterprise app or managed identity
     
-        $CreatedDateTime = Get-Date $SP.additionalProperties['createdDateTime'] -Format "dd-MMM-yyyy HH:mm:ss"
+        $CreatedDateTime = Get-Date $SP.additionalProperties['createdDateTime'] -Format "dd-MMM-yyyy HH:mm"
         $AppName = $SP.DisplayName
 
     }
     If (!$App) { $isApp = $false }
 
-    # Get App role information
+    # Get Application role (permission) assignments
     [array]$AppRoles = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $SP.Id
     If ($AppRoles) {
         [array]$Permissions = @()
@@ -101,6 +106,17 @@ ForEach ($SP in $ServicePrincipals) {
         [string]$PermissionsOutput = $Permissions -join ", "
     }
 
+    # Get delegated (OAuth2) permission grants
+    $OAuth2PermissionsOutput = $null; [array]$OAuth2Permissions = $null
+    [array]$OAuth2PermissionGrants = Get-MgServicePrincipalOauth2PermissionGrant -ServicePrincipalId $SP.Id
+    If ($OAuth2PermissionGrants) {
+    
+        ForEach ($PermissionGrant in $OAuth2PermissionGrants) {
+                $OAuth2Permissions += $PermissionGrant.Scope
+        }
+        [string]$OAuth2PermissionsOutput = $OAuth2Permissions -join ", "
+    }
+
     If ($SP.ServicePrincipalType -ne "ManagedIdentity" -and $SP.AppOwnerOrganizationId) {
         If ($SP.AppOwnerOrganizationId -eq $TenantId) { #Resolve tenant name
             $AppTenantName = $TenantName 
@@ -109,10 +125,6 @@ ForEach ($SP in $ServicePrincipals) {
             $Uri = "https://graph.microsoft.com/beta/tenantRelationships/findTenantInformationByTenantId(tenantId='$LookUpId')"
             $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
             $AppTenantName = $ExternalTenantData.DisplayName 
-        }
-        $VerifiedPublisher = $Null
-        If ($App.AdditionalProperties["verifiedpublisher"]) { 
-          $VerifiedPublisher = $App.AdditionalProperties["verifiedpublisher"] 
         }
     }
  
@@ -124,16 +136,16 @@ ForEach ($SP in $ServicePrincipals) {
         AppObjectId                  = $App.AppId
         AppOwners                    = $AppOwnersString
         AppCreatedDateTime           = $CreatedDateTime
-        AppModifiedDateTime          = $AppModifiedDateTime
         AppIdentifierUris            = $AppIdentifierUris
-        AppReplyUrls                 = $AppReplyUrls  
-        SignInAudience               = $SignInAudience
+        AppRedirectUris              = $AppRedirectUris
+        SignInAudience               = $SP.SignInAudience
         'Application permissions'    = $PermissionsOutput
-        Tenant                       = $AppTenantName
-        PublisherVerified            = If ($VerifiedPublisher) { $VerifiedPublisher.DisplayName } Else { $Null }
+        'Delegated permissions'      = $OAuth2PermissionsOutput
+        'Owning tenant'              = $AppTenantName
+        Publisher                    = $App.PublisherDomain
+        VerifiedPublisher            = $App.VerifiedPublisher.DisplayName
         ServicePrincipalId           = $SP.Id
-        ServicePrincipalAppId        = $SP.AppId
-
+        ServicePrincipalType         = $SP.ServicePrincipalType
     }
     $AppReport.Add($AppReportLine)
 }
