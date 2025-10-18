@@ -85,7 +85,7 @@ $EmailCSS = @"
 # When run interactively, email will be sent from the account running the script. This is commented out for use with Azure Automation
 # If used with the Mail.Send permission in an Azure Automation runbook, the sender can be any mailbox in the organization
 $MsgFrom = (Get-MgContext).Account
-# $MsgFrom = "Azure.Management.Account@office365itpros.com"
+# $MsgFrom = "Asomeaccount@somedomain.com"
 
 [array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", `
   "Files.ReadWrite.All", "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", `
@@ -97,8 +97,7 @@ $MsgFrom = (Get-MgContext).Account
 Connect-MgGraph -Scopes 'Application.Read.All', 'Mail.Send' -NoWelcome
 
 # Find registered Entra ID apps that are limited to our organization (not multi-organization)
-[array]$RegisteredApps = Get-MgApplication -All -Property Id, appId, displayName, keyCredentials, passwordCredentials, signInAudience | `
-    Where-Object SignInAudience -match "AzureADMyOrg" | Sort-Object DisplayName
+[array]$RegisteredApps = Get-MgApplication -All -Property Id, appId, displayName, keyCredentials, passwordCredentials, signInAudience -filter "signInAudience eq 'AzureADMyOrg'" | Sort-Object DisplayName
 # Remove SharePoint helper apps https://learn.microsoft.com/en-us/answers/questions/1187017/sharepoint-online-client-extensibility-web-applica
 $RegisteredApps = $RegisteredApps | Where-Object DisplayName -notLike "SharePoint Online Client Extensibility Web Application Principal*"
 

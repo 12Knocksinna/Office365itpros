@@ -4,6 +4,9 @@
 
 # Used in https://office365itpros.com/2022/09/23/consent-permission-grants/
 
+# Use app-only mode to connect to Microsoft Graph or make sure that the signed in account holds one of the roles
+# mentioned in https://learn.microsoft.com/en-us/graph/api/serviceprincipal-list-approleassignments
+
 Connect-MgGraph -Identity -Scopes Application.Read.All, AuditLog.Read.All
 
 # Get tenant information
@@ -55,20 +58,20 @@ $ProblemApps = [System.Collections.Generic.List[Object]]::new()
 Write-Output ("{0} service principals for Entra ID registered apps found" -f $Apps.Count)
 $i = 0
 ForEach ($App in $Apps) {
-   $i++; $AppRecentFlag = $False
-   # Write-Output ("Processing app {0} {1}/{2}" -f $App.DisplayName, $i, $Apps.Count)
-   If ($App.AdditionalProperties.createdDateTime) {
-        [datetime]$AppCreationDate = $App.AdditionalProperties.createdDateTime
-    } Else {
+  $i++; $AppRecentFlag = $False
+  # Write-Output ("Processing app {0} {1}/{2}" -f $App.DisplayName, $i, $Apps.Count)
+  If ($App.AdditionalProperties.createdDateTime) {
+      [datetime]$AppCreationDate = $App.AdditionalProperties.createdDateTime
+  } Else {
      # For some reason, no app created date is available, so set it to a date in 1970
-        [datetime]$AppCreationDate = '1970-01-01'
-   }
+      [datetime]$AppCreationDate = '1970-01-01'
+  }
    If ($AppCreationDate -gt $CheckforRecent) {$AppRecentFlag = $True}
    [array]$AppRoles = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $App.Id
    If ($AppRoles) {
-     ForEach ($AppRole in $AppRoles) { 
-       $Permission = $Null
-       Switch ($AppRole.ResourceDisplayName) {
+    ForEach ($AppRole in $AppRoles) { 
+      $Permission = $Null
+      Switch ($AppRole.ResourceDisplayName) {
         "Microsoft Graph" { 
           [string]$Permission = $GraphRoles[$AppRole.AppRoleId] }
         "Office 365 Exchange Online" {
@@ -81,24 +84,24 @@ ForEach ($App in $Apps) {
           [string]$Permission = $TeamsPermissions[$AppRole.AppRoleId] }
         "Microsoft Rights Management Services" {
           [string]$Permission = $RightsManagementPermissions[$AppRole.AppRoleId] }
-       }
+      }
      
-       If ($App.ServicePrincipalType -ne "ManagedIdentity") {
-          If ($App.AppOwnerOrganizationId -eq $TenantId) { #Resolve tenant name
-              $Name = $TenantName 
-          } Else {
-              $LookUpId = $App.AppOwnerOrganizationId.toString()
-              $Uri = "https://graph.microsoft.com/beta/tenantRelationships/findTenantInformationByTenantId(tenantId='$LookUpId')"
-              $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
-              $Name = $ExternalTenantData.DisplayName 
-          }
+      If ($App.ServicePrincipalType -ne "ManagedIdentity") {
+        If ($App.AppOwnerOrganizationId -eq $TenantId) { #Resolve tenant name
+          $Name = $TenantName 
+        } Else {
+          $LookUpId = $App.AppOwnerOrganizationId.toString()
+          $Uri = "https://graph.microsoft.com/beta/tenantRelationships/findTenantInformationByTenantId(tenantId='$LookUpId')"
+          $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
+          $Name = $ExternalTenantData.DisplayName 
+        }
         $VerifiedPublisher = $Null
         If ($App.AdditionalProperties["verifiedpublisher"]) { 
-            $VerifiedPublisher = $App.AdditionalProperties["verifiedpublisher"] 
+          $VerifiedPublisher = $App.AdditionalProperties["verifiedpublisher"] 
         }
-       } 
+      } 
    
-       $ReportLine  = [PSCustomObject] @{
+      $ReportLine  = [PSCustomObject] @{
            DisplayName        = $App.DisplayName
            ServicePrincipalId = $App.Id
            Publisher          = $App.PublisherName
@@ -113,9 +116,11 @@ ForEach ($App in $Apps) {
            ResourceId         = $AppRole.ResourceId 
            Permission         = $Permission 
            SPType             = $App.ServicePrincipalType 
-           CreatedDate        = Get-Date($AppCreationDate) -format g
-           RecentApp          = $AppRecentFlag }
-         $Report.Add($ReportLine) }
+           'App Creation Date' = Get-Date($AppCreationDate) -format g
+           RecentApp          = $AppRecentFlag 
+          }
+        $Report.Add($ReportLine) 
+      }
     } # End ForEach AppRole
 } #End ForEach App
 
