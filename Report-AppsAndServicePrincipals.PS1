@@ -80,8 +80,21 @@ ForEach ($SP in $ServicePrincipals) {
         $AppIdentifierUris = $App.IdentifierUris -join ";"
         $AppRedirectUris = $App.Web.RedirectUris -join ";"
         $CreatedDateTime = Get-Date $App.CreatedDateTime -Format "dd-MMM-yyyy HH:mm"
-     
+
+        If ($App.Tags -contains "HideApp") { 
+            $AppUserVisibility="Hidden" 
+        } Else { 
+            $AppUserVisibility="Visible"
+        }
+            
+        If ($App.AppRoleAssignmentRequired) {
+            $AppAccess = "All users"
+        } Else {
+            $AppAccess = "Assigned users only"
+        }
+
         $AppName = $App.DisplayName
+ 
     } Catch {
         # No app found, so this service principal is probably an enterprise app or managed identity
     
@@ -141,30 +154,90 @@ ForEach ($SP in $ServicePrincipals) {
         }
     }
 
+    Switch ($SP.SignInAudience) {
+        "AzureADMyOrg" { 
+            $SignInAudience = "Accounts in this tenantonly" 
+        }
+        "AzureADMultipleOrgs" { 
+            $SignInAudience = "Accounts in any Entra ID tenant" 
+        }
+        "AzureADandPersonalMicrosoftAccount" { 
+            $SignInAudience = "Accounts in any Entra ID tenant and personal Microsoft accounts" 
+        }
+        "PersonalMicrosoftAccount" { 
+            $SignInAudience = "Personal Microsoft accounts only" 
+        }
+        Default { $SignInAudience = $SP.SignInAudience }
+    }
+
     # Find service principal last sign-in activity
     $SPLastSignInDateTime = $SpSignInHash[$SP.AppId]
     If ($SPLastSignInDateTime) {
         $SPLastActivityDateTime = Get-Date $SPLastSignInDateTime -Format "dd-MMM-yyyy HH:mm"
+    } Else {
+        $SPLastActivityDateTime = "Never"
+    }   
+
+    # Check password credentials (app secrets)
+    $PasswordOutput = $null; $PasswordReportOutput = $null
+    If ($App.PasswordCredentials) {
+        [int]$ValidAppPwd = 0
+        [array]$PasswordOutput = @()
+        ForEach ($AppPwd in $App.PasswordCredentials) {
+            If ($AppPwd.EndDateTime -gt (Get-Date).AddDays(30)) {
+                $ValidAppPwd++
+                $PasswordOutput += ("👍 App Password {0} valid. End date {1}" -f $AppPwd.Hint, (Get-Date $AppPwd.EndDateTime -Format "dd-MMM-yyyy HH:mm"))   
+            } Else {
+                $PasswordOutput += ("⛔ App Password {0} EXPIRED or expiring SOON! End date {1}" -f $AppPwd.Hint, (Get-Date $AppPwd.EndDateTime -Format "dd-MMM-yyyy HH:mm"))       
+            }
+            $PasswordReportOutput = $PasswordOutput -join "; "
+        }
     }
 
+      # Check X.509 cert credentials
+    $CertOutput = $null; $CertReportOutput = $null
+      If ($App.KeyCredentials) {
+        [array]$CertOutput = @()
+        [int]$ValidAppCert = 0
+        ForEach ($AppCert in $App.KeyCredentials) {
+            # Could add code to report on certs if needed
+            If ($AppCert.EndDateTime -lt (Get-Date).AddDays(30)) {
+                $ValidAppCert++
+                $CertOutput += ("⛔ App Cert {0} EXPIRED or expiring SOON! End date {1}" -f $AppCert.DisplayName, (Get-Date $AppCert.EndDateTime -Format "dd-MMM-yyyy HH:mm"))
+            }  Else {  
+                $CertOutput += ("👍 App Cert {0} valid. End date {1}" -f $AppCert.DisplayName, (Get-Date $AppCert.EndDateTime -Format "dd-MMM-yyyy HH:mm"))
+            }   
+            $CertReportOutput = $CertOutput -join "; "
+        }
+    }       
+
     $AppReportLine = [PSCustomObject]@{
-        AppName                      = $AppName
-        AppType                      = If ($isApp) { "App registration" } Else { 'Service principal' }
-        AppDescription               = If ($isApp) { $App.Notes } Else { $SP.Description }
-        AppId                        = $App.Id
-        AppObjectId                  = $App.AppId
-        AppOwners                    = $AppOwnersString
-        AppCreatedDateTime           = $CreatedDateTime
-        AppIdentifierUris            = $AppIdentifierUris
-        AppRedirectUris              = $AppRedirectUris
-        SignInAudience               = $SP.SignInAudience
-        'Application permissions'    = $PermissionsOutput
-        'Delegated permissions'      = $OAuth2PermissionsOutput
-        'Owning tenant'              = $AppTenantName
-        Publisher                    = $App.PublisherDomain
-        VerifiedPublisher            = $App.VerifiedPublisher.DisplayName
-        ServicePrincipalId           = $SP.Id
-        ServicePrincipalType         = $SP.ServicePrincipalType
+        AppName                         = $AppName
+        AppType                         = If ($isApp) { "App registration" } Else { 'Service principal' }
+        AppDescription                  = If ($isApp) { $App.Notes } Else { $SP.Description }
+        AppOwners                       = $AppOwnersString
+        AppCreatedDateTime              = $CreatedDateTime
+        'App Access'                    = $AppAccess
+        'App Visibility'                = $AppUserVisibility
+        'Service Principal last used'   = $SPLastActivityDateTime
+        'App Passwords'                 = If ($PasswordReportOutput) { $PasswordReportOutput } Else { "No app passwords" }
+        'Valid App Passwords'           = $ValidAppPwd
+        'Invalid App Passwords'         = $App.PasswordCredentials.Count - $ValidAppPwd
+        'App Certificates'              = If ($CertReportOutput) { $CertReportOutput } Else { "No app certificates" }
+        'Valid App Certificates'        = $ValidAppCert
+        'Invalid App Certificates'      = $App.KeyCredentials.Count - $ValidAppCert
+        AppIdentifierUris               = $AppIdentifierUris
+        AppRedirectUris                 = $AppRedirectUris
+        'Sign in audience'              = $SignInAudience
+        'Application permissions'       = $PermissionsOutput
+        'Delegated permissions'         = $OAuth2PermissionsOutput
+        'Owning tenant'                 = $AppTenantName
+        'App Publisher Domain'          = $App.PublisherDomain
+        'Verified Publisher'            = $SP.VerifiedPublisher.DisplayName
+        AppId                           = $App.Id
+        AppObjectId                     = $App.AppId
+        'Service principal id'          = $SP.Id
+        'Service Principal Type'        = $SP.ServicePrincipalType
     }
     $AppReport.Add($AppReportLine)
 }
