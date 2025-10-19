@@ -3,8 +3,9 @@
 # Use app-only mode to connect to Microsoft Graph or make sure that the signed in account holds one of the roles
 # mentioned in https://learn.microsoft.com/en-us/graph/api/serviceprincipal-list-approleassignments
 
-Connect-MgGraph Application.Read.All, Directory.Read.All
+Connect-MgGraph Application.Read.All, Directory.Read.All, AuditLog.Read.All
 
+Write-Output "Fetching details of app roles (permissions)"
 $GraphApp = Get-MgServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'"
 # Populate hash table with Graph permissions
 $GraphRoles = @{}
@@ -26,6 +27,14 @@ $RightsManagementPermissions = @{}
 $RightsManagementApp = Get-MgServicePrincipal -Filter "DisplayName eq 'Microsoft Rights Management Services'"
 ForEach ($Role in $RightsManagementApp.AppRoles) { $RightsManagementPermissions.Add([string]$Role.Id, [string]$Role.Value) }
 
+Write-Output "Fetching service principal sign-in activity records"
+[array]$SPSignInLogs = Get-MgBetaReportServicePrincipalSignInActivity  -All -PageSize 999
+$SpSignInHash = @{}
+ForEach ($LogEntry in $SPSignInLogs) {
+    $SpSignInHash.Add([string]$LogEntry.AppId, [string]$LogEntry.LastSignInActivity.LastSignInDateTime.DateTime)
+}
+
+# Not needed
 # Delegated Graph permissions
 [array]$GraphDelegatedPermissions = $GraphApp.Oauth2PermissionScopes | Where-Object { $_.IsEnabled -eq $true }
 $GraphAppOauth2Permissions = @{}
@@ -107,14 +116,18 @@ ForEach ($SP in $ServicePrincipals) {
     }
 
     # Get delegated (OAuth2) permission grants
-    $OAuth2PermissionsOutput = $null; [array]$OAuth2Permissions = $null
+    $OAuth2PermissionsOutput = $null; [array]$OAuth2Permissions = $null; $OAuth2PermissionGrants = $null
     [array]$OAuth2PermissionGrants = Get-MgServicePrincipalOauth2PermissionGrant -ServicePrincipalId $SP.Id
     If ($OAuth2PermissionGrants) {
     
         ForEach ($PermissionGrant in $OAuth2PermissionGrants) {
                 $OAuth2Permissions += $PermissionGrant.Scope
         }
-        [string]$OAuth2PermissionsOutput = $OAuth2Permissions -join ", "
+        If ($OAuth2Permissions) { 
+            [array]$ScopeTokens = @()
+            $ScopeTokens = $OAuth2Permissions -split ' ' | Where-Object { $_ } 
+        }
+        [string]$OAuth2PermissionsOutput = $ScopeTokens -join ", "
     }
 
     If ($SP.ServicePrincipalType -ne "ManagedIdentity" -and $SP.AppOwnerOrganizationId) {
@@ -127,7 +140,13 @@ ForEach ($SP in $ServicePrincipals) {
             $AppTenantName = $ExternalTenantData.DisplayName 
         }
     }
- 
+
+    # Find service principal last sign-in activity
+    $SPLastSignInDateTime = $SpSignInHash[$SP.AppId]
+    If ($SPLastSignInDateTime) {
+        $SPLastActivityDateTime = Get-Date $SPLastSignInDateTime -Format "dd-MMM-yyyy HH:mm"
+    }
+
     $AppReportLine = [PSCustomObject]@{
         AppName                      = $AppName
         AppType                      = If ($isApp) { "App registration" } Else { 'Service principal' }
@@ -149,6 +168,8 @@ ForEach ($SP in $ServicePrincipals) {
     }
     $AppReport.Add($AppReportLine)
 }
+
+$AppReport | Out-GridView
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
