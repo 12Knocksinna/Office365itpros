@@ -544,7 +544,7 @@ If (Get-Module ImportExcel -ListAvailable) {
     If (Test-Path $ExcelOutputFile) {
         Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
     } 
-    $OutData | Export-Excel -Path $ExcelOutputFile -WorksheetName "User Activity Report -Title ("User Activity Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "AccountActivity" 
+    $OutData | Export-Excel -Path $ExcelOutputFile -WorksheetName "User Activity Report" -Title ("User Activity Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "AccountActivity" 
     $AttachmentFile = $ExcelOutputFile
 } Else {
     $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\AccountActivitySummary.CSV"
@@ -604,7 +604,7 @@ Try {
     Write-Output $_.Exception.Message
 }
 
-Write-Output "All done"
+Write-Output "All done!"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
