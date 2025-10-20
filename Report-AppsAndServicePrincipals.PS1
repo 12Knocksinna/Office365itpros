@@ -5,6 +5,12 @@
 
 Connect-MgGraph Application.Read.All, Directory.Read.All, AuditLog.Read.All
 
+# Known Tra apps list - see https://huntresslabs.github.io/rogueapps/
+[array]$TraitorWareApps = "em client", "perfectdata software", "newsletter software supermailer", "cloudsponge", "rclone"
+
+# High-priority permissions that we need to flag
+[array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", "Files.ReadWrite.All", "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All"
+
 Write-Output "Fetching details of app roles (permissions)"
 $GraphApp = Get-MgServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'"
 # Populate hash table with Graph permissions
@@ -28,20 +34,14 @@ $RightsManagementApp = Get-MgServicePrincipal -Filter "DisplayName eq 'Microsoft
 ForEach ($Role in $RightsManagementApp.AppRoles) { $RightsManagementPermissions.Add([string]$Role.Id, [string]$Role.Value) }
 
 Write-Output "Fetching service principal sign-in activity records"
-[array]$SPSignInLogs = Get-MgBetaReportServicePrincipalSignInActivity  -All -PageSize 999
+[array]$SPSignInLogs = Get-MgBetaReportServicePrincipalSignInActivity -All -PageSize 999
 $SpSignInHash = @{}
 ForEach ($LogEntry in $SPSignInLogs) {
     $SpSignInHash.Add([string]$LogEntry.AppId, [string]$LogEntry.LastSignInActivity.LastSignInDateTime.DateTime)
 }
 
-# Not needed
-# Delegated Graph permissions
-[array]$GraphDelegatedPermissions = $GraphApp.Oauth2PermissionScopes | Where-Object { $_.IsEnabled -eq $true }
-$GraphAppOauth2Permissions = @{}
-ForEach ($DelegatedPermission in $GraphDelegatedPermissions) { $GraphAppOauth2Permissions.Add([string]$DelegatedPermission.Id, [string]$DelegatedPermission.Value) }
-# Connect with elevated permissions to read app owners
 
-Connect-MgGraph RoleAssignmentSchedule.ReadWrite.Directory, Application.Read.All, Directory.Read.All
+Connect-MgGraph RoleAssignmentSchedule.ReadWrite.Directory, Application.Read.All, CrossTenantInformation.ReadBasic.All
 
 Write-Host "Finding service principals..."
 [Array]$ServicePrincipals = Get-MgServicePrincipal -All  `
@@ -69,7 +69,8 @@ ForEach ($SP in $ServicePrincipals) {
     $isApp = $true
     $AppId = $SP.AppId
     Try {
-        $App = Get-MgApplication -filter "appId eq '$AppId'" -Property Id, displayName, AppId, Notes,CreateDateTime, Owners, VerifiedPublisher,Tags,PublisherDomain,passwordCredentials,KeyCredentials, SignInAudience, Web -ErrorAction Stop 
+        $App = Get-MgApplication -filter "appId eq '$AppId'" `
+         -Property Id, displayName, AppId, Notes,CreateDateTime, Owners, VerifiedPublisher, Tags, AppRoles, PublisherDomain, passwordCredentials, KeyCredentials, SignInAudience, Web -ErrorAction Stop 
         [array]$AppOwners = Get-MgApplicationOwner -ApplicationId $App.Id -All  
             
         If ($AppOwners) {
@@ -81,16 +82,16 @@ ForEach ($SP in $ServicePrincipals) {
         $AppRedirectUris = $App.Web.RedirectUris -join ";"
         $CreatedDateTime = Get-Date $App.CreatedDateTime -Format "dd-MMM-yyyy HH:mm"
 
-        If ($App.Tags -contains "HideApp") { 
+        If ($SP.Tags -contains "HideApp") { 
             $AppUserVisibility="Hidden" 
         } Else { 
             $AppUserVisibility="Visible"
         }
             
-        If ($App.AppRoleAssignmentRequired) {
-            $AppAccess = "All users"
-        } Else {
+        If ($SP.AppRoleAssignmentRequired) {
             $AppAccess = "Assigned users only"
+        } Else {
+            $AppAccess = "All users"
         }
 
         $AppName = $App.DisplayName
@@ -103,6 +104,34 @@ ForEach ($SP in $ServicePrincipals) {
 
     }
     If (!$App) { $isApp = $false }
+    
+    # Checks for potentially suspicious apps - idea from https://www.bleepingcomputer.com/news/security/find-hidden-malicious-oauth-apps-in-microsoft-365-using-cazadora/
+    # Check for TraitorWare apps
+    If ($TraitorWareApps -contains $AppName.ToLower()) {
+        $TraitorWareAppWarning = "⚠️ (Potential TraitorWare App)"
+    }  else {
+        $TraitorWareAppWarning = $null
+    }
+    # Flag app names composed entirely of non-alphanumeric characters
+    If ($AppName -and ($AppName -notmatch '[A-Za-z0-9]')) {
+        $NonAlnumNameWarning = "⚠️ App name contains no alphanumeric characters"
+    } Else {
+        $NonAlnumNameWarning = $null
+    }
+    # Check if app has "test" in the name
+    If ($AppName -and ($AppName.ToLower() -like "*test*")) {
+        $TestAppWarning = "⚠️ App name contains 'test'"
+    } Else {
+        $TestAppWarning = $null
+    }
+    # Look for ProofPoint MACT campaign 1445 https://www.proofpoint.com/us/blog/cloud-security/revisiting-mact-malicious-applications-credible-cloud-tenants
+    # “http://localhost:7823/access/” in the Redirect URIs
+    if ($AppRedirectUris -like "*http://localhost:7823/access/*") {
+        $MACT1445Warning = "⚠️ App has ProofPoint MACT 1445 redirect URI"
+    } Else {
+        $MACT1445Warning = $null
+    }
+    # There's another test to look for apps named after a account display name or user principal name, but this could take a long time to run in large tenants
 
     # Get Application role (permission) assignments
     [array]$AppRoles = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $SP.Id
@@ -128,19 +157,36 @@ ForEach ($SP in $ServicePrincipals) {
         [string]$PermissionsOutput = $Permissions -join ", "
     }
 
+    [array]$HighPermissionsFound = @()
+    # Check the permissions against high-priority list
+    ForEach ($Permission in $Permissions) {
+        If ($Permission -in $HighPriorityPermissions) {
+            $HighPermissionsFound += $Permission
+        }
+    }
+    If ($HighPermissionsFound) {
+        $HighPermissionsFoundOutput = "⚠️ High-priority permissions: " + ($HighPermissionsFound -join ", ")
+    } Else {
+        $HighPermissionsFoundOutput = $null
+    }
+
     # Get delegated (OAuth2) permission grants
-    $OAuth2PermissionsOutput = $null; [array]$OAuth2Permissions = $null; $OAuth2PermissionGrants = $null
+    [array]$OAuth2PermissionsOutput = $null;  [array]$OAuth2PermissionGrants = $null
     [array]$OAuth2PermissionGrants = Get-MgServicePrincipalOauth2PermissionGrant -ServicePrincipalId $SP.Id
     If ($OAuth2PermissionGrants) {
-    
+        [array]$OAuth2PermissionsOutput = $null; [string]$OAuth2PermissionsFormatted = $Null; [array]$OAuth2Permissions = $null;
         ForEach ($PermissionGrant in $OAuth2PermissionGrants) {
-                $OAuth2Permissions += $PermissionGrant.Scope
-        }
-        If ($OAuth2Permissions) { 
+            $OAuth2Permissions = $PermissionGrant.Scope.trim()    
             [array]$ScopeTokens = @()
-            $ScopeTokens = $OAuth2Permissions -split ' ' | Where-Object { $_ } 
+            $ScopeTokens = $OAuth2Permissions -split ' ' | Where-Object { $_ }             
+            [string]$OAuth2PermissionsFormatted = $ScopeTokens -join ", "
+            If ($PermissionGrant.ConsentType -eq 'AllPrincipals') {
+                $OAuth2PermissionsFormatted = $OAuth2PermissionsFormatted + " (Admin)"
+            } Else {
+                $OAuth2PermissionsFormatted = $OAuth2PermissionsFormatted + " (User)"
+            }
+            $OAuth2PermissionsOutput += $OAuth2PermissionsFormatted
         }
-        [string]$OAuth2PermissionsOutput = $ScopeTokens -join ", "
     }
 
     If ($SP.ServicePrincipalType -ne "ManagedIdentity" -and $SP.AppOwnerOrganizationId) {
@@ -148,8 +194,7 @@ ForEach ($SP in $ServicePrincipals) {
             $AppTenantName = $TenantName 
         } Else {
             $LookUpId = $SP.AppOwnerOrganizationId.toString()
-            $Uri = "https://graph.microsoft.com/beta/tenantRelationships/findTenantInformationByTenantId(tenantId='$LookUpId')"
-            $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
+            $ExternalTenantData = Find-MgTenantRelationshipTenantInformationByTenantId -TenantId $LookUpId
             $AppTenantName = $ExternalTenantData.DisplayName 
         }
     }
@@ -179,9 +224,8 @@ ForEach ($SP in $ServicePrincipals) {
     }   
 
     # Check password credentials (app secrets)
-    $PasswordOutput = $null; $PasswordReportOutput = $null
+    $PasswordOutput = $null; $PasswordReportOutput = $null; [int]$ValidAppPwd = 0
     If ($App.PasswordCredentials) {
-        [int]$ValidAppPwd = 0
         [array]$PasswordOutput = @()
         ForEach ($AppPwd in $App.PasswordCredentials) {
             If ($AppPwd.EndDateTime -gt (Get-Date).AddDays(30)) {
@@ -195,10 +239,9 @@ ForEach ($SP in $ServicePrincipals) {
     }
 
       # Check X.509 cert credentials
-    $CertOutput = $null; $CertReportOutput = $null
+    $CertOutput = $null; $CertReportOutput = $null; [int]$ValidAppCert = 0
       If ($App.KeyCredentials) {
         [array]$CertOutput = @()
-        [int]$ValidAppCert = 0
         ForEach ($AppCert in $App.KeyCredentials) {
             # Could add code to report on certs if needed
             If ($AppCert.EndDateTime -lt (Get-Date).AddDays(30)) {
@@ -230,7 +273,8 @@ ForEach ($SP in $ServicePrincipals) {
         AppRedirectUris                 = $AppRedirectUris
         'Sign in audience'              = $SignInAudience
         'Application permissions'       = $PermissionsOutput
-        'Delegated permissions'         = $OAuth2PermissionsOutput
+        'High-priority permissions'     = $HighPermissionsFoundOutput
+        'Delegated permissions'         = $OAuth2PermissionsOutput -join "`n"
         'Owning tenant'                 = $AppTenantName
         'App Publisher Domain'          = $App.PublisherDomain
         'Verified Publisher'            = $SP.VerifiedPublisher.DisplayName
@@ -238,6 +282,10 @@ ForEach ($SP in $ServicePrincipals) {
         AppObjectId                     = $App.AppId
         'Service principal id'          = $SP.Id
         'Service Principal Type'        = $SP.ServicePrincipalType
+        'Traitor Ware App Warning'      = $TraitorWareAppWarning
+        'Non-Alphanumeric Name Warning' = $NonAlnumNameWarning
+        'Test App Name Warning'         = $TestAppWarning
+        'MACT 1445 Warning'             = $MACT1445Warning
     }
     $AppReport.Add($AppReportLine)
 }
