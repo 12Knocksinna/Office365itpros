@@ -544,10 +544,10 @@ If (Get-Module ImportExcel -ListAvailable) {
     If (Test-Path $ExcelOutputFile) {
         Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
     } 
-    $OutData | Export-Excel -Path $ExcelOutputFile -WorksheetName "Inactive Guests" -Title ("Inactive Guests Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveGuests" 
+    $OutData | Export-Excel -Path $ExcelOutputFile -WorksheetName "User Activity Report -Title ("User Activity Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "AccountActivity" 
     $AttachmentFile = $ExcelOutputFile
 } Else {
-    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveGuests.CSV"
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\AccountActivitySummary.CSV"
     $OutData | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
     $AttachmentFile = $CSVOutputFile
 }

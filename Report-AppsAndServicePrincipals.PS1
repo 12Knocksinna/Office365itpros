@@ -11,6 +11,39 @@ Connect-MgGraph Application.Read.All, Directory.Read.All, AuditLog.Read.All
 # High-priority permissions that we need to flag
 [array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", "Files.ReadWrite.All", "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All"
 
+[array]$RequiredScopes = "RoleAssignmentSchedule.Read.Directory", "Application.Read.All", "CrossTenantInformation.ReadBasic.All", "Mail.Send"
+
+# Determine if we're interactive or not
+If ([Environment]::UserInteractive) { 
+    # We're running interactively...
+    Clear-Host
+    Write-Host "Script running interactively... connecting to the Graph" -ForegroundColor Yellow
+    Connect-MgGraph -NoWelcome -Scopes $RequiredScopes
+    $Interactive = $true
+    # Email address to use when sending email from interactive session
+    $MsgFrom = (Get-MgContext).Account    
+} Else { 
+    # We're not, so likely in Azure Automation
+    Write-Output "Executing the runbook to create the last activity report for user member accounts..." 
+    Connect-MgGraph -Identity -NoWelcome
+    # Email address to use when sending email from Azure Automation
+    $MsgFrom = "no-reply@office365itpros.com"
+}
+
+# Check that we have the right permissions - in Azure Automation, we assume that the automation account has the right permissions
+If ($Interactive) {
+    [int]$RequiredScopesCount = $RequiredScopes.Count
+    [string[]]$CurrentScopes = (Get-MgContext).Scopes
+    [string[]]$RequiredScopes = $RequiredScopes
+
+    $CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
+    If ($CheckScopes.Count -ne $RequiredScopesCount ) { 
+        Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f $RequiredScopes) -ForegroundColor Red
+        Disconnect-Graph
+        Break
+    }
+}
+
 Write-Output "Fetching details of app roles (permissions)"
 $GraphApp = Get-MgServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'"
 # Populate hash table with Graph permissions
@@ -41,7 +74,7 @@ ForEach ($LogEntry in $SPSignInLogs) {
 }
 
 
-Connect-MgGraph RoleAssignmentSchedule.ReadWrite.Directory, Application.Read.All, CrossTenantInformation.ReadBasic.All
+ 
 
 Write-Host "Finding service principals..."
 [Array]$ServicePrincipals = Get-MgServicePrincipal -All  `
@@ -291,6 +324,27 @@ ForEach ($SP in $ServicePrincipals) {
 }
 
 $AppReport | Out-GridView
+
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $true
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TenantAppReport.xlsx"
+    If (Test-Path $ExcelOutputFile) {
+        Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+    } 
+    $AppReport | Export-Excel -Path $ExcelOutputFile -WorksheetName "Inactive Guests" -Title ("Inactive Guests Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveGuests" 
+    $AttachmentFile = $ExcelOutputFile
+} Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TenantAppReport.CSV"
+    $AppReport | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+    $AttachmentFile = $CSVOutputFile
+}
+
+If ($ExcelGenerated) {
+    Write-Output ("Excel worksheet output written to {0}" -f $ExcelOutputFile)
+} Else {
+    Write-Output ("CSV output file written to {0}" -f $CSVOutputFile)
+} 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
