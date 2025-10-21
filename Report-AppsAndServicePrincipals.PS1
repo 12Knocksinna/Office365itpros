@@ -403,7 +403,7 @@ If (Get-Module ImportExcel -ListAvailable) {
     If (Test-Path $ExcelOutputFile) {
         Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
     } 
-    $AppReport | Export-Excel -Path $ExcelOutputFile -WorksheetName "Inactive Guests" -Title ("Inactive Guests Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveGuests" 
+    $AppReport | Export-Excel -Path $ExcelOutputFile -WorksheetName "Service Principals" -Title ("Service Principals Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "ServicePrincipals" 
     $AttachmentFile = $ExcelOutputFile
 } Else {
     $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TenantAppReport.CSV"
@@ -436,6 +436,26 @@ $ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
 $MsgSubject = "Important: Service Principals Analysis Report"
 # Create the HTML content
 $HtmlMsg = "</body></html><p>The output file for the <b>Service Principals Analysis Report</b> is attached to this message. Please review the information at your convenience</p>"
+
+# Add the summary content
+$HtmlMsg += "<h2>Service Principals Analysis Summary</h2>"
+$HtmlMsg += "<table border='1' cellpadding='5' cellspacing='0' style='border-collapse:collapse;'>"
+$HtmlMsg += "<tr><th align='left'>Metric</th><th align='left'>Value</th></tr>"
+$HtmlMsg += ("<tr><td>Total service principals:</td><td>{0}</td></tr>" -f $AppReport.Count)
+$HtmlMsg += ("<tr><td>Total Microsoft-owned service principals:</td><td>{0} ({1})</td></tr>" -f $TotalMicrosoftSPs, $PercentMicrosoftSPs)
+$HtmlMsg += ("<tr><td>Total non-Microsoft service principals:</td><td>{0}</td></tr>" -f ($AppReport.Count - $TotalMicrosoftSPs))
+$HtmlMsg += ("<tr><td>Total app registrations:</td><td>{0}</td></tr>" -f $TotalApps)            
+$HtmlMsg += ("<tr><td>Total managed identities:</td><td>{0}</td></tr>" -f $TotalManagedIdentities)
+$HtmlMsg += ("<tr><td>Total legacy service principals:</td><td>{0}</td></tr>" -f $TotalLegacySPs)
+$HtmlMsg += ("<tr><td>Total service principals never used:</td><td>{0} ({1})</td></tr>" -f $TotalSPsNotUsed, $PercentSPsNotUsed)
+$HtmlMsg += ("<tr><td>Total app registrations with no valid app passwords:</td><td>{0}</td></tr>" -f $TotalAppsNoValidPasswords)
+$HtmlMsg += ("<tr><td>Total app registrations with no valid app certificates:</td><td>{0}</td></tr>" -f $TotalAppsNoValidCertificates)
+$HtmlMsg += ("<tr><td>Total app registrations with no valid app passwords or certificates:</td><td>{0}</td></tr>" -f $TotalAppsNoValidPasswordsOrCertificates)
+$HtmlMsg += ("<tr><td>Total app registrations with high-priority permissions:</td><td>{0} ({1})</td></tr>" -f $TotalAppsWithHighPriorityPermissions, $PercentAppswithHighPriorityPermissions)
+$HtmlMsg += ("<tr><td>Total service principals with high-priority permissions:</td><td>{0}</td></tr>" -f $TotalSPsWithHighPriorityPermissions)
+$HtmlMsg += ("<tr><td>Total app registrations with warnings:</td><td>{0}</td></tr>" -f $TotalAppsWithWarnings)
+$HtmlMsg += "</table></p>"  
+
 # Construct the message body 	
 $MsgBody = @{}
 $MsgBody.Add('Content', "$($HtmlMsg)")
