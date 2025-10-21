@@ -9,15 +9,8 @@
 # mentioned in https://learn.microsoft.com/en-us/graph/api/serviceprincipal-list-approleassignments
 # Requires the Microsoft.Graph module
 
-# Known Tra apps list - see https://huntresslabs.github.io/rogueapps/
-[array]$TraitorWareApps = "em client", "perfectdata software", "newsletter software supermailer", "cloudsponge", "rclone"
-
-# High-priority permissions that we need to flag if found in apps
-[array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", "Mail.Read", "Files.Read.All", "Files.ReadWrite.All",`
-    "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All", `
-    "Sites.Read.All", "Sites.FullControl.All", "Sites.Manage.All"
-
 [array]$RequiredScopes = "RoleAssignmentSchedule.Read.Directory", "Application.Read.All", "CrossTenantInformation.ReadBasic.All", "Mail.Send", "User.ReadBasic.All"
+$Interactive = $false
 
 # Determine if we're interactive or not
 If ([Environment]::UserInteractive) { 
@@ -49,6 +42,15 @@ If ($Interactive) {
         Break
     }
 }
+
+# Set up to run
+# Known Traitorware apps list - see https://huntresslabs.github.io/rogueapps/
+[array]$TraitorWareApps = "em client", "perfectdata software", "newsletter software supermailer", "cloudsponge", "rclone"
+
+# High-priority permissions that we need to flag if found in apps
+[array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", "Mail.Read", "Files.Read.All", "Files.ReadWrite.All",`
+    "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All", `
+    "Sites.Read.All", "Sites.FullControl.All", "Sites.Manage.All"
 
 Write-Output "Fetching details of app roles (permissions)"
 $GraphApp = Get-MgServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'"
@@ -125,6 +127,7 @@ ForEach ($SP in $ServicePrincipals) {
     $isApp = $true
     $AppId = $SP.AppId
     Try {
+        # Check if an app registration exists for this service principal
         $App = Get-MgApplication -filter "appId eq '$AppId'" `
          -Property Id, displayName, AppId, Notes,CreateDateTime, Owners, VerifiedPublisher, Tags, AppRoles, PublisherDomain, passwordCredentials, KeyCredentials, SignInAudience, Web -ErrorAction Stop 
         [array]$AppOwners = Get-MgApplicationOwner -ApplicationId $App.Id -All  
