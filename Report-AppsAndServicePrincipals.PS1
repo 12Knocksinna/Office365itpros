@@ -1,14 +1,17 @@
 # Report-AppsAndServicePrincipals.PS1
+# A script (or runbook) to scan service principals and registered applications in an Entra ID (Azure AD) tenant
+# and produce a report about their configuration, owners, permissions, and last sign-in activity.
+
+# V1.0 21-Oct-2025
 
 # Use app-only mode to connect to Microsoft Graph or make sure that the signed in account holds one of the roles
 # mentioned in https://learn.microsoft.com/en-us/graph/api/serviceprincipal-list-approleassignments
-
-Connect-MgGraph Application.Read.All, Directory.Read.All, AuditLog.Read.All
+# Requires the Microsoft.Graph module
 
 # Known Tra apps list - see https://huntresslabs.github.io/rogueapps/
 [array]$TraitorWareApps = "em client", "perfectdata software", "newsletter software supermailer", "cloudsponge", "rclone"
 
-# High-priority permissions that we need to flag
+# High-priority permissions that we need to flag if found in apps
 [array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", "Files.ReadWrite.All", "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All"
 
 [array]$RequiredScopes = "RoleAssignmentSchedule.Read.Directory", "Application.Read.All", "CrossTenantInformation.ReadBasic.All", "Mail.Send"
@@ -73,9 +76,6 @@ ForEach ($LogEntry in $SPSignInLogs) {
     $SpSignInHash.Add([string]$LogEntry.AppId, [string]$LogEntry.LastSignInActivity.LastSignInDateTime.DateTime)
 }
 
-
- 
-
 Write-Host "Finding service principals..."
 [Array]$ServicePrincipals = Get-MgServicePrincipal -All  `
     -Property Id, appId, displayName, Owners, appDisplayName, AppDescription, AppOwnerOrganizationId, AppRoles, AppRoleAssignments, `
@@ -120,12 +120,6 @@ ForEach ($SP in $ServicePrincipals) {
         } Else { 
             $AppUserVisibility="Visible"
         }
-            
-        If ($SP.AppRoleAssignmentRequired) {
-            $AppAccess = "Assigned users only"
-        } Else {
-            $AppAccess = "All users"
-        }
 
         $AppName = $App.DisplayName
  
@@ -167,6 +161,7 @@ ForEach ($SP in $ServicePrincipals) {
     # There's another test to look for apps named after a account display name or user principal name, but this could take a long time to run in large tenants
 
     # Get Application role (permission) assignments
+    $PermissionsOutput = $null; $Permissions = $null
     [array]$AppRoles = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $SP.Id
     If ($AppRoles) {
         [array]$Permissions = @()
@@ -234,13 +229,13 @@ ForEach ($SP in $ServicePrincipals) {
 
     Switch ($SP.SignInAudience) {
         "AzureADMyOrg" { 
-            $SignInAudience = "Accounts in this tenantonly" 
+            $SignInAudience = "Only this tenant" 
         }
         "AzureADMultipleOrgs" { 
-            $SignInAudience = "Accounts in any Entra ID tenant" 
+            $SignInAudience = "Accounts from any Entra ID tenant" 
         }
         "AzureADandPersonalMicrosoftAccount" { 
-            $SignInAudience = "Accounts in any Entra ID tenant and personal Microsoft accounts" 
+            $SignInAudience = "Accounts from any Entra ID tenant and personal Microsoft accounts" 
         }
         "PersonalMicrosoftAccount" { 
             $SignInAudience = "Personal Microsoft accounts only" 
@@ -287,13 +282,19 @@ ForEach ($SP in $ServicePrincipals) {
         }
     }       
 
+    If ($SP.AppRoleAssignmentRequired) {
+        $AccessAllowedToApp = "Assigned users only"
+    } Else {
+        $AccessAllowedToApp = "All users"
+    }
+
     $AppReportLine = [PSCustomObject]@{
         AppName                         = $AppName
         AppType                         = If ($isApp) { "App registration" } Else { 'Service principal' }
         AppDescription                  = If ($isApp) { $App.Notes } Else { $SP.Description }
         AppOwners                       = $AppOwnersString
         AppCreatedDateTime              = $CreatedDateTime
-        'App Access'                    = $AppAccess
+        'App Access'                    = $AccessAllowedToApp
         'App Visibility'                = $AppUserVisibility
         'Service Principal last used'   = $SPLastActivityDateTime
         'App Passwords'                 = If ($PasswordReportOutput) { $PasswordReportOutput } Else { "No app passwords" }
@@ -323,7 +324,47 @@ ForEach ($SP in $ServicePrincipals) {
     $AppReport.Add($AppReportLine)
 }
 
-$AppReport | Out-GridView
+$AppReport | Out-GridView -Title 'Service Principal Report'
+
+# Get some statistics
+$TotalSPsNotUsed = $AppReport | Where-Object { $_.'Service Principal last used' -eq "Never" } | Measure-Object | Select-Object -ExpandProperty Count
+$PercentSPsNotUsed = ($TotalSPsNotUsed / $AppReport.Count).ToString('P')
+$TotalApps = $AppReport | Where-Object { $_.AppType -eq "App registration" } | Measure-Object | Select-Object -ExpandProperty Count
+$TotalManagedIdentities = $AppReport | Where-Object { $_.'Service Principal Type' -eq "ManagedIdentity" } | Measure-Object | Select-Object -ExpandProperty Count
+$TotalLegacySPs = $AppReport | Where-Object { $_.'Service Principal Type' -eq "Legacy" } | Measure-Object | Select-Object -ExpandProperty Count
+$TotalAppsNoValidPasswords = $AppReport | Where-Object { $_.AppType -eq 'App registration' -and $_.'Valid App Passwords' -eq 0 -and $_.'App Passwords' -ne "No app passwords" } | Measure-Object | Select-Object -ExpandProperty Count
+$TotalAppsNoValidCertificates = $AppReport | Where-Object { $_.AppType -eq 'App registration' -and $_.'Valid App Certificates' -eq 0 -and $_.'App Certificates' -ne "No app certificates" } | Measure-Object | Select-Object -ExpandProperty Count
+$TotalAppsNoValidPasswordsOrCertificates = $AppReport | Where-Object { $_.AppType -eq 'App registration' -and $_.'Valid App Passwords' -eq 0 -and $_.'App Certificates' -ne "No app certificates" -and $_.'Valid App Certificates' -eq 0 } | Measure-Object | Select-Object -ExpandProperty Count
+$TotalAppsWithHighPriorityPermissions = $AppReport | Where-Object { $_.AppType -eq 'App registration' -and $_.'High-priority permissions' -ne $null } | Measure-Object | Select-Object -ExpandProperty Count
+$TotalSPsWithHighPriorityPermissions = $AppReport | Where-Object { $_.AppType -eq 'Service Principal' -and $_.'High-priority permissions' -ne $null } | Measure-Object | Select-Object -ExpandProperty Count
+$TotalAppsWithWarnings = $AppReport | Where-Object { $_.AppType -eq "App registration" -and $_.'Traitor Ware App Warning' -ne $null -or $_.'Non-Alphanumeric Name Warning' -ne $null -or $_.'Test App Name Warning' -ne $null -or $_.'MACT 1445 Warning' -ne $null } | Measure-Object | Select-Object -ExpandProperty Count
+$TotalMicrosoftSPs = $AppReport | Where-Object { $_.AppType -eq 'Service Principal' -and $_.'Owning tenant' -like "*microsoft*" } | Measure-Object | Select-Object -ExpandProperty Count
+$PercentMicrosoftSPs = ($TotalMicrosoftSPs / $AppReport.Count).ToString('P')    
+$PercentAppswithHighPriorityPermissions = ($TotalAppsWithHighPriorityPermissions / $TotalApps).ToString('P')
+
+Write-Output ""
+Write-Output "Service Principals Report Summary"
+Write-Output "---------------------------------"
+Write-Output ("Total service principals:                                            {0}" -f $AppReport.Count)
+Write-Output ("Total Microsoft-owned service principals:                            {0} ({1})" -f $TotalMicrosoftSPs, $PercentMicrosoftSPs)
+Write-Output ("Total non-Microsoft service principals:                              {0}" -f ($AppReport.Count - $TotalMicrosoftSPs))
+Write-Output ("Total app registrations:                                             {0}" -f $TotalApps) 
+Write-Output ("Total managed identities:                                            {0}" -f $TotalManagedIdentities)
+Write-Output ("Total legacy service principals:                                     {0}" -f $TotalLegacySPs)
+Write-Output ("Total service principals never used:                                 {0} ({1})" -f $TotalSPsNotUsed, $PercentSPsNotUsed)
+Write-Output ("Total app registrations with no valid app passwords:                 {0}" -f $TotalAppsNoValidPasswords)
+Write-Output ("Total app registrations with no valid app certificates:              {0}" -f $TotalAppsNoValidCertificates)
+Write-Output ("Total app registrations with no valid app passwords or certificates: {0} " -f $TotalAppsNoValidPasswordsOrCertificates)
+Write-Output ("Total app registrations with high-priority permissions:              {0} ({1})" -f $TotalAppsWithHighPriorityPermissions, $PercentAppswithHighPriorityPermissions)
+Write-Output ("Total service principals with high-priority permissions:             {0}" -f $TotalSPsWithHighPriorityPermissions)
+Write-Output ("Total app registrations with warnings:                               {0}" -f $TotalAppsWithWarnings)
+Write-Output ""
+
+Write-Output "Service principals by owning tenant"
+Write-Output "-----------------------------------"
+$AppReport | Group-Object -Property 'Owning tenant' | Sort-Object Count -Descending | ForEach-Object {
+    Write-Output ("{0,-40} {1,5}" -f $_.Name, $_.Count)
+}
 
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $true
