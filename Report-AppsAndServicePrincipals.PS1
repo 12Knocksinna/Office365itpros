@@ -3,6 +3,7 @@
 # and produce a report about their configuration, owners, permissions, and last sign-in activity.
 
 # V1.0 21-Oct-2025
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-AppsAndServicePrincipals.PS1
 
 # Use app-only mode to connect to Microsoft Graph or make sure that the signed in account holds one of the roles
 # mentioned in https://learn.microsoft.com/en-us/graph/api/serviceprincipal-list-approleassignments
@@ -12,7 +13,9 @@
 [array]$TraitorWareApps = "em client", "perfectdata software", "newsletter software supermailer", "cloudsponge", "rclone"
 
 # High-priority permissions that we need to flag if found in apps
-[array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", "Files.ReadWrite.All", "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All"
+[array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", "Mail.Read", "Files.Read.All", "Files.ReadWrite.All",`
+    "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All", `
+    "Sites.Read.All", "Sites.FullControl.All", "Sites.Manage.All"
 
 [array]$RequiredScopes = "RoleAssignmentSchedule.Read.Directory", "Application.Read.All", "CrossTenantInformation.ReadBasic.All", "Mail.Send", "User.ReadBasic.All"
 
@@ -272,9 +275,11 @@ ForEach ($SP in $ServicePrincipals) {
     }
 
     # Find service principal last sign-in activity
+    $DaysSinceLastSignIn = $null; $SPLastActivityDateTime = $null
     $SPLastSignInDateTime = $SpSignInHash[$SP.AppId]
     If ($SPLastSignInDateTime) {
         $SPLastActivityDateTime = Get-Date $SPLastSignInDateTime -Format "dd-MMM-yyyy HH:mm"
+        $DaysSinceLastSignIn = (New-TimeSpan -Start (Get-Date $SPLastSignInDateTime) -End (Get-Date)).Days
     } Else {
         $SPLastActivityDateTime = "Never"
     }   
@@ -325,6 +330,7 @@ ForEach ($SP in $ServicePrincipals) {
         'App Access'                    = $AccessAllowedToApp
         'App Visibility'                = $AppUserVisibility
         'Service Principal last used'   = $SPLastActivityDateTime
+        'Days since last sign-in'       = If ($DaysSinceLastSignIn) { $DaysSinceLastSignIn } Else { "Never" }
         'App Passwords'                 = If ($PasswordReportOutput) { $PasswordReportOutput } Else { "No app passwords" }
         'Valid App Passwords'           = $ValidAppPwd
         'Invalid App Passwords'         = $App.PasswordCredentials.Count - $ValidAppPwd
@@ -370,6 +376,8 @@ $TotalAppsWithWarnings = $AppReport | Where-Object { $_.AppType -eq "App registr
 $TotalMicrosoftSPs = $AppReport | Where-Object { $_.AppType -eq 'Service Principal' -and $_.'Owning tenant' -like "*microsoft*" } | Measure-Object | Select-Object -ExpandProperty Count
 $PercentMicrosoftSPs = ($TotalMicrosoftSPs / $AppReport.Count).ToString('P')    
 $PercentAppswithHighPriorityPermissions = ($TotalAppsWithHighPriorityPermissions / $TotalApps).ToString('P')
+$ServicePrincipalsSignedInLast2Years = $AppReport | Where-Object { $_.'Days since last sign-in' -ne "Never" -and $_.'Days since last sign-in' -le 730 } | Measure-Object | Select-Object -ExpandProperty Count
+$PercentServicePrincipalsSignedInLast2Years = ($ServicePrincipalsSignedInLast2Years / $AppReport.Count).ToString('P')
 
 Write-Output ""
 Write-Output "Service Principals Report Summary"
@@ -380,6 +388,7 @@ Write-Output ("Total non-Microsoft service principals:                          
 Write-Output ("Total app registrations:                                             {0}" -f $TotalApps) 
 Write-Output ("Total managed identities:                                            {0}" -f $TotalManagedIdentities)
 Write-Output ("Total legacy service principals:                                     {0}" -f $TotalLegacySPs)
+Write-Output ("Total service principals signed in within last 2 years:              {0} ({1})" -f $ServicePrincipalsSignedInLast2Years, $PercentServicePrincipalsSignedInLast2Years)
 Write-Output ("Total service principals never used:                                 {0} ({1})" -f $TotalSPsNotUsed, $PercentSPsNotUsed)
 Write-Output ("Total app registrations with no valid app passwords:                 {0}" -f $TotalAppsNoValidPasswords)
 Write-Output ("Total app registrations with no valid app certificates:              {0}" -f $TotalAppsNoValidCertificates)
@@ -447,6 +456,7 @@ $HtmlMsg += ("<tr><td>Total non-Microsoft service principals:</td><td>{0}</td></
 $HtmlMsg += ("<tr><td>Total app registrations:</td><td>{0}</td></tr>" -f $TotalApps)            
 $HtmlMsg += ("<tr><td>Total managed identities:</td><td>{0}</td></tr>" -f $TotalManagedIdentities)
 $HtmlMsg += ("<tr><td>Total legacy service principals:</td><td>{0}</td></tr>" -f $TotalLegacySPs)
+$HtmlMsg += ("<tr><td>Total service principals signed in within last 2 years:</td><td>{0} ({1})</td></tr>" -f $ServicePrincipalsSignedInLast2Years, $PercentServicePrincipalsSignedInLast2Years)
 $HtmlMsg += ("<tr><td>Total service principals never used:</td><td>{0} ({1})</td></tr>" -f $TotalSPsNotUsed, $PercentSPsNotUsed)
 $HtmlMsg += ("<tr><td>Total app registrations with no valid app passwords:</td><td>{0}</td></tr>" -f $TotalAppsNoValidPasswords)
 $HtmlMsg += ("<tr><td>Total app registrations with no valid app certificates:</td><td>{0}</td></tr>" -f $TotalAppsNoValidCertificates)
