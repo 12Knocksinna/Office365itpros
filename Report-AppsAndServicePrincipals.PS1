@@ -14,7 +14,7 @@
 # High-priority permissions that we need to flag if found in apps
 [array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", "Files.ReadWrite.All", "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All"
 
-[array]$RequiredScopes = "RoleAssignmentSchedule.Read.Directory", "Application.Read.All", "CrossTenantInformation.ReadBasic.All", "Mail.Send"
+[array]$RequiredScopes = "RoleAssignmentSchedule.Read.Directory", "Application.Read.All", "CrossTenantInformation.ReadBasic.All", "Mail.Send", "User.ReadBasic.All"
 
 # Determine if we're interactive or not
 If ([Environment]::UserInteractive) { 
@@ -76,6 +76,23 @@ ForEach ($LogEntry in $SPSignInLogs) {
     $SpSignInHash.Add([string]$LogEntry.AppId, [string]$LogEntry.LastSignInActivity.LastSignInDateTime.DateTime)
 }
 
+Write-Host "Finding user details..."
+[array]$Users = Get-MgUser -Filter "usertype eq 'Member' and AccountEnabled eq true" -All -Property Id, displayName, userPrincipalName -PageSize 999 
+# Build hash tables for user display names and UPNs to use for matching against app names
+$UserHash = @{}
+$UPNHash = @{}
+# Sometimes have multiple users with same display name, so get unique list
+[array]$UserDisplayNames = $Users | Sort-Object displayName -Unique
+ForEach ($User in $Users) {
+    $UPNHash.Add([string]$User.userPrincipalName.ToLower(), [string]$User.DisplayName.toLower())
+}
+# Also trim any (xxx) suffixes from display names and add lowercase versions for matching
+ForEach ($User in $UserDisplayNames) {
+    If (!($UserHash[$User.displayName])) {
+       $UserHash.Add([string]$User.displayName.Split("(")[0].Trim().ToLower(), [string]$User.userPrincipalName.ToLower())
+    }
+}
+
 Write-Host "Finding service principals..."
 [Array]$ServicePrincipals = Get-MgServicePrincipal -All  `
     -Property Id, appId, displayName, Owners, appDisplayName, AppDescription, AppOwnerOrganizationId, AppRoles, AppRoleAssignments, `
@@ -98,7 +115,7 @@ $AppReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($SP in $ServicePrincipals) {
     $i++
     Write-Progress -Activity "Processing application $i of $($ServicePrincipals.Count): $($SP.DisplayName)" -PercentComplete (($i / $ServicePrincipals.Count) * 100)    
-    $AppOwners = $null; $AppOwnersString = $null
+    $AppOwners = $null; $AppOwnersString = $null; $AppRedirectUris = $null; $AppIdentifierUris = $null; $App = $null
     $isApp = $true
     $AppId = $SP.AppId
     Try {
@@ -158,7 +175,15 @@ ForEach ($SP in $ServicePrincipals) {
     } Else {
         $MACT1445Warning = $null
     }
-    # There's another test to look for apps named after a account display name or user principal name, but this could take a long time to run in large tenants
+
+    # Check for apps named after account display names or user principal names
+    If (($UserHash[$Appname]) -or ($UPNHash[$Appname])) {
+        $UserMatchWarning = "⚠️ App name matches user"
+    } ElseIf ($UserHash[$Appname.ToLower()]) {
+        $UserMatchWarning = "⚠️ App name matches user"
+    } Else {
+        $UserMatchWarning = $null
+    }
 
     # Get Application role (permission) assignments
     $PermissionsOutput = $null; $Permissions = $null
@@ -316,10 +341,11 @@ ForEach ($SP in $ServicePrincipals) {
         AppObjectId                     = $App.AppId
         'Service principal id'          = $SP.Id
         'Service Principal Type'        = $SP.ServicePrincipalType
-        'Traitor Ware App Warning'      = $TraitorWareAppWarning
+        'TraitorWare App Warning'       = $TraitorWareAppWarning
         'Non-Alphanumeric Name Warning' = $NonAlnumNameWarning
         'Test App Name Warning'         = $TestAppWarning
         'MACT 1445 Warning'             = $MACT1445Warning
+        'User Match warning'            = $UserMatchWarning
     }
     $AppReport.Add($AppReportLine)
 }
@@ -365,6 +391,7 @@ Write-Output "-----------------------------------"
 $AppReport | Group-Object -Property 'Owning tenant' | Sort-Object Count -Descending | ForEach-Object {
     Write-Output ("{0,-40} {1,5}" -f $_.Name, $_.Count)
 }
+Write-Output ""
 
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $true
