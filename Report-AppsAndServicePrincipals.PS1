@@ -76,6 +76,9 @@ ForEach ($LogEntry in $SPSignInLogs) {
     $SpSignInHash.Add([string]$LogEntry.AppId, [string]$LogEntry.LastSignInActivity.LastSignInDateTime.DateTime)
 }
 
+# Define email address for message with report attachment - make sure to change this to the appropriate address for your tenant
+$DestinationEmailAddress = "Customer.Services@office365itpros.com"
+
 Write-Host "Finding user details..."
 [array]$Users = Get-MgUser -Filter "usertype eq 'Member' and AccountEnabled eq true" -All -Property Id, displayName, userPrincipalName -PageSize 999 
 # Build hash tables for user display names and UPNs to use for matching against app names
@@ -413,6 +416,51 @@ If ($ExcelGenerated) {
 } Else {
     Write-Output ("CSV output file written to {0}" -f $CSVOutputFile)
 } 
+
+# Send the spreadsheet as an email attachment
+$EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
+$MsgAttachments = @(
+    @{
+        '@odata.type' = '#microsoft.graph.fileAttachment'
+        Name = (Split-Path $AttachmentFile -Leaf)
+        ContentBytes = $EncodedAttachmentFile
+        ContentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    }
+)
+
+# Build the array of a single TO recipient detailed in a hash table - change this to the appropriate recipient for your tenant
+$ToRecipient = @{}
+$ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
+[array]$MsgTo = $ToRecipient
+# Define the message subject
+$MsgSubject = "Important: Service Principals Analysis Report"
+# Create the HTML content
+$HtmlMsg = "</body></html><p>The output file for the <b>Service Principals Analysis Report</b> is attached to this message. Please review the information at your convenience</p>"
+# Construct the message body 	
+$MsgBody = @{}
+$MsgBody.Add('Content', "$($HtmlMsg)")
+$MsgBody.Add('ContentType','html')
+# Build the parameters to submit the message
+$Message = @{}
+$Message.Add('subject', $MsgSubject)
+$Message.Add('toRecipients', $MsgTo)
+$Message.Add('body', $MsgBody)
+$Message.Add("attachments", $MsgAttachments)
+
+$EmailParameters = @{}
+$EmailParameters.Add('message', $Message)
+$EmailParameters.Add('saveToSentItems', $true)
+$EmailParameters.Add('isDeliveryReceiptRequested', $true)
+
+# Send the message
+Try {
+    Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
+    Write-Output ("Service Principals analysis report emailed to {0}" -f $ToRecipient.emailAddress.address)
+    Write-Output "All done!"
+} Catch {
+    Write-Output "Unable to send email"
+    Write-Output $_.Exception.Message
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
