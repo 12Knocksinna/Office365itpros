@@ -122,7 +122,9 @@ $AppReport = [System.Collections.Generic.List[Object]]::new()
 [int]$i=0
 ForEach ($SP in $ServicePrincipals) {
     $i++
-    Write-Progress -Activity "Processing application $i of $($ServicePrincipals.Count): $($SP.DisplayName)" -PercentComplete (($i / $ServicePrincipals.Count) * 100)    
+    If ($Interactive) {
+        Write-Progress -Activity "Processing application $i of $($ServicePrincipals.Count): $($SP.DisplayName)" -PercentComplete (($i / $ServicePrincipals.Count) * 100)    
+    }
     $AppOwners = $null; $AppOwnersString = $null; $AppRedirectUris = $null; $AppIdentifierUris = $null; $App = $null
     $isApp = $true
     $AppId = $SP.AppId
@@ -140,12 +142,6 @@ ForEach ($SP in $ServicePrincipals) {
         $AppIdentifierUris = $App.IdentifierUris -join ";"
         $AppRedirectUris = $App.Web.RedirectUris -join ";"
         $CreatedDateTime = Get-Date $App.CreatedDateTime -Format "dd-MMM-yyyy HH:mm"
-
-        If ($SP.Tags -contains "HideApp") { 
-            $AppUserVisibility="Hidden" 
-        } Else { 
-            $AppUserVisibility="Visible"
-        }
 
         $AppName = $App.DisplayName
  
@@ -324,6 +320,21 @@ ForEach ($SP in $ServicePrincipals) {
         $AccessAllowedToApp = "All users"
     }
 
+     If ($SP.Tags -contains "HideApp") { 
+        $AppUserVisibility="Hidden" 
+    } Else { 
+        $AppUserVisibility="Visible"
+    }
+
+    # Check when service principal was created to highlight any created in the last 10 days
+    $SPCreatedDateTimeOutput = $null
+    $SPCreatedDate = Get-Date $SP.additionalProperties['createdDateTime']
+    If ($SPCreatedDate -gt (Get-Date).AddDays(-10)) {
+        $SPCreatedDateTimeOutput = " ⚠️ (Newly created service principal) " + (Get-Date $SPCreatedDate -Format "dd-MMM-yyyy HH:mm") 
+    } Else {
+        $SPCreatedDateTimeOutput = Get-Date $SPCreatedDate -Format "dd-MMM-yyyy HH:mm"
+    }
+
     $AppReportLine = [PSCustomObject]@{
         AppName                         = $AppName
         AppType                         = If ($isApp) { "App registration" } Else { 'Service principal' }
@@ -358,6 +369,7 @@ ForEach ($SP in $ServicePrincipals) {
         'Test App Name Warning'         = $TestAppWarning
         'MACT 1445 Warning'             = $MACT1445Warning
         'User Match warning'            = $UserMatchWarning
+        'Service Principal Created Date' =  $SPCreatedDateTimeOutput 
     }
     $AppReport.Add($AppReportLine)
 }
@@ -381,6 +393,8 @@ $PercentMicrosoftSPs = ($TotalMicrosoftSPs / $AppReport.Count).ToString('P')
 $PercentAppswithHighPriorityPermissions = ($TotalAppsWithHighPriorityPermissions / $TotalApps).ToString('P')
 $ServicePrincipalsSignedInLast2Years = $AppReport | Where-Object { $_.'Days since last sign-in' -ne "Never" -and $_.'Days since last sign-in' -le 730 } | Measure-Object | Select-Object -ExpandProperty Count
 $PercentServicePrincipalsSignedInLast2Years = ($ServicePrincipalsSignedInLast2Years / $AppReport.Count).ToString('P')
+[array]$NewServicePrincipals = $AppReport | Where-Object { $_.'Service Principal Created Date' -like "*Newly created service principal*" } 
+
 
 Write-Output ""
 Write-Output "Service Principals Report Summary"
@@ -399,6 +413,8 @@ Write-Output ("Total app registrations with no valid app passwords or certificat
 Write-Output ("Total app registrations with high-priority permissions:              {0} ({1})" -f $TotalAppsWithHighPriorityPermissions, $PercentAppswithHighPriorityPermissions)
 Write-Output ("Total service principals with high-priority permissions:             {0}" -f $TotalSPsWithHighPriorityPermissions)
 Write-Output ("Total app registrations with warnings:                               {0}" -f $TotalAppsWithWarnings)
+Write-Output ("Total newly created service principals (last 10 days):               {0}" -f $NewServicePrincipals.Count)
+Write-Output ("Newly created service principals:                                    {0}" -f ($NewServicePrincipals.AppName -join ", "))
 Write-Output ""
 
 Write-Output "Service principals by owning tenant"
@@ -467,6 +483,8 @@ $HtmlMsg += ("<tr><td>Total app registrations with no valid app passwords or cer
 $HtmlMsg += ("<tr><td>Total app registrations with high-priority permissions:</td><td>{0} ({1})</td></tr>" -f $TotalAppsWithHighPriorityPermissions, $PercentAppswithHighPriorityPermissions)
 $HtmlMsg += ("<tr><td>Total service principals with high-priority permissions:</td><td>{0}</td></tr>" -f $TotalSPsWithHighPriorityPermissions)
 $HtmlMsg += ("<tr><td>Total app registrations with warnings:</td><td>{0}</td></tr>" -f $TotalAppsWithWarnings)
+$HtmlMsg += ("<tr><td>Total newly created service principals (last 10 days):</td><td>{0}</td></tr>" -f $NewServicePrincipals.Count)
+$HtmlMsg += ("<tr><td>Newly created service principals:</td><td>{0}</td></tr>" -f ($NewServicePrincipals.AppName -join ", "))
 $HtmlMsg += "</table></p>"  
 
 # Construct the message body 	
