@@ -13,10 +13,10 @@ If (Get-Item $TempExportFile -ErrorAction SilentlyContinue) {
 }
 
 # Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
-If ((Get-MgBetaAdminReportSetting).DisplayConcealedNames -eq $true) {
+If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $true) {
    $Parameters = @{ displayConcealedNames = $False }
    Write-Host "Unhiding obscured report data for the script to run..."
-   Update-MgBetaAdminReportSetting -BodyParameter $Parameters
+   Update-MgAdminReportSetting -BodyParameter $Parameters
    $ObscureFlag = $true
 }
 
@@ -71,7 +71,7 @@ Write-Host ("Current OneDrive for Business storage consumption is {0} GB. Report
 If ($ObscureFlag -eq $true) {
     Write-Host "Resetting tenant data concealment for reports to True" -foregroundcolor red
     $Parameters = @{ displayConcealedNames = $True }
-    Update-MgBetaAdminReportSetting -BodyParameter $Parameters
+    Update-MgAdminReportSetting -BodyParameter $Parameters
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
