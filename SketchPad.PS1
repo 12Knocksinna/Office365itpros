@@ -1029,3 +1029,63 @@ ForEach ($AppStartupId in $AppStartUpIds) {
     }
 }
 Write-Host "Completed suppressing the startup of the Calendar, Files, and People companion apps"
+
+#- Search for audit records for Researcher Copilot agent
+
+[array]$Records = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-90) -EndDate (Get-Date) `
+    -Formatted -Operations "CopilotInteraction" -ResultSize 5000 -SessionCommand ReturnLargeSet
+If ($Records) {
+    $Records = $records | Sort-Object Identity -Unique  
+    Write-Host ("{0} audit records found" -f $Records.Count)
+    $Records = $Records | Sort-Object { $_.CreationDate -as [datetime]} -Descending
+} Else {
+    Write-Host "No audit records found - now scanning for Researcher Copilot agent records"
+    Break
+}   
+
+$ResearcherReport = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Rec in $Records) {    
+    $AuditData = $Rec.AuditData | ConvertFrom-Json
+    If ($AuditData.AgentName -ne "Researcher") {
+        Continue
+    }
+    [array]$CopilotResources = $AuditData.CopilotEventData.AccessedResources
+    If ($CopilotResources) {
+        $Resources = [System.Collections.Generic.List[Object]]::new()
+        ForEach ($Resource in $CopilotResources) {
+            If ($Resource.Action) {
+                If ($Resource.SiteURL) {
+                    $ResourceName = $Resource.SiteURL
+                    $ResourceId  = $null
+                } Else {
+                    $ResourceName = $Resource.Name
+                    $ResourceId   = $Resource.Id.Split("&")[0]
+                }
+                $ResourcesAccessed =  [PSCustomObject][Ordered]@{
+                    Action = $Resource.Action
+                    Name   = $ResourceName
+                    Id     = $ResourceId
+                }
+                $Resources.Add($ResourcesAccessed)
+            }   
+        }
+        $ReportLine = [PSCustomObject][Ordered]@{
+            TimeStamp       = Get-Date ($AuditData.CreationTime) -format 'dd-MMM-yyyy HH:mm'
+            User            = $AuditData.UserId
+            Action          = $AuditData.Operation
+            Resources       = $Resources.Name -join "; "
+        }
+        $ResearcherReport.Add($ReportLine)
+        } Else {
+            If ($null -ne $AuditData.CopilotEventData.Messages) {
+                $ReportLine = [PSCustomObject][Ordered]@{
+                    TimeStamp       = Get-Date ($AuditData.CreationTime) -format 'dd-MMM-yyyy HH:mm'
+                    User            = $AuditData.UserId
+                    Action          = $AuditData.Operation
+                    Resources       = If ($AuditData.CopilotEventData.Messages.count -le 3) {$AuditData.CopilotEventData.Messages.Count}                                     
+                                       Else {$AuditData.CopilotEventData.Messages.count.toString() + " (likely use of Claude LLM)"}
+                }
+                $ResearcherReport.Add($ReportLine)
+            }
+        }
+}
