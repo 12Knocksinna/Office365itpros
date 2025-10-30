@@ -29,7 +29,6 @@ function Get-AuthMethods {
         Write-Host ("Failed to retrieve authentication methods for user ID {0}: {1}" -f $UserId, $_.Exception.Message) -ForegroundColor Red
         Return $null
     }
-    [array]$AuthMethods = Get-MgBetaUserAuthenticationMethod -UserId $UserId
     ForEach ($AuthMethod in $AuthMethods) {
        $P1 = $null; $P2 = $null; $LastUsed = $null; $CreatedDate = $null; $DisplayMethod = $null; $MethodSummary = $null
        $Method = $AuthMethod.AdditionalProperties['@odata.type']
