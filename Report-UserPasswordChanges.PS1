@@ -24,7 +24,7 @@ function Get-AuthMethods {
     )
     [array]$AllMethods = @()
     Try {
-        $AuthMethods = Get-MgBetaUserAuthenticationMethod -UserId $UserId -ErrorAction Stop
+        [array]$AuthMethods = Get-MgBetaUserAuthenticationMethod -UserId $UserId -ErrorAction Stop
     } Catch {
         Write-Host ("Failed to retrieve authentication methods for user ID {0}: {1}" -f $UserId, $_.Exception.Message) -ForegroundColor Red
         Return $null
