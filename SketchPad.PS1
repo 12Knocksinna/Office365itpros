@@ -1010,3 +1010,22 @@ Do {
     }
 } While ($i -lt 500)
 
+
+# Disable the People, Files, and Calendar Microsoft 365 Companion Apps from starting automatically
+$RegistryKey = "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\SystemAppData\Microsoft.M365Companions_8wekyb3d8bbwe"
+[array]$AppStartUpIds = @("$RegistryKey\CalendarStartupId","$RegistryKey\FilesStartupId","$RegistryKey\PeopleStartupId")
+
+ForEach ($AppStartupId in $AppStartUpIds) {
+    Try {
+        If (Test-Path $AppStartupId) {
+            # Disable startup state for the app
+            Write-Host ("Disabling startup state for the {0} companion app" -f $AppStartupId.Split("StartupId")[0].Split("\")[11]) -ForegroundColor Green
+            Set-ItemProperty -Path $AppStartupId -Name "State" -Value 1 -Type DWORD -ErrorAction Stop
+        } Else {
+            Write-Host ("Couldn't find path to disable startup for the {0} companion app" -f $AppStartupId.Split("StartupId")[0].Split("\")[11]) -ForegroundColor Red
+        }
+    } Catch {
+        Write-Error ("Failed to set State for {0} : {1}" -f $AppStartupId, $_)  
+    }
+}
+Write-Host "Completed suppressing the startup of the Calendar, Files, and People companion apps"

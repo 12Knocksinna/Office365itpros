@@ -7,6 +7,7 @@
 # V1.2 12-June-2024 Add check for per-user MFA state
 # V1.3 20-June-2024 Add better output for authentication methods registered for a user
 # V1.4 18-Sep-2025  Updated with SDK cmdlets
+# V1.5 30-Oct-2025  Added last used date for authentication methods
 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-UserPasswordChanges.PS1
 
@@ -22,20 +23,40 @@ function Get-AuthMethods {
         [string]$UserId
     )
     [array]$AllMethods = @()
-    [array]$AuthMethods = Get-MgUserAuthenticationMethod -UserId $UserId
+    Try {
+        $AuthMethods = Get-MgBetaUserAuthenticationMethod -UserId $UserId -ErrorAction Stop
+    } Catch {
+        Write-Host ("Failed to retrieve authentication methods for user ID {0}: {1}" -f $UserId, $_.Exception.Message) -ForegroundColor Red
+        Return $null
+    }
+    [array]$AuthMethods = Get-MgBetaUserAuthenticationMethod -UserId $UserId
     ForEach ($AuthMethod in $AuthMethods) {
-       $P1 = $null; $P2 = $null
+       $P1 = $null; $P2 = $null; $LastUsed = $null; $CreatedDate = $null; $DisplayMethod = $null; $MethodSummary = $null
        $Method = $AuthMethod.AdditionalProperties['@odata.type']
+       If ($AuthMethod.LastUsedDateTime) {
+           $LastUsed = Get-Date($AuthMethod.LastUsedDateTime) -format "dd-MMM-yyyy HH:mm"
+       }
+       If ($AuthMethod.CreatedDateTime) {
+           $CreatedDate = Get-Date($AuthMethod.CreatedDateTime) -format "dd-MMM-yyyy HH:mm"
+       }    
        Switch ($Method) {
            "#microsoft.graph.passwordAuthenticationMethod" {
                $DisplayMethod = "Password"
                $P1 = "Traditional password"
+               If ($LastUsed) {
+                   $P1 = $P1 + " Last used: " + $LastUsed
+               } Else {
+                   $P1 = $P1 + "No date for last use"
+               }    
                $MethodSummary = "Password"
            }
            "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod" {
                $DisplayMethod = "Authenticator app" 
                $P1 = $AuthMethod.AdditionalProperties['displayName']
                $P2 = $AuthMethod.AdditionalProperties['deviceTag'] + " " + $AuthMethod.AdditionalProperties['phoneAppVersion'] 
+               If ($LastUsed) {
+                   $P2 = $P2 + " (Last used: " + $LastUsed + ")"
+               }    
                $MethodSummary = ("{0} on {1} ({2})" -f $DisplayMethod, $P1, $P2)
            }
            "#microsoft.graph.fido2AuthenticationMethod" {
@@ -45,37 +66,66 @@ function Get-AuthMethods {
                    $DisplayMethod = "Fido 2 Key"
                }
                $P1 = $AuthMethod.AdditionalProperties['displayName']
-               $P2 = Get-Date($AuthMethod.AdditionalProperties['createdDateTime']) -format "dd-MMM-yyyy HH:mm"
+              If ($LastUsed) {
+                   $P2 = "Last used: " + $LastUsed
+               } Else {
+                   $P2 = "No date for last use"
+               }
                $MethodSummary = ("Passkey on {0}" -f $AuthMethod.AdditionalProperties['model'])
            }
            "#microsoft.graph.phoneAuthenticationMethod" {
-               $DisplayMethod = "SMS" 
-               $P1 = "Number: " + $AuthMethod.AdditionalProperties['phoneNumber']
-               $P2 = "Type: " + $AuthMethod.AdditionalProperties['phoneType']
-               $MethodSummary = ("{0} to {1} ({2})" -f $DisplayMethod, $AuthMethod.AdditionalProperties['phoneNumber'], $AuthMethod.AdditionalProperties['phoneType'])
+                $DisplayMethod = "SMS"
+                If ($LastUsed) {
+                   $P1 = ("Last used: {0}" -f $LastUsed)    
+                } Else {
+                   $P1 = $null
+                }
+                $MethodSummary = ("{0} to {1} ({2}) {3}" -f $DisplayMethod, $AuthMethod.AdditionalProperties['phoneNumber'], $AuthMethod.AdditionalProperties['phoneType'], $P1)
            }
            "#microsoft.graph.emailAuthenticationMethod" {
-               $DisplayMethod = "Email (SSPR)"
-               $P1 = "Address: " + $AuthMethod.AdditionalProperties['emailAddress']
-               $MethodSummary = ("{0} to {1}" -f $DisplayMethod, $AuthMethod.AdditionalProperties['emailAddress'] )
+                $DisplayMethod = "Email (SSPR)"
+                If ($LastUsed) {
+                    $P1 = ("Address {0} Last used: {1}" -f $AuthMethod.AdditionalProperties['emailAddress'], $LastUsed)  
+                } Else {
+                    $P1 = "Address: " + $AuthMethod.AdditionalProperties['emailAddress']
+                }
+                $MethodSummary = ("{0} to {1}" -f $DisplayMethod, $P1)
            }
            "#microsoft.graph.passwordlessMicrosoftAuthenticatorAuthenticationMethod" {
                $DisplayMethod = "Passwordless"
                $P1 = $AuthMethod.AdditionalProperties['displayName']
-               $P2 = Get-Date($AuthMethod.AdditionalProperties['createdDateTime']) -format "dd-MMM-yyyy HH:mm"
-               $MethodSummary = ("{0} enabled on {1}" -f $DisplayMethod, $P2)
+               IF ($LastUsed) {
+                   $P2 = "Last used: " + $LastUsed
+               } Else {
+                   $P2 = "No date for last use"
+               }
+               If ($CreatedDate) {
+                   $P2 = $CreatedDate
+               } Else {
+                   $P2 = "Unknown date"
+               }
+               $MethodSummary = ("{0} {1} enabled on {2}" -f $DisplayMethod, $P1, $P2)
            }
            "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod" {    
                $DisplayMethod = "Windows Hello for Business"
-               $P1 = $AuthMethod.AdditionalProperties['displayName']
-               $P2 = Get-Date($AuthMethod.AdditionalProperties['createdDateTime']) -format "dd-MMM-yyyy HH:mm"
-               $MethodSummary = ("{0} enabled for {1} on {2}" -f $DisplayMethod, $P1, $P2)
+               If ($LastUsed) {
+                   $P1 = "Last used: " + $LastUsed
+               } Else {
+                   $P1 = "No date for last use"
+               }
+               If ($CreatedDate) {
+                    $P2 = $CreatedDate
+               } Else {
+                    $P2 = "Unknown date"
+               }
+               $MethodSummary = ("{0} ({1}) enabled for {2} on {3}" -f $DisplayMethod, $P1, $AuthMethod.AdditionalProperties['displayName'], $P2)
            }
            Default {
                $DisplayMethod = "Unknown authentication method"
                $MethodSummary = ("Unknown method: {0}" -f $AuthMethod.AdditionalProperties['@odata.type'])
            }
         }
+    $MethodSummary = $MethodSummary.Trim()
     $AllMethods += $MethodSummary 
     }
     $AllMethods = $AllMethods -join ", "
@@ -85,7 +135,7 @@ function Get-AuthMethods {
 Connect-MgGraph -NoWelcome -Scopes AuditLog.Read.All, Directory.Read.All, UserAuthenticationMethod.Read.All, Policy.ReadWrite.AuthenticationMethod
 
 [string]$RunDate = Get-Date -format "dd-MMM-yyyy HH:mm:ss"
-$Version = "1.4"
+$Version = "1.5"
 $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.CSV"
 $ReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\UserAuthenticationReport.html"
 
