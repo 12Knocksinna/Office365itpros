@@ -47,10 +47,10 @@ If ($Interactive) {
 # Known Traitorware apps list - see https://huntresslabs.github.io/rogueapps/
 [array]$TraitorWareApps = "em client", "perfectdata software", "newsletter software supermailer", "cloudsponge", "rclone"
 
-# High-priority permissions that we need to flag if found in apps
+# High-priority permissions that we should flag if found in apps
 [array]$HighPriorityPermissions = "User.Read.All", "User.ReadWrite.All", "Mail.ReadWrite", "Mail.Read", "Files.Read.All", "Files.ReadWrite.All",`
-    "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All", `
-    "Sites.Read.All", "Sites.FullControl.All", "Sites.Manage.All"
+    "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All", "Domain.ReadWrite.All", `
+    "Sites.Read.All", "Sites.FullControl.All", "Sites.Manage.All", "Application.ReadWrite.All", "AppRoleAssignment.ReadWrite.All", "Group.ReadWrite.All", "Group.Read.All"
 
 Write-Output "Fetching details of app roles (permissions)"
 $GraphApp = Get-MgServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'"
