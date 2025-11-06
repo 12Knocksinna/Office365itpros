@@ -2,7 +2,7 @@
 # A quick and simple script to report the usage of emojis as reactions to Teams chat and channel conversation messages
 
 # V1.0 6-Nov-2025
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-TeamsEmojis.PS1
 
 # Connect to Microsoft Graph to fetch user information
 Connect-MgGraph -Scopes "User.ReadBasic.All"
