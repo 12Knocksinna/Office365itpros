@@ -177,11 +177,34 @@ $Report = $Report | Sort-Object {$_.ReactionTime -as [datetime]}
 $Report | Out-GridView -Title "Teams Emoji Reactions Report"
 
 Write-Output ""
-Write-Output "Top ten Emoji reactions used in Teams"    
-$Report | Group-Object Reaction -NoElement | Sort-Object Count -Descending | Select-Object -First 10 | Format-Table Name, Count
+Write-Output "Top Ten Emoji reactions used in Teams"    
+$Report | Group-Object Reaction -NoElement | Sort-Object Count -Descending | Select-Object -First 10 | Format-Table Name,  @{name="Emoji"; Expression = { $Emojis[$_.Name] }}, Count -AutoSize
 Write-Output ""
-Write-Output "Top ten Users who reacted with Emojis in Teams"
+Write-Output "Top Ten Users who reacted with Emojis in Teams"
 $Report | Group-Object User -NoElement | Sort-Object Count -Descending | Select-Object -First 10 | Format-Table Name, Count
+Write-Output ""
+
+# Export the report as an Excel worksheet or CSV file
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $true
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TeamsEmojiReport.xlsx"
+    If (Test-Path $ExcelOutputFile) {
+        Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+    } 
+    $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Teams Emoji Reactions" -Title ("Teams Emoji Reactions Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "TeamsEmojiReactions" 
+} Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TeamsEmojisReport.CSV"
+    $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+}
+
+If ($ExcelGenerated) {
+    Write-Output ("Excel worksheet output written to {0}" -f $ExcelOutputFile)
+} Else {
+    Write-Output ("CSV output file written to {0}" -f $CSVOutputFile)
+} 
+
+Write-Output "All done - enjoy the emoji data!"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
