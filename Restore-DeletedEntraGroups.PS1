@@ -3,7 +3,7 @@
 # The script connects to Microsoft Graph, retrieves the list of deleted groups, and displays them in a grid view for easy selection and restoration.
 
 # V1.0 7-Nov-2025
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Restore-DeletedEntraGroups.PS1
 
 If ([Environment]::UserInteractive) { 
     Clear-Host
