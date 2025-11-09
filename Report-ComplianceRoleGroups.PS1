@@ -70,8 +70,8 @@ Function Get-AssignmentInfo {
     Return 
 }
 
-# Connect to the Graph (needed to fetch user account and tenant information)
-Connect-MgGraph -NoWelcome -Scopes User.Read.All, Organization.Read.All
+# Connect to the Graph (scopes needed to fetch user account, directory, and tenant information)
+Connect-MgGraph -NoWelcome -Scopes User.Read.All, Organization.Read.All, Directory.Read.All
 $TenantDetails = Get-MgOrganization
 
 If ("ExchangeOnlineManagement" -notin (Get-Module | Select-Object -ExpandProperty Name)) {
