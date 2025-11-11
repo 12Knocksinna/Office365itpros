@@ -1089,3 +1089,38 @@ ForEach ($Rec in $Records) {
             }
         }
 }
+
+# --- Find Priority Cleanup documents
+
+[array]$Records = Search-UnifiedAuditLog -StartDate '11-Nov-2025' -EndDate '12-Nov-2025' -Formatted -SessionCommand ReturnLargeSet -ResultSize 5000 -Operations 'PriorityCleanupFileRecycled', 'PriorityCleanupTagApplied'
+$Records = $Records | Sort-Object Identity -Unique
+If ($Records.Count -eq 0) {
+    Write-Host "No audit records found for Priority Cleanup operations"
+    Break
+} Else {
+    $Records = $records | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime]} -Descending
+    Write-Host ("Processing {0} audit records..." -f $Records.Count)
+}   
+
+$Records | Group-Object Operations -NoElement | Sort-Object Count | Format-Table Name, Count -AutoSize
+
+# Report removed files
+[array]$ItemsMovedtoRecycleBin = $Records | Where-Object { $_.Operations -eq 'PriorityCleanupFileRecycled' }
+$PriorityCleanupReport = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Item in $ItemsMovedtoRecycleBin) {
+    $AuditData = $Item.AuditData | ConvertFrom-Json
+    $ReportLine = [PSCustomObject][Ordered]@{
+        TimeStamp       = Get-Date ($AuditData.CreationTime) -format 'dd-MMM-yyyy HH:mm'
+        User            = $AuditData.UserId
+        Action          = $AuditData.Operation
+        ItemType        = $AuditData.ItemType
+        SiteURL         = $AuditData.SiteURL
+        Item            = $AuditData.SourceFileName
+        Extension       = $AuditData.SourceFileExtension
+        ObjectId        = $AuditData.ObjectId
+        FileSizeBytes   = $AuditData.FileSizeBytes
+        LabelName       = $AuditData.PolicyMatchInfo.LabelName
+        LabelID        = $AuditData.PolicyMatchInfo.LabelId
+    }
+    $PriorityCleanupReport.Add($ReportLine)
+}
