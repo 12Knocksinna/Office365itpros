@@ -1120,7 +1120,7 @@ ForEach ($Item in $ItemsMovedtoRecycleBin) {
         ObjectId        = $AuditData.ObjectId
         FileSizeBytes   = $AuditData.FileSizeBytes
         LabelName       = $AuditData.PolicyMatchInfo.LabelName
-        LabelID        = $AuditData.PolicyMatchInfo.LabelId
+        LabelID         = $AuditData.PolicyMatchInfo.LabelId
     }
     $PriorityCleanupReport.Add($ReportLine)
 }
