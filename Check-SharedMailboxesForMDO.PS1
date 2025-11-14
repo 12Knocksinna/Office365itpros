@@ -24,6 +24,15 @@ Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbp
 $TenantInfo = Get-MgOrganization
 $DefaultDomain = $TenantInfo.VerifiedDomains | Where-Object {$_.IsDefault -eq $true} | Select-Object -ExpandProperty Name    
 
+# Find the set of verified domains for the tenant that we can use to check against incming email
+[array]$Domains = Get-MgDomain -All 
+If ($Domains.Count -eq 0) {
+    Write-Output "No verified domains found in the tenant. Exiting."
+    Break
+} Else {
+    [array]$VerifiedDomains = $Domains | Where-Object {$_.IsVerified -eq $true} | Select-Object -ExpandProperty Id    
+}
+
 # Connect to Exchange Online in app-only mode - before this can happen, the app must be assigned the manage Exchange as app permission and
 # be assigned the Exchange administrator role for the tenant
 Write-Output "Connecting to Exchange Online..."
@@ -34,6 +43,7 @@ $MDOPlan1 = "f20fedf3-f3c3-43c3-8267-2bfdd51c0939"
 $MDOPlan2 = "8e0c0a52-6a6c-4d40-8370-dd62790dcd70"
 $EXOPlan2 = "efb87545-963c-4e0d-99df-69c6916d9eb0"
 
+Write-Output "Checking shared mailboxes for MDO license requirements..."
 # Get the shared mailboxes
 [array]$Mbx = Get-ExoMailbox -RecipientTypeDetails SharedMailbox -ResultSize Unlimited
 If ($Mbx) {
