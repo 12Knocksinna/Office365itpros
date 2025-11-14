@@ -3,11 +3,13 @@
 
 # Basically, a shared mailbox needs an MDO license if it receives benefit of MDO protection. In other words, the shared mailbox receives email from
 # external domains that don't belong to the tenant. If a shared mailbox only receives email from internal users, it doesn't need an MDO license.
+# See https://office365itpros.com/2025/10/31/mdo-p2-licensing/ for more information.
 
 # V1,0 13-Nov-2025
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Check-SharedMailboxesForMDO.PS1
 
-# Should be run in app-only mode to allow access to content of all shared mailboxes
+# This ia an example of running a script in app-only mode for both the Microsoft Graph PowerShell SDK and Exchange Online management module.
+# An X.509 certificate loaded into a registered app is used to authenticate for both connections.
 
 # Define the bits needed to connect in app-onl;y mode
 $AppId = "9725b779-7b69-41b9-9137-394a5801e651"
@@ -15,7 +17,7 @@ $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $Thumbprint = "8CD4AD070C7447BA767EAB5DA659A02E6411BB80"
 
 # Connect to the Microsoft Graph 
-Write-Host "Connecting to Microsoft Graph..."
+Write-Output "Connecting to Microsoft Graph..."
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint 
 
 # Get the tenant information and the list of verified domains for the tenant
@@ -24,10 +26,10 @@ $DefaultDomain = $TenantInfo.VerifiedDomains | Where-Object {$_.IsDefault -eq $t
 
 # Connect to Exchange Online in app-only mode - before this can happen, the app must be assigned the manage Exchange as app permission and
 # be assigned the Exchange administrator role for the tenant
-Write-Host "Connecting to Exchange Online..."
+Write-Output "Connecting to Exchange Online..."
 Connect-ExchangeOnline -CertificateThumbprint $Thumbprint -AppId $AppId -Organization $DefaultDomain -ShowBanner:$false
  
-# Define the MDO service plan IDs for P1 and P2 along with the Exchange Online Plan 2 plan
+# Define the MDO service plan IDs for P1 and P2 along with the Exchange Online Plan 2 plan. The MDO Plan 1 is onbly used for Microsoft 365 SME tenants.
 $MDOPlan1 = "f20fedf3-f3c3-43c3-8267-2bfdd51c0939"
 $MDOPlan2 = "8e0c0a52-6a6c-4d40-8370-dd62790dcd70"
 $EXOPlan2 = "efb87545-963c-4e0d-99df-69c6916d9eb0"
@@ -44,7 +46,7 @@ If ($Mbx) {
 $Report = [System.Collections.Generic.List[Object]]::new()  
 ForEach ($M in $Mbx) {
     $NeedsMDO = $false
-    Write-Host ("Checking shared mailbox {0}" -f $M.DisplayName)
+    Write-Output ("Checking shared mailbox {0}" -f $M.DisplayName)
     $DeliveredTraffic = $null
     $NeedsMDO = $false
     $HasMDO = $false
