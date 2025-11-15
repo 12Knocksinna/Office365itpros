@@ -1,10 +1,13 @@
 # Report-DailySignIns.PS1
-# An example of how to analyze and report daily sugn-ins recorded in the Entra ID sign-in audit log
+# An example of how to analyze and report daily sugn-ins recorded in the Entra ID sign-in audit log. The script generates a bunch of information
+# from the sign-in data and sends email to the tenant administratords
 
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-DailySignIns.PS1
 # V1.0 1-Oct-2025
 
-Connect-MgGraph -Scopes "AuditLog.Read.All", "User.Read.All"
+# Access to risky users information requires the IdentityRiskyUser.Read.All permission and an admin role like Global Reader or Security Reader
+
+Connect-MgGraph -Scopes "AuditLog.Read.All", "User.Read.All", "Organization.Read.All", "IdentityRiskyUser.Read.All"
 
 # Get tenant identifier
 $TenantData = Get-MgOrganization
@@ -25,6 +28,21 @@ If ($SignInRecords.Count -eq 0) {
     $Report = [System.Collections.Generic.List[Object]]::new()  
 }
 
+# Get Risky Users Information
+[array]$RiskyUsers = Get-MgRiskyUser | Where-Object {$_.RiskDetail -eq "none" -and $_.RiskState -eq "atRisk"} | Sort-Object {$_.RiskLastUpdatedDateTime -as [datetime]} -Descending
+ForEach ($RiskyUser in $RiskyUsers) {
+    
+    $ReportLine = [PSCustomObject]@{
+        UserPrincipalName   = $RiskyUser.UserPrincipalName
+        RiskLevel           = $RiskyUser.RiskLevel
+        RiskState           = $RiskyUser.RiskState
+        RiskDetail          = $RiskyUser.RiskDetail
+        RiskLastUpdated     = $RiskyUser.RiskLastUpdatedDateTime
+        DaysAtRisk          = (New-TimeSpan -Start $RiskyUser.RiskLastUpdatedDateTime -End (Get-Date)).Days
+    }
+    $Report.Add($ReportLine)
+}   
+
 [array]$AppSignIns = $SignInRecords | Where-Object { $_.AppDisplayName -ne $null -and $_.Status.ErrorCode -eq 0 } | Group-Object -Property AppDisplayName -NoElement 
 [array]$UserSignIns = $SignInRecords | Where-Object { $_.UserDisplayName -ne $null -and $_.Status.ErrorCode -eq 0} | Group-Object -Property UserDisplayName -NoElement 
 # Some failed sign-ins have a null userPrincipalName, notably when a tennat account fails with an attempt using B2B authentication with another tenant
@@ -41,7 +59,41 @@ If ($SignInRecords.Count -eq 0) {
 [array]$CAFailureEvents = $SignInRecords | Where-Object { $_.ConditionalAccessStatus -eq "Failure" }
 [int]$CANotApplied = $SignInRecords | Where-Object { $_.ConditionalAccessStatus -eq "NotApplied" -and $_.Status.ErrorCode -eq 0 } | Measure-Object | Select-Object -ExpandProperty Count
 [int]$CAFailures = $CAFailureEvents.count
-[array]$CAFailureUsers = $CAFailureEvents | Group-Object userPrincipalName -NoElement  | Select-Object -ExpandProperty Name
+[array]$CAFailureUsers = $CAFailureEvents | Group-Object UserDisplayName -NoElement  | Select-Object -ExpandProperty Name
+
+# Build attachnent for the email using signin data
+
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $true
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Daily Sign In Report.xlsx"
+    If (Test-Path $ExcelOutputFile) {
+        Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+    } 
+    $SignInRecords | Export-Excel -Path $ExcelOutputFile -WorksheetName "Sign-in Records" -Title ("Daily Sign In Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "SignInRecords" -AutoSize -AutoFilter
+    $AttachmentFile = $ExcelOutputFile
+} Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Daily Sign In Report.CSV"
+    $SignInRecords   | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+    $AttachmentFile = $CSVOutputFile
+}
+
+If ($ExcelGenerated) {
+    Write-Output ("Excel worksheet output written to {0}" -f $ExcelOutputFile)
+} Else {
+    Write-Output ("CSV output file written to {0}" -f $CSVOutputFile)
+} 
+
+# Send the spreadsheet as an email attachment
+$EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
+$MsgAttachments = @(
+    @{
+        '@odata.type' = '#microsoft.graph.fileAttachment'
+        Name = (Split-Path $AttachmentFile -Leaf)
+        ContentBytes = $EncodedAttachmentFile
+        ContentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    }
+)
 
 Write-Output ""
 Write-Output ("Daily Sign-In Report for {0}" -f (Get-Date $EndDate -format 'dd MMMM yyyy'))
@@ -69,6 +121,95 @@ Write-Output ("Number of sign-ins where Conditional Access was not applied:     
 Write-Output ("Number of sign-ins where Conditional Access failed:                {0}" -f $CAFailures) 
 Write-Output ("Users with sign-ins where Conditional Access failed:               {0}" -f ($CAFailureUsers -join ", "))
 Write-Output ""
+
+# Prepare HTML fragments for inclusion in the email body
+$TopApps = $AppSignIns | Sort-Object Count -Descending | Select-Object -First 10
+$AppHTML = $TopApps |
+    Select-Object @{Name='Application';Expression={$_.Name}},
+                  @{Name='Sign In Count';Expression={$_.Count}} |
+    ConvertTo-Html -As Table -Fragment
+
+$TopUsers = $UserSignIns | Sort-Object Count -Descending | Select-Object -First 5
+$UserHTML = $TopUsers |
+    Select-Object @{Name='User';Expression={$_.Name}},
+                  @{Name='Sign In Count';Expression={$_.Count}} |
+    ConvertTo-Html -As Table -Fragment
+
+$TopFailedSignInUsers = $FailedSignIns | Sort-Object Count -Descending | Select-Object -First 5 
+$FailedSignInsHTML = $TopFailedSignInUsers |
+    Select-Object @{Name='User';Expression={$_.Name}},
+                  @{Name='Failed Sign In Count';Expression={$_.Count}} |
+    ConvertTo-Html -As Table -Fragment
+
+[string]$SingleFactorAppsList = $SingleFactorApps -join ", "
+[string]$SingleFactorUsersList = $SingleFactorUsers -join ", "
+[string]$CAFailureUsersList = $CAFailureUsers -join ", "
+
+$MsgFrom = 'Customer.Services@office365itpros.com'
+$DestinationEmailAddress = "Admin.Info@office365itpros.com"
+# Build the array of a single TO recipient detailed in a hash table - change the sender and recipient to the appropriate recipient for your tenant
+$ToRecipient = @{}
+$ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
+[array]$MsgTo = $ToRecipient
+# Define the message subject
+$MsgSubject = "Important: Daily Sign-in Report for the {0} tenant on {1}" -f $TenantData.DisplayName, (Get-Date $EndDate -format 'dd MMMM yyyy')
+# Create the HTML content
+$HtmlMsg = "</body></html><p>The output file for the <b>Daily Sign-in Report</b> is attached to this message. Please review the information at your convenience</p>"
+$HtmlMsg += "<h2>Service Principals Analysis Summary</h2>"
+$HtmlMsg += "<table border='1' cellpadding='5' cellspacing='0' style='border-collapse:collapse;'>"
+$HtmlMsg += "<tr><th align='left'>Metric</th><th align='left'>Value</th></tr>"
+$HtmlMsg += "<tr><td>Total Sign-ins</td><td>{0}</td></tr>" -f $SignInRecords.Count
+$HtmlMsg += "<tr><td>Unique Applications Signed Into</td><td>{0}</td></tr>" -f $AppSignIns.Count
+$HtmlMsg += "<tr><td>Unique Users Signed In</td><td>{0}</td></tr>" -f $UserSignIns.Count
+$HtmlMsg += "<tr><td>Failed Sign-ins</td><td>{0}</  td></tr>" -f $FailedSignIns.Count
+$HtmlMsg += "<tr><td>Single-Factor Authentication Sign-ins</td><td>{0}</td></tr>" -f $SingleFactorSignIns.Count
+$HtmlMsg += "<tr><td>Unique Users using Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorUsers.Count
+$HtmlMsg += ("<tr><td>Unique Users using Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorUsersList)
+$HtmlMsg += "<tr><td>Unique Applications using Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorApps.Count
+$HtmlMsg += ("<tr><td>Unique Applications using Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorAppsList)
+$HtmlMsg += "<tr><td>Multi-Factor Authentication Sign-ins</td><td   >{0}</td></tr>" -f $MfaSignIns.Count
+$HtmlMsg += "<tr><td>Multi-Factor Authentication Users</td><td>{0}</td></tr>" -f $MfaUsers.Count
+$HtmlMsg += "<tr><td>Conditional Access Success Sign-ins</td><td>{0}</td></tr>" -f $CASuccess
+$HtmlMsg += "<tr><td>Conditional Access Not Applied Sign-ins</td><td>{0}</td></tr>" -f $CANotApplied
+$HtmlMsg += "<tr><td>Conditional Access Failure Sign-ins</td><td>{0}</td></tr>" -f $CAFailures
+$htmlMsg += ("<tr><td>Users with Conditional Access Failure Sign-ins</td><td>{0}</td></tr>" -f $CAFailureUsersList)
+$HtmlMsg += "</table>"      
+$HtmlMsg += "<p><h3>Top ten Applications signed into during the day</h3></p>"
+$HtmlMsg += $AppHTML 
+$HtmlMsg += "<p><h3>Top five users with successful sign-ins during the day</h3></p>"
+$HtmlMsg += $UserHTML
+$HtmlMsg += "<p><h3>Top five users with failed sign-ins during the day</h3></p>"
+$HtmlMsg += $FailedSignInsHTML
+$htmlMsg += "<p><h3>Recent Risky Users Identified</h3></p>"
+$htmlMsg += $Report | ConvertTo-Html -As Table -Fragment
+$htmlMsg += "</body></html>"
+
+# Construct the message body 	
+$MsgBody = @{}
+$MsgBody.Add('Content', "$($HtmlMsg)")
+$MsgBody.Add('ContentType','html')
+# Build the parameters to submit the message
+$Message = @{}
+$Message.Add('subject', $MsgSubject)
+$Message.Add('toRecipients', $MsgTo)
+$Message.Add('body', $MsgBody)
+$Message.Add("attachments", $MsgAttachments)
+
+$EmailParameters = @{}
+$EmailParameters.Add('message', $Message)
+$EmailParameters.Add('saveToSentItems', $true)
+$EmailParameters.Add('isDeliveryReceiptRequested', $true)
+
+# Send the message
+Try {
+    Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
+    Write-Output ("Daily sign-ins analysis report emailed to {0}" -f $ToRecipient.emailAddress.address)
+    Write-Output "All done!"
+} Catch {
+    Write-Output "Unable to send email"
+    Write-Output $_.Exception.Message
+}
+
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
