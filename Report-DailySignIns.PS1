@@ -15,7 +15,7 @@ $TenantId = $TenantData.Id
 
 # Set dates up to find what happened yesterday
 $Today = Get-Date
-$StartDate=$Today.AddDays(-30).ToString('yyyy-MM-ddT00:00:00Z')
+$StartDate=$Today.AddDays(-1).ToString('yyyy-MM-ddT00:00:00Z')
 $EndDate=$Today.ToString('yyyy-MM-ddT00:00:00Z')
 
 Write-Output "Retrieving interactive sign-in records from $StartDate to $EndDate"
@@ -159,14 +159,14 @@ $HtmlMsg += "<h2>Service Principals Analysis Summary</h2>"
 $HtmlMsg += "<table border='1' cellpadding='5' cellspacing='0' style='border-collapse:collapse;'>"
 $HtmlMsg += "<tr><th align='left'>Metric</th><th align='left'>Value</th></tr>"
 $HtmlMsg += "<tr><td>Total Sign-ins</td><td>{0}</td></tr>" -f $SignInRecords.Count
-$HtmlMsg += "<tr><td>Unique Applications Signed Into</td><td>{0}</td></tr>" -f $AppSignIns.Count
-$HtmlMsg += "<tr><td>Unique Users Signed In</td><td>{0}</td></tr>" -f $UserSignIns.Count
+$HtmlMsg += "<tr><td>Applications Signed Into</td><td>{0}</td></tr>" -f $AppSignIns.Count
+$HtmlMsg += "<tr><td>Users Signed In</td><td>{0}</td></tr>" -f $UserSignIns.Count
 $HtmlMsg += "<tr><td>Failed Sign-ins</td><td>{0}</  td></tr>" -f $FailedSignIns.Count
 $HtmlMsg += "<tr><td>Single-Factor Authentication Sign-ins</td><td>{0}</td></tr>" -f $SingleFactorSignIns.Count
-$HtmlMsg += "<tr><td>Unique Users using Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorUsers.Count
-$HtmlMsg += ("<tr><td>Unique Users using Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorUsersList)
-$HtmlMsg += "<tr><td>Unique Applications using Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorApps.Count
-$HtmlMsg += ("<tr><td>Unique Applications using Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorAppsList)
+$HtmlMsg += "<tr><td>Users using Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorUsers.Count
+$HtmlMsg += ("<tr><td>Users using Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorUsersList)
+$HtmlMsg += "<tr><td>Applications signed into using Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorApps.Count
+$HtmlMsg += ("<tr><td>Applications signed into with Single-Factor Authentication</td><td>{0}</td></tr>" -f $SingleFactorAppsList)
 $HtmlMsg += "<tr><td>Multi-Factor Authentication Sign-ins</td><td   >{0}</td></tr>" -f $MfaSignIns.Count
 $HtmlMsg += "<tr><td>Multi-Factor Authentication Users</td><td>{0}</td></tr>" -f $MfaUsers.Count
 $HtmlMsg += "<tr><td>Conditional Access Success Sign-ins</td><td>{0}</td></tr>" -f $CASuccess
@@ -209,7 +209,6 @@ Try {
     Write-Output "Unable to send email"
     Write-Output $_.Exception.Message
 }
-
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
