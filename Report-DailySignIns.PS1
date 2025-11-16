@@ -155,7 +155,7 @@ $ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
 $MsgSubject = "Important: Daily Sign-in Report for the {0} tenant on {1}" -f $TenantData.DisplayName, (Get-Date $EndDate -format 'dd MMMM yyyy')
 # Create the HTML content
 $HtmlMsg = "</body></html><p>The output file for the <b>Daily Sign-in Report</b> is attached to this message. Please review the information at your convenience</p>"
-$HtmlMsg += "<h2>Service Principals Analysis Summary</h2>"
+$HtmlMsg += "<h2>Daily Sign-ins Summary</h2>"
 $HtmlMsg += "<table border='1' cellpadding='5' cellspacing='0' style='border-collapse:collapse;'>"
 $HtmlMsg += "<tr><th align='left'>Metric</th><th align='left'>Value</th></tr>"
 $HtmlMsg += "<tr><td>Total Sign-ins</td><td>{0}</td></tr>" -f $SignInRecords.Count
