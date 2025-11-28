@@ -1,4 +1,4 @@
-# Report-AppsAndServicePrincipals.PS1
+﻿# Report-AppsAndServicePrincipals.PS1
 # A script (or runbook) to scan service principals and registered applications in an Entra ID (Azure AD) tenant
 # and produce a report about their configuration, owners, permissions, and last sign-in activity.
 
@@ -96,8 +96,19 @@ ForEach ($User in $Users) {
 }
 # Also trim any (xxx) suffixes from display names and add lowercase versions for matching
 ForEach ($User in $UserDisplayNames) {
-    If (!($UserHash[$User.displayName])) {
-       $UserHash.Add([string]$User.displayName.Split("(")[0].Trim().ToLower(), [string]$User.userPrincipalName.ToLower())
+    $originalDisplayName = [string]$User.displayName.ToLower()
+    $processedDisplayName = [string]$User.displayName.Split("(")[0].Trim().ToLower()
+    $userUPN = [string]$User.userPrincipalName.ToLower()
+
+    # Add the original display name as a key
+    If (!$UserHash.ContainsKey($originalDisplayName)) {
+       $UserHash.Add($originalDisplayName, $userUPN)
+    }
+
+    # Only add the processed display name if it's different from the original
+    # and if the processed name is not already present
+    If ($originalDisplayName -ne $processedDisplayName -and !$UserHash.ContainsKey($processedDisplayName)) {
+       $UserHash.Add($processedDisplayName, $userUPN)
     }
 }
 
@@ -123,8 +134,29 @@ $AppReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($SP in $ServicePrincipals) {
     $i++
     If ($Interactive) {
-        Write-Progress -Activity "Processing application $i of $($ServicePrincipals.Count): $($SP.DisplayName)" -PercentComplete (($i / $ServicePrincipals.Count) * 100)    
+        Write-Progress -Activity "Processing application $i of $($ServicePrincipals.Count): $($SP.DisplayName)" -PercentComplete (($i / $ServicePrincipals.Count) * 100)
     }
+
+    # Find service principal last sign-in activity
+    $DaysSinceLastSignIn = $null; $SPLastActivityDateTime = $null
+    $SPLastSignInDateTime = $SpSignInHash[$SP.AppId]
+
+    # Verbose logging for troubleshooting sign-in date issue
+    if ($Interactive) {
+        Write-Verbose "Processing: $($SP.DisplayName) (AppId: $($SP.AppId))"
+        Write-Verbose "  Hash lookup for AppId '$($SP.AppId)': '$SPLastSignInDateTime'"
+        if ($SPLastSignInDateTime) {
+            Write-Verbose "  Raw sign-in date from hash: $SPLastSignInDateTime"
+            Write-Verbose "  Converted sign-in date: $(Get-Date $SPLastSignInDateTime -Format 'dd-MMM-yyyy HH:mm:ss')"
+            $currentDate = Get-Date
+            Write-Verbose "  Current date: $($currentDate.ToString('dd-MMM-yyyy HH:mm:ss'))"
+            $timeSpan = New-TimeSpan -Start (Get-Date $SPLastSignInDateTime) -End $currentDate
+            Write-Verbose "  Timespan: $timeSpan (Days: $($timeSpan.Days))"
+        } else {
+            Write-Verbose "  No sign-in data found in hash"
+        }
+    }
+
     $AppOwners = $null; $AppOwnersString = $null; $AppRedirectUris = $null; $AppIdentifierUris = $null; $App = $null
     $isApp = $true
     $AppId = $SP.AppId
@@ -249,11 +281,16 @@ ForEach ($SP in $ServicePrincipals) {
 
     If ($SP.ServicePrincipalType -ne "ManagedIdentity" -and $SP.AppOwnerOrganizationId) {
         If ($SP.AppOwnerOrganizationId -eq $TenantId) { #Resolve tenant name
-            $AppTenantName = $TenantName 
+            $AppTenantName = $TenantName
         } Else {
             $LookUpId = $SP.AppOwnerOrganizationId.toString()
-            $ExternalTenantData = Find-MgTenantRelationshipTenantInformationByTenantId -TenantId $LookUpId
-            $AppTenantName = $ExternalTenantData.DisplayName 
+            Try {
+                $ExternalTenantData = Find-MgTenantRelationshipTenantInformationByTenantId -TenantId $LookUpId -ErrorAction Stop
+                $AppTenantName = $ExternalTenantData.DisplayName
+            } Catch {
+                $AppTenantName = "Unknown"
+                Write-Warning "Could not retrieve tenant details for $LookUpId : $($_.Exception.Message)"
+            }
         }
     }
 
@@ -278,9 +315,18 @@ ForEach ($SP in $ServicePrincipals) {
     $SPLastSignInDateTime = $SpSignInHash[$SP.AppId]
     If ($SPLastSignInDateTime) {
         $SPLastActivityDateTime = Get-Date $SPLastSignInDateTime -Format "dd-MMM-yyyy HH:mm"
-        $DaysSinceLastSignIn = (New-TimeSpan -Start (Get-Date $SPLastSignInDateTime) -End (Get-Date)).Days
+        $timeSpan = New-TimeSpan -Start (Get-Date $SPLastSignInDateTime) -End (Get-Date)
+        $DaysSinceLastSignIn = $timeSpan.Days
+
+        # Additional logging for debugging
+        if ($Interactive) {
+            Write-Verbose "  Final calculation - Sign-in date: $(Get-Date $SPLastSignInDateTime -Format 'dd-MMM-yyyy HH:mm:ss'), Days since: $DaysSinceLastSignIn"
+        }
     } Else {
         $SPLastActivityDateTime = "Never"
+        if ($Interactive) {
+            Write-Verbose "  No sign-in data found for AppId '$($SP.AppId)', setting to 'Never'"
+        }
     }   
 
     # Check password credentials (app secrets)
@@ -344,7 +390,7 @@ ForEach ($SP in $ServicePrincipals) {
         'App Access'                    = $AccessAllowedToApp
         'App Visibility'                = $AppUserVisibility
         'Service Principal last used'   = $SPLastActivityDateTime
-        'Days since last sign-in'       = If ($DaysSinceLastSignIn) { $DaysSinceLastSignIn } Else { "Never" }
+        'Days since last sign-in'       = If ($DaysSinceLastSignIn -ne $null) { $DaysSinceLastSignIn } Else { "Never" }
         'App Passwords'                 = If ($PasswordReportOutput) { $PasswordReportOutput } Else { "No app passwords" }
         'Valid App Passwords'           = $ValidAppPwd
         'Invalid App Passwords'         = $App.PasswordCredentials.Count - $ValidAppPwd
