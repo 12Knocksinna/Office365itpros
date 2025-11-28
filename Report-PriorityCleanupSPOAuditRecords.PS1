@@ -1,7 +1,7 @@
 # --- Find Priority Cleanup audit records for the documents the policy tags and then moves to the second stafge recycle bin ---
 # V1.0 27-Nov-2025
 
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-PriorityCleanupSPOAuditRecords.PS1
 
 [array]$Modules = Get-Module | Select-Object Name
 If ("ExchangeOnlineManagement" -notin $Modules.Name) {
@@ -23,9 +23,8 @@ If ($Records.Count -eq 0) {
 $Records | Group-Object Operations -NoElement | Sort-Object Count | Format-Table Name, Count -AutoSize
 
 # Report removed files
-[array]$ItemsMovedtoRecycleBin = $Records | Where-Object { $_.Operations -eq 'PriorityCleanupFileRecycled' }
 $PriorityCleanupReport = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Item in $ItemsMovedtoRecycleBin) {
+ForEach ($Item in $Records) {
     $AuditData = $Item.AuditData | ConvertFrom-Json
     $ReportLine = [PSCustomObject][Ordered]@{
         TimeStamp       = Get-Date ($AuditData.CreationTime) -format 'dd-MMM-yyyy HH:mm'
@@ -47,7 +46,7 @@ $TaggedOperations = $PriorityCleanupReport | Where-Object { $_.Action -eq 'Prior
 $MovedOperations = $PriorityCleanupReport | Where-Object { $_.Action -eq 'PriorityCleanupFileRecycled' }
 Write-Host ""
 Write-Host ("Found {0} Priority Cleanup Tag Applied operations" -f $TaggedOperations.Count)
-$TaggedOperatuins | Group-Object SiteURL -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
+$TaggedOperations | Group-Object SiteURL -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
 Write-Host ""
 Write-Host ("Found {0} Priority Cleanup File Recycled operations" -f $MovedOperations.Count)
 $MovedOperations | Group-Object SiteURL -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
