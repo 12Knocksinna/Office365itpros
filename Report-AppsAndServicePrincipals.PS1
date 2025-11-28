@@ -189,35 +189,35 @@ ForEach ($SP in $ServicePrincipals) {
     # Checks for potentially suspicious apps - idea from https://www.bleepingcomputer.com/news/security/find-hidden-malicious-oauth-apps-in-microsoft-365-using-cazadora/
     # Check for TraitorWare apps
     If ($TraitorWareApps -contains $AppName.ToLower()) {
-        $TraitorWareAppWarning = "ΓÜá∩╕Å (Potential TraitorWare App)"
+        $TraitorWareAppWarning = " (Potential TraitorWare App)"
     }  else {
         $TraitorWareAppWarning = $null
     }
     # Flag app names composed entirely of non-alphanumeric characters
     If ($AppName -and ($AppName -notmatch '[A-Za-z0-9]')) {
-        $NonAlnumNameWarning = "ΓÜá∩╕Å App name contains no alphanumeric characters"
+        $NonAlnumNameWarning = " App name contains no alphanumeric characters"
     } Else {
         $NonAlnumNameWarning = $null
     }
     # Check if app has "test" in the name
     If ($AppName -and ($AppName.ToLower() -like "*test*")) {
-        $TestAppWarning = "ΓÜá∩╕Å App name contains 'test'"
+        $TestAppWarning = " App name contains 'test'"
     } Else {
         $TestAppWarning = $null
     }
     # Look for ProofPoint MACT campaign 1445 https://www.proofpoint.com/us/blog/cloud-security/revisiting-mact-malicious-applications-credible-cloud-tenants
     # ΓÇ£http://localhost:7823/access/ΓÇ¥ in the Redirect URIs
     if ($AppRedirectUris -like "*http://localhost:7823/access/*") {
-        $MACT1445Warning = "ΓÜá∩╕Å App has ProofPoint MACT 1445 redirect URI"
+        $MACT1445Warning = " App has ProofPoint MACT 1445 redirect URI"
     } Else {
         $MACT1445Warning = $null
     }
 
     # Check for apps named after account display names or user principal names
     If (($UserHash[$Appname]) -or ($UPNHash[$Appname])) {
-        $UserMatchWarning = "ΓÜá∩╕Å App name matches user"
+        $UserMatchWarning = " App name matches user"
     } ElseIf ($UserHash[$Appname.ToLower()]) {
-        $UserMatchWarning = "ΓÜá∩╕Å App name matches user"
+        $UserMatchWarning = " App name matches user"
     } Else {
         $UserMatchWarning = $null
     }
@@ -255,7 +255,7 @@ ForEach ($SP in $ServicePrincipals) {
         }
     }
     If ($HighPermissionsFound) {
-        $HighPermissionsFoundOutput = "ΓÜá∩╕Å High-priority permissions: " + ($HighPermissionsFound -join ", ")
+        $HighPermissionsFoundOutput = " High-priority permissions: " + ($HighPermissionsFound -join ", ")
     } Else {
         $HighPermissionsFoundOutput = $null
     }
@@ -376,7 +376,7 @@ ForEach ($SP in $ServicePrincipals) {
     $SPCreatedDateTimeOutput = $null
     $SPCreatedDate = Get-Date $SP.additionalProperties['createdDateTime']
     If ($SPCreatedDate -gt (Get-Date).AddDays(-10)) {
-        $SPCreatedDateTimeOutput = " ΓÜá∩╕Å (Newly created service principal) " + (Get-Date $SPCreatedDate -Format "dd-MMM-yyyy HH:mm") 
+        $SPCreatedDateTimeOutput = "  (Newly created service principal) " + (Get-Date $SPCreatedDate -Format "dd-MMM-yyyy HH:mm") 
     } Else {
         $SPCreatedDateTimeOutput = Get-Date $SPCreatedDate -Format "dd-MMM-yyyy HH:mm"
     }
