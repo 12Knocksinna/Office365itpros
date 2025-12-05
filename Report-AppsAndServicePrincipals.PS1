@@ -52,6 +52,8 @@ If ($Interactive) {
     "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", "Sites.ReadWrite.All", "Domain.ReadWrite.All", `
     "Sites.Read.All", "Sites.FullControl.All", "Sites.Manage.All", "Application.ReadWrite.All", "AppRoleAssignment.ReadWrite.All", "Group.ReadWrite.All", "Group.Read.All"
 
+$currentDate = Get-Date
+
 Write-Output "Fetching details of app roles (permissions)"
 $GraphApp = Get-MgServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'"
 # Populate hash table with Graph permissions
@@ -298,7 +300,6 @@ ForEach ($SP in $ServicePrincipals) {
         $signInDateParsed = Get-Date $SPLastSignInDateTime
         Write-Verbose ("Parsed sign-in date: {0}" -f $signInDateParsed)
         $SPLastActivityDateTime = Get-Date $signInDateParsed -Format "dd-MMM-yyyy HH:mm"
-        $currentDate = Get-Date
         Write-Verbose ("Current date: {0}" -f $currentDate)
         $timeSpan = New-TimeSpan -Start $signInDateParsed -End $currentDate
         Write-Verbose ("Computed timespan: {0} days" -f $timeSpan.Days)
