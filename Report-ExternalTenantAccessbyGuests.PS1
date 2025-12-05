@@ -4,6 +4,8 @@
 # V1.0 4-Dec-2025
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ExternalTenantAccessbyGuests.PS1
 
+# accessing Entra ID audit logs via Microsoft Graph requires an Entra P1 license
+
 # Scopes: AuditLog.Read.All (application or delegated), Directory.Read.All
 Connect-MgGraph -Scopes "AuditLog.Read.All","Directory.Read.All"
 
@@ -11,12 +13,26 @@ $StartDate = (Get-Date).AddDays(-30).ToString('yyyy-MM-ddT00:00:00Z')
 $EndDate  = (Get-Date).ToString('yyyy-MM-ddT23:59:59Z')
 
 # Find this tenant information
-$ThisTenantData = Get-MgOrganization
-$ThisTenantId = $ThisTenantData.Id
+Try {
+    $ThisTenantData = Get-MgOrganization -ErrorAction Stop
+    $ThisTenantId = $ThisTenantData.Id
+} catch {
+    Write-Warning "Failed to retrieve tenant information for this organization: $($_.Exception.Message)"
+    Return
+}
 
+# Build OData filter string safely
+$Filter = "createdDateTime ge $StartDate and createdDateTime le $EndDate and status/errorCode eq 0"
+
+Write-Output "Fetching sign-in audit records from $StartDate to $EndDate..."
 # Get all successful sign-in audit records within the specified date range
-[array]$AuditRecords = Get-MgBetaAuditLogSignIn -All `
-  -Filter "createdDateTime ge $StartDate and createdDateTime le $EndDate and status/errorCode eq 0"
+Try {
+    [array]$AuditRecords = Get-MgBetaAuditLogSignIn -All -Filter $Filter -ErrorAction Stop
+} Catch {
+    Write-Error "Failed to retrieve sign-in logs: $($_.Exception.Message)"
+    Return
+}
+
 # Filter to find the set of external tenant accesses by guest users
 [array]$ExternalAccessRecords = $AuditRecords | Where-Object { $_.HomeTenantId -ne $_.ResourceTenantId -and $_.HomeTenantId -eq $ThisTenantId}
 [array]$InboundAccessRecords = $AuditRecords | Where-Object { $_.HomeTenantId -ne $_.ResourceTenantId -and $_.HomeTenantId -ne $ThisTenantId}
@@ -35,7 +51,7 @@ ForEach ($Tenant in $HostTenants) {
     $TenantDataLine = [PSCustomObject]@{
         TenantId                = $Tenant
         TenantName              = $TenantDetails.DisplayName
-        'Number of Accesses'    = $TenantRecords.Count
+        'Number of Sign-ins'    = $TenantRecords.Count
         'Unique Users'          = $TenantUsers.Count   
         'Users'                 = ($TenantUsers -join '; ')
         'Apps Accessed'         = ($TenantApps -join '; ')
@@ -50,7 +66,7 @@ $TenantApps = $InboundAccessRecords | Select-Object -ExpandProperty AppDisplayNa
 $TenantDataLine = [PSCustomObject]@{
     TenantId                = $ThisTenantData.Id
     TenantName              = $ThisTenantData.DisplayName
-    'Number of Accesses'    = $InboundAccessRecords.Count
+    'Number of Sign-ins'    = $InboundAccessRecords.Count
     'Unique Users'          = $TenantUsers.Count   
     'Users'                 = ($TenantUsers -join '; ')
     'Apps Accessed'         = ($TenantApps -join '; ')
@@ -58,6 +74,9 @@ $TenantDataLine = [PSCustomObject]@{
 }
 $TenantData.Add($TenantDataLine)
 
+Write-Output ""
+Write-Output "Report of External Tenant Access by Guest Users"
+$TenantData | Select-Object TenantName, Type, 'Number of Sign-ins', 'Unique Users', Users, 'Apps Accessed' | Format-Table -AutoSize
 
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
