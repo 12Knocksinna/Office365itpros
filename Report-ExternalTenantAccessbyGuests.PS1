@@ -2,7 +2,7 @@
 # This script generates a report of member accounts who have accessed apps in external tenants in a Microsoft 365 environment.
 
 # V1.0 4-Dec-2025
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ExternalTenantAccessbyGuests.PS1
 
 # Scopes: AuditLog.Read.All (application or delegated), Directory.Read.All
 Connect-MgGraph -Scopes "AuditLog.Read.All","Directory.Read.All"

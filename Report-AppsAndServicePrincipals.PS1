@@ -305,6 +305,7 @@ ForEach ($SP in $ServicePrincipals) {
         $DaysSinceLastSignIn = [int]$timeSpan.Days
     } Else {
         $SPLastActivityDateTime = "Never"
+        Write-Verbose ("Service Principal {0} has never signed in" -f $SP.DisplayName)
     }   
 
     # Check password credentials (app secrets)
