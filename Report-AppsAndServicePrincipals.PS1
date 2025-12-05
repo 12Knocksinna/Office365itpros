@@ -92,27 +92,24 @@ $UPNHash = @{}
 # Sometimes have multiple users with same display name, so get unique list
 [array]$UserDisplayNames = $Users | Sort-Object displayName -Unique
 ForEach ($User in $Users) {
-    $UPNHash.Add([string]$User.userPrincipalName.ToLower(), [string]$User.DisplayName.toLower())
+    $userUpnStr = ($User.userPrincipalName -as [string])
+    $userDisplayStr = ($User.DisplayName -as [string])
+    If (![string]::IsNullOrWhiteSpace($userUpnStr) -and ![string]::IsNullOrWhiteSpace($userDisplayStr)) {
+        $upnKey = $userUpnStr.ToLower()
+        If (!$UPNHash.ContainsKey($upnKey)) {
+            $UPNHash.Add($upnKey, $userDisplayStr.ToLower())
+        }
+    }
 }
 # Also trim any (xxx) suffixes from display names and add lowercase versions for matching
 ForEach ($User in $UserDisplayNames) {
-    # Verify $User.displayName is not null/empty before processing
-    If (-not [string]::IsNullOrEmpty($User.displayName)) {
-        $originalDisplayName = ($User.displayName -as [string]).Trim()
-        If (-not [string]::IsNullOrEmpty($originalDisplayName)) {
-            $originalKey = $originalDisplayName.ToLower()
-            $processedKey = ($originalDisplayName.Split('(')[0].Trim().ToLower())
-            $userUPN = ($User.userPrincipalName -as [string]).ToLower()
-            # Add original key if not already present
-            If (-not $UserHash.ContainsKey($originalKey)) {
-                $UserHash.Add($originalKey, $userUPN)
-            }
-            # Add processed key if different and not already present
-            If ($processedKey -ne $originalKey -and (-not $UserHash.ContainsKey($processedKey))) {
-                $UserHash.Add($processedKey, $userUPN)
-            }
-        }
-    }
+    $originalDisplayName = ($User.displayName -as [string]).Trim()
+    If ([string]::IsNullOrWhiteSpace($originalDisplayName)) { continue }
+    $originalKey = $originalDisplayName.ToLower()
+    $processedKey = ($originalDisplayName.Split('(')[0].Trim().ToLower())
+    $userUPN = ($User.userPrincipalName -as [string]).ToLower()
+    If (!$UserHash.ContainsKey($originalKey)) { $UserHash.Add($originalKey, $userUPN) }
+    If ($originalKey -ne $processedKey -and !$UserHash.ContainsKey($processedKey)) { $UserHash.Add($processedKey, $userUPN) }
 }
 
 Write-Host "Finding service principals..."
@@ -170,25 +167,26 @@ ForEach ($SP in $ServicePrincipals) {
     
     # Checks for potentially suspicious apps - idea from https://www.bleepingcomputer.com/news/security/find-hidden-malicious-oauth-apps-in-microsoft-365-using-cazadora/
     # Check for TraitorWare apps
-    If ($TraitorWareApps -contains $AppName.ToLower()) {
+    $appNameStr = ($AppName -as [string])
+    If ($appNameStr -and ($TraitorWareApps -contains $appNameStr.ToLower())) {
         $TraitorWareAppWarning = "[!] Potential TraitorWare App"
     }  else {
         $TraitorWareAppWarning = $null
     }
     # Flag app names composed entirely of non-alphanumeric characters
-    If ($AppName -and ($AppName -notmatch '[A-Za-z0-9]')) {
+    If ($appNameStr -and ($appNameStr -notmatch '[A-Za-z0-9]')) {
         $NonAlnumNameWarning = "[!] App name contains no alphanumeric characters"
     } Else {
         $NonAlnumNameWarning = $null
     }
     # Check if app has "test" in the name
-    If ($AppName -and ($AppName.ToLower() -like "*test*")) {
+    If ($appNameStr -and ($appNameStr.ToLower() -like "*test*")) {
         $TestAppWarning = "[!] App name contains 'test'"
     } Else {
         $TestAppWarning = $null
     }
     # Look for ProofPoint MACT campaign 1445 https://www.proofpoint.com/us/blog/cloud-security/revisiting-mact-malicious-applications-credible-cloud-tenants
-    # "http://localhost:7823/access/" in the Redirect URIs
+    # http://localhost:7823/access/
     if ($AppRedirectUris -like "*http://localhost:7823/access/*") {
         $MACT1445Warning = "[!] App has ProofPoint MACT 1445 redirect URI"
     } Else {
@@ -196,9 +194,8 @@ ForEach ($SP in $ServicePrincipals) {
     }
 
     # Check for apps named after account display names or user principal names
-    # Normalize app name key for lookups
-    $appNameKey = If (-not [string]::IsNullOrEmpty($AppName)) { ($AppName -as [string]).ToLower() } Else { $null }
-    If ($appNameKey -and ($UserHash.ContainsKey($appNameKey) -or $UPNHash.ContainsKey($appNameKey))) {
+    $appNameKey = ($AppName -as [string]).ToLower()
+    If ($UserHash.ContainsKey($appNameKey) -or $UPNHash.ContainsKey($appNameKey)) {
         $UserMatchWarning = "[!] App name matches user"
     } Else {
         $UserMatchWarning = $null
@@ -295,11 +292,17 @@ ForEach ($SP in $ServicePrincipals) {
 
     # Find service principal last sign-in activity
     $DaysSinceLastSignIn = $null; $SPLastActivityDateTime = $null
-    $SPLastSignInDateTime = If ($SpSignInHash.ContainsKey($SP.AppId)) { $SpSignInHash[$SP.AppId] } Else { $null }
+    $SPLastSignInDateTime = if ($SpSignInHash.ContainsKey($SP.AppId)) { $SpSignInHash[$SP.AppId] } else { $null }
     If ($SPLastSignInDateTime) {
-        $SPLastActivityDateTime = Get-Date $SPLastSignInDateTime -Format "dd-MMM-yyyy HH:mm"
-        $DaysSinceLastSignIn = (New-TimeSpan -Start (Get-Date $SPLastSignInDateTime) -End (Get-Date)).Days
-        Write-Verbose ("Service Principal {0} last signed in {1} ({2} days ago)" -f $SP.DisplayName, $SPLastActivityDateTime, $DaysSinceLastSignIn)
+        Write-Verbose ("Raw sign-in date string for {0}: {1}" -f $SP.DisplayName, $SPLastSignInDateTime)
+        $signInDateParsed = Get-Date $SPLastSignInDateTime
+        Write-Verbose ("Parsed sign-in date: {0}" -f $signInDateParsed)
+        $SPLastActivityDateTime = Get-Date $signInDateParsed -Format "dd-MMM-yyyy HH:mm"
+        $currentDate = Get-Date
+        Write-Verbose ("Current date: {0}" -f $currentDate)
+        $timeSpan = New-TimeSpan -Start $signInDateParsed -End $currentDate
+        Write-Verbose ("Computed timespan: {0} days" -f $timeSpan.Days)
+        $DaysSinceLastSignIn = [int]$timeSpan.Days
     } Else {
         $SPLastActivityDateTime = "Never"
         Write-Verbose ("Service Principal {0} has never signed in" -f $SP.DisplayName)
@@ -320,9 +323,9 @@ ForEach ($SP in $ServicePrincipals) {
         }
     }
 
-      # Check X.509 cert credentials
+    # Check X.509 cert credentials
     $CertOutput = $null; $CertReportOutput = $null; [int]$ValidAppCert = 0
-      If ($App.KeyCredentials) {
+    If ($App.KeyCredentials) {
         [array]$CertOutput = @()
         ForEach ($AppCert in $App.KeyCredentials) {
             # Could add code to report on certs if needed
@@ -352,7 +355,7 @@ ForEach ($SP in $ServicePrincipals) {
     $SPCreatedDateTimeOutput = $null
     $SPCreatedDate = Get-Date $SP.additionalProperties['createdDateTime']
     If ($SPCreatedDate -gt (Get-Date).AddDays(-10)) {
-        $SPCreatedDateTimeOutput = " [!] (Newly created service principal) " + (Get-Date $SPCreatedDate -Format "dd-MMM-yyyy HH:mm") 
+        $SPCreatedDateTimeOutput = "[!] (Newly created service principal) " + (Get-Date $SPCreatedDate -Format "dd-MMM-yyyy HH:mm") 
     } Else {
         $SPCreatedDateTimeOutput = Get-Date $SPCreatedDate -Format "dd-MMM-yyyy HH:mm"
     }
@@ -366,7 +369,7 @@ ForEach ($SP in $ServicePrincipals) {
         'App Access'                    = $AccessAllowedToApp
         'App Visibility'                = $AppUserVisibility
         'Service Principal last used'   = $SPLastActivityDateTime
-        'Days since last sign-in'       = If ($null -ne $DaysSinceLastSignIn) { $DaysSinceLastSignIn } Else { "Never" }
+        'Days since last sign-in'       = If ($DaysSinceLastSignIn -ne $null) { $DaysSinceLastSignIn } Else { "Never" }
         'App Passwords'                 = If ($PasswordReportOutput) { $PasswordReportOutput } Else { "No app passwords" }
         'Valid App Passwords'           = $ValidAppPwd
         'Invalid App Passwords'         = $App.PasswordCredentials.Count - $ValidAppPwd
