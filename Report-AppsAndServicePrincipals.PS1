@@ -23,7 +23,7 @@ If ([Environment]::UserInteractive) {
     $MsgFrom = (Get-MgContext).Account    
 } Else { 
     # We're not, so likely in Azure Automation
-    Write-Output "Executing the runbook to create the last activity report for user member accounts..." 
+    Write-Output "Executing the runbook to create the last service principal and app registration report..." 
     Connect-MgGraph -Identity -NoWelcome
     # Email address to use when sending email from Azure Automation
     $MsgFrom = "no-reply@office365itpros.com"
