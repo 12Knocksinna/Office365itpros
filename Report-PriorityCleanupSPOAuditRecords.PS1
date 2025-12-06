@@ -3,6 +3,9 @@
 
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-PriorityCleanupSPOAuditRecords.PS1
 
+$StartDate = (Get-Date).AddDays(-10)
+$EndDate = Get-Date
+
 [array]$Modules = Get-Module | Select-Object Name
 If ("ExchangeOnlineManagement" -notin $Modules.Name) {
     Write-Host "Connecting to Exchange Online..."
@@ -10,7 +13,7 @@ If ("ExchangeOnlineManagement" -notin $Modules.Name) {
 }
     
 Write-Output "Scanning for Priority Cleanup audit records..."
-[array]$Records = Search-UnifiedAuditLog -StartDate '1-Nov-2025' -EndDate '28-Nov-2025' -Formatted -SessionCommand ReturnLargeSet -ResultSize 5000 -Operations 'PriorityCleanupFileRecycled', 'PriorityCleanupTagApplied'
+[array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Formatted -SessionCommand ReturnLargeSet -ResultSize 5000 -Operations 'PriorityCleanupFileRecycled', 'PriorityCleanupTagApplied'
 $Records = $Records | Sort-Object Identity -Unique
 If ($Records.Count -eq 0) {
     Write-Host "No audit records found for Priority Cleanup operations"
@@ -50,7 +53,6 @@ $TaggedOperations | Group-Object SiteURL -NoElement | Sort-Object Count -Descend
 Write-Host ""
 Write-Host ("Found {0} Priority Cleanup File Recycled operations" -f $MovedOperations.Count)
 $MovedOperations | Group-Object SiteURL -NoElement | Sort-Object Count -Descending | Format-Table Name, Count
-
 
 # Export the report as an Excel worksheet or CSV file
 If (Get-Module ImportExcel -ListAvailable) {
