@@ -229,18 +229,18 @@ ForEach ($SP in $ServicePrincipals) {
     }
 
     [array]$HighPermissionsFound = @()
-    # Check the permissions against high-priority list
     ForEach ($Permission in $Permissions) {
-        If ($Permission -in $HighPriorityPermissions) {
+        If ($HighPriorityPermissions -contains $Permission) {
             $HighPermissionsFound += $Permission
         }
     }
+    # Check the application permissions against high-priority list
     If ($HighPermissionsFound) {
         $HighPermissionsFoundOutput = "[!] High-priority permissions: " + ($HighPermissionsFound -join ", ")
     } Else {
         $HighPermissionsFoundOutput = $null
     }
-
+            
     # Get delegated (OAuth2) permission grants
     [array]$OAuth2PermissionsOutput = $null;  [array]$OAuth2PermissionGrants = $null
     [array]$OAuth2PermissionGrants = Get-MgServicePrincipalOauth2PermissionGrant -ServicePrincipalId $SP.Id
@@ -301,9 +301,9 @@ ForEach ($SP in $ServicePrincipals) {
         Write-Verbose ("Parsed sign-in date: {0}" -f $signInDateParsed)
         $SPLastActivityDateTime = Get-Date $signInDateParsed -Format "dd-MMM-yyyy HH:mm"
         Write-Verbose ("Current date: {0}" -f $currentDate)
-        $timeSpan = New-TimeSpan -Start $signInDateParsed -End $currentDate
-        Write-Verbose ("Computed timespan: {0} days" -f $timeSpan.Days)
-        $DaysSinceLastSignIn = [int]$timeSpan.Days
+        $TimeSpan = New-TimeSpan -Start $signInDateParsed -End $currentDate
+        Write-Verbose ("Computed timespan: {0} days" -f $TimeSpan.Days)
+        $DaysSinceLastSignIn = [int]$TimeSpan.Days
     } Else {
         $SPLastActivityDateTime = "Never"
         Write-Verbose ("Service Principal {0} has never signed in" -f $SP.DisplayName)
@@ -370,7 +370,7 @@ ForEach ($SP in $ServicePrincipals) {
         'App Access'                    = $AccessAllowedToApp
         'App Visibility'                = $AppUserVisibility
         'Service Principal last used'   = $SPLastActivityDateTime
-        'Days since last sign-in'       = If ($DaysSinceLastSignIn -ne $null) { $DaysSinceLastSignIn } Else { "Never" }
+        'Days since last sign-in'       = If ($null -ne $DaysSinceLastSignIn) { $DaysSinceLastSignIn } Else { "Never" }
         'App Passwords'                 = If ($PasswordReportOutput) { $PasswordReportOutput } Else { "No app passwords" }
         'Valid App Passwords'           = $ValidAppPwd
         'Invalid App Passwords'         = $App.PasswordCredentials.Count - $ValidAppPwd
