@@ -1,4 +1,4 @@
-# Report-AppsAndServicePrincipals.PS1
+﻿# Report-AppsAndServicePrincipals.PS1
 # A script (or runbook) to scan service principals and registered applications in an Entra ID (Azure AD) tenant
 # and produce a report about their configuration, owners, permissions, and last sign-in activity.
 
@@ -136,8 +136,29 @@ $AppReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($SP in $ServicePrincipals) {
     $i++
     If ($Interactive) {
-        Write-Progress -Activity "Processing application $i of $($ServicePrincipals.Count): $($SP.DisplayName)" -PercentComplete (($i / $ServicePrincipals.Count) * 100)    
+        Write-Progress -Activity "Processing application $i of $($ServicePrincipals.Count): $($SP.DisplayName)" -PercentComplete (($i / $ServicePrincipals.Count) * 100)
     }
+
+    # Find service principal last sign-in activity
+    $DaysSinceLastSignIn = $null; $SPLastActivityDateTime = $null
+    $SPLastSignInDateTime = $SpSignInHash[$SP.AppId]
+
+    # Verbose logging for troubleshooting sign-in date issue
+    if ($Interactive) {
+        Write-Verbose "Processing: $($SP.DisplayName) (AppId: $($SP.AppId))"
+        Write-Verbose "  Hash lookup for AppId '$($SP.AppId)': '$SPLastSignInDateTime'"
+        if ($SPLastSignInDateTime) {
+            Write-Verbose "  Raw sign-in date from hash: $SPLastSignInDateTime"
+            Write-Verbose "  Converted sign-in date: $(Get-Date $SPLastSignInDateTime -Format 'dd-MMM-yyyy HH:mm:ss')"
+            $currentDate = Get-Date
+            Write-Verbose "  Current date: $($currentDate.ToString('dd-MMM-yyyy HH:mm:ss'))"
+            $timeSpan = New-TimeSpan -Start (Get-Date $SPLastSignInDateTime) -End $currentDate
+            Write-Verbose "  Timespan: $timeSpan (Days: $($timeSpan.Days))"
+        } else {
+            Write-Verbose "  No sign-in data found in hash"
+        }
+    }
+
     $AppOwners = $null; $AppOwnersString = $null; $AppRedirectUris = $null; $AppIdentifierUris = $null; $App = $null
     $isApp = $true
     $AppId = $SP.AppId
@@ -262,16 +283,15 @@ ForEach ($SP in $ServicePrincipals) {
 
     If ($SP.ServicePrincipalType -ne "ManagedIdentity" -and $SP.AppOwnerOrganizationId) {
         If ($SP.AppOwnerOrganizationId -eq $TenantId) { #Resolve tenant name
-            $AppTenantName = $TenantName 
+            $AppTenantName = $TenantName
         } Else {
             $LookUpId = $SP.AppOwnerOrganizationId.toString()
             Try {
                 $ExternalTenantData = Find-MgTenantRelationshipTenantInformationByTenantId -TenantId $LookUpId -ErrorAction Stop
                 $AppTenantName = $ExternalTenantData.DisplayName
             } Catch {
-                $err = $_
-                $AppTenantName = 'Unknown'
-                Write-Warning "Could not retrieve tenant details for $LookUpId : $($err.Exception.Message)"
+                $AppTenantName = "Unknown"
+                Write-Warning "Could not retrieve tenant details for $LookUpId : $($_.Exception.Message)"
             }
         }
     }
@@ -296,17 +316,19 @@ ForEach ($SP in $ServicePrincipals) {
     $DaysSinceLastSignIn = $null; $SPLastActivityDateTime = $null
     $SPLastSignInDateTime = if ($SpSignInHash.ContainsKey($SP.AppId)) { $SpSignInHash[$SP.AppId] } else { $null }
     If ($SPLastSignInDateTime) {
-        Write-Verbose ("Raw sign-in date string for {0}: {1}" -f $SP.DisplayName, $SPLastSignInDateTime)
-        $signInDateParsed = Get-Date $SPLastSignInDateTime
-        Write-Verbose ("Parsed sign-in date: {0}" -f $signInDateParsed)
-        $SPLastActivityDateTime = Get-Date $signInDateParsed -Format "dd-MMM-yyyy HH:mm"
-        Write-Verbose ("Current date: {0}" -f $currentDate)
-        $timeSpan = New-TimeSpan -Start $signInDateParsed -End $currentDate
-        Write-Verbose ("Computed timespan: {0} days" -f $timeSpan.Days)
-        $DaysSinceLastSignIn = [int]$timeSpan.Days
+        $SPLastActivityDateTime = Get-Date $SPLastSignInDateTime -Format "dd-MMM-yyyy HH:mm"
+        $timeSpan = New-TimeSpan -Start (Get-Date $SPLastSignInDateTime) -End (Get-Date)
+        $DaysSinceLastSignIn = $timeSpan.Days
+
+        # Additional logging for debugging
+        if ($Interactive) {
+            Write-Verbose "  Final calculation - Sign-in date: $(Get-Date $SPLastSignInDateTime -Format 'dd-MMM-yyyy HH:mm:ss'), Days since: $DaysSinceLastSignIn"
+        }
     } Else {
         $SPLastActivityDateTime = "Never"
-        Write-Verbose ("Service Principal {0} has never signed in" -f $SP.DisplayName)
+        if ($Interactive) {
+            Write-Verbose "  No sign-in data found for AppId '$($SP.AppId)', setting to 'Never'"
+        }
     }   
 
     # Check password credentials (app secrets)
