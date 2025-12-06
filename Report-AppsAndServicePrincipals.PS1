@@ -94,12 +94,12 @@ $UPNHash = @{}
 # Sometimes have multiple users with same display name, so get unique list
 [array]$UserDisplayNames = $Users | Sort-Object displayName -Unique
 ForEach ($User in $Users) {
-    $userUpnStr = ($User.userPrincipalName -as [string])
-    $userDisplayStr = ($User.DisplayName -as [string])
-    If (![string]::IsNullOrWhiteSpace($userUpnStr) -and ![string]::IsNullOrWhiteSpace($userDisplayStr)) {
-        $upnKey = $userUpnStr.ToLower()
+    $UserUpnStr = ($User.userPrincipalName -as [string])
+    $UserDisplayStr = ($User.DisplayName -as [string])
+    If (![string]::IsNullOrWhiteSpace($UserUpnStr) -and ![string]::IsNullOrWhiteSpace($UserDisplayStr)) {
+        $UpnKey = $UserUpnStr.ToLower()
         If (!$UPNHash.ContainsKey($upnKey)) {
-            $UPNHash.Add($upnKey, $userDisplayStr.ToLower())
+            $UPNHash.Add($UpnKey, $UserDisplayStr.ToLower())
         }
     }
 }
@@ -107,11 +107,11 @@ ForEach ($User in $Users) {
 ForEach ($User in $UserDisplayNames) {
     $originalDisplayName = ($User.displayName -as [string]).Trim()
     If ([string]::IsNullOrWhiteSpace($originalDisplayName)) { continue }
-    $originalKey = $originalDisplayName.ToLower()
-    $processedKey = ($originalDisplayName.Split('(')[0].Trim().ToLower())
-    $userUPN = ($User.userPrincipalName -as [string]).ToLower()
-    If (!$UserHash.ContainsKey($originalKey)) { $UserHash.Add($originalKey, $userUPN) }
-    If ($originalKey -ne $processedKey -and !$UserHash.ContainsKey($processedKey)) { $UserHash.Add($processedKey, $userUPN) }
+    $OriginalKey = $originalDisplayName.ToLower()
+    $ProcessedKey = ($originalDisplayName.Split('(')[0].Trim().ToLower())
+    $UserUPN = ($User.userPrincipalName -as [string]).ToLower()
+    If (!$UserHash.ContainsKey($OriginalKey)) { $UserHash.Add($OriginalKey, $UserUPN) }
+    If ($OriginalKey -ne $ProcessedKey -and !$UserHash.ContainsKey($ProcessedKey)) { $UserHash.Add($ProcessedKey, $UserUPN) }
 }
 
 Write-Host "Finding service principals..."
