@@ -2,7 +2,7 @@
 # A script to generate a comprehensive report of all users who have Microsoft 365 Copilot licenses assigned
 # This script identifies users with Copilot licenses, shows their license assignment details, and outputs 
 # a formatted report suitable for tenant administrators.
-# V1.0 8-Dec-2024
+# V1.0 08-Dec-2024
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-CopilotLicensedUsers.PS1
 
 # Connect to Microsoft Graph
@@ -56,6 +56,9 @@ If (!$Users) {
 
 Write-Host "Processing user license details..." -ForegroundColor Cyan
 
+# Create a hash table to cache group information to avoid repeated API calls
+$GroupCache = @{}
+
 $Report = [System.Collections.Generic.List[Object]]::new()
 $UserCount = 0
 
@@ -83,11 +86,20 @@ ForEach ($User in $Users) {
         $LicenseState = $User.LicenseAssignmentStates | Where-Object {$_.SkuId -eq $SkuId}
         If ($LicenseState.AssignedByGroup) {
             $AssignmentType += "Group-based"
-            Try {
-                $Group = Get-MgGroup -GroupId $LicenseState.AssignedByGroup -ErrorAction SilentlyContinue
-                $AssigningGroups += $Group.DisplayName
-            } Catch {
-                $AssigningGroups += $LicenseState.AssignedByGroup
+            $GroupId = $LicenseState.AssignedByGroup
+            # Check cache first to avoid repeated API calls
+            If ($GroupCache.ContainsKey($GroupId)) {
+                $AssigningGroups += $GroupCache[$GroupId]
+            } Else {
+                Try {
+                    $Group = Get-MgGroup -GroupId $GroupId -ErrorAction SilentlyContinue
+                    $GroupName = If ($Group) { $Group.DisplayName } Else { $GroupId }
+                    $GroupCache[$GroupId] = $GroupName
+                    $AssigningGroups += $GroupName
+                } Catch {
+                    $GroupCache[$GroupId] = $GroupId
+                    $AssigningGroups += $GroupId
+                }
             }
         } Else {
             $AssignmentType += "Direct"
