@@ -127,8 +127,9 @@ If (!$ServicePrincipals) {
     Write-Output ("{0} service principals found" -f $ServicePrincipals.Count)  
 }
 
+[array]$SPOHelperApps = 'e8544c39-3d08-4840-b1c0-f6c93c5abba9', '30cc345a-d9f5-4592-bc5a-3f81ee9ca7d9', '30edea6c-ee9e-4374-bd7f-7230b94badd9'
 # Remove SharePoint helper apps https://learn.microsoft.com/en-us/answers/questions/1187017/sharepoint-online-client-extensibility-web-applica
-$ServicePrincipals = $ServicePrincipals | Where-Object DisplayName -notLike "SharePoint Online Client Extensibility Web Application Principal*"
+$ServicePrincipals = $ServicePrincipals | Where-Object { $_.Id -notin $SPOHelperApps }
 
 $AppReport = [System.Collections.Generic.List[Object]]::new()
 
