@@ -20,26 +20,22 @@ Write-Host "=" * 60
 
 # Count all users
 Write-Host "`nCounting all users..." -ForegroundColor Yellow
-$AllUsersCount = 0
-Get-MgUser -ConsistencyLevel eventual -Count AllUsersCount | Out-Null
+Get-MgUser -ConsistencyLevel eventual -CountVariable AllUsersCount | Out-Null
 Write-Host ("Total users in tenant: {0}" -f $AllUsersCount) -ForegroundColor Green
 
 # Count member users (not guests)
 Write-Host "`nCounting member users..." -ForegroundColor Yellow
-$MemberUsersCount = 0
-Get-MgUser -Filter "userType eq 'Member'" -ConsistencyLevel eventual -Count MemberUsersCount | Out-Null
+Get-MgUser -Filter "userType eq 'Member'" -ConsistencyLevel eventual -CountVariable MemberUsersCount | Out-Null
 Write-Host ("Member users: {0}" -f $MemberUsersCount) -ForegroundColor Green
 
 # Count guest users
 Write-Host "`nCounting guest users..." -ForegroundColor Yellow
-$GuestUsersCount = 0
-Get-MgUser -Filter "userType eq 'Guest'" -ConsistencyLevel eventual -Count GuestUsersCount | Out-Null
+Get-MgUser -Filter "userType eq 'Guest'" -ConsistencyLevel eventual -CountVariable GuestUsersCount | Out-Null
 Write-Host ("Guest users: {0}" -f $GuestUsersCount) -ForegroundColor Green
 
 # Count licensed users (users with at least one license assigned)
 Write-Host "`nCounting licensed users..." -ForegroundColor Yellow
-$LicensedUsersCount = 0
-Get-MgUser -Filter "assignedLicenses/`$count ne 0" -ConsistencyLevel eventual -Count LicensedUsersCount | Out-Null
+Get-MgUser -Filter "assignedLicenses/`$count ne 0" -ConsistencyLevel eventual -CountVariable LicensedUsersCount | Out-Null
 Write-Host ("Licensed users: {0}" -f $LicensedUsersCount) -ForegroundColor Green
 
 # Display summary
