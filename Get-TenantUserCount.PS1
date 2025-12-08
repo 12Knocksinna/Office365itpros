@@ -16,7 +16,7 @@ If (!(Get-MgContext)) {
 $OrgName = (Get-MgOrganization).DisplayName
 Write-Host "`nUser Count Report for: $OrgName" -ForegroundColor Cyan
 Write-Host ("Report generated: {0}" -f (Get-Date -Format "dd-MMM-yyyy HH:mm:ss")) -ForegroundColor Cyan
-Write-Host "=" * 60
+Write-Host "----------------------------------------------------------"
 
 # Count all users
 Write-Host "`nCounting all users..." -ForegroundColor Yellow
@@ -40,9 +40,9 @@ Write-Host ("Licensed users: {0}" -f $LicensedUsersCount) -ForegroundColor Green
 
 # Display summary
 Write-Host "`n"
-Write-Host "=" * 60
+Write-Host "----------------------------------------------------------"
 Write-Host "SUMMARY" -ForegroundColor Cyan
-Write-Host "=" * 60
+Write-Host "----------------------------------------------------------"
 Write-Host ("Total Users:          {0,10}" -f $AllUsersCount) -ForegroundColor White
 Write-Host ("  Member Users:       {0,10}" -f $MemberUsersCount) -ForegroundColor White
 Write-Host ("  Guest Users:        {0,10}" -f $GuestUsersCount) -ForegroundColor White
@@ -65,3 +65,10 @@ $Summary = [PSCustomObject][Ordered]@{
 $Summary
 
 Write-Host "`nScript completed successfully!" -ForegroundColor Green
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
+# first validating the code in a non-production environment.
