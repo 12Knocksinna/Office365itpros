@@ -20,17 +20,23 @@ Write-Host "----------------------------------------------------------"
 
 # Count all users
 Write-Host "`nCounting all users..." -ForegroundColor Yellow
-Get-MgUser -ConsistencyLevel eventual -CountVariable AllUsersCount | Out-Null
-Write-Host ("Total users in tenant: {0}" -f $AllUsersCount) -ForegroundColor Green
+Try {
+    [array]$AllUsers = Get-MgUser -ConsistencyLevel eventual -CountVariable AllUsersCount `
+      -All -PageSize 500 -ErrorAction Stop -Property Id, UserType, displayName, userPrincipalName
+} Catch {
+    Write-Host "Error counting all users: $_" -ForegroundColor Red
+    Break
+}
+Write-Host ("Total users in tenant: {0}" -f $AllUsers.Count) -ForegroundColor Green
 
 # Count member users (not guests)
 Write-Host "`nCounting member users..." -ForegroundColor Yellow
-Get-MgUser -Filter "userType eq 'Member'" -ConsistencyLevel eventual -CountVariable MemberUsersCount | Out-Null
+$MemberUsersCount = $AllUsers | Where-Object { $_.UserType -eq 'Member' } | Measure-Object | Select-Object -ExpandProperty Count
 Write-Host ("Member users: {0}" -f $MemberUsersCount) -ForegroundColor Green
 
 # Count guest users
 Write-Host "`nCounting guest users..." -ForegroundColor Yellow
-Get-MgUser -Filter "userType eq 'Guest'" -ConsistencyLevel eventual -CountVariable GuestUsersCount | Out-Null
+$GuestUsersCount = $AllUsers | Where-Object { $_.UserType -eq 'Guest' } | Measure-Object | Select-Object -ExpandProperty Count
 Write-Host ("Guest users: {0}" -f $GuestUsersCount) -ForegroundColor Green
 
 # Count licensed users (users with at least one license assigned)
@@ -48,7 +54,7 @@ Write-Host ("  Member Users:       {0,10}" -f $MemberUsersCount) -ForegroundColo
 Write-Host ("  Guest Users:        {0,10}" -f $GuestUsersCount) -ForegroundColor White
 Write-Host ("Licensed Users:       {0,10}" -f $LicensedUsersCount) -ForegroundColor White
 Write-Host ("Unlicensed Users:     {0,10}" -f ($AllUsersCount - $LicensedUsersCount)) -ForegroundColor White
-Write-Host "=" * 60
+Write-Host "----------------------------------------------------------"
 
 # Create a summary object for output
 $Summary = [PSCustomObject][Ordered]@{
