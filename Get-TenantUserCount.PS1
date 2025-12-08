@@ -39,7 +39,7 @@ Get-MgUser -Filter "assignedLicenses/`$count ne 0" -ConsistencyLevel eventual -C
 Write-Host ("Licensed users: {0}" -f $LicensedUsersCount) -ForegroundColor Green
 
 # Display summary
-Write-Host "`n" 
+Write-Host "`n"
 Write-Host "=" * 60
 Write-Host "SUMMARY" -ForegroundColor Cyan
 Write-Host "=" * 60
