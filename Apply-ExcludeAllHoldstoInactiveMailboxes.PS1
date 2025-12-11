@@ -1,5 +1,5 @@
 # Apply-ExcludeAllHoldstoInactiveMailboxes.PS1
-# GitHub Link:  
+# GitHub Link:  https://github.com/12Knocksinna/Office365itpros/blob/master/Apply-ExcludeAllHoldstoInactiveMailboxes.PS1
 # V1.0 11-Dec-2025
 
 # Clean up inactive mailboxes by removing (excluding) them from all holds
