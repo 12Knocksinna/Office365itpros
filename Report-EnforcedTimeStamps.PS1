@@ -1,5 +1,5 @@
 # Report-EnforcedTimeStamps.PS1
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-EnforcedTimeStamps.PS1
 
 # Report the compliance time stamps written into Exchange Online mailboxes to guide the Managed Folder Assistant in how
 # it applies retention policies and holds to mailboxes.
