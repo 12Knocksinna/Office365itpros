@@ -1130,153 +1130,6 @@ try {
     Write-Warning "Could not connect to Exchange Online. If already connected, you can ignore this warning."
 }
 
-# --- 2) Define the EventType map (numeric code -> friendly name) ---
-$EventTypeMap = @{
-    1  = 'RetentionHoldApplied'
-    2  = 'RetentionHoldRemoved'
-    3  = 'LitigationHoldApplied'
-    4  = 'LitigationHoldRemoved'
-    5  = 'DelayHoldApplied'
-    6  = 'DelayHoldRemoved'
-    7  = 'RetentionPolicyApplied'
-    8  = 'RetentionPolicyRemoved'
-    9  = 'RetentionPolicyTagApplied'
-    10 = 'RetentionPolicyTagRemoved'
-    11 = 'CalendarLoggingDisabled'
-    12 = 'CalendarLoggingEnabled'
-    13 = 'AuditEnabled'
-    14 = 'AuditDisabled'
-    15 = 'SingleItemRecoveryDisabled'
-    16 = 'SingleItemRecoveryEnabled'
-    17 = 'DiscoveryHoldApplied'
-    18 = 'DiscoveryHoldRemoved'
-    26 = 'DiscoveryHoldRemoved (Legacy)'
-}
-
-# --- 3) Helper: parse EnforcedTimestamps into [EventTypeNumber, Timestamp] pairs ---
-function Convert-EnforcedTimestamps {
-    param(
-        [Parameter(Mandatory=$true)]
-        $Value
-    )
-
-    $results = New-Object System.Collections.Generic.List[Object]
-
-    # Cases we might encounter:
-    #  a) Hashtable: @{ 16 = '2024-11-10T12:34:56Z'; 3 = '2023-06-01T08:30:00Z' }
-    #  b) PSCustomObject / ordered dictionary-like
-    #  c) String (e.g., '16=2024-11-10T12:34:56Z;3=2023-06-01T08:30:00Z')
-    #  d) Null/empty
-
-    if ($null -eq $Value -or ($Value -is [string] -and [string]::IsNullOrWhiteSpace($Value))) {
-        return $results  # empty
-    }
-
-    if ($Value -is [hashtable]) {
-        foreach ($key in $Value.Keys) {
-            $tsRaw = $Value[$key]
-            $results.Add([pscustomobject]@{
-                EventTypeNumber = [int]$key
-                Timestamp       = [datetime]$tsRaw
-            })
-        }
-        return $results
-    }
-
-    if ($Value -is [psobject]) {
-        # Try to enumerate properties
-        $props = $Value | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name
-        foreach ($p in $props) {
-            $tsRaw = $Value.$p
-            # Property names might be numeric strings (e.g., "16")
-            $num = $p
-            if ([int]::TryParse($p, [ref]([int]$null))) { $num = [int]$p }
-            $results.Add([pscustomobject]@{
-                EventTypeNumber = $num
-                Timestamp       = [datetime]$tsRaw
-            })
-        }
-        return $results
-    }
-
-    if ($Value -is [string]) {
-        # Expected format: "16=2024-11-10T12:34:56Z;3=2023-06-01T08:30:00Z"
-        $pairs = $Value.Split(';') | Where-Object { $_ -match '=' }
-        foreach ($pair in $pairs) {
-            $kv = $pair.Split('=')
-            if ($kv.Count -ge 2) {
-                $numStr = $kv[0].Trim()
-                $tsStr  = $kv[1].Trim()
-                $num    = $null
-                if ([int]::TryParse($numStr, [ref]$num)) {
-                    $results.Add([pscustomobject]@{
-                        EventTypeNumber = $num
-                        Timestamp       = [datetime]$tsStr
-                    })
-                }
-            }
-        }
-        return $results
-    }
-
-    # Fallback: attempt to cast to hashtable or string
-    try {
-        $ht = [hashtable]$Value
-        foreach ($key in $ht.Keys) {
-            $results.Add([pscustomobject]@{
-                EventTypeNumber = [int]$key
-                Timestamp       = [datetime]$ht[$key]
-            })
-        }
-    } catch {
-        # Give up gracefully
-    }
-    return $results
-}
-
-# --- 4) Fetch mailboxes and process EnforcedTimestamps ---
-Write-Host "Fetching mailboxes and EnforcedTimestamps..." -ForegroundColor Cyan
-$mailboxes = Get-Mailbox -ResultSize Unlimited 
-
-$export = New-Object System.Collections.Generic.List[Object]
-
-foreach ($mbx in $mailboxes) {
-    $parsed = Convert-EnforcedTimestamps -Value $mbx.EnforcedTimestamps
-
-    if ($parsed.Count -eq 0) {
-        # Optional: record empty entries to know mailboxes without timestamps
-        # Uncomment if you want a row even when empty:
-        # $export.Add([pscustomobject]@{
-        #     DisplayName        = $mbx.DisplayName
-        #     PrimarySmtpAddress = $mbx.PrimarySmtpAddress
-        #     EventTypeNumber    = ''
-        #     EventTypeName      = ''
-        #     Timestamp          = ''
-        # })
-        continue
-    }
-
-    foreach ($item in $parsed) {
-        $num = $item.EventTypeNumber
-        $name = $EventTypeMap[$num]
-        if (-not $name) { $name = "Unknown($num)" }  # Preserve unknown codes clearly
-
-        $export.Add([pscustomobject]@{
-            DisplayName        = $mbx.DisplayName
-            PrimarySmtpAddress = $mbx.PrimarySmtpAddress
-            EventTypeNumber    = $num
-            EventTypeName      = $name
-            Timestamp          = $item.Timestamp
-        })
-    }
-}
-
-# --- 5) Export results ---
-$stamp = (Get-Date).ToString('yyyyMMdd_HHmmss')
-$outFile = "EnforcedTimestamps_$stamp.csv"
-$export | Sort-Object PrimarySmtpAddress, EventTypeNumber | Export-Csv -NoTypeInformation -Encoding UTF8 -Path $outFile
-
-Write-Host "Done. Output saved to: $outFile" -ForegroundColor Green
 
 # --- 6) Optional: summary on screen ---
 $export |
@@ -1284,3 +1137,27 @@ $export |
   Sort-Object Count -Descending |
   Format-Table Name, Count
 ``
+$Uri = "https://graph.microsoft.com/v1.0/security/alerts_v2?`$filter=serviceSource eq 'DataLossPrevention'&`$orderby=createdDateTime desc&`$top=200"
+[array]$Alerts = Invoke-MgGraphRequest -Method GET -Uri $Uri
+
+[array]$DLPAlerts = Get-MgSecurityAlertV2 -Filter "serviceSource eq 'dataLossPrevention'" -PageSize 500 -All -Sort "CreatedDateTime Desc"
+
+$Report = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Alert in $DLPAlerts) {   
+    If ($Alert.LastUpdateDateTime) { $LastUpdated = Get-Date $Alert.LastUpdateDateTime -Format 'dd-MMM-yyyy HH:mm' 
+    } Else { 
+        $LastUpdated = "N/A" 
+    }
+    $ReportLine = [PSCustomObject][Ordered]@{
+        Id                  = $Alert.id
+        Title               = $Alert.title
+        CreatedDateTime     = Get-Date $Alert.createdDateTime -Format 'dd-MMM-yyyy HH:mm'
+        Severity            = $Alert.severity
+        Status              = $Alert.status
+        Category            = $Alert.category
+        AssignedTo          = $Alert.AssignedTo
+        LastUpdateDateTime  = $LastUpdated
+        Classification      = $Alert.classification
+    } 
+    $Report.Add($ReportLine)
+}
