@@ -39,7 +39,7 @@ Switch. If present, posts a message with the join link into the channel.
 Requires Microsoft.Graph SDK and delegated scopes:
 OnlineMeetings.ReadWrite, Group.ReadWrite.All, ChannelMessage.Send, Channel.ReadBasic.All.
 
-Version 1.0 23-Jan-2026
+Version 1.0 12-Jan-2026
 GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/New-TeamsChannelMeeting.PS1
 
 #>
