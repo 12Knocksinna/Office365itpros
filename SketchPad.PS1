@@ -1161,3 +1161,77 @@ ForEach ($Alert in $DLPAlerts) {
     } 
     $Report.Add($ReportLine)
 }
+
+# Report SharePoint RCD Audit Events
+[array]$Operations = "RestrictContentOrgWideSearchDisabled", "RestrictContentOrgWideSearchEnabled", "SharePointRCDUpdateJustification"
+[array]$Records = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date) -Formatted `
+    -SessionCommand ReturnLargeSet -ResultSize 5000 -Operations $Operations
+$Records = $Records | Sort-Object Identity -Unique
+
+$Report = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Rec in $Records) {
+    $AuditData = $Rec.AuditData | ConvertFrom-Json
+ 
+    Switch ($AuditData.Operation) {
+        "RestrictContentOrgWideSearchEnabled" {
+            $Action = ("Enabled RCD for {0}" -f $AuditData.ObjectId)
+        }
+        "SharePointRCDUpdateJustification" {
+            $Action = ("RCD Justification: {0}" -f $AuditData.RCDJustification)
+        }
+        "RestrictContentOrgWideSearchDisabled" {
+            $Action = ("Disabled RCD for {0}" -f $AuditData.ObjectId)
+        }
+        Default {
+            $Action = $AuditData.Operation
+        }
+    }
+    $ReportLine = [PSCustomObject][Ordered]@{
+        TimeStamp       = Get-Date ($AuditData.CreationTime) -format 'dd-MMM-yyyy HH:mm'
+        User            = $AuditData.UserId
+        Action          = $AuditData.Operation
+        SiteURL         = $AuditData.ObjectId
+        EventInfo       = $Action
+
+    }
+    $Report.Add($ReportLine)
+}
+$Report = $Report | Sort-Object {$_.TimeStamp -as [datetime]} -Descending
+$Report | Out-GridView -Title "Restricted Content Discovery Audit Records"
+
+# Create a calendar event in a Teams channel calendar
+
+# Get identifiers for the target team (group) and channel
+$GroupId = Get-MgGroup -Filter "displayName eq 'Microsoft Graph Gurus'" | Select-Object -ExpandProperty Id
+$ChannelId = Get-MgTeamChannel -TeamId $GroupId -Filter "displayName eq 'General'" | Select-Object -ExpandProperty Id
+
+# Define event details
+$EventDetails = @{}
+$EventDetails.Add("subject", "Team Channel Meeting")
+$EventBody = @{}
+$EventBody.Add("contentType", "HTML")   
+$EventBody.Add("content", "This is a meeting scheduled in the Teams channel calendar.")
+$EventDetails.Add("body", $EventBody)       
+$EventStart = @{}
+$EventStart.Add("dateTime", "2026-01-15T10:00")
+$EventStart.Add("timeZone", "UTC")
+$EventDetails.Add("start", $EventStart)
+$EventEnd = @{}         
+$EventEnd.Add("dateTime", "2026-01-15T11:00")
+$EventEnd.Add("timeZone", "UTC")
+$EventDetails.Add("end", $EventEnd)
+$EventLocation = @{}
+$EventLocation.Add("displayName", "Teams Channel Meeting")
+$EventDetails.Add("location", $EventLocation)
+$EventDetails.Add("isOnlineMeeting", $true)
+$EventDetails.Add("onlineMeetingProvider", "teamsForBusiness")  
+$EventChannel = @{}
+$EventChannel.Add("teamId", $GroupId)       
+$EventChannel.Add("channelid", $ChannelId)
+$EventDetails.Add("channelIdentity", $EventChannel)
+
+# URI to create event in channel calendar
+$Uri = ("https://graph.microsoft.com/v1.0/groups/{0}/calendar/events" -f $GroupId)
+$NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $EventDetails
+
+
