@@ -49,7 +49,7 @@ Else {
      $Report.Add($ReportLine) }
 }
 # Add details of each team
-$Report | Sort TeamName -Unique | ForEach {
+$Report | Sort-Object TeamName -Unique | ForEach {
     $htmlHeaderTeam = "<h2>" + $_.TeamName + "</h2>"
     $htmlline1 = "<p>Created on <b>" + $_.TimeStamp + "</b> by: " + $_.User + "</p>"
     $htmlline2 = "<p>Privacy: <b>" + $_.Privacy + "</b> Classification: <b>" + $_.Classification + "</b></p>"

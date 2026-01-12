@@ -69,7 +69,7 @@ param(
 
     [switch] $PostAnnouncement
 )
-function Connect-GraphIfNeeded {
+function Connect-GraphSession {
     $requiredScopes = @(
         "OnlineMeetings.ReadWrite",
         "Group.ReadWrite.All",
@@ -172,28 +172,49 @@ function New-ChannelAnnouncement {
 
     # Create HTML body for channel message
 $htmltext = @"
-<div><b>Important meeting for all channel members to attend</b><br/>
-<a href="$TeamsJoinURL">Join in Teams</a></div>
+<div><b><u>All</u></b> channel members are expected to attend this meeting.<br/>
+<a href="$TeamsJoinURL">Join the online Teams meeting</a></div>
 <p>Starting at <b>$StartTime</b> until <b>$EndTime</b></p>
 "@
 
+# Create rest of body with an @ mention to the channel
+$Body = @{
+	body = @{
+        contentType = "html"
+	    content = ('<div><div>Hello <at id="0">' + $ChannelName + '</at>. This meeting about <b> ' + $Subject + '</b> is important for operational reasons. </div></div>') + $htmltext
+	}
+	subject = "Critical Meeting for Channel Members to Attend"
+    importance = "High"
+	mentions = @(
+	    @{
+	        id = 0
+	        mentionText = $ChannelName
+	        mentioned = @{
+	        conversation = @{
+	            id = $ChannelId
+	            displayName = $ChannelName
+	            conversationIdentityType = "channel"
+	          }
+	        }
+        }
+    )
+}
+
     # Post channel message
     Try {
-        $Message = New-MgTeamChannelMessage -TeamId $TeamId -ChannelId $ChannelId -Body @{Content = $htmltext; ContentType = "html"} `
-            -Subject $Subject -Importance "High" -ErrorAction Stop
+        $Message = New-MgTeamChannelMessage -TeamId $TeamId -ChannelId $ChannelId -Bodyparameter $Body -ErrorAction Stop
     } Catch {
         throw "Failed to post channel announcement: $_"
     }
     If ($Message) {
         Write-Host "Posted channel announcement with meeting link." -ForegroundColor Green
     }
-
 }
 
 # --- MAIN ---
 
 # Check our permissions
-Connect-GraphIfNeeded
+Connect-GraphSession
 # Creating a meeting in a group calendar only works with delegated permissions
 
 $Global:UserId = (Get-MgContext).Account
@@ -226,6 +247,8 @@ If ($Channel) {
     Break
 }
 
+Write-Host "Attempting to create meeting in Team '$TeamName' Channel '$ChannelName'..." -ForegroundColor Cyan
+
 # Create the meeting in the group calendar
 [array]$Attendees = $Attendees -split ","
 
@@ -234,6 +257,7 @@ $NewMeeting = New-ChannelMeeting -Subject $Subject -StartLocal $Start -EndLocal 
 
 # Post announcement if requested
 If ($PostAnnouncement) {
+    $Global:Subject = $Subject
     New-ChannelAnnouncement -NewMeeting $NewMeeting -TeamId $TeamId -ChannelId $ChannelId -Subject $Subject
 }
 
