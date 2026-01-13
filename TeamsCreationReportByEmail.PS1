@@ -27,26 +27,29 @@ $MsgFrom = $O365Cred.UserName ; $SmtpServer = "smtp.office365.com" ; $SmtpPort =
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 # Find records for team creation in the Office 365 audit log
 Write-Host "Looking for Team Creation Audit Records..."
-$Records = (Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations "TeamCreated" -ResultSize 1000)
+[array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations "TeamCreated" -ResultSize -SessionCommand ReturnLargeSet
+
 If ($Records.Count -eq 0) {
     Write-Host "No Team Creation records found." }
 Else {
     Write-Host "Processing" $Records.Count "audit records..."
+    $Records = $Records | Sort-Object Identity -Unique
     $Report = [System.Collections.Generic.List[Object]]::new()
     ForEach ($Rec in $Records) {
-      $AuditData = ConvertFrom-Json $Rec.Auditdata
-      $O365Group = (Get-UnifiedGroup -Identity $AuditData.TeamName) # Need some Office 365 Group properties
-      $ReportLine = [PSCustomObject]@{
-        TimeStamp      = Get-Date($AuditData.CreationTime) -format g
-        User           = $AuditData.UserId
-        Action         = $AuditData.Operation
-        TeamName       = $AuditData.TeamName
-        Privacy        = $O365Group.AccessType
-        Classification = $O365Group.Classification
-        MemberCount    = $O365Group.GroupMemberCount 
-        GuestCount     = $O365Group.GroupExternalMemberCount
-        ManagedBy      = $O365Group.ManagedBy}
-     $Report.Add($ReportLine) }
+        $AuditData = ConvertFrom-Json $Rec.Auditdata
+        $O365Group = (Get-UnifiedGroup -Identity $AuditData.TeamName) # Need some Office 365 Group properties
+        $ReportLine = [PSCustomObject]@{
+            TimeStamp      = Get-Date($AuditData.CreationTime) -format g
+            User           = $AuditData.UserId
+            Action         = $AuditData.Operation
+            TeamName       = $AuditData.TeamName
+            Privacy        = $O365Group.AccessType
+            Classification = $O365Group.Classification
+            MemberCount    = $O365Group.GroupMemberCount 
+            GuestCount     = $O365Group.GroupExternalMemberCount
+            ManagedBy      = $O365Group.ManagedBy
+        }
+        $Report.Add($ReportLine) }
 }
 # Add details of each team
 $Report | Sort-Object TeamName -Unique | ForEach {
