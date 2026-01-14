@@ -43,7 +43,7 @@ If ($Interactive) {
     }
 }
 
-# Retrieve PIM role assignment events from the last week
+# Retrieve role assignment events from the last week
 $StartDate = (Get-Date).AddDays(-7).toString('yyyy-MM-dd')
 
 Write-Output "Checking for role assignments in the last week since $StartDate..."
@@ -63,7 +63,8 @@ $CriticalRoles = @(
     "User Administrator",
     "Security Administrator",
     "Exchange Administrator",
-    "SharePoint Administrator"
+    "SharePoint Administrator",
+    "Teams Administrator"
 )
 
 Write-Output "Processing audit records to build report..."
@@ -106,7 +107,7 @@ ForEach ($Record in $Records) {
     $Report.Add($ReportItem)
 }
 
-# Build attachnent for the email 
+# Build attachment for the email 
 Write-Output "Generating output...  "
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $true
