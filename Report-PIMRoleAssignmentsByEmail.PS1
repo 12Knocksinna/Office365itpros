@@ -17,7 +17,7 @@ GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-
 [array]$RequiredScopes = "AuditLog.Read.All","RoleManagement.Read.Directory","Mail.Send"
 $Interactive = $false
 
-# Define the mailboxes that are used to send and receive the report
+# Define the mailboxes that are used to send and receive the report. If run interactvely, the email goes from the signed-in account
 $MsgFrom = 'Customer.Services@contoso.com'
 $DestinationEmailAddress = "Admin.Info@contoso.com"
 
@@ -27,6 +27,7 @@ If ([Environment]::UserInteractive) {
     Clear-Host
     Write-Host "Script running interactively... connecting to the Graph" -ForegroundColor Yellow
     Connect-MgGraph -NoWelcome -Scopes $RequiredScopes
+    $MsgFrom = (Get-MgContext).Account
     $Interactive = $true
 } Else { 
     # We're not, so likely in Azure Automation
