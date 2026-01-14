@@ -17,6 +17,10 @@ GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-
 [array]$RequiredScopes = "AuditLog.Read.All","RoleManagement.Read.Directory","Mail.Send"
 $Interactive = $false
 
+# Define the mailboxes that are used to send and receive the report
+$MsgFrom = 'Customer.Services@contoso.com'
+$DestinationEmailAddress = "Admin.Info@contoso.com"
+
 # Determine if we're interactive or not
 If ([Environment]::UserInteractive) { 
     # We're running interactively...
@@ -143,9 +147,6 @@ $MsgAttachments = @(
 
 $HTMLAddRole = $Report | Where-Object {$_.'Assignment Type' -eq "Add role"} | Select-Object 'Assignment Date', 'Assigned Role','Assignee','Assignee UPN','Actioned By','Is Critical Role' | ConvertTo-Html -Fragment
 $HTMLRemoveRole = $Report | Where-Object {$_.'Assignment Type' -eq "Remove role"} | Select-Object 'Assignment Date', 'Assigned Role','Assignee','Assignee UPN','Actioned By','Is Critical Role' | ConvertTo-Html -Fragment
-
-$MsgFrom = 'Customer.Services@office365itpros.com'
-$DestinationEmailAddress = "Admin.Info@office365itpros.com"
 
 # Build the array of a single TO recipient detailed in a hash table - change the sender and recipient to the appropriate recipient for your tenant
 $ToRecipient = @{}
