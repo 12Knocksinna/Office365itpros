@@ -1,5 +1,6 @@
 <# 
 .SYNOPSIS
+New-TeamsChannelMeeting.PS1
 Creates a channel-bound Teams meeting, a calendar event in the Team's Group calendar,
 and optionally posts a channel announcement with the join link.
 
