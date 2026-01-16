@@ -1239,18 +1239,16 @@ $NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $EventDetails
 
 # PR_MESSAGE_SIZE
 $SizePropId = "Integer 0x0e08"
-
 # Size threshold
 $Threshold = 0.5MB   
-
 # Date range (example: last 30 days)
 $since = (Get-Date).AddDays(-30).ToString('s') + "Z"
 
-# Server-side filter: restrict by date only
+# Server-side filter - find messages with attachments received since $since
 $filter = "hasAttachments eq true and receivedDateTime ge $since"
 
 [array]$Messages = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId 'Inbox' `
-    -Filter $filter -All  -Select id,subject,sender,receivedDateTime `
+    -Filter $filter -All -Select id,subject,sender,receivedDateTime `
     -ExpandProperty "singleValueExtendedProperties(`$filter=id eq '$SizePropId')"
 
 $Report = [System.Collections.Generic.List[Object]]::new()
