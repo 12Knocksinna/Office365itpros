@@ -37,7 +37,7 @@ Switch. If present, posts a message with the join link into the channel.
   -TimeZone "UTC" -Attendees "Sean.Landy@office365itpros.com" -PostAnnouncement -Agenda "c:\temp\Agenda.txt"
 
 .NOTES
-Requires Microsoft.Graph SDK and delegated scopes:
+Requires the Microsoft Graph PowerShell SDK and delegated scopes:
 OnlineMeetings.ReadWrite, Group.ReadWrite.All, ChannelMessage.Send, Channel.ReadBasic.All.
 
 Version 1.0 12-Jan-2026

@@ -1234,4 +1234,40 @@ $EventDetails.Add("channelIdentity", $EventChannel)
 $Uri = ("https://graph.microsoft.com/v1.0/groups/{0}/calendar/events" -f $GroupId)
 $NewEvent = Invoke-MgGraphRequest -Method POST -Uri $Uri -Body $EventDetails
 
+# Client side filter for mailbox items by size
+
+
+# PR_MESSAGE_SIZE
+$SizePropId = "Integer 0x0e08"
+
+# Size threshold
+$Threshold = 0.5MB   
+
+# Date range (example: last 30 days)
+$since = (Get-Date).AddDays(-30).ToString('s') + "Z"
+
+# Server-side filter: restrict by date only
+$filter = "hasAttachments eq true and receivedDateTime ge $since"
+
+[array]$Messages = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId 'Inbox' `
+    -Filter $filter -All  -Select id,subject,sender,receivedDateTime `
+    -ExpandProperty "singleValueExtendedProperties(`$filter=id eq '$SizePropId')"
+
+$Report = [System.Collections.Generic.List[Object]]::new()
+# Client-side size check
+$Messages | ForEach-Object {
+    $Size = [int64]$_.SingleValueExtendedProperties[0].Value
+    If ($Size -gt $Threshold) {
+        $ReportLine = [PSCustomObject][Ordered]@{
+            Subject          = $_.Subject
+            From             = $_.Sender.EmailAddress.Address
+            ReceivedDateTime = $_.ReceivedDateTime
+            SizeMB           = [math]::Round($size / 1MB, 2)
+            Id               = $_.Id
+        }
+        $Report.Add($ReportLine)
+    }
+}
+    
+$Report | Sort-Object SizeMB -Descending | Out-GridView -Title "Large Emails in Inbox over $($Threshold / 1MB) MB"
 
