@@ -26,7 +26,7 @@ MailboxFolder.Read.All to read mailbox folder names
 User.Read.All to find mailboxes in the tenant.
 
 Version 1.0 16  -Jan-2026
-GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/New-TeamsChannelMeeting.PS1
+GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Get-LargeMailboxItems.PS1
 
 #>
 
@@ -45,6 +45,7 @@ param(
     [string] $End
 )
 
+# Change these values to match your app registration and your tenant!!!
 $AppId = "d224fa41-4c2a-4380-b688-31625f90207a"
 $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $CertThumbprint = "0CF6CE3F3548FD73E7AC8CF20226ED447E125C71"
