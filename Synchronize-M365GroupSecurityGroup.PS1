@@ -14,13 +14,12 @@ Display name of the Security Group to synchronize with the Microsoft 365 Group.
 
 .NOTES
 Requires the Microsoft Graph PowerShell SDK and  scopes:
-GroupMember.ReadWrite.All, Group.ReadWrite.All.
+GroupMember.ReadWrite.All, Group.ReadWrite.All, User.ReadBasic.All
 
 Version 1.0 17-Jan-2026
 GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Synchronize-M365GroupSecurityGroup.PS1
 
 #>
-
 
 [CmdletBinding()]
 param(
@@ -35,7 +34,7 @@ param(
 function Connect-GraphSession {
     $requiredScopes = @(
         "GroupMember.ReadWrite.All",
-        "Group.ReadWrite.All"
+        "Group.ReadWrite.All", "User.ReadBasic.All"
     )
 
     if (-not (Get-MgContext)) {
@@ -142,6 +141,7 @@ ForEach ($Member in $NotInSecurityGroup)  {
 }
 
 Write-Host "Synchronization complete. Added $Additions members and removed $Removals members." -ForegroundColor Green
+$Report
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.petri.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
