@@ -85,7 +85,7 @@ If (!($SecurityGroup)){
     Break
 }
 
-If ($SecurityGroup.MailEnabled -ne $true -and $SecurityGroup.SecurityEnabled -ne $true){
+If ($SecurityGroup.SecurityEnabled -ne $true) {
     Write-Output "'$SecurityGroupName' is not a Security Group." -ForegroundColor Red
     Break
 }
