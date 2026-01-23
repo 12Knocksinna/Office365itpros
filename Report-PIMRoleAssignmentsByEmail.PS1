@@ -117,7 +117,7 @@ Write-Output "Generating output...  "
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $true
     Import-Module ImportExcel -ErrorAction SilentlyContinue
-    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\PIM RRole Assignments.xlsx"
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\PIM Role Assignments.xlsx"
     If (Test-Path $ExcelOutputFile) {
         Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
     } 
