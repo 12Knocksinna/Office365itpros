@@ -39,25 +39,25 @@ If ($Interactive) {
     }
 }
 
+Write-Host "Fetching message trace data to analyze..."
+
 # Message trace date is kept for a maximum of 10 days
 $StartDate = (Get-Date).AddDays(-10).toString("s") + "Z"
 $EndDate = (Get-Date).ToString("s") + "Z"
 
 Write-Host ("Message trace data will be analyzed between {0} and {1}" -f (Get-Date $StartDate -format 'dd-MMM-yyyy HH:mm'), (Get-Date $EndDate -format 'dd-MMM-yyyy HH:mm'))
-
-Write-Host "Fetching message trace data to analyze..."
-[array]$Messages = $Null
-[int]$BatchSizeForMessages = 1500
+[int]$BatchSizeForMessages = 2000
 $Uri = "https://graph.microsoft.com/beta/admin/exchange/tracing/messageTraces?`$filter=receivedDateTime ge {0} and receivedDateTime le {1} and status eq 'Delivered'&`$top={2}" -f `
     $StartDate, $EndDate, $BatchSizeForMessages
 
+[array]$Messages = $Null
 Try {
     # The warning action is suppressed here because we don't want to see warnings when more data is available
-    [array]$MessagePage = Invoke-MgGraphRequest -Method GET -Uri $Uri -ErrorAction Stop -WarningAction SilentlyContinue 
+    [array]$MessagePage = Invoke-MgGraphRequest -Method GET -Uri $Uri -ErrorAction Stop 
     $Messages += $MessagePage.Value
-    Write-Host ("Fetched {0} messages so far" -f $Messages.count)
+    Write-Host ("Fetched {0} messages in first batch" -f $Messages.count)
 } Catch {
-    Write-Host ("Error fetching message trace data: {0}" -f $_.Exception.Message)
+    Write-Host ("An error occured fetching message trace data: {0}" -f $_.Exception.Message)
     Break
 }
 
