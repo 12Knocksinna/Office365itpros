@@ -1269,3 +1269,14 @@ $Messages | ForEach-Object {
     
 $Report | Sort-Object SizeMB -Descending | Out-GridView -Title "Large Emails in Inbox over $($Threshold / 1MB) MB"
 
+$ScopeName = "Permanent Employees”
+$Membership = Get-AdaptiveScopeMembers -Identity $ScopeName -ErrorAction SilentlyContinue
+If (!($Membership)) {
+  Write-Output ("No members found for {0} scope" -f $ScopeName )
+} Else { 
+  Write-Output ("{0} members found in {1} scope" -f $Membership.count, $ScopeName)
+}
+
+$DateString = "04/22/2022 21:36:39 +00:00"
+$ParsedDate = [DateTime]::ParseExact($DateString, "MM/dd/yyyy HH:mm:ss zzz", [System.Globalization.CultureInfo]::InvariantCulture)
+Write-Host $ParsedDate
