@@ -25,7 +25,8 @@ ForEach ($Scope in $AdaptiveScopes) {
     Write-Output ("Processing scope {0}..." -f $Scope.Name)
     [array]$Members = Get-AdaptiveScopeMembers -Identity $Scope.Name -ErrorAction SilentlyContinue
     If ($Members) {
-        $MemberCount = $Members | Where-Object {$_.State -ne "Removed"} | Measure-Object | Select-Object -ExpandProperty Count
+        # Only take non-removed members into account for the count, and drop 1 to account for the summary entry
+        $MemberCount = ($Members | Where-Object {$_.State -ne "Removed"} | Measure-Object | Select-Object -ExpandProperty Count) - 1
     } Else {
         $MemberCount = 0
     }
