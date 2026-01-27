@@ -2,7 +2,7 @@
 # Demonstrate the use of the Get-AdaptiveScope and Get-AdaptiveScopeMembers cmdlets to report on adaptive scopes for Purview
 
 # V1.0 27-Jan-2026
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-AdaptiveScopes.PS1
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If (!($Modules -contains "ExchangeOnlineManagement")) {
