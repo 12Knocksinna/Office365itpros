@@ -23,9 +23,9 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 $ReportDetail = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Scope in $AdaptiveScopes) {
     Write-Output ("Processing scope {0}..." -f $Scope.Name)
-    [array]$Members = Get-AdaptiveScopeMembers -Identity $Scope.Name -ErrorAction SilentlyContinue
+    [array]$Members = Get-AdaptiveScopeMembers -Identity $Scope.Name -PageResultSize Unlimited -State "Added" -ErrorAction SilentlyContinue
     If ($Members) {
-        # Only take non-removed members into account for the count, and drop 1 to account for the summary entry
+        # Only take active (added) members into account for the count, and drop 1 to account for the summary entry
         $MemberCount = ($Members | Where-Object {$_.State -ne "Removed"} | Measure-Object | Select-Object -ExpandProperty Count) - 1
     } Else {
         $MemberCount = 0
