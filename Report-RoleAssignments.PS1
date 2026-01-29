@@ -4,7 +4,7 @@
 # V1.0 14-Aug-2024  Tested with SDK V2.22. Based on some original code tweeted by Nathan McNulty
 # V2.0 10-Nov-2024  Updated to use the unifiedRoleDefinition API
 # V2.1 12-Nov-2024  Changed to V1.0 endpoint and added group name for group assignments
-# V2.2 20-Nov-2024  Fixed bug in OnPremisesUser flag for eligible assignments
+# V2.2 29-Jan-2026  Fixed bug in OnPremisesUser flag for eligible assignments
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RoleAssignments.PS1
 
 Connect-MgGraph -Scopes User.Read.All,RoleAssignmentSchedule.Read.Directory, RoleEligibilitySchedule.Read.Directory, Group.Read.All, GroupMember.Read.All -NoWelcome
