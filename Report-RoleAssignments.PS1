@@ -4,9 +4,31 @@
 # V1.0 14-Aug-2024  Tested with SDK V2.22. Based on some original code tweeted by Nathan McNulty
 # V2.0 10-Nov-2024  Updated to use the unifiedRoleDefinition API
 # V2.1 12-Nov-2024  Changed to V1.0 endpoint and added group name for group assignments
+# V2.2 20-Nov-2024  Fixed bug in OnPremisesUser flag for eligible assignments
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RoleAssignments.PS1
 
-Connect-MgGraph -Scopes RoleAssignmentSchedule.Read.Directory, RoleEligibilitySchedule.Read.Directory, Group.Read.All, GroupMember.Read.All -NoWelcome
+Connect-MgGraph -Scopes User.Read.All,RoleAssignmentSchedule.Read.Directory, RoleEligibilitySchedule.Read.Directory, Group.Read.All, GroupMember.Read.All -NoWelcome
+
+# Determine whether a user is synchronized from on-premises.
+# Returns $true if the user is hybrid-synced based on either:
+# - OnPremisesSyncEnabled being true, or
+# - Presence of common hybrid indicators (ImmutableId or SecurityIdentifier).
+$UserCache = @{}
+
+function Get-OnPremFlag {
+    param([string]$UserId)
+
+    if (-not $UserCache.ContainsKey($UserId)) {
+        $UserCache[$UserId] = Get-MgUser -UserId $UserId `
+          -Property Id,OnPremisesSyncEnabled,OnPremisesImmutableId,OnPremisesSecurityIdentifier `
+          -ErrorAction SilentlyContinue
+    }
+
+    $u = $UserCache[$UserId]
+    if (-not $u) { return $false }
+
+    return [bool]($u.OnPremisesSyncEnabled -or $u.OnPremisesImmutableId -or $u.OnPremisesSecurityIdentifier)
+}
 
 # Find administrative units and load details into a hash table to speed up lookups
 [array]$AdminUnits = Get-MgDirectoryAdministrativeUnit -Property Id, DisplayName | Sort-Object DisplayName
@@ -35,9 +57,7 @@ ForEach ($Assignment in $ActiveAssignments) {
         $AdminUnitName = "Complete directory"
     }
     $RoleName = $Assignment.RoleDefinition.DisplayName
-    If ($Assignment.Principal.AdditionalProperties.onPremisesSyncEnabled) {
-        $OnPremisesUser = $true
-    }
+    $OnPremisesUser = Get-OnPremFlag -UserId $Assignment.Principal.Id
 
     Switch ($Assignment.Principal.AdditionalProperties."@odata.type") {
         "#microsoft.graph.user" {     
@@ -47,7 +67,7 @@ ForEach ($Assignment in $ActiveAssignments) {
                 UserPrincipalName   = $Assignment.Principal.AdditionalProperties.userPrincipalName
                 Created             = $Assignment.CreatedDateTime
                 DirectoryScope      = $adminUnitName
-                OnPremisesUser      = $OnPremisesUser
+                OnPremisesUser      = Get-OnPremFlag -UserId $Assignment.Principal.Id
                 AssignmentType      = "Active (PIM)"
                 AssignmentVia       = "User"
                 MemberType          = $Assignment.MemberType
@@ -66,7 +86,7 @@ ForEach ($Assignment in $ActiveAssignments) {
                         UserPrincipalName   = $Member.AdditionalProperties.userPrincipalName
                         Created             = $Assignment.CreatedDateTime
                         DirectoryScope      = $AdminUnitName
-                        OnPremisesUser      = $OnPremisesUser
+                        OnPremisesUser      = Get-OnPremFlag -UserId $Member.Id
                         AssignmentType      = "Active (PIM)"
                         AssignmentVia       = ("{0} (Group)" -f $GroupName)
                         MemberType          = $Assignment.MemberType
@@ -115,9 +135,7 @@ ForEach ($Assignment in $EligibleAssignments) {
     $RoleName = $Assignment.RoleDefinition.DisplayName
     $OnPremisesUser = $false
 
-    If ($Assignment.Principal.AdditionalProperties.onPremisesSyncEnabled) {
-        $OnPremisesUser = $true
-    }
+    $OnPremisesUser = Get-OnPremFlag -UserId $Assignment.Principal.Id
 
     Switch ($Assignment.Principal.AdditionalProperties."@odata.type") {
         "#microsoft.graph.user" {  
@@ -126,7 +144,7 @@ ForEach ($Assignment in $EligibleAssignments) {
                 UserPrincipalName   = $Assignment.Principal.AdditionalProperties.userPrincipalName
                 Created             = $Assignment.CreatedDateTime
                 DirectoryScope      = $adminUnitName
-                OnPremisesUser      = $OnPremisesUser
+                OnPremisesUser      = Get-OnPremFlag -UserId $Assignment.Principal.Id
                 AssignmentType      = "Eligible"
                 AssignmentVia       = "User"
                 MemberType          = $Assignment.MemberType
@@ -145,7 +163,7 @@ ForEach ($Assignment in $EligibleAssignments) {
                         UserPrincipalName   = $Member.AdditionalProperties.userPrincipalName
                         Created             = $Assignment.CreatedDateTime
                         DirectoryScope      = $AdminUnitName
-                        OnPremisesUser      = $OnPremisesUser
+                        OnPremisesUser      = Get-OnPremFlag -UserId $Member.Id
                         AssignmentType      = "Eligible"
                         AssignmentVia       = ("{0} (Group)" -f $GroupName)
                         MemberType          = $Assignment.MemberType
@@ -187,11 +205,7 @@ If ($PIMAssignments -eq 0) {
             ForEach ($Member in $RoleMembers) {
                 $MemberDetails = Get-MgUser -UserId $Member.PrincipalId -ErrorAction SilentlyContinue
                 If ($MemberDetails) {
-                    If ($User.OnPremisesSyncEnabled) {
-                        $OnPremisesStatus = $User.OnPremisesSyncEnabled
-                    } Else {
-                        $OnPremisesStatus = "N/A"
-                    }
+                    $OnPremisesStatus = [bool]$MemberDetails.OnPremisesSyncEnabled
                     $ReportLine = [PSCustomObject][Ordered]@{
                         RoleName            = $RoleName
                         UserPrincipalName   = $MemberDetails.UserPrincipalName
