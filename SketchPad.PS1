@@ -1280,3 +1280,72 @@ If (!($Membership)) {
 $DateString = "04/22/2022 21:36:39 +00:00"
 $ParsedDate = [DateTime]::ParseExact($DateString, "MM/dd/yyyy HH:mm:ss zzz", [System.Globalization.CultureInfo]::InvariantCulture)
 Write-Host $ParsedDate
+
+
+# UserConfiguration FAI Items in ueer mailboxes
+
+$User = (Get-MgContext).Account
+$UserId = (Get-MgUser -UserId $User).Id
+
+# Calendar work hours
+$Uri = ("https://graph.microsoft.com/beta/users/{0}/mailFolders/Calendar/userConfigurations/WorkHours" -f $UserId)
+[array]$Data = Invoke-MgGraphRequest -URI $Uri -Method Get -OutputType PSObject
+[string]$Base64Convert = [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($Data.xmldata))
+
+# Parse calendar settings from the XML data
+[xml]$doc = $Base64Convert
+
+$ns = New-Object System.Xml.XmlNamespaceManager($doc.NameTable)
+$ns.AddNamespace('w','WorkingHours.xsd')
+
+$root = $doc.SelectSingleNode('//w:WorkHoursVersion1',$ns)
+
+$tz = $root.SelectSingleNode('w:TimeZone',$ns)
+$tzName = $tz.SelectSingleNode('w:Name',$ns).InnerText
+$tzBias = [int]$tz.SelectSingleNode('w:Bias',$ns).InnerText
+
+$std = $tz.SelectSingleNode('w:Standard',$ns)
+$stdBias = [int]$std.SelectSingleNode('w:Bias',$ns).InnerText
+$stdChange = $std.SelectSingleNode('w:ChangeDate',$ns)
+$stdChangeDate = $stdChange.SelectSingleNode('w:Date',$ns).InnerText
+$stdChangeTime = $stdChange.SelectSingleNode('w:Time',$ns).InnerText
+$stdChangeDayOfWeek = $stdChange.SelectSingleNode('w:DayOfWeek',$ns).InnerText
+
+$dst = $tz.SelectSingleNode('w:DaylightSavings',$ns)
+$dstBias = [int]$dst.SelectSingleNode('w:Bias',$ns).InnerText
+$dstChange = $dst.SelectSingleNode('w:ChangeDate',$ns)
+$dstChangeDate = $dstChange.SelectSingleNode('w:Date',$ns).InnerText
+$dstChangeTime = $dstChange.SelectSingleNode('w:Time',$ns).InnerText
+$dstChangeDayOfWeek = $dstChange.SelectSingleNode('w:DayOfWeek',$ns).InnerText
+
+$timeslot = $root.SelectSingleNode('w:TimeSlot',$ns)
+$start = $timeslot.SelectSingleNode('w:Start',$ns).InnerText
+$end = $timeslot.SelectSingleNode('w:End',$ns).InnerText
+
+$workdays = $root.SelectSingleNode('w:WorkDays',$ns).InnerText
+
+$CalendarOptions = [PSCustomObject]@{
+    TimeZoneName            = $tzName
+    TimeZoneBiasMinutes     = $tzBias
+    StandardBiasMinutes     = $stdBias
+    StandardChangeDate      = $stdChangeDate
+    StandardChangeTime      = $stdChangeTime
+    StandardChangeDayOfWeek = $stdChangeDayOfWeek
+    DaylightBiasMinutes     = $dstBias
+    DaylightChangeDate      = $dstChangeDate
+    DaylightChangeTime      = $dstChangeTime
+    DaylightChangeDayOfWeek = $dstChangeDayOfWeek
+    WorkStart               = $start
+    WorkEnd                 = $end
+    WorkDays                = $workdays
+}
+
+# Calendar options
+$Uri = ("https://graph.microsoft.com/beta/users/{0}/mailFolders/Calendar/userConfigurations/Calendar" -f $UserId)
+[array]$Data = Invoke-MgGraphRequest -URI $Uri -OutputType PsObject | Select-Object -ExpandProperty structuredData
+
+ForEach ($Setting in $Data) {
+    [string]$SettingName = $Setting.keyEntry.values
+    [string]$SettingValue = $Setting.valueEntry.values
+    Write-Host ("{0} : {1}" -f $SettingName, $SettingValue)
+}

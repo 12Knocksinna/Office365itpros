@@ -7,6 +7,18 @@
     - A registered AAD app with Files.ReadWrite / Sites.ReadWrite permissions
     - DOCX must be in OneDrive or SharePoint for the cloud export
 
+
+.DESCRIPTION    This script automates the process of preparing a DOCX document for Kindle Direct Publishing (KDP) by:
+    1. Cleaning up fonts inside the DOCX (removing Lucida* fonts)
+    2. Uploading the cleaned DOCX to OneDrive and exporting it to PDF using Word Online via Microsoft Graph
+    3. Optimizing the resulting PDF for print by removing hyperlinks and annotations
+
+    Example usage:
+.\Build-KDPReadyPDF.ps1 `
+    -DocxPath "C:\Book\Automating365.docx" `
+    -OneDrivePath "Books/PowerShell" `
+    -OutputFolder "C:\Book\Build"
+
 .NOTES
     Author: Tony Redmond’s automated workflow builder (Copilot)
 #>
