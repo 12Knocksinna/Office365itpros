@@ -55,16 +55,26 @@ $RequestBody.Add("displayName", $NewDisplayName)
 $RequestBody.Add("notes", $NewNotes)
 
 # First, remove application owners
-[array]$Owners = Get-MgApplicationOwner -ApplicationId $ApplicationObject.Id -All 
-ForEach ($Owner in $Owners) {
-    Try {
-        Remove-MgApplicationOwnerDirectoryObjectByRef -ApplicationId $ApplicationObject.Id -DirectoryObjectId $Owner.Id
-        Write-Host ("Removed owner {0} from application..." -f $Owner.DisplayName)
-    } Catch {
-        Write-Host ("Failed to remove owner {0} from application. Error details:" -f $Owner.DisplayName)
-        Write-Host $_.Exception.Message
+Try {
+    [array]$Owners = Get-MgApplicationOwner -ApplicationId $ApplicationObject.Id -All 
+} Catch {
+    Write-Host "Failed to retrieve application owners. Error details:"
+    Write-Host $_.Exception.Message
+    Break
+}
+If ($Owners) {
+    ForEach ($Owner in $Owners) {
+        Try {
+            Remove-MgApplicationOwnerByRef -ApplicationId $ApplicationObject.Id -DirectoryObjectId $Owner.Id
+            Write-Host ("Removed owner {0} from application." -f $Owner.UserPrincipalName)
+        } Catch {
+            Write-Host ("Failed to remove owner {0}. Error details:" -f $Owner.UserPrincipalName)
+            Write-Host $_.Exception.Message
+        }
     }
-}   
+} Else {
+    Write-Host "No owners found for the application."
+}
 
 # Update the application
 Try {
