@@ -1,8 +1,9 @@
 # Disable-EntraApp.PS1
-# Demonstrate how to disable an Entra application
+# Demonstrate how to disable (deactivate) an Entra application by setting the isDisabled property using Microsoft Graph. This is only possible
+# for applications registered in the tenant. Enterprise applications owned by other tenants cannot be disabled.
 
 # V1.0 04-Feb-2026
-# GitHub Link:  
+# GitHub Link:  https://github.com/12Knocksinna/Office365itpros/blob/master/Disable-EntraApp.PS1
 
 # Connect to Microsoft Graph
 If (!(Get-MgContext).Account) {
@@ -11,7 +12,7 @@ If (!(Get-MgContext).Account) {
     #  Application.ReadWrite.All needed to update app properties
 }   
 
-$Application = Read-Host "Enter the name of the Entra application to disable"
+$Application = Read-Host "Enter the name of the Entra application to deactivate"
 $Application = $Application.Trim()
 If ($Application -eq "") {
     Write-Host "No application name provided - exiting"
@@ -40,19 +41,17 @@ If (!$ApplicationObject) {
         Write-Host ("The {0} application is already disabled." -f $ApplicationObject.DisplayName)
         Break
     }
-    Write-Host ("Disabling application {0} (ObjectId: {1})..." -f $ApplicationObject.DisplayName, $ApplicationObject.Id)
+    Write-Host ("Deactivating application {0} (ObjectId: {1})..." -f $ApplicationObject.DisplayName, $ApplicationObject.Id)
 }
 
 # Propulate variables for the update
 $NewDisplayName = $ApplicationObject.displayName + " (disabled)"
-$NewDescription = ($ApplicationObject.description.trim()) + "`nApp disabled on " + (Get-Date -format "dd-MMM-yyyy HH:mm") + " by " + (Get-MgContext).account
 $NewNotes = ($ApplicationObject.notes.trim()) + "`nApp disabled on " + (Get-Date -format "dd-MMM-yyyy HH:mm") + " by " + (Get-MgContext).account
 
 # Create the request body
 $RequestBody = @{}
 $RequestBody.Add("isDisabled", $true)
 $RequestBody.Add("displayName", $NewDisplayName)
-$RequestBody.Add("description", $NewDescription)
 $RequestBody.Add("notes", $NewNotes)
 
 # First, remove application owners
@@ -70,7 +69,7 @@ ForEach ($Owner in $Owners) {
 # Update the application
 Try {
     Update-MgApplication -ApplicationId $ApplicationObject.Id -BodyParameter $RequestBody  
-    Write-Host ("{0} application disabled." -f $ApplicationObject.DisplayName)  
+    Write-Host ("{0} application deactivated." -f $ApplicationObject.DisplayName)  
 } Catch {
     Write-Host "Failed to disable application. Error details:"
     Write-Host $_.Exception.Message
