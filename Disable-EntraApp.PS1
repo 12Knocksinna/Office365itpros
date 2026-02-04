@@ -19,7 +19,7 @@ If ($Application -eq "") {
     Break
 }
 
-# Using a Graph request to find the application because Get-MgApplication or Get-MgBetaApplication don't return the isDisabled property
+# Use a Graph request to find the application because Get-MgApplication or Get-MgBetaApplication don't return the isDisabled property
 # When the Graph SDK is updated, we should be able to use:
 # $ApplicationObject = Get-MgBetaApplication -Filter "displayName eq '$Application'"
 $Uri = ("https://graph.microsoft.com/beta/applications/?`$filter=displayname eq '{0}'" -f $Application)
@@ -44,9 +44,14 @@ If (!$ApplicationObject) {
     Write-Host ("Deactivating application {0} (ObjectId: {1})..." -f $ApplicationObject.DisplayName, $ApplicationObject.Id)
 }
 
-# Propulate variables for the update
+# Populate variables for the update
+If ($ApplicationObject.Notes) {
+    $ExistingNotes = $ApplicationObject.Notes.Trim() + "`n"
+} Else {
+    $ExistingNotes = $null
+}
 $NewDisplayName = $ApplicationObject.displayName + " (disabled)"
-$NewNotes = ($ApplicationObject.notes.trim()) + "`nApp disabled on " + (Get-Date -format "dd-MMM-yyyy HH:mm") + " by " + (Get-MgContext).account
+$NewNotes = $ExistingNotes + "App disabled on " + (Get-Date -format "dd-MMM-yyyy HH:mm") + " by " + (Get-MgContext).account
 
 # Create the request body
 $RequestBody = @{}
@@ -66,9 +71,9 @@ If ($Owners) {
     ForEach ($Owner in $Owners) {
         Try {
             Remove-MgApplicationOwnerByRef -ApplicationId $ApplicationObject.Id -DirectoryObjectId $Owner.Id
-            Write-Host ("Removed owner {0} from application." -f $Owner.UserPrincipalName)
+            Write-Host ("Removed owner {0} from {1} application." -f $Owner.additionalProperties.displayName, $ApplicationObject.DisplayName)
         } Catch {
-            Write-Host ("Failed to remove owner {0}. Error details:" -f $Owner.UserPrincipalName)
+            Write-Host ("Failed to remove owner {0}. Error details:" -f $Owner.additionalProperties.displayName)
             Write-Host $_.Exception.Message
         }
     }
