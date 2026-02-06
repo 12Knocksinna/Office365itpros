@@ -71,7 +71,7 @@ ForEach ($Module in $O365Modules) {
          Remove-Module $Module -ErrorAction SilentlyContinue 
          If ($Module -eq "Maester") { # see https://maester.dev/blog/the-end-of-code-signing/ for Maester issue, so skip the publisher check
            Uninstall-Module $Module
-           Update-Module $Module -Force -Confirm:$False -Scope AllUsers -AllowPreRelease -SkipPublisherCheck
+           Update-Module $Module -Force -Confirm:$False -Scope AllUsers -AllowPreRelease 
          } Else {
            Update-Module $Module -Force -Confirm:$False -Scope AllUsers
          }
