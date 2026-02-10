@@ -1,7 +1,9 @@
 # Get-ServiceHealthInformation.PS1
 # Example of using the Graph Service Communication API with Microsoft Graph PowerShell SDK cmdlets
 # V1.0 25-Jan-2024
+# V1.1 10-Feb-2026 Updated to show how to use RBAC for Applications
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Get-ServiceHealthInformation.PS1
+# See https://office365itpros.com/2024/02/07/service-health-data-api/ for more information about the API and how to use it.
 
 Function Add-MessageRecipients {
     # Function to build an addressee list to send email   
@@ -13,16 +15,52 @@ Function Add-MessageRecipients {
         }
 } 
 
-# Connect to the Graph with the required permissions
-Connect-MgGraph -Scopes ServiceHealth.Read.All, ServiceMessage.Read.All, Mail.Send -NoWelcome
-       
+[array]$RequiredScopes = "ServiceHealth.Read.All", "ServiceMessage.Read.All", "Organization.Read.All"
+Read-Host "Run script with App or Delegated permissions? (Enter 'App' or 'Delegated')" -OutVariable PermissionType
+If ($PermissionType -eq "App") {
+    Write-Host "Running with App permissions" -ForegroundColor Yellow
+    $Interactive = $false
+} Else {
+    Write-Host "Running with Delegated permissions" -ForegroundColor Yellow
+    $Interactive = $true
+}
+
+# Connect to Microsoft Graph with the selected permissions
+If ($Interactive) { 
+    # We're running interactively...
+    Clear-Host
+    Write-Host "Script running interactively... connecting to the Graph" -ForegroundColor Yellow
+    Connect-MgGraph -NoWelcome -Scopes $RequiredScopes
+    $Interactive = $true
+    # Email will be sent from the account running the script, so we capture that for later use. 
+} Else { 
+    # Running in app-only mode
+    # Email will be sent from this account - adjust for your tenant
+    $MsgFrom = "Azure.Management.Account@office365itpros.com"
+    # Authentication values for the app registration - adjust for your tenant
+    $AppId = "a40e80e0-7e1b-4339-a961-d6ecbc0ec7e1"
+    $Thumbprint = "0CF6CE3F3548FD73E7AC8CF20226ED447E125C71"
+    $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+    Connect-MgGraph -AppId $AppId -CertificateThumbprint $Thumbprint -TenantId $TenantId -NoWelcome
+    # To connect from Azure Automation runbook, Use Connect-MgGraph -Identity and ensure that the automation account has the right permissions assigned in Azure AD.
+}
+
+# Check that we have the right permissions - in Azure Automation, we assume that the automation account has the right permissions
+If ($Interactive) {
+    [int]$RequiredScopesCount = $RequiredScopes.Count
+    [string[]]$CurrentScopes = (Get-MgContext).Scopes
+    [string[]]$RequiredScopes = $RequiredScopes
+
+    $CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
+    If ($CheckScopes.Count -ne $RequiredScopesCount ) { 
+        Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f $RequiredScopes) -ForegroundColor Red
+        Break
+    }
+}   
+
 # Recipient for the email sent at the end of the script - define the addresses you want to use here. They can be single recipients,
 # distribution lists, or Microsoft 365 groups. Each recipient address is defined as an element in an array
 [array]$EmailRecipient = "Email.Admins@office365itpros.com", "Kim.Akers@office365itpros.com"
-# When run interactively, email will be sent from the account running the script. This is commented out for use with Azure Automation
-# If used with the Mail.Send permission in an Azure Automation runbook, the sender can be any mailbox in the organization
-$MsgFrom = (Get-MgContext).Account
-# $MsgFrom = "Azure.Management.Account@office365itpros.com"
 
 Write-Host "Looking for open service health advisories..."
 [string]$RunDate = Get-Date -format 'dd-MMM-yyyy HH:mm'
