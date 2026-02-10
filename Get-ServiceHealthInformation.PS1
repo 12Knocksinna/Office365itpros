@@ -40,7 +40,7 @@ If ($Interactive) {
     # Authentication values for the app registration - adjust for your tenant
     $AppId = "a40e80e0-7e1b-4339-a961-d6ecbc0ec7e1"
     $Thumbprint = "0CF6CE3F3548FD73E7AC8CF20226ED447E125C71"
-    $TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+    $TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478"
     Connect-MgGraph -AppId $AppId -CertificateThumbprint $Thumbprint -TenantId $TenantId -NoWelcome
     # To connect from Azure Automation runbook, Use Connect-MgGraph -Identity and ensure that the automation account has the right permissions assigned in Azure AD.
 }
