@@ -1349,3 +1349,71 @@ ForEach ($Setting in $Data) {
     [string]$SettingValue = $Setting.valueEntry.values
     Write-Host ("{0} : {1}" -f $SettingName, $SettingValue)
 }
+
+[array]$USAiports = "PHL", "SFO", "JFK", "BOS", "LAX", "ORD", "ATL", "DFW", "DEN", "SEA", "MCO", "LAS", "EWR", "IAD", "MIA"
+
+[array]$Memory = Import-CSV FlightMemory.csv
+$Report = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Record in $Memory) {
+    $ConvertedDate = [DateTime]::ParseExact($Record.Date, "MM-dd-yyyy", [System.Globalization.CultureInfo]::InvariantCulture)
+    [datetime]$Departure = Get-Date $Record.'Gate Departure (Actual)' 
+    [datetime]$Arrival = Get-Date $Record.'Gate Arrival (Actual)'
+    $Duration = New-TimeSpan -Start $Record.'Gate Departure (Actual)' -End $Record.'Gate Arrival (Actual)'
+    Switch ($Record.'Cabin Class') {
+        "Economy" {      
+            $FlightClass = "1"
+        }
+        "Premium Economy" {
+            $FlightClass = "2"
+        }   
+        "Business" {
+            $FlightClass = "3"
+        }   
+        "First" {
+            $FlightClass = "4"
+        }
+         Default {
+            $FlightClass = "1"
+        }
+    }
+    Switch ($Record.'Seat Type') {
+        "Window" {      
+            $SeatType = "1"
+        }
+        "Middle" {
+            $SeatType = "2"
+        }
+        "Aisle" {
+            $SeatType = "3"
+        }
+        Default {
+            $SeatType = "1"
+        }
+    }
+
+    $ReportLine = [PSCustomObject][Ordered]@{
+        Date                = Get-Date $ConvertedDate -format dd/MM/yyyy
+        'Flight Number'     = $Record.Flight
+        From                = $Record.From
+        To                  = $Record.To
+        'Dep time'          = Get-Date $Departure -format 'HH:mm:ss'
+        'Arr time'          = Get-Date $Arrival -format 'HH:mm:ss'
+        Duration            = ("{0}:{1}:{2}0" -f $Duration.Hours, $Duration.Minutes, $Duration.Seconds)
+        Airline             = $Record.Airline
+        Aircraft            = $Record.'Aircraft Type Name'
+        Registration        = $Record.'Tail Number'
+        'Seat Number'       = $Record.Seat
+        'Seat Type'         = $SeatType
+        'Flight class'      = $FlightClass
+        'Flight reason'     = $FlightReason
+        Note                = $Record.Notes
+       
+    }
+    $Report.Add($ReportLine)
+}
+
+# Convert "11-21-2025" to a valid date
+$DateString = "11-21-2025"
+
+Write-Host ("Date string '{0}' converted to: {1}" -f $DateString, (Get-Date $ConvertedDate -Format 'dd-MMM-yyyy'))
+
