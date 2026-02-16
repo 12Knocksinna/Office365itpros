@@ -1355,7 +1355,8 @@ ForEach ($Setting in $Data) {
 [array]$Memory = Import-CSV FlightMemory.csv
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Record in $Memory) {
-    $ConvertedDate = [DateTime]::ParseExact($Record.Date, "MM-dd-yyyy", [System.Globalization.CultureInfo]::InvariantCulture)
+   # $ConvertedDate = [DateTime]::ParseExact($Record.Date, "MM-dd-yyyy", [System.Globalization.CultureInfo]::InvariantCulture)
+    $AirLineId = $null; $AircraftId = $null
     [datetime]$Departure = Get-Date $Record.'Gate Departure (Actual)' 
     [datetime]$Arrival = Get-Date $Record.'Gate Arrival (Actual)'
     $Duration = New-TimeSpan -Start $Record.'Gate Departure (Actual)' -End $Record.'Gate Arrival (Actual)'
@@ -1479,15 +1480,30 @@ ForEach ($Record in $Memory) {
             $FlightAirline = "JetBlue Airways (B6/JBU)"
             $AirlineID = '410'
         }
+        "KLM" {
+            $FlightNumber = "KL" + $Record.Flight
+            $FlightAirline = "KLM Royal Dutch Airlines (KL/KLM)"
+            $AirlineID = '440'
+        }
         "ICE" {
             $FlightNumber = "FI" + $Record.Flight
             $FlightAirline = "Icelandair (FI/ICE)"
             $AirlineID = '381'
         }
+        "OSR" {
+            $FlightNumber = "OS" + $Record.Flight
+            $FlightAirline = "Austrian Airlines (OS/OSR)"
+            $AirlineID = '87'
+        }
         "QFA" {
             $FlightNumber = "QF" + $Record.Flight
             $FlightAirline = "Qantas (QF/QFA)"
             $AirlineID = '631'
+        }
+        "PAI" {
+            $FlightNumber = "PI" + $Record.Flight
+            $FlightAirline = "Piedmont Airlines (PI/PAI)"
+            $AirlineID = '600'
         }
         "RYR" {
             $FlightNumber = "FR" + $Record.Flight
@@ -1525,6 +1541,26 @@ ForEach ($Record in $Memory) {
         }
     }
     Switch ($Record.'Aircraft Type Name') {
+        "Airbus 300" {
+            $AircraftType = "Airbus A300 (A300)"
+            $AircraftId = '2034'
+        }
+        "Airbus 310" {
+            $AircraftType = "Airbus A310 (A310)"
+            $AircraftId = '24'
+        }   
+        "Airbus 319" {
+            $AircraftType = "Airbus A319 (A319)"
+            $AircraftId = '26'
+        }
+         "Airbus 320" {
+            $AircraftType = "Airbus A320 (A320)"
+            $AircraftId = '27'
+        }
+        "Airbus 321 Neo" {
+            $AircraftType = "Airbus A321neo (A21N)"
+            $AircraftId = '2027'
+        }
         "Airbus 330-200" {
             $AircraftType = "Airbus A330-200 (A332)"
             $AircraftId = '30'
@@ -1535,48 +1571,63 @@ ForEach ($Record in $Memory) {
         }
         "B727-200" {
             $AircraftType = "Boeing 727-200 (B722)"
+            $AircraftId = '2013'
         }
         "B727" {
             $AircraftType = "Boeing 727-200 (B722)"
+            $AircraftId = '2013'
         }
         "B737-200" {
             $AircraftType = "Boeing 737-200 (B732)"
+            $AircraftId = '225'
         }
         "B737-300" {
             $AircraftType = "Boeing 737-300 (B733)"
+            $AircraftId = '226'
         }   
         " B737-400" {
             $AircraftType = "Boeing 737-400 (B734)"
+            $AirlineID = '227'
         }
         "B737-500" {
             $AircraftType = "Boeing 737-500 (B735)"
+            $AircraftId = '228'
         }
         "B737-600" {
             $AircraftType = "Boeing 737-600 (B736)"
+            $AircraftId = '229'
         }   
         "Boeing 737-700" {
             $AircraftType = "Boeing 737-700 (B737)"
+            $AircraftId = '230'
         }   
         "Boeing 737-800" {
             $AircraftType = "Boeing 737-800 (B738)"
+            $AircraftId = '231'
         }
         "B747-236" {
             $AircraftType = "Boeing 747-200 (B742)"
+            $AircraftId  = '236'
         }
         "B747-400" {
             $AircraftType = "Boeing 747-400 (B744)"
+            $AircraftId = '237'
         }
         "B757-200" {
             $AircraftType = "Boeing 757-200 (B752)"
+            $AircraftId = '241'
         }
         "Boeing 767-200" {
             $AircraftType = "Boeing 767-200 (B762)"
+            $AircraftId = '243'
         }   
         "Boeing 767-300" {
             $AircraftType = "Boeing 767-300 (B763)"
+            $AircraftId = '244'
         }   
         "Boeing 777-200" {
             $AircraftType = "Boeing 777-200 (B772)"
+            $AircraftId = '246'
         }
         "Concorde" {
             $AircraftType = "Concorde (CONC)"
@@ -1589,41 +1640,56 @@ ForEach ($Record in $Memory) {
         }
         "Embraer 145" {
             $AircraftType = "Embraer ERJ 145 (ERJ145)"
+            $AircraftId = '653'
         }   
         "Fokker 100" {
             $AircraftType = "Fokker 100 (F100)"
+            $AircraftId = '710'
         }
         "Fokker 50" {
             $AircraftType = "Fokker 50 (F50)"
-        }   
-        "Airbus 319" {
-            $AircraftType = "Airbus A319 (A319)"
-            $AircraftId = '26'
+        }
+        "Fokker F28" {
+            $AircraftType = "Fokker F28 Fellowship (F28)"
+            $AircraftId = '726'
         }
         "Jet-410" {
             $AircraftType = "Bombardier CRJ-100/200 (CRJ2)"
+            $AircraftId = '528'
+        }
+        "Lockheed Tristar" {
+            $AircraftType = "Lockheed L-1011 TriStar (L101)"
+            $AircraftId = '223'
         }
         "McDonnell Douglas-800" {
             $AircraftType = "McDonnell Douglas MD-80 (MD80)"
+            $AircraftId = '1184'
         }
         "McDonnell Douglas-81" {
             $AircraftType = "McDonnell Douglas MD-81 (MD81)"
+            $AircraftId = '1185'
         }
         "McDonnell Douglas-82" {
             $AircraftType = "McDonnell Douglas MD-82 (MD82)"
+            $AircraftId = '1186'
+        }   
+        "MicDonnell Douglas-83" {
+            $AircraftType = "McDonnell Douglas MD-83 (MD83)"
+            $AircraftId = '1187'
         }   
         "McDonnell Douglas-87" {
             $AircraftType = "McDonnell Douglas MD-87 (MD87)"
+            $AircraftId = '1188'
         }   
+        "McDonnell Douglas-88" {
+            $AircraftType = "McDonnell Douglas MD-88 (MD88)"
+            $AircraftId = '1189'
+        }
         "McDonnell Douglas-90" {
             $AircraftType = "McDonnell Douglas MD-90 (MD90)"
         }   
         "McDonnell Douglas-9" {
             $AircraftType = "McDonnell Douglas MD-90 (MD90)"
-        }
-        "Airbus A320" {
-            $AircraftType = "Airbus A320 (A320)"
-            $AircraftId = '27'
         }
         "Airbus 321" {
             $AircraftType = "Airbus A321 (A321)"
@@ -1631,6 +1697,7 @@ ForEach ($Record in $Memory) {
         }
         "ATR 42-500" {
             $AircraftType = "ATR 42-500 (AT42)"
+            $AircraftId = '2033'
         }
         Default {
             $AircraftType = $Record.'Aircraft Type Name'
@@ -1638,7 +1705,7 @@ ForEach ($Record in $Memory) {
     }
 
     $ReportLine = [PSCustomObject][Ordered]@{
-        Date                = Get-Date $ConvertedDate -format yyyy-MM-dd
+        Date                = Get-Date $Record.'Gate departure (actual)' -format yyyy-MM-dd
         'Flight number'     = $FlightNumber
         From                = $Record.From
         To                  = $Record.To
