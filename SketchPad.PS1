@@ -1364,13 +1364,16 @@ ForEach ($Record in $Memory) {
             $FlightClass = "1"
         }
         "Premium Economy" {
-            $FlightClass = "2"
+            $FlightClass = "4"
         }   
         "Business" {
-            $FlightClass = "3"
+            $FlightClass = "2"
         }   
         "First" {
             $FlightClass = "4"
+        }
+        "Private" {
+            $FlightClass = "5"  
         }
          Default {
             $FlightClass = "1"
@@ -1386,24 +1389,98 @@ ForEach ($Record in $Memory) {
         "Aisle" {
             $SeatType = "3"
         }
+        "Crew" {
+            $SeatType = "0"
+        }
         Default {
             $SeatType = "1"
         }
     }
+    Switch ($Record.'Flight Reason') {
+        "Business" {      
+            $FlightReason = "2"
+        }
+        "Leisure" {
+            $FlightReason = "1"
+        }
+        "Family" {
+            $FlightReason = "3"
+        }
+        "Other" {
+            $FlightReason = "4"
+        }
+        Default {
+            $FlightReason = "1"
+        }
+    }
+    Switch ($Record.Airline) {
+       "EIN" {
+            $FlightNumber = "EI" + $Record.Flight
+            $FlightAirline = "Aer Lingus (EI/EIN)"
+        }
+        "BAW" {
+            $FlightNumber = "BA" + $Record.Flight
+            $FlightAirline = "British Airways (BA/BAW)"
+        }
+        "AFR" {
+            $FlightNumber = "AF" + $Record.Flight   
+            $FlightAirline = "Air France (AF/AFR)"  
+        }   
+        "ACA" {
+            $FlightNumber = "AC" + $Record.Flight
+            $FlightAirline = "Air Canada (AC/ACA)"
+        }   
+        "COA" {
+            $FlightNumber = "CO" + $Record.Flight
+            $FlightAirline = "Continental Airlines (CO/COA)"
+        }   
+        "DAL" {
+            $FlightNumber = "DL" + $Record.Flight
+            $FlightAirline = "Delta Airlines (DL/DAL)"
+        }
+        "EWG" {
+            $FlightNumber = "EW" + $Record.Flight
+            $FlightAirline = "Eurowings (EW/EWG)"
+        }
+        "FIN" {
+            $FlightNumber = "AY" + $Record.Flight
+            $FlightAirline = "Finnair (AY/FIN)"
+        }   
+        "QFA" {
+            $FlightNumber = "QF" + $Record.Flight
+            $FlightAirline = "Qantas (QF/QFA)"
+        }
+        "SAS" {
+            $FlightNumber = "SK" + $Record.Flight
+            $FlightAirline = "Scandinavian Airlines (SK/SAS)"
+        }
+        "UAL" {
+            $FlightNumber = "UA" + $Record.Flight
+            $FlightAirline = "United Airlines (UA/UAL)"
+        }
+        "USA" {
+            $FlightNumber = "US" + $Record.Flight
+            $FlightAirline = "US Airways (US/USA)"
+        }
+        Default {
+            $FlightNumber = $Record.Flight
+            $FlightAirline = $Record.Airline
+        }
+    }
 
     $ReportLine = [PSCustomObject][Ordered]@{
-        Date                = Get-Date $ConvertedDate -format dd/MM/yyyy
-        'Flight Number'     = $Record.Flight
+        Date                = Get-Date $ConvertedDate -format yyyy-MM-dd
+        'Flight number'     = $FlightNumber
         From                = $Record.From
         To                  = $Record.To
         'Dep time'          = Get-Date $Departure -format 'HH:mm:ss'
         'Arr time'          = Get-Date $Arrival -format 'HH:mm:ss'
         Duration            = ("{0}:{1}:{2}0" -f $Duration.Hours, $Duration.Minutes, $Duration.Seconds)
-        Airline             = $Record.Airline
+        Airline             = $FlightAirline
         Aircraft            = $Record.'Aircraft Type Name'
         Registration        = $Record.'Tail Number'
-        'Seat Number'       = $Record.Seat
-        'Seat Type'         = $SeatType
+        'Seat number'       = $Record.Seat
+        'Seat type'         = $SeatType
         'Flight class'      = $FlightClass
         'Flight reason'     = $FlightReason
         Note                = $Record.Notes
@@ -1412,8 +1489,5 @@ ForEach ($Record in $Memory) {
     $Report.Add($ReportLine)
 }
 
-# Convert "11-21-2025" to a valid date
-$DateString = "11-21-2025"
 
-Write-Host ("Date string '{0}' converted to: {1}" -f $DateString, (Get-Date $ConvertedDate -Format 'dd-MMM-yyyy'))
 
