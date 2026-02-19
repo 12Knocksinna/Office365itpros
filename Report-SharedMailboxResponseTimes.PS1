@@ -117,7 +117,7 @@ ForEach ($Mailbox in $SharedMailboxes) {
 }
 
 Write-Host ""
-Write-Host "Report generated. Displaying results" -ForegroundColor Cyan
+Write-Host "Analysis generated. Displaying results" -ForegroundColor Cyan
 Write-Host ""
 ForEach ($Mailbox in $SharedMailboxes) {
     Write-Host ("Mailbox: {0}" -f $Mailbox) -ForegroundColor Green
@@ -145,7 +145,7 @@ ForEach ($Mailbox in $SharedMailboxes) {
     Write-Host ""
 }
 
-Write-Host "All done. Reporting information..."
+Write-Host "All done. Generating report file..."
 
 # Generate the report in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
 If (Get-Module ImportExcel -ListAvailable) {
