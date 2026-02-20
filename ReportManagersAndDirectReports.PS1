@@ -1,10 +1,14 @@
 # ReportManagersAndDirectReports.PS1
-# A script to report the managers and their direct reports in a tenant
-# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportManagersAndDirectReports.PS1
-CLS
+# A script to report the managers and their direct reports in a tenant using Exchange Online cmdlets
+# V1.0 30-March-2021
+# Github Link: https://github.com/12Knocksinna/Office365itpros/blob/master/ReportManagersAndDirectReports.PS1
+Clear-Host
 # Check that we are connected to Exchange Online
-$ModulesLoaded = Get-Module | Select Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+$ModulesLoaded = Get-Module | Select-Object Name
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {
+   Write-Host "Please connect to the Exchange Online Management module and then restart the script"; 
+   break
+}
 
 $OrgName = (Get-OrganizationConfig).Name
 $CreationDate = Get-Date -format g
@@ -14,8 +18,10 @@ $CSVFileMembers = "c:\temp\ManagersReport.csv"
 $NumberDR = 0
 # Find people who have direct reports
 Write-Host "Finding managers..."
-[array]$Managers = Get-User -Filter {DirectReports -ne $null} | Select DisplayName, UserPrincipalName, ExternalDirectoryObjectId, DistinguishedName
-IF (!($Managers)) { Write-Host "No managers with direct reports found!" ; break }
+[array]$Managers = Get-User -Filter {DirectReports -ne $null} | Select-Object DisplayName, UserPrincipalName, ExternalDirectoryObjectId, DistinguishedName
+If (!($Managers)) { 
+   Write-Host "No managers with direct reports found!" ; break 
+}
 $ReportsList = [System.Collections.Generic.List[Object]]::new()
 $ManagersWithoutDR = [System.Collections.Generic.List[Object]]::new()
 # Loop through each manager to find their direct reports
@@ -77,7 +83,7 @@ $htmlreport = $htmlhead + $htmlbody1 + $htmltail
 $htmlreport | Out-File $ReportFile  -Encoding UTF8
 
 $ReportsList | Export-CSV -NoTypeInformation $CSVFileMembers
-CLS
+Clear-Host
 Write-Host "All done. Output files are" $CSVFileMembers "and" $ReportFile
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
