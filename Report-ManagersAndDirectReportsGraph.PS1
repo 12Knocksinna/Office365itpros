@@ -32,9 +32,9 @@ ForEach ($User in $Users) {
 }
 
 # Some users may not have a manager assigned, so we can report on those as well if needed
-[array]$UsersWithoutManagers = $Users | Where-Object { $_.Manager.Id -eq $null } | Select-Object displayName, userPrincipalName
+[array]$UsersWithoutManagers = $Users | Where-Object { $null -eq $_.Manager.Id } | Select-Object displayName, userPrincipalName
 
-$Managers = $ManagersList | Where-Object {$_.ManagerId -ne $null} | Sort-Object -Property Manager -Unique | Select-Object ManagerId, Manager, ManagerUPN
+$Managers = $ManagersList | Where-Object { $null -ne $_.ManagerId } | Sort-Object -Property Manager -Unique | Select-Object ManagerId, Manager, ManagerUPN
 ForEach ($Manager in $Managers) {
     $Reports = $ManagersList | Where-Object { $_.ManagerId -eq $Manager.ManagerId }
     $ReportLine = [PSCustomObject][Ordered]@{  # Write out details of the manager's reports
@@ -50,7 +50,7 @@ Write-Host ""
 Write-Host "Managers and their direct reports:" -ForegroundColor Green
 Write-Host "----------------------------------"
 Write-Host ""
-$Report | Format-Table Manager, 'Number of Reports', 'Direct Reports' -Wrap
+$Report | Sort-Object 'Number of Reports' -Descending | Format-Table Manager, 'Number of Reports', 'Direct Reports' -Wrap
 Write-Host ""
 Write-Host "Licensed user accounts without an assigned manager:" -ForegroundColor Yellow
 $UsersWithoutManagers | Format-Table displayName, userPrincipalName -Wrap
