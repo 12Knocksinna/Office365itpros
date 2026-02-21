@@ -12,38 +12,29 @@ Connect-Graph -Scopes User.Read.All, Organization.Read.All
 # Find people who have direct reports
 Write-Host "Finding managers..."
 
-# Find all tenant users and expand the Manager property
-[array]$Users = Get-MgUser -Filter "userType eq 'Member'" -All -ExpandProperty Manager -Select Id, displayName, Manager, assignedlicenses, userPrincipalName
-# Exclude unlicensed users from the report because they are unlikely to have direct reports and the report is focused on licensed users. This also speeds up the processing of the report.
-$Users = $Users | Where-Object { $_.assignedlicenses.Count -gt 0 }
-
+# Find all tenant users and expand the Manager property. A client-side filter then removes unlicensed member accounts
+[array]$Users = Get-MgUser -Filter "userType eq 'Member'" -All -PageSize 500 -ExpandProperty Manager `
+    -Select Id, displayName, Manager, assignedlicenses, userPrincipalName | Where-Object { $_.assignedlicenses.Count -gt 0 }
+ 
 $ManagersList = [System.Collections.Generic.List[Object]]::new()
 $Report = [System.Collections.Generic.List[Object]]::new()
-$ManagersHash = @{}
 
-ForEach ($User in $Users) {
-    # Have we seen this manager before? If not, retrieve their details and add to the hash table. This is done to speed up the report as it is likely that many users will have the same manager and we don't want to retrieve the same manager details multiple times.
-    If ($User.Manager.Id) {
-        If ($ManagersHash.ContainsKey($User.Manager.Id)) {
-            $Manager = $ManagersHash[$User.Manager.Id]
-        }
-        Else {
-            $Manager = Get-MgUser -UserId $User.Manager.Id -Select Id, displayName, userPrincipalName
-            $ManagersHash.Add($User.Manager.Id, $Manager)
-        }   
-        $ReportLine = [PSCustomObject][Ordered]@{  # Write out details of the manager's reports
-           Manager             = $Manager.displayName
-           ManagerUPN          = $Manager.userPrincipalName
-           ManagerId           = $Manager.Id
-           UPN                 = $User.UserPrincipalName
-           UserId              = $User.Id
-           UserDisplayName     = $User.DisplayName
-        }
-        $ManagersList.Add($ReportLine)
+ForEach ($User in $Users) { 
+    $ReportLine = [PSCustomObject][Ordered]@{  # Write out details of the manager's reports
+        Manager             = $User.Manager.additionalProperties.displayName
+        ManagerUPN          = $User.Manager.additionalProperties.userPrincipalName
+        ManagerId           = $User.Manager.Id
+        UPN                 = $User.UserPrincipalName
+        UserId              = $User.Id
+        UserDisplayName     = $User.DisplayName
     }
+    $ManagersList.Add($ReportLine)
 }
 
-$Managers = $ManagersList | Sort-Object -Property Manager -Unique | Select-Object ManagerId, Manager, ManagerUPN
+# Some users may not have a manager assigned, so we can report on those as well if needed
+[array]$UsersWithoutManagers = $Users | Where-Object { $_.Manager.Id -eq $null } | Select-Object displayName, userPrincipalName
+
+$Managers = $ManagersList | Where-Object {$_.ManagerId -ne $null} | Sort-Object -Property Manager -Unique | Select-Object ManagerId, Manager, ManagerUPN
 ForEach ($Manager in $Managers) {
     $Reports = $ManagersList | Where-Object { $_.ManagerId -eq $Manager.ManagerId }
     $ReportLine = [PSCustomObject][Ordered]@{  # Write out details of the manager's reports
@@ -55,6 +46,15 @@ ForEach ($Manager in $Managers) {
     $NumberDR = $NumberDR + $Reports.Count
 } # End ForEach
 
+Write-Host ""
+Write-Host "Managers and their direct reports:" -ForegroundColor Green
+Write-Host "----------------------------------"
+Write-Host ""
+$Report | Format-Table Manager, 'Number of Reports', 'Direct Reports' -Wrap
+Write-Host ""
+Write-Host "Licensed user accounts without an assigned manager:" -ForegroundColor Yellow
+$UsersWithoutManagers | Format-Table displayName, userPrincipalName -Wrap
+
 $CreationDate = Get-Date -format 'dd-MMM-yyyy HH:mm:ss'
 $Version = "1.0"
 
@@ -62,7 +62,7 @@ $Version = "1.0"
 $htmlhead="<html>
 	   <style>
 	   BODY{font-family: Arial; font-size: 8pt;}
-	   H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H1{font-size: 28px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
 	   H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
 	   H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
 	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
