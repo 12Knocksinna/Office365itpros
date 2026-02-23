@@ -2,7 +2,7 @@
 # V1.0 23-Feb-2026
 # An example of using the Copilot retrieval Graph API
 
-# Github Link: 
+# Github Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Query-CopilotGraph.PS1
 
 # Delegated access only - executes in the context of a signed-in user
 Connect-MgGraph -NoWelcome -Scopes Files.Read.All, Sites.Read.All
