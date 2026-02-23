@@ -1414,7 +1414,12 @@ ForEach ($Record in $Memory) {
             $FlightReason = "1"
         }
     }
-    Switch ($Record.Airline) {
+    Switch ($Record.Airline.trim()) {
+        "AAL" {
+            $FlightNumber = "AA" + $Record.Flight
+            $FlightAirline = "American Airlines (AA/AAL)"
+            $AirlineID = '4'
+        }
        "EIN" {
             $FlightNumber = "EI" + $Record.Flight
             $FlightAirline = "Aer Lingus (EI/EIN)"
@@ -1425,6 +1430,11 @@ ForEach ($Record in $Memory) {
             $FlightAirline = "Alaska Airlines (AS/ASA)"
             $AirlineID = '79'
         }
+        "AZA" {
+            $FlightNumber = "AZ" + $Record.Flight
+            $FlightAirline = "Alitalia (AZ/AZA)"
+            $AirlineID = '105'
+        }
         "BAW" {
             $FlightNumber = "BA" + $Record.Flight
             $FlightAirline = "British Airways (BA/BAW)"
@@ -1434,6 +1444,11 @@ ForEach ($Record in $Memory) {
             $FlightNumber = "WX" + $Record.Flight
             $FlightAirline = "CityJet (WX/BCY)"
             $AirlineID = '122'
+        }
+        "BMI" {
+            $FlightNumber = "BD" + $Record.Flight
+            $FlightAirline = "British Midland International (BD/BMI)"
+            $AirlineID = '137'
         }
         "AFR" {
             $FlightNumber = "AF" + $Record.Flight   
@@ -1535,12 +1550,17 @@ ForEach ($Record in $Memory) {
             $FlightAirline = "Virgin Australia (VA/VAU)"
             $AirlineID = '1130'
         }
+        "VIR" {
+            $FlightNumber = "VS" + $Record.Flight
+            $FlightAirline = "Virgin Atlantic Airways (VS/VST)"
+            $AirlineID = '835'
+        }
         Default {
             $FlightNumber = $Record.Flight
             $FlightAirline = $Record.Airline
         }
     }
-    Switch ($Record.'Aircraft Type Name') {
+    Switch ($Record.'Aircraft Type Name'.trim()) {
         "Airbus 300" {
             $AircraftType = "Airbus A300 (A300)"
             $AircraftId = '2034'
@@ -1569,7 +1589,19 @@ ForEach ($Record in $Memory) {
             $AircraftType = "Airbus A330-300 (A333)"
             $AircraftId = '31'
         }
+        "BAE Avro RJ100" {
+            $AircraftType = "Avro RJ100 (ARJ1)"
+            $AircraftId = '2008'
+        }
+        "BAe 146" {
+            $AircraftType = "BAe 146-300 (BEA146)"
+            $AircraftId = '1518'
+        }
         "B727-200" {
+            $AircraftType = "Boeing 727-200 (B722)"
+            $AircraftId = '2013'
+        }
+        "Boeing 727-200" {
             $AircraftType = "Boeing 727-200 (B722)"
             $AircraftId = '2013'
         }
@@ -1585,10 +1617,14 @@ ForEach ($Record in $Memory) {
             $AircraftType = "Boeing 737-300 (B733)"
             $AircraftId = '226'
         }   
-        " B737-400" {
+        "B737-400" {
             $AircraftType = "Boeing 737-400 (B734)"
             $AirlineID = '227'
         }
+        "Boeing 737-400" {
+            $AircraftType = "Boeing 737-400 (B734)"
+            $AirlineID = '227'
+        }   
         "B737-500" {
             $AircraftType = "Boeing 737-500 (B735)"
             $AircraftId = '228'
@@ -1605,6 +1641,10 @@ ForEach ($Record in $Memory) {
             $AircraftType = "Boeing 737-800 (B738)"
             $AircraftId = '231'
         }
+        "B747-100" {
+            $AircraftType = "Boeing 747-100 (B741)"
+            $AircraftId = '234'
+        }   
         "B747-236" {
             $AircraftType = "Boeing 747-200 (B742)"
             $AircraftId  = '236'
@@ -1612,6 +1652,10 @@ ForEach ($Record in $Memory) {
         "B747-400" {
             $AircraftType = "Boeing 747-400 (B744)"
             $AircraftId = '237'
+        }
+         "B757" {
+            $AircraftType = "Boeing 757-200 (B752)"
+            $AircraftId = '241'
         }
         "B757-200" {
             $AircraftType = "Boeing 757-200 (B752)"
@@ -1648,6 +1692,7 @@ ForEach ($Record in $Memory) {
         }
         "Fokker 50" {
             $AircraftType = "Fokker 50 (F50)"
+            $AircraftId = '732'
         }
         "Fokker F28" {
             $AircraftType = "Fokker F28 Fellowship (F28)"
@@ -1673,7 +1718,7 @@ ForEach ($Record in $Memory) {
             $AircraftType = "McDonnell Douglas MD-82 (MD82)"
             $AircraftId = '1186'
         }   
-        "MicDonnell Douglas-83" {
+        "McDonnell Douglas-83" {
             $AircraftType = "McDonnell Douglas MD-83 (MD83)"
             $AircraftId = '1187'
         }   
