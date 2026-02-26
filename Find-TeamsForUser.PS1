@@ -13,15 +13,19 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 
 ForEach ($User in $Users) {
     Write-Host ("Fetching details of Teams membership for user {0} ({1}):" -f $User.additionalProperties.displayName, $User.additionalProperties.userPrincipalName) -ForegroundColor Yellow
-  
-    [array]$Memberships = Get-MgUserJoinedTeam -UserId $User.Id | Sort-Object DisplayName
+    Try {
+        [array]$Memberships = Get-MgUserJoinedTeam -UserId $User.Id -ErrorAction Stop| Sort-Object DisplayName
+    } Catch {
+        Write-Host ("Error fetching Teams memberships for {0}. Moving to next user" -f $User.additionalProperties.displayName) -ForegroundColor Red
+        Continue
+    }
     If ($Memberships.Count -gt 0) {
         Write-Host ("Found {0} Teams group memberships for {1}." -f $Memberships.Count, $User.additionalProperties.displayName) -ForegroundColor Green
         ForEach ($Membership in $Memberships) {
             $ReportLine = [PSCustomObject][Ordered]@{  
                 UserId              = $User.Id
                 User                = $User.additionalProperties.displayName
-                UserUPN             = $User.additionalProperties.userPrincipalName
+                UPN                 = $User.additionalProperties.userPrincipalName
                 'Job Title'         = $User.additionalProperties.jobTitle
                 'Office'            = $User.additionalProperties.officeLocation
                 'Team'              = $Membership.DisplayName
@@ -30,6 +34,7 @@ ForEach ($User in $Users) {
             }
             $Report.Add($ReportLine)
         }
+    }
     } Else {
         Write-Host "No Teams group memberships found for this user." -ForegroundColor Yellow
     }
