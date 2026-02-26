@@ -1772,5 +1772,35 @@ ForEach ($Record in $Memory) {
     $Report.Add($ReportLine)
 }
 
+# Code for Azure Automation runbook to enable a conditional access policy to block weekend access for a specific group, and revoke sessions for all members of that group
+# Requires Policy.ReadWrite.ConditionalAccess, Group.Read.All, User.RevokeSessions.All, and GroupMember.Read.All permissions
+Connect-MgGraph -Identity 
 
+[array]$Users = Get-MgGroupMember -GroupId (Get-MgGroup -Filter "displayName eq 'CA Block Weekend Access (France)'").Id
+# Revoke access for each member
+ForEach ($User in $Users) {
+    Try {
+        $Status = Revoke-MgUserSignInSession -UserId $User.Id -ErrorAction Stop
+        Write-Output ("Revoked access for {0}" -f $User.additionalProperties.displayName) 
+    } Catch {
+        If ($_.Exception.Message -match "temporarily") {
+            Write-Warning ("Temporarily unable to revoke access for {0}, will retry after 15 seconds" -f $User.additionalProperties.DisplayName)
+            Start-Sleep -Seconds 5
+            Revoke-MgUserSignSession -UserId $User.Id
+            Write-Output ("Revoked access for {0}" -f $User.additionalProperties.displayName)
+        } Else {
+            Write-Error ("Failed to revoke access for {0}: {1}" -f $User.additionalProperties.displayName, $_.Exception.Message)
+        }
+    }
+}
 
+# Now enable the conditional access policy to block access for this group over the weekend
+$Policy = Get-MgIdentityConditionalAccessPolicy -Filter "displayName eq 'Block Weekend Access'"
+If ($Policy) {
+    Try {
+        Update-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $Policy.Id -State Enabled -ErrorAction Stop
+        Write-Output "Conditional Access policy 'Block Weekend Access' is now enabled"
+    } Catch {
+        Write-Error ("Failed to enable 'Block Weekend Access' policy: {0}" -f $_.Exception.Message)
+    }
+} 
