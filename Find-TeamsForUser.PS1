@@ -2,7 +2,7 @@
 # V1.0 26-Feb-2026
 
 # An example of using the Microsoft Graph PowerShell SDK to generate a report of Teams memberships for selected users. 
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-TeamsForUser.PS1
 
 Connect-MgGraph -NoWelcome -Scopes Group.Read.All, Groups.Read.All, Team.ReadBasic.All
 
