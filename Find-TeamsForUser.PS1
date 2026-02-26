@@ -6,7 +6,10 @@
 
 Connect-MgGraph -NoWelcome -Scopes Group.Read.All, Groups.Read.All, Team.ReadBasic.All
 
+# The group that defines the users to report on. Make sure that you change this for your tenant.
 $GroupId = (Get-MgGroup -Filter "displayName eq 'Users to Monitor for Teams Membership'").Id
+
+# If you want to process all users, make the change here to fetch all licensed users (accounts with assigned Teams licenses)
 [array]$Users = Get-MgGroupMember -GroupId $GroupId
 
 $Report = [System.Collections.Generic.List[Object]]::new()
