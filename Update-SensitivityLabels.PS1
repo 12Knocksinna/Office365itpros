@@ -228,7 +228,7 @@ If ($Drives.Count -eq 1) { # Only one drive found - go ahead
 }
 
 If (!($Drive)) { 
-   Write-Host ("Can't find the {0} drive - script exiting" -f $Uri) ; break 
+   Write-Host ("Can't find the selected drice ({0}) - script exiting" -f $Uri) ; break 
 }
 
 Write-Output "Fetching sensitivity labels defined for the tenant..."
