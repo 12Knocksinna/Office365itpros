@@ -83,7 +83,7 @@ function Get-DriveItems {
                 If ($ReplacementLabelPriority -gt $ExistingLabelPriority) {
                     $OKToApplyLabel = $true
                 } Else {
-                    Write-Host ("Skipping {0} as it has an existing sensitivity label {1} with higher or equal priority than the new label we want to apply" -f $File.Name, $LabelsFound[0].Name) -ForegroundColor Yellow
+                    Write-Host ("Skipping {0} as it has an existing sensitivity label {1} with higher or equal priority than the new label applied by this process" -f $File.Name, $LabelsFound[0].Name) -ForegroundColor Yellow
                     Continue
                 }
             }
@@ -128,7 +128,7 @@ function Get-DriveItems {
         If ($LabelsFound) { 
             $OldSensitivityLabelName = $SensitivityLabelsFiles | Where-Object {$_.Id -eq $LabelsFound[0].sensitivityLabelId} | Select-Object -ExpandProperty Name
         }
-        
+
         If ($Status -eq $true) {
             $ReportLine = [PSCustomObject]@{
                 FileName               = $File.Name
