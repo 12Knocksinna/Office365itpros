@@ -20,11 +20,14 @@
 # Run the script with the name of the site to process.
 # .\Apply-SensitivityLabels.PS1 -SiteName "Contoso" -NewSensitivityLabelName "Confidential"
 
+# If "Remove" is passed as the NewSensitivityLabelName parameter, the script will remove sensitivity labels from files instead of applying a new label. In this case, the script will only remove existing labels if they have a lower priority than the default label defined in the script, to avoid accidentally removing a higher priority label.
+
 # Set up the script parameters - the name of the site to find and the name of the sensitivity label to apply
 Param (
     [Parameter(Mandatory = $true)]
     [string]$SiteName,  # Name of the SharePoint Online site to process
-    [string]$NewSensitivityLabelName # Name of the sensitivity label to apply to files (optional - if not provided, will use the default label defined in the script)
+    [Parameter(Mandatory = $true)]
+    [string]$NewSensitivityLabelName # Name of the sensitivity label to apply to files (mandatory - if not provided, will use the default label defined in the script)
 )
 function Get-DriveItems {
     [CmdletBinding()]
@@ -42,11 +45,16 @@ function Get-DriveItems {
     $Global:TotalFolders = $TotalFolders + $Folders.Count
     [array]$Files = $Data | Where-Object {$null -ne $_.file.mimetype} 
 
+    If ($RemoveLabels -eq $True) {
+        $RequestBody = @{}
+        $RequestBody.Add("sensitivityLabelId", "")
+    }
+
     # Process the files to find each has a sensitivity label. If not, label it
     ForEach ($File in $Files) {  
         $Status = $false
         $FileType = $File.Name.Split(".")[1]
-        If ($FileType -in $ValidFileTypes) { 
+        If ($FileType -in $ValidFileTypes -and $RemoveLabels -eq $false) { 
             $OKToApplyLabel = $false
             Try {
                 # Exract the existing sensitivity label information for the file
@@ -78,44 +86,60 @@ function Get-DriveItems {
                     Continue
                 }
             }
-            # After all the checks, if we have determined that it's OK to apply the label, go ahead and apply it    
-            If ($OKToApplyLabel -eq $true) {
-                Write-Host ("Applying sensitivity label {0} to {1}" -f $NewSensitivityLabelName, $File.Name) -ForegroundColor Green
-                Try {
-                    Set-MgDriveItemSensitivityLabel -DriveId $DriveId -DriveItemId $File.Id -SensitivityLabelId $SensitivityLabelId -ErrorAction Stop
-                    $Status = $true
-                } Catch {
-                    Write-Host ("Error applying label {0} to {1} ({2})" -f $SensitivityLabelName, $File.Name, $_.Exception.Message) -ForegroundColor Red
-                    Continue
-                }
-            }
-            # Collect information for the report
-            If ($File.LastModifiedDateTime) {
-                $LastModifiedDateTime = Get-Date $File.LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
-            } Else {
-                $LastModifiedDateTime = $null
-            }
-            If ($File.CreatedDateTime) {
-                $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
-            } Else {
-                $FileCreatedDateTime = $null
-            }
-        
-            If ($Status -eq $true) {
-                $ReportLine = [PSCustomObject]@{
-                    FileName                = $File.Name
-                    Folder                  = $File.parentreference.name
-                    Size                    = (FormatFileSize $File.Size)
-                    Created                 = $FileCreatedDateTime
-                    Author                  = $File.CreatedBy.User.DisplayName
-                    LastModified            = $LastModifiedDateTime
-                    'Last modified by'      = $File.LastModifiedBy.User.DisplayName
-                    'Sensitivity label'     = $NewSensitivityLabelName
-                }
-                $ReportData.Add($ReportLine)
+        }
+        # After all the checks, if we have determined that it's OK to apply the new label, go ahead and run the cmdlet    
+        If ($OKToApplyLabel -eq $true -and $RenoveLabels -eq $false) {
+            Write-Host ("Applying sensitivity label {0} to {1}" -f $NewSensitivityLabelName, $File.Name) -ForegroundColor Green
+            Try {
+                Set-MgDriveItemSensitivityLabel -DriveId $DriveId -DriveItemId $File.Id -SensitivityLabelId $SensitivityLabelId -ErrorAction Stop
+                $Status = $true
+            } Catch {
+                Write-Host ("Error applying label {0} to {1} ({2})" -f $SensitivityLabelName, $File.Name, $_.Exception.Message) -ForegroundColor Red
+                Continue
             }
         }
+        # If we're removing labels, do it here
+        If ($RemoveLabels -eq $true) {
+            Write-Host ("Removing sensitivity label from {0}" -f $File.Name) -ForegroundColor Green
+            Try {
+                Set-MgDriveItemSensitivityLabel -DriveId $DriveId -DriveItemId $File.Id -SensitivityLabelId "" -ErrorAction Stop
+                # Could also have done this with
+                # Invoke-MgGraphRequest -Uri $Uri -Method Post -Body $RequestBody -ErrorAction Stop
+                $Status = $true
+            } Catch {
+                Write-Host ("Error removing sensitivity labels from {0} ({1})" -f $File.Name, $_.Exception.Message) -ForegroundColor Red
+                Continue
+            }
+        }
+        
+        # Collect information for the report
+        If ($File.LastModifiedDateTime) {
+            $LastModifiedDateTime = Get-Date $File.LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
+        } Else {
+            $LastModifiedDateTime = $null
+        }
+        If ($File.CreatedDateTime) {
+            $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
+        } Else {
+            $FileCreatedDateTime = $null
+        }
+        
+        If ($Status -eq $true) {
+            $ReportLine = [PSCustomObject]@{
+                FileName               = $File.Name
+                Folder                 = $File.parentreference.name
+                Size                   = (FormatFileSize $File.Size)
+                Created                = $FileCreatedDateTime
+                Author                 = $File.CreatedBy.User.DisplayName
+                LastModified           = $LastModifiedDateTime
+               'Last modified by'      = $File.LastModifiedBy.User.DisplayName
+               'Action'                = If ($RemoveLabels -eq $true) {"Removed label"} Else {"Applied label"}
+                Timestamp              = Get-Date -Format 'dd-MMM-yyyy HH:mm:ss'
+            }
+            $ReportData.Add($ReportLine)
+        }
     }
+
     # Process the folders
     ForEach ($Folder in $Folders) {
         Write-Host ("Processing folder {0} ({1} files/size {2})" -f $Folder.Name, $Folder.folder.childcount, (FormatFileSize $Folder.Size))
@@ -234,31 +258,38 @@ If (!($Drive)) {
    Write-Host ("Can't find the selected drice ({0}) - script exiting" -f $Uri) ; break 
 }
 
-Write-Output "Fetching sensitivity labels defined for the tenant..."
-# Find sensitivity labels for the tenant 
-[array]$SensitivityLabels = Get-MgSecurityDataSecurityAndGovernanceSensitivityLabel -All
-# Reduce the set to the sensitivity labels that can be applied to files
-$SensitivityLabelsFiles = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Label in $SensitivityLabels) {
-    If ($Label.additionalProperties.applicableTo -like "*file*") {
-        $ReportLine = [PSCustomObject]@{
-            Id          = $Label.Id
-            Name        = $Label.Name
-            Priority    = $Label.Priority
-            HasProtection = $Label.HasProtection
+If ($NewSensitivityLabelName.tolower() -ne "remove") {
+    Write-Host ("Checking if it's possuble to apply the sensitivity label {0} to files in the {1} document library for the {2} site, replacing any existing label if the new label has a higher priority than the existing one." -f $NewSensitivityLabelName, $DriveName, $SiteName) -ForegroundColor Green
+    $Global:RemoveLabels = $false
+    Write-Output "Fetching sensitivity labels defined for the tenant..."
+    # Find sensitivity labels for the tenant 
+    [array]$SensitivityLabels = Get-MgSecurityDataSecurityAndGovernanceSensitivityLabel -All
+    # Reduce the set to the sensitivity labels that can be applied to files
+    $SensitivityLabelsFiles = [System.Collections.Generic.List[Object]]::new()
+    ForEach ($Label in $SensitivityLabels) {
+        If ($Label.additionalProperties.applicableTo -like "*file*") {
+            $ReportLine = [PSCustomObject]@{
+                Id          = $Label.Id
+                Name        = $Label.Name
+                Priority    = $Label.Priority
+                HasProtection = $Label.HasProtection
+            }
+            $SensitivityLabelsFiles.Add($ReportLine)
         }
-        $SensitivityLabelsFiles.Add($ReportLine)
     }
-}
 
-[int]$Global:ReplacementLabelPriority = $SensitivityLabelsFiles | Where-Object {$_.Name -eq $NewSensitivityLabelName} | Select-Object -ExpandProperty Priority
-# Have we found a sensitivity label to apply? We will know if we have found a priority value for that label...
-If ($ReplacementLabelPriority) {
-    $Global:SensitivityLabelId = $SensitivityLabelsFiles | Where-Object {$_.Name -eq $NewSensitivityLabelName} | Select-Object -ExpandProperty Id
-    Write-Host ("Found chosen sensitivity label to apply: {0} (priority {1})" -f $NewSensitivityLabelName, $ReplacementLabelPriority) -ForegroundColor Green
+    [int]$Global:ReplacementLabelPriority = $SensitivityLabelsFiles | Where-Object {$_.Name -eq $NewSensitivityLabelName} | Select-Object -ExpandProperty Priority
+    # Have we found a sensitivity label to apply? We will know if we have found a priority value for that label...
+    If ($ReplacementLabelPriority) {
+        $Global:SensitivityLabelId = $SensitivityLabelsFiles | Where-Object {$_.Name -eq $NewSensitivityLabelName} | Select-Object -ExpandProperty Id
+        Write-Host ("Found chosen sensitivity label to apply: {0} (priority {1})" -f $NewSensitivityLabelName, $ReplacementLabelPriority) -ForegroundColor Green
+    } Else {
+        Write-Host ("Can't find the sensitivity label {0} to apply - script exiting" -f $NewSensitivityLabelName) -ForegroundColor Red
+        break
+    }
 } Else {
-    Write-Host ("Can't find the sensitivity label {0} to apply - script exiting" -f $NewSensitivityLabelName) -ForegroundColor Red
-    break
+    $Global:RemoveLabels = $true
+    Write-Output "Option Selected to remove sensitivity labels from labeled files."
 }
 
 # Start the ball rolling to process files in the target document library
@@ -269,7 +300,7 @@ $Global:TotalFolders = 1
 $Global:ReportData = [System.Collections.Generic.List[Object]]::new()
 $CSVOutputFile =  ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + ("\Files {0}-{1} library.csv" -f $Site.displayName, $DriveName)
 # Get the items in the root, including child folders
-Write-Host "Processing files in the site..."
+Write-Host "Checking files to process sensitivity labels..."
 Get-DriveItems -Drive $Drive.Id -FolderId "root"
 [datetime]$EndProcessing = Get-Date
 $ElapsedTime = ($EndProcessing - $StartProcessing)
