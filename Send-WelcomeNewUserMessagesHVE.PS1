@@ -37,7 +37,8 @@ ForEach ($User in $Users) {
     "<p>Welcome to Microsoft 365. Your mailbox is now ready for use. Please sign in to Outlook on the web at " +
     "<a href='https://outlook.office.com'>https://outlook.office.com</a> to access your email.</p>" +
     "<p>If you need help, please check the <a href='https://office365itpros.com/office-365-for-it-pros-faq/'>FAQ</a> or send email to the " +
-    ("<a href='mailto:{0}'>End User Support Desk</a>.</p>" -f $BCCAddress)  
+    ("<a href='mailto:{0}'>End User Support Desk</a>.</p>" -f $BCCAddress)  +
+    "<p>This email was sent using Exchange Online High-Volume Email<p>"
 
     $SendHVEMessageParams = @{
         From = 'HVE02@office365itpros.com'
