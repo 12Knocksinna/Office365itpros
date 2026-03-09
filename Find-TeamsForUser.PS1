@@ -36,9 +36,9 @@ ForEach ($User in $Users) {
                 'Timestamp'         = Get-Date -format 'dd-MMM-yyyy HH:mm:ss'
             }
             $Report.Add($ReportLine)
-        }  Else {
-        Write-Host "No Teams group memberships found for this user." -ForegroundColor Yellow
         }
+    } Else {
+        Write-Host ("No Teams group memberships found for {0}." -f $User.additionalProperties.displayName) -ForegroundColor Yellow  
     }
 }  
 
