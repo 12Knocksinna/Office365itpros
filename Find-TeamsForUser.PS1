@@ -36,14 +36,13 @@ ForEach ($User in $Users) {
                 'Timestamp'         = Get-Date -format 'dd-MMM-yyyy HH:mm:ss'
             }
             $Report.Add($ReportLine)
+        }  Else {
+        Write-Host "No Teams group memberships found for this user." -ForegroundColor Yellow
         }
     }
-    } Else {
-        Write-Host "No Teams group memberships found for this user." -ForegroundColor Yellow
-    }
-    Write-Host ""
-}
+}  
 
+Write-Host ""
 # Generate the report in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
