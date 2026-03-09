@@ -151,9 +151,12 @@ function FormatFileSize {
 # Disconnect from any previous Graph SDK session
 Disconnect-MgGraph -ErrorAction SilentlyContinue
 
+# The script is designed to run in app-only mode, so you need to create a registered app, make sure that the app can use the
+# metered APIs, and grant it the permissions listed above. Then insert the app details in the variables listed below to connect
+# in app-only mode using a certificate thumbprint. See https://aka.ms/graph-metered-overview for more information about the metered APIs and how to set up an app to use them.
 # Insert values for your tenant and app here
 $AppId = "282eb7dc-9c47-4f13-9620-d8471178b8ad"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3471"
 $CertThumbprint = "6FBD36F588E12DE291100371E16219863E399818"
 
 # Connect to the Microsoft Graph
