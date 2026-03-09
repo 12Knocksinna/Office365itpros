@@ -54,8 +54,8 @@ function Get-DriveItems {
     ForEach ($File in $Files) {  
         $Status = $false
         $FileType = $File.Name.Split(".")[1]
-        If ($FileType -in $ValidFileTypes -and $RemoveLabels -eq $false) { 
-            $OKToApplyLabel = $false
+        If ($FileType -in $ValidFileTypes) { 
+            $OKToApplyLabel = $false; $OldSensitivityLabelName = $null
             Try {
                 # Exract the existing sensitivity label information for the file
                 $SensitivityLabelName = $null; $SensitivityLabelInfo = $null
@@ -65,9 +65,10 @@ function Get-DriveItems {
                 Write-Host ("Error retrieving sensitivity label information for {0} ({1})" -f $File.Name, $_.Exception.Message) -ForegroundColor Red
                 $OKToApplyLabel = $true
             }
-            
             # Check the label information for the current file
             [array]$LabelsFound = $SensitivityLabelInfo.Labels
+        }
+        If ($RemoveLabels -eq $False) {    
             If ($LabelsFound.Count -eq 0) {
                 # Go ahead and label if no existing labels are found.
                 $OKToApplyLabel = $true
@@ -75,7 +76,7 @@ function Get-DriveItems {
                 # Check if the file already has the sensitivity label we want to apply. If it does, skip it.
                 If ($SensitivityLabelInfo.Labels[0].sensitivitylabelId -eq $SensitivityLabelId) {
                     Write-Host ("Skipping {0} as it already has the sensitivity label we want to apply" -f $File.Name) -ForegroundColor Yellow
-                Continue
+                    Continue
                 }
                 # Check the priority of the existing label against the priority of the new label we want to apply. We only want to apply the new label if it has a higher priority (lower number) than the existing label, otherwise we could end up applying a lower priority label over a higher priority one, which would not be good!
                 [int]$ExistingLabelPriority = $SensitivityLabelsFiles | Where-Object {$_.Id -eq $LabelsFound[0].sensitivityLabelId} | Select-Object -ExpandProperty Priority
@@ -88,7 +89,7 @@ function Get-DriveItems {
             }
         }
         # After all the checks, if we have determined that it's OK to apply the new label, go ahead and run the cmdlet    
-        If ($OKToApplyLabel -eq $true -and $RenoveLabels -eq $false) {
+        If ($OKToApplyLabel -eq $true -and $RemoveLabels -eq $false) {
             Write-Host ("Applying sensitivity label {0} to {1}" -f $NewSensitivityLabelName, $File.Name) -ForegroundColor Green
             Try {
                 Set-MgDriveItemSensitivityLabel -DriveId $DriveId -DriveItemId $File.Id -SensitivityLabelId $SensitivityLabelId -ErrorAction Stop
@@ -123,6 +124,10 @@ function Get-DriveItems {
         } Else {
             $FileCreatedDateTime = $null
         }
+
+        If ($LabelsFound) { 
+            $OldSensitivityLabelName = $SensitivityLabelsFiles | Where-Object {$_.Id -eq $LabelsFound[0].sensitivityLabelId} | Select-Object -ExpandProperty Name
+        }
         
         If ($Status -eq $true) {
             $ReportLine = [PSCustomObject]@{
@@ -133,6 +138,7 @@ function Get-DriveItems {
                 Author                 = $File.CreatedBy.User.DisplayName
                 LastModified           = $LastModifiedDateTime
                'Last modified by'      = $File.LastModifiedBy.User.DisplayName
+               'Old Label Name'        = If ($OldSensitivityLabelName) {$OldSensitivityLabelName} Else {"No existing label"}
                'Action'                = If ($RemoveLabels -eq $true) {"Removed label"} Else {"Applied label"}
                 Timestamp              = Get-Date -Format 'dd-MMM-yyyy HH:mm:ss'
             }
