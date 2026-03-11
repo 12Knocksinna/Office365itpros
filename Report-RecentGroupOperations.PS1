@@ -18,39 +18,6 @@ Connect-MgGraph -Scopes "GroupMember.Read.All", "Group.Read.All", "Organization.
 # Search the audit log for group operations in the last 30 days
 $StartDate = (Get-Date).AddDays(-30)
 $EndDate = Get-Date
-# Group administration operations include adding, updating, and deleting groups - https://learn.microsoft.com/purview/audit-log-activities?WT.mc_id=M365-MVP-9501#microsoft-entra-group-administration-activities
-$Operations = "Add group.", "Update group.", "Delete group."
-Write-Host "Searching the audit log for group operations from $($StartDate.ToShortDateString()) to $($EndDate.ToShortDateString())..." -ForegroundColor Green   
-[array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations $Operations -Formatted -ResultSize 5000 -SessionCommand ReturnLargeSet
-
-If ($Records) {
-    # Remove duplicate records based on the identity field
-    $Records = $Records | Sort-Object Identity -Unique
-    Write-Host ("Found {0} unique group operations in the audit log since {1}." -f $Records.Count, $StartDate.ToShortDateString()   ) -ForegroundColor Green
-    [array]$GroupAdditions = $Records | Where-Object { $_.Operations -eq "Add group." }
-    [array]$GroupUpdates = $Records | Where-Object { $_.Operations -eq "Update group." }
-    [array]$GroupRemovals = $Records | Where-Object { $_.Operations -eq "Delete group." }
-    Write-Host ("Group Additions: {0}" -f $GroupAdditions.Count) -ForegroundColor Cyan
-    Write-Host ("Group Updates: {0}" -f $GroupUpdates.Count) -ForegroundColor Cyan
-    Write-Host ("Group Removals: {0}" -f $GroupRemovals.Count) -ForegroundColor Cyan  
-} Else {
-    Write-Host "No recent group operations found in the audit log." -ForegroundColor Yellow 
-}
-
-$AuditReport = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Rec in $Records) {
-    $AuditData = ConvertFrom-Json -InputObject $Rec.AuditData 
-    $ReportItem = [PSCustomObject]@{
-            GroupName = $AuditData.Target.Id[3]
-            GroupId = $AuditData.Target.Id[1]
-            Operation = $Rec.Operations
-            User =  $Auditdata.Actor.id[0]
-            Date = Get-Date $Rec.CreationDate -format 'dd/MM/yyyy HH:mm:ss'
-        }
-        $AuditReport.Add($ReportItem)
-}
-
-$AuditReport = $AuditReport | Sort-Object {$_.Date -as [datetime]} -Descending
 
 Write-Host "Finding Microsoft 365 groups in the tenant..." -ForegroundColor Green
 # Find all Microsoft 365 groups in the tenant
@@ -59,10 +26,50 @@ Write-Host "Finding Microsoft 365 groups in the tenant..." -ForegroundColor Gree
 
 If ($Groups) {
     Write-Host ("Found {0} Microsoft 365 groups in the tenant." -f $Groups.Count) -ForegroundColor Green
+    # Create a hash table of groups for quick lookup when processing the audit log records
+    $GroupHash = @{}
+    ForEach ($Group in $Groups) {
+        $GroupHash.Add($Group.Id, $Group.displayName)
+    }
 } Else {
     Write-Host "No Microsoft 365 groups found in the tenant." -ForegroundColor Yellow
     Break
 }
+
+# Group administration operations include adding, updating, and deleting groups - https://learn.microsoft.com/purview/audit-log-activities?WT.mc_id=M365-MVP-9501#microsoft-entra-group-administration-activities
+$Operations = "Add group.", "Update group.", "Delete group."
+Write-Host "Searching the audit log for group operations from $($StartDate.ToShortDateString()) to $($EndDate.ToShortDateString())..." -ForegroundColor Green   
+[array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations $Operations -Formatted -ResultSize 5000 -SessionCommand ReturnLargeSet
+
+If ($Records) {
+    # Remove duplicate records based on the identity field
+    $Records = $Records | Sort-Object Identity -Unique
+} Else {
+    Write-Host "No group operations found in the audit log for the specified date range." -ForegroundColor Yellow
+    Break
+}
+
+Write-Host "Analyzing audit log records..." -ForegroundColor Green
+$AuditReport = [System.Collections.Generic.List[Object]]::new()
+ForEach ($Rec in $Records) {
+    $AuditData = ConvertFrom-Json -InputObject $Rec.AuditData 
+    $GroupId = $AuditData.Target.Id[1]
+    # Only report if the group is a Microsoft 365 group - the audit log may include other group types such as security groups or distribution groups, but we are only interested in Microsoft 365 groups for this report
+    If ($GroupHash.ContainsKey($GroupId)) {
+        $ReportItem = [PSCustomObject]@{
+            GroupName = $AuditData.Target.Id[3]
+            GroupId = $GroupId
+            Operation = $Rec.Operations
+            User =  $Auditdata.Actor.id[0]
+            Date = Get-Date $Rec.CreationDate -format 'dd/MM/yyyy HH:mm:ss'
+        }
+        $AuditReport.Add($ReportItem)
+    } Else {
+        Continue
+    }
+}
+
+$AuditReport = $AuditReport | Sort-Object {$_.Date -as [datetime]} -Descending
 
 Write-Host "Analyzing group details..." -ForegroundColor Green
 $GroupReport = [System.Collections.Generic.List[Object]]::new()
@@ -87,6 +94,18 @@ ForEach ($Group in $Groups) {
 }
 
 $GroupReport = $GroupReport | Sort-Object Group
+
+If ($AuditReport) {
+    Write-Host ("Found {0} unique group operations in the audit log since {1}." -f $Records.Count, $StartDate.ToShortDateString()   ) -ForegroundColor Green
+    [array]$GroupAdditions = $AuditReport | Where-Object { $_.Operation -eq "Add group." }
+    [array]$GroupUpdates = $AuditReport | Where-Object { $_.Operation -eq "Update group." }
+    [array]$GroupRemovals = $AuditReport | Where-Object { $_.Operation -eq "Delete group." }
+    Write-Host ("Group Additions: {0}" -f $GroupAdditions.Count) -ForegroundColor Cyan
+    Write-Host ("Group Updates: {0}" -f $GroupUpdates.Count) -ForegroundColor Cyan
+    Write-Host ("Group Removals: {0}" -f $GroupRemovals.Count) -ForegroundColor Cyan  
+} Else {
+    Write-Host "No recent group operations found in the audit log." -ForegroundColor Yellow 
+}
 
 Write-Host "Generating HTML report..." -ForegroundColor Green
 $CreationDate = Get-Date -format 'dd-MMM-yyyy HH:mm:ss'
@@ -129,17 +148,17 @@ $HTMLBody = $HTMLHead + $HTMLAnalysisSectionHead
 If ($GroupAdditions.Count -gt 0) {
     $HTMLBody += $HTMLAnalysisAdditions
 } Else {
-    $HTMLBody += "<p><h3>Group Additions</h3></p><p>No group additions found in the last 30 days.</p>"
+    $HTMLBody += "<p><h3>Microsoft 365 Group Additions</h3></p><p>No additions of Microsoft 365 Groups in the last 30 days.</p>"
 }
 If ($GroupUpdates.Count -gt 0) {
     $HTMLBody += $HTMLAnalysisUpdates
 } Else {
-    $HTMLBody += "<p><h3>Group Updates</h3></p><p>No group updates found in the last 30 days.</p>"
+    $HTMLBody += "<p><h3>Microsoft 365 Group Updates</h3></p><p>No updates for Microsoft 365 Groups found for the last 30 days.</p>"
 }
 If ($GroupRemovals.Count -gt 0) {
     $HTMLBody += $HTMLAnalysisRemovals
 } Else {
-    $HTMLBody += "<p><h3>Group Removals</h3></p><p>No group removals found in the last 30 days.</p>"
+    $HTMLBody += "<p><h3>Microsoft 365 Group Removals</h3></p><p>No removals of Microsoft 365 Groups found for the last 30 days.</p>"
 }
 
 $GroupDetailsHeader = "<p><h2>Microsoft 365 Groups Details</h2></p>" +
@@ -150,13 +169,13 @@ $HTMLBody = $HTMLBody + $GroupDetailsHeader + $GroupDetailsTable
 $HTMLTail = "<p><h3>Report created for: " + $Organization + "</h3></p>" +
              "<p>Created: " + $CreationDate + "<p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
-             "<p>Number of Microsoft 365 Groups found:  " + $GroupReport.Count + "</p>" +
-             "<p>Number of Microsoft 365 Groups without a manager: " + ($GroupReport | Where-Object { $_."Owner Count" -eq 0 }).Count + "</p>" +
-             "<p>Number of Microsoft 365 Groups with no members: " + ($GroupReport | Where-Object { $_."Member Count" -eq 0 }).Count + "</p>" +
-             "<p>Number of recent group operations found in the audit log: " + $AuditReport.Count + "</p>" +
-             "<p>Number of recent group additions: " + $GroupAdditions.Count + "</p>" +
-             "<p>Number of recent group updates: " + $GroupUpdates.Count + "</p>" +
-             "<p>Number of recent group removals: " + $GroupRemovals.Count + "</p>" +
+             "<p>Number of Microsoft 365 Groups found:                     " + $GroupReport.Count + "</p>" +
+             "<p>Number of Microsoft 365 Groups without a manager:         " + ($GroupReport | Where-Object { $_."Owner Count" -eq 0 }).Count + "</p>" +
+             "<p>Number of Microsoft 365 Groups with no members:           " + ($GroupReport | Where-Object { $_."Member Count" -eq 0 }).Count + "</p>" +
+             "<p>Number of recent Microsoft 365 Groups audit events found: " + $AuditReport.Count + "</p>" +
+             "<p>Number of recent Microsoft 365 Group additions:           " + $GroupAdditions.Count + "</p>" +
+             "<p>Number of recent Microsoft 365 Group updates:             " + $GroupUpdates.Count + "</p>" +
+             "<p>Number of recent Microsoft 365 Group removals:            " + $GroupRemovals.Count + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
              "<p>Microsoft 365 Groups Report <b>" + $Version + "</b>"	
 
