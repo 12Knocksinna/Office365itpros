@@ -3,7 +3,7 @@
 # a list of all the Microsoft 365 groups in the tenant, along with details of their membership and ownership. The report is generated in HTML format, and also in either Excel or CSV format depending on the availability of the ImportExcel module.
 
 # V1.0 11-Mar-2025
-# GitHub Link: 
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RecentGroupOperations.PS1
 
 # Connect to Exchange Online PowerShell
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
@@ -177,11 +177,60 @@ If (Get-Module ImportExcel -ListAvailable) {
 
 If ($ExcelGenerated -eq $true) {
     Write-Host ("Microsoft 365 groups report is available in Excel workbook {0}" -f $ExcelOutputFile)
+    $AttachmentFile = $ExcelOutputFile
 } Else {
     Write-Host ("Microsoft 365 groups report is available in CSV file {0}" -f $CSVOutputFile)
+    $AttachmentFile = $CSVOutputFile
 }
 
 Write-Host ("HTML report of Microsoft 365 groups is available at {0}" -f $HTMLReportFile) -ForegroundColor Green
+
+# Send the spreadsheet as an email attachment
+$EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
+$MsgAttachments = @(
+    @{
+        '@odata.type' = '#microsoft.graph.fileAttachment'
+        Name = (Split-Path $AttachmentFile -Leaf)
+        ContentBytes = $EncodedAttachmentFile
+        ContentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    }
+)
+
+# The message is sent from the signed in user.
+$MsgFrom = (Get-MgContext).Account
+# The message is sent to the specified recipient - change the sender and recipient to the appropriate recipient for your tenant
+$DestinationEmailAddress = "Customer.Services@Office365itpros.com"
+# Build the array of a single TO recipient detailed in a hash table - change the sender and recipient to the appropriate recipient for your tenant
+$ToRecipient = @{}
+$ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
+[array]$MsgTo = $ToRecipient
+$MsgSubject = "Microsoft 365 Groups Report - $(Get-Date -Format 'dd-MMM-yyyy')"
+
+# Construct the message body 	
+$MsgBody = @{}
+$MsgBody.Add('Content', "$($HTMLReport)")
+$MsgBody.Add('ContentType','html')
+# Build the pmessage parameters
+$Message = @{}
+$Message.Add('subject', $MsgSubject)
+$Message.Add('toRecipients', $MsgTo)
+$Message.Add('body', $MsgBody)
+$Message.Add("attachments", $MsgAttachments)
+
+$EmailParameters = @{}
+$EmailParameters.Add('message', $Message)
+$EmailParameters.Add('saveToSentItems', $true)
+$EmailParameters.Add('isDeliveryReceiptRequested', $true)
+
+# Send the message
+Try {
+    Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
+    Write-Output ("Microsoft 365 groups report emailed to {0}" -f $DestinationEmailAddress)
+    Write-Output "All done!"
+} Catch {
+    Write-Output "Unable to send email"
+    Write-Output $_.Exception.Message
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
