@@ -6,49 +6,50 @@
 Connect-MgGraph -Scopes Directory.Read.All
 
 $Version = "1.0"
-$HtmlReportFile = "c:\temp\ContainerManagementLabels.html"
-$CSVReportFile = "c:\temp\ContainerManagementLabels.CSV"
 $Organization = Get-MgOrganization
 
 Write-Host "Finding Microsoft 365 Groups to process..."
-[array]$Groups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'unified')" -All
-If (!($Groups)) { Write-Host "Whoops - can't find any Microsoft 365 Groups" ; break }
+[array]$Groups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'unified')" -PageSize 500 -All `
+   -ExpandProperty "Owners(`$Select=displayName)" -Property Id, Owners, displayName, Visibility, CreatedDateTime, assignedLabels
+If (!($Groups)) { 
+   Write-Host "Whoops - can't find any Microsoft 365 Groups" 
+   break 
+}
 
 Write-Host ("Found {0} groups - now checking container management labels" -f $Groups.count)
 $Groups = $Groups | Sort-Object DisplayName
 
 $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Group in $Groups) {
- $LabelId = $Null; $LabelName = $Null; $GroupOwnerNames = $Null; $Status = $Null
+   $LabelId = $Null; $LabelName = $Null; $GroupOwnerNames = $Null; $Status = $Null
 
- $Uri = ("https://graph.microsoft.com/v1.0/groups/{0}?`$select=assignedLabels" -f $Group.Id)
- $LabelData = Invoke-GraphRequest -Uri $Uri
- $LabelName = $LabelData.assignedLabels.displayName
- $LabelId   = $LabelData.assignedLabels.labelId
- [array]$GroupOwners = Get-MgGroupOwner -GroupId $Group.Id
- If ($GroupOwners) {
-   [string]$GroupOwnerNames = $GroupOwners.additionalProperties.displayName -join ", " }
+   $LabelName = $Group.assignedLabels.displayName
+   $LabelId   = $Group.assignedLabels.labelId
+   
+   If ($Group.Owners.additionalProperties.displayName) {
+      [string]$GroupOwnerNames = $Group.Owners.additionalProperties.displayName -join ", " 
+   }
 
- # Issue warning if no label found
- If (!($LabelName)) {
-    Write-Host ("The {0} group has no label. Owner(s) {1}" -f $Group.displayName, $GroupOwnerNames) -foregroundcolor Red
-    $Status = "*** Check Label ***"
- }
+   # Issue warning if no label found
+    If (!($LabelName)) {
+      Write-Host ("The {0} group has no label. Owner(s) {1}" -f $Group.displayName, $GroupOwnerNames) -foregroundcolor Red
+      $Status = "*** Check Label ***"
+   }
 
- # Issue warning if no group owners found
- If (!($GroupOwners)) {
-    Write-Host ("The {0} group has no owners." -f $Group.displayName) -foregroundcolor Red
-    $Status = $Status + "*** No Group Owners ***"
- }
+   # Issue warning if no group owners found
+   If (!($GroupOwnerNames)) {
+      Write-Host ("The {0} group has no owners." -f $Group.displayName) -foregroundcolor Red
+      $Status = $Status + "*** No Group Owners ***"
+   }
 
- $ReportLine = [PSCustomObject][Ordered]@{
-    Id        = $Group.Id
-    Name      = $Group.DisplayName
-    Owners    = $GroupOwnerNames
-    Label     = $LabelName
-    LabelId   = $LabelId 
-    Status    = $Status }                  
- $Report.Add($ReportLine) 
+   $ReportLine = [PSCustomObject][Ordered]@{
+      Id        = $Group.Id
+      Name      = $Group.DisplayName
+      Owners    = $GroupOwnerNames
+      Label     = $LabelName
+      LabelId   = $LabelId 
+      Status    = $Status }                  
+   $Report.Add($ReportLine) 
 
 } # End processing groups
 
@@ -114,7 +115,6 @@ $Htmltail = "<p>Report created for: " + ($Organization.DisplayName) + "</p><p>" 
              "<p>-----------------------------------------------------------------------------------------------------------------------------" +
              "<p>Microsoft 365 Groups and Container Management Sensitivity Labels <b>" + $Version + "</b>"	
 $HtmlReport = $HtmlHead + $HtmlReport + $HtmlTail
-$HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
 
 Write-Host ""
 Write-Host "All done"
@@ -123,8 +123,27 @@ Write-Host ("{0} Microsoft 365 Groups found" -f $Groups.count)
 Write-Host ("{0} Groups found without a label" -f $MissingLabels.count)
 Write-Host ("{0} Groups found without owners" -f $MissingOwners.count)
 
-$Report | Export-CSV -NoTypeInformation $CSVReportFile
-Write-Host ("Output files are available in {0} and {1}" -f $HtmlReportFile, $CSVReportFile)
+$HtmlReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Container Management Report.html"
+$HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
+
+# Generate the report in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
+If (Get-Module ImportExcel -ListAvailable) {
+   $ExcelGenerated = $True
+   Import-Module ImportExcel -ErrorAction SilentlyContinue
+   $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Container Management Report.xlsx"
+   $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Container Management Labels" -Title ("Labels assigned to Groups {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "ContainerManagement" 
+} Else {
+   $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Container Management Report.CSV"
+   $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+}   
+
+If ($ExcelGenerated -eq $true) {
+   Write-Host ("Container management report is available in Excel workbook {0}" -f $ExcelOutputFile)
+} Else {
+   Write-Host ("Container management report is available in CSV file {0}" -f $CSVOutputFile)
+}
+
+Write-Host ("HTML report of Microsoft 365 groups is available at {0}" -f $HTMLReportFile) -ForegroundColor Green
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
