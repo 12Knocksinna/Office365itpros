@@ -3,6 +3,8 @@
 # highlights groups without owners
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ContainerManagementLabels.PS1
 
+# V2.0 13-Mar-2026 Updated to make the call to Groups more efficient by retieving owners with the same call.
+
 Connect-MgGraph -Scopes Directory.Read.All
 
 $Version = "1.0"
@@ -57,8 +59,8 @@ ForEach ($Group in $Groups) {
 $HtmlHeading ="<html>
 	   <style>
 	   BODY{font-family: Arial; font-size: 8pt;}
-	   H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-	   H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H1{font-size: 36px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H2{font-size: 24px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
 	   H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
 	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
 	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
@@ -122,6 +124,7 @@ Write-Host ""
 Write-Host ("{0} Microsoft 365 Groups found" -f $Groups.count)
 Write-Host ("{0} Groups found without a label" -f $MissingLabels.count)
 Write-Host ("{0} Groups found without owners" -f $MissingOwners.count)
+Write-Host ""
 
 $HtmlReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Container Management Report.html"
 $HtmlReport | Out-File $HtmlReportFile  -Encoding UTF8
@@ -138,9 +141,9 @@ If (Get-Module ImportExcel -ListAvailable) {
 }   
 
 If ($ExcelGenerated -eq $true) {
-   Write-Host ("Container management report is available in Excel workbook {0}" -f $ExcelOutputFile)
+   Write-Host ("Container management report is available in Excel workbook {0}" -f $ExcelOutputFile) -ForegroundColor Green
 } Else {
-   Write-Host ("Container management report is available in CSV file {0}" -f $CSVOutputFile)
+   Write-Host ("Container management report is available in CSV file {0}" -f $CSVOutputFile) -ForegroundColor Green
 }
 
 Write-Host ("HTML report of Microsoft 365 groups is available at {0}" -f $HTMLReportFile) -ForegroundColor Green
