@@ -188,7 +188,7 @@ If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
     Import-Module ImportExcel -ErrorAction SilentlyContinue
     $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Groups.xlsx"
-    $GroupReport | Export-Excel -Path $ExcelOutputFile -WorksheetName "Microsoft 365 Groups" -Title ("Microsoft 365 Groups {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "SharePointLabels" 
+    $GroupReport | Export-Excel -Path $ExcelOutputFile -WorksheetName "Microsoft 365 Groups" -Title ("Microsoft 365 Groups {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "M365Groups" 
 } Else {
     $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Groups.CSV"
     $GroupReport | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
