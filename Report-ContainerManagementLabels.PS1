@@ -7,7 +7,7 @@
 
 Connect-MgGraph -Scopes Directory.Read.All
 
-$Version = "1.0"
+$Version = "2.0"
 $Organization = Get-MgOrganization
 
 Write-Host "Finding Microsoft 365 Groups to process..."
@@ -88,7 +88,7 @@ ForEach ($SingleLabel in $LabelUnique) {
    $LabelData.Add($LabelInfo)
 }
 
-$HtmlHeading = "<p><h3>Label Summary</h3>"
+$HtmlHeading = "<p><h3>Container Management Label Assignment Summary</h3>"
 $HtmlData = $LabelData | ConvertTo-Html -Fragment
 $HtmlReport = "<p>" + $HtmlReport + "<p>" + $HtmlHeading + $HtmlData
 
@@ -115,7 +115,7 @@ $Htmltail = "<p>Report created for: " + ($Organization.DisplayName) + "</p><p>" 
              "<p>Number of groups without a label: " + $MissingLabels.count + "</p>" +
              "<p>Number of groups without owners:  " + $MissingOwners.count + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------" +
-             "<p>Microsoft 365 Groups and Container Management Sensitivity Labels <b>" + $Version + "</b>"	
+             "<p>Microsoft 365 Groups and Container Management Labels <b>" + $Version + "</b>"	
 $HtmlReport = $HtmlHead + $HtmlReport + $HtmlTail
 
 Write-Host ""

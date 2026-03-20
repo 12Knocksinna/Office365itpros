@@ -1,6 +1,7 @@
 # Report-DeletedEntraIDObjects
 # Example of how to report the soft-deleted objects in the Entra ID recycle bin
 # V1.0 23-Feb-2024
+# V2.0 20-Ma4-2026 Added support for deleted CA policies
 # Ref https://techcommunity.microsoft.com/t5/microsoft-entra-blog/keeping-track-of-object-deletions-in-microsoft-entra-id/ba-p/4053415
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-DeletedEntraIDObjects.PS1
 
@@ -15,6 +16,9 @@ $Now = Get-Date
 [array]$DeletedApps = Get-MgDirectoryDeletedItemAsApplication -All
 [array]$DeletedUsers = Get-MgDirectoryDeletedItemAsUser -All `
      -Property Id, DisplayName, DeletedDateTime, UserPrincipalName
+[array]$DeletedCAPolicies = Get-MgBetaIdentityConditionalAccessDeletedItemPolicy -All     
+# Devices don't work yet
+#[array]$DeletedDevices = Get-MgDirectoryDeletedItemAsDevice -All
 
 $DeletedObjects =  [System.Collections.Generic.List[Object]]::new()
 
@@ -144,15 +148,43 @@ ForEach ($Item in $DeletedApps) {
     $DeletedObjects.Add($ReportLine) 
 }
 
+# Deleted conditional access policies
+ForEach ($Item in $DeletedCAPolicies) {
+    [string]$DeletedDateTime = $null
+    $TimeTillRemoval = $null
+    $PermanentRemovalDue = $null
+  
+    If ($Item.DeletedDateTime) {
+        [datetime]$DeletedDateTime = Get-Date($Item.deletedDateTime)
+        $PermanentRemovalDue = Get-Date($DeletedDateTime).AddDays(30)
+        $TimeTillRemoval = $PermanentRemovalDue - $Now
+    }
+    If ($Item.CreatedDateTime) {
+        [datetime]$CreatedDateTime = Get-Date ($Item.createdDatetime)
+    }
+    $ReportLine = [PSCustomObject]@{ 
+         Group                      = $Item.displayName
+         Id                         = $Item.id
+         Created                    = Get-Date($CreatedDateTime) -format 'dd-MMM-yyyy HH:mm'
+         Deleted                    = Get-Date($DeletedDateTime) -format 'dd-MMM-yyyy HH:mm'
+         'Permanent Deletion due'   = Get-Date($PermanentRemovalDue) -format 'dd-MMM-yyyy HH:mm'
+         DaysRemaining              = $TimeTillRemoval.Days 
+         Type                       = "Conditional Access Policy"
+    } 
+    $DeletedObjects.Add($ReportLine)
+
+}
+
 If ($DeletedObjects.count -eq 0) { 
     Write-Host "No deleted items can be found - exiting"; break
 } Else {
     Write-Host ""
-    Write-Host ("Count of deleted applications         {0}" -f $DeletedApps.count)
-    Write-Host ("Count of deleted administrative unuts {0}" -f $DeletedAUs.count)
-    Write-Host ("Count of deleted groups               {0}" -f $DeletedGroups.count)
-    Write-Host ("Count of deleted service principals   {0}" -f $DeletedSPs.count)
-    Write-Host ("Count of deleted users                {0}" -f $DeletedUsers.count)
+    Write-Host ("Count of deleted applications                {0}" -f $DeletedApps.count)
+    Write-Host ("Count of deleted administrative unuts        {0}" -f $DeletedAUs.count)
+    Write-Host ("Count of deleted groups                      {0}" -f $DeletedGroups.count)
+    Write-Host ("Count of deleted service principals          {0}" -f $DeletedSPs.count)
+    Write-Host ("Count of deleted users                       {0}" -f $DeletedUsers.count)
+    Write-Host ("Count of deleted conditional access policies {0}" -f $DeletedCAPolicies.count)
     Write-Host ""
     Write-Host ("Total count of deleted items          {0}" -f $DeletedObjects.count)
 }
