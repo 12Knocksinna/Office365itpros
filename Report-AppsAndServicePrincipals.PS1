@@ -52,7 +52,7 @@ If ($Interactive) {
     "Calendars.ReadWrite", "Mail.Send", "User.Export.All", "Directory.Read.All", "Exchange.ManageAsApp", "Directory.ReadWrite.All", `
     "Sites.ReadWrite.All", "Domain.ReadWrite.All", "Sites.Read.All", "Sites.FullControl.All", "Sites.Manage.All", `
     "Application.ReadWrite.All", "AppRoleAssignment.ReadWrite.All", "Group.ReadWrite.All", "Group.Read.All", `
-    "RoleManagement.ReadWrite.Directory"
+    "RoleManagement.ReadWrite.Directory", "Mail-Advanced.ReadWrite.All", "Mail-Advanced.ReadWrite.Shared"
 
 $currentDate = Get-Date
 
