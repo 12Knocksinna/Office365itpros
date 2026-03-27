@@ -1,6 +1,9 @@
 # Report-EntraGroupInsights.PS1
 # A script to show how to extract the Entra Groups insights from the Graph to report them in a readable format.
 
+# Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-EntraGroupInsights.PS1
+# V1.0 27-Mar-2026
+
 Connect-MgGraph -Scopes "Group.Read.All", "GroupMember.Read.All", "User.Read.All"
 Write-Host "Starting up by finding groups and insights..." -ForegroundColor Green
 
