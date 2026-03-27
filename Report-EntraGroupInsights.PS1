@@ -53,11 +53,12 @@ ForEach ($Group in $Groups) {
             SecurityEnabled                = $Group.securityEnabled
             MailEnabled                    = $Group.mailEnabled
             GroupTypes                     = ($Group.groupTypes -join ",")
-            TotalMembers                   = $Insight.directGroupMemberCount
+            TotalMembers                   = $Insight.memberTransitiveUserCount
             TotalOwners                    = $Group.owners.Count
             Owners                         = $Group.owners.additionalProperties.displayName -join ", "
-            TotalGuests                    = $Insight.totalGuests
+            TotalGuests                    = $Insight.guestTransitiveUserCount
             GuestOwnerCount                = $Insight.guestOwnerCount
+            MmeberOwnerCount               = $Insight.memberOwnerCount
             servicePrincipalOwnerCount     = $Insight.servicePrincipalOwnerCount
             transitiveServicePrincipalCount = $Insight.transitiveServicePrincipalCount
             DynamicMembership              = $DynamicGroup
@@ -94,7 +95,9 @@ $Report = $Report | Sort-Object -Property Group -Descending
 [datetime]$30DaysAgo = (Get-Date).AddDays(-30)
 [datetime]$30DaysFromNow = (Get-Date).AddDays(30)
 
-[array]$GroupsWithNoOwners = $Report | Where-Object { $_.TotalOwners -eq 0 }
+# Graph API 
+# https://graph.microsoft.com/beta/reports/identityAnalytics/groups?$filter=guestOwnerCount eq 0 and memberOwnerCount eq 0 and servicePrincipalOwnerCount eq 0
+[array]$GroupsWithNoOwners = $Report | Where-Object { $_.GuestOwnerCount -eq 0 -and $_.MemberOwnerCount -eq 0 -and $_.servicePrincipalOwnerCount -eq 0 }
 Write-Host ("Groups with no owners: {0}" -f $GroupsWithNoOwners.count) -ForegroundColor Yellow
 [array]$GroupsWithServicePrincipalOwners = $Report | Where-Object { $_.servicePrincipalOwnerCount -gt 0 }
 Write-Host ("Groups with service principals as owners: {0}" -f $GroupsWithServicePrincipalOwners.count) -ForegroundColor Yellow
@@ -120,3 +123,28 @@ Write-Host ("Newly created groups in the last 30 days: {0}" -f $NewlyCreatedGrou
 Write-Host ("Groups with no sensitivity label: {0}" -f $GroupsWithNoSensitivityLabel.count) -ForegroundColor Yellow
 
 # OK. Output the report 
+
+# Generate the report in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
+If (Get-Module ImportExcel -ListAvailable) {
+   $ExcelGenerated = $True
+   Import-Module ImportExcel -ErrorAction SilentlyContinue
+   $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Entra Group Insights.xlsx"
+   $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Entra Group Insights" -Title ("Entra Group Insights {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "EntraGroupInsights" -AutoSize -AutoFilter
+} Else {
+   $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Entra Group Insights.CSV"
+   $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+}   
+
+If ($ExcelGenerated -eq $true) {
+   Write-Host ("Entra Group Insights report is available in Excel workbook {0}" -f $ExcelOutputFile) -ForegroundColor Green
+} Else {
+   Write-Host ("Entra Group Insights report is available in CSV file {0}" -f $CSVOutputFile) -ForegroundColor Green
+}
+
+
+# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
+# the Internet without first validating the code in a non-production environment.
