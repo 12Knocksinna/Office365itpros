@@ -46,6 +46,11 @@ ForEach ($Group in $Groups) {
         } Else {
              $DynamicGroup = $false
         }
+        If ($Group.GroupTypes -contains "Unified") {
+             $M365Group = $true
+        } Else {
+             $M365Group = $false
+        }
         $ReportLine = [PSCustomObject]@{ 
             Group                          = $Group.displayName
             Id                             = $Group.id
@@ -61,10 +66,12 @@ ForEach ($Group in $Groups) {
             Owners                         = $Group.owners.additionalProperties.displayName -join ", "
             TotalGuests                    = $Insight.guestTransitiveUserCount
             GuestOwnerCount                = $Insight.guestOwnerCount
-            MmeberOwnerCount               = $Insight.memberOwnerCount
+            MemberOwnerCount               = $Insight.memberOwnerCount
+            TotalMembership                = $Insight.transitiveUserCount
             servicePrincipalOwnerCount     = $Insight.servicePrincipalOwnerCount
             transitiveServicePrincipalCount = $Insight.transitiveServicePrincipalCount
             DynamicMembership              = $DynamicGroup
+            'Microsoft 365 Group'          = $M365Group
             MembershipRuleProcessingState  = $Insight.membershipRuleProcessingState
             MembershipRuleExpressionCount  = $Insight.membershipRuleExpressionCount
             membershipRuleContainsCount    = $Insight.membershipRuleContainsCount
@@ -107,11 +114,11 @@ Write-Host ("Groups with service principals as owners: {0}" -f $GroupsWithServic
 [array]$GroupsWithServicePrincipalsAsOwnersOrMembers = $Report | Where-Object { $_.servicePrincipalOwnerCount -gt 0 -or $_.transitiveServicePrincipalCount -gt 0 }
 Write-Host ("Groups with service principals as owners or members: {0}" -f $GroupsWithServicePrincipalsAsOwnersOrMembers.count) -ForegroundColor Yellow
 [array]$GroupsWithGuestsAsOwners = $Report | Where-Object { $_.GuestOwnerCount -gt 0 }
+Write-Host ("Groups with guest owners: {0}" -f $GroupsWithGuestsAsOwners.count) -ForegroundColor Yellow
 
 [int]$ServicePrincipalsAsMembers =  $GroupsWithServicePrincipalsAsOwnersOrMembers.count - $GroupsWithServicePrincipalOwners.count
 Write-Host ("Groups with service principals as members but not owners: {0}" -f $ServicePrincipalsAsMembers) -ForegroundColor Yellow
 
-Write-Host ("Groups with guest owners: {0}" -f $GroupsWithGuestsAsOwners.count) -ForegroundColor Yellow
 [array]$GroupsWithDynamicMembership = $Report | Where-Object { $_.DynamicMembership -eq $true }
 Write-Host ("Groups with dynamic membership: {0}" -f $GroupsWithDynamicMembership.count) -ForegroundColor Yellow
 [array]$GroupsWithPendingExpiration = $Report | Where-Object {$_.expirationDateTime -ne $null -and $_.expirationDateTime -ne "01-Jan-0001 00:00" -and $_.expirationDateTime -as [datetime] -lt $30DaysFromNow}
@@ -125,9 +132,26 @@ Write-Host ("Newly created groups in the last 30 days: {0}" -f $NewlyCreatedGrou
 [array]$GroupsWithNoSensitivityLabel = $Report | Where-Object { $_.sensitivityLabelCount -eq 0 }
 Write-Host ("Groups with no sensitivity label: {0}" -f $GroupsWithNoSensitivityLabel.count) -ForegroundColor Yellow
 
-# OK. Output the report 
+# Largest group
+$LargestGroup = $Report | Sort-Object -Property TotalMembership -Descending | Select-Object -First 1
+Write-Host ("The largest group is {0} with {1} members." -f $LargestGroup.Group, $LargestGroup.TotalMembership) -ForegroundColor Yellow
+# Group with largest amount of guest accounts
+$LargestGroupWithGuests = $Report | Where-Object { $_.TotalGuests -gt 0 } | Sort-Object -Property TotalMembership -Descending | Select-Object -First 1
+Write-Host ("Group with largest number of guest accounts is {0} with {1} members." -f $LargestGroupWithGuests.Group, $LargestGroupWithGuests.TotalMembership) -ForegroundColor Yellow
+# Group with largest amount of member accounts
+$LargestGroupWithMembers = $Report | Where-Object { $_.TotalMembers -gt 0 } | Sort-Object -Property TotalMembers -Descending | Select-Object -First 1
+Write-Host ("Group with largest number of member accounts is {0} with {1} members." -f $LargestGroupWithMembers.Group, $LargestGroupWithMembers.TotalMembership) -ForegroundColor Yellow
 
-# Generate the report in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
+# Groups with complicated rules
+$GroupsComplicatedRules = $Report | Where-Object { $_.MembershipRuleExpressionCount -gt 10 } | Sort-Object -Property MembershipRuleExpressionCount -Descending
+Write-Host ("Dynamic groups with complicated membership rules: {0}" -f $GroupsComplicatedRules.count) -ForegroundColor Yellow
+# Dynamic groups using ‘contains’ or ‘match’ operators in their membership rules, which can impact performance.
+$GroupInefficientRules = $Report | Where-Object { $_.MembershipRuleMatchCount -gt 0 -or $_.MembershipRuleContainsCount -gt 0 } | Sort-Object -Property MembershipRuleExpressionCount -Descending
+Write-Host ("Dynamic groups with inefficient membership rules: {0}" -f $GroupInefficientRules.count) -ForegroundColor Yellow
+
+# OK. Output the report files
+
+# Generate the report in either Excel worksheet or CSV format, d    epending on if the ImportExcel module is available
 If (Get-Module ImportExcel -ListAvailable) {
    $ExcelGenerated = $True
    Import-Module ImportExcel -ErrorAction SilentlyContinue
