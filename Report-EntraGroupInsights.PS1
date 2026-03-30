@@ -353,8 +353,7 @@ If ($ExcelGenerated -eq $true) {
 } Else {
    Write-Host ("Entra Group Insights report is available in CSV file {0}" -f $CSVOutputFile) -ForegroundColor Green
 }
-Write-Host "HTML report is available in file {0}" -f $HTMLReportFile -ForegroundColor Green
-
+Write-Host ("HTML report is available in file {0}" -f $HTMLReportFile) -ForegroundColor Green
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
