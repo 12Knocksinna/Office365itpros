@@ -81,6 +81,12 @@ ForEach ($Group in $Groups) {
             sensitivityLabelCount          = $Insight.sensitivityLabelCount
             Grouptype                      = $Insight.groupType 
             Visibility                     = $Group.visibility
+            CloudDL                        = $Insight.isCloudDistributionListGroup
+            OnPremisesDL                   = $Insight.isOnPremisesDistributionListGroup  
+            CloudSecurityGroup             = $Insight.isCloudSecurityGroup   
+            OnPremisesSecurityGroup        = $Insight.isOnPremisesSecurityGroup
+            CloudMailEnabledSecurityGroup = $Insight.isCloudMailEnabledSecurityGroup
+            OnPremisesMailEnabledSecurityGroup = $Insight.isOnPremisesMailEnabledSecurityGroup 
         } 
         $Report.Add($ReportLine) 
     } Else {
@@ -132,6 +138,10 @@ Write-Host ("Groups restored in the last 30 days: {0}" -f $GroupsRestored.count)
 Write-Host ("Newly created groups in the last 30 days: {0}" -f $NewlyCreatedGroups.count) -ForegroundColor Yellow
 [array]$GroupsWithNoSensitivityLabel = $Report | Where-Object { $_.sensitivityLabelCount -eq 0 }
 Write-Host ("Groups with no sensitivity label: {0}" -f $GroupsWithNoSensitivityLabel.count) -ForegroundColor Yellow
+$M365GroupCount = ($Report | Where-Object { $_.'Microsoft 365 Group' -eq $true }).Count
+Write-Host ("Number of Microsoft 365 Groups: {0}" -f $M365GroupCount) -ForegroundColor Yellow
+$DynamicMicrosoft365GroupCount = ($Report | Where-Object { $_.'Microsoft 365 Group' -eq $true -and $_.DynamicMembership -eq $true }).Count
+Write-Host ("Number of Dynamic Microsoft 365 Groups: {0}" -f $DynamicMicrosoft365GroupCount) -ForegroundColor Yellow
 
 # Largest group
 $LargestGroup = $Report | Sort-Object -Property TotalMembership -Descending | Select-Object -First 1
@@ -150,8 +160,20 @@ Write-Host ("Dynamic groups with complicated membership rules: {0}" -f $GroupsCo
 $GroupInefficientRules = $Report | Where-Object { $_.MembershipRuleMatchCount -gt 0 -or $_.MembershipRuleContainsCount -gt 0 } | Sort-Object -Property MembershipRuleExpressionCount -Descending
 Write-Host ("Dynamic groups with inefficient membership rules: {0}" -f $GroupInefficientRules.count) -ForegroundColor Yellow
 
-# OK. Output the report files
+$CloudDLCount = ($Report | Where-Object { $_.CloudDL -eq $true }).Count     
+Write-Host ("Cloud distribution lists: {0}" -f $CloudDLCount) -ForegroundColor Yellow
+$OnPremisesDLCount = ($Report | Where-Object { $_.OnPremisesDL -eq $true }).Count
+Write-Host ("On-premises distribution lists : {0}" -f $OnPremisesDLCount) -ForegroundColor Yellow      
+$CloudSecurityGroupCount = ($Report | Where-Object { $_.CloudSecurityGroup -eq $true }).Count
+Write-Host ("Cloud security groups: {0}" -f $CloudSecurityGroupCount) -ForegroundColor Yellow
+$OnPremisesSecurityGroupCount = ($Report | Where-Object { $_.OnPremisesSecurityGroup -eq $true }).Count
+Write-Host ("On-premises security groups: {0}" -f $OnPremisesSecurityGroupCount) -ForegroundColor Yellow
+$CloudMailEnabledSecurityGroupCount = ($Report | Where-Object { $_.CloudMailEnabledSecurityGroup -eq $true }).Count
+Write-Host ("Cloud mail-enabled security groups: {0}" -f $CloudMailEnabledSecurityGroupCount) -ForegroundColor Yellow
+$OnPremisesMailEnabledSecurityGroupCount = ($Report | Where-Object { $_.OnPremisesMailEnabledSecurityGroup -eq $true }).Count   
+Write-Host ("On-premises mail-enabled security groups: {0}" -f $OnPremisesMailEnabledSecurityGroupCount) -ForegroundColor Yellow
 
+# OK. Output the report files
 Write-Host "Generating HTML report..." -ForegroundColor Green
 $CreationDate = Get-Date -format 'dd-MMM-yyyy HH:mm:ss'
 $Version = "1.0"
@@ -289,7 +311,9 @@ $HTMLTail = "<p><h2>Summary of Entra ID Groups Insights created for: " + $Organi
     "<p>Number of groups with service principals as owners or members:      " + $GroupsWithServicePrincipalsAsOwnersOrMembers.count + "</p>" +
     "<p>Number of groups with service principals as members but not owners: " + $ServicePrincipalsAsMembers + "</p>" +
     "<p>Number of groups with guest owners:                                 " + $GroupsWithGuestsAsOwners.count + "</p>" +
+    "<p>Number of Microsoft 365 Groups:                                     " + $M365GroupCount + "</p>" +
     "<p>Number of groups with dynamic membership:                           " + $GroupsWithDynamicMembership.count + "</p>" +
+    "<p>Number of dynamic Microsoft 365 Groups:                             " + $DynamicMicrosoft365GroupCount + "</p>" +
     "<p>Number of groups pending expiration in next 30 days:                " + $GroupsWithPendingExpiration.Count + "</p>" +
     "<p>Number of soft-deleted groupss:                                     " + $GroupsInSoftDeletion.Count + "</p>" +
     "<p>Number of groups restored in the last 30 days:                      " + $GroupsRestored.Count + "</p>" +
@@ -297,11 +321,17 @@ $HTMLTail = "<p><h2>Summary of Entra ID Groups Insights created for: " + $Organi
     "<p>Number of groups with no sensitivity label:                         " + $GroupsWithNoSensitivityLabel.Count + "</p>" +
     "<p>Number of dynamic groups with complicated membership rules:         " + $GroupsComplicatedRules.Count + "</p>" +
     "<p>Number of dynamic groups with inefficient membership rules:         " + $GroupInefficientRules.Count + "</p>" + 
+    "<p>Number of cloud distribution lists:                                 " + $CloudDLCount + "</p>" +
+    "<p>Number of on-premises distribution lists:                           " + $OnPremisesDLCount + "</p>" +
+    "<p>Number of cloud security groups:                                    " + $CloudSecurityGroupCount + "</p>" +    
+    "<p>Number of on-premises security groups:                              " + $OnPremisesSecurityGroupCount + "</p>" +    
+    "<p>Number of cloud mail-enabled security groups:                       " + $CloudMailEnabledSecurityGroupCount + "</p>" +
+    "<p>Number of on-premises mail-enabled security groups:                 " + $OnPremisesMailEnabledSecurityGroupCount + "</p>" +
     "<p>The largest group is <b>" + $LargestGroup.Group + "</b> with <b>" + $LargestGroup.TotalMembership + "</b> members.</p>" +
     "<p>The group with the largest number of guest accounts is <b>" + $LargestGroupWithGuests.Group + "</b> with <b>" + $LargestGroupWithGuests.TotalMembership + "</b> members.</p>" +
     "<p>The group with the largest number of member accounts is <b>" + $LargestGroupWithMembers.Group + "</b> with <b>" + $LargestGroupWithMembers.TotalMembership + "</b> members.</p>" +
     "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
-    "<p>Entra ID Group Insights<b>" + $Version + "</b>"	
+    "<p>Entra ID Group Insights<b> " + $Version + "</b>"	
 
 $HTMLReport = $HTMLBody + $HTMLTail
 $HTMLReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Entra ID Groups Insights.html"
