@@ -4,7 +4,7 @@
 # Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-EntraGroupInsights.PS1
 # V1.0 27-Mar-2026
 
-Connect-MgGraph -Scopes "Group.Read.All", "GroupMember.Read.All", "User.Read.All", "Organization.Read.All" -NoWelcome
+Connect-MgGraph -Scopes "Group.Read.All", "GroupMember.Read.All", "User.Read.All", "Organization.Read.All", "Reports.Read.All" -NoWelcome
 Write-Host "Starting up by finding groups and insights..." -ForegroundColor Green
 
 # Can we get insights?
