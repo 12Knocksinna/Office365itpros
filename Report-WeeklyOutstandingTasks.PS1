@@ -2,7 +2,7 @@
 # This script generates a weekly report of outstanding tasks for a user and sends the list to them via email
 
 # V1.0 1-Apr-2026
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-WeeklyOutstandingTasks.PS1
 
 # Permissions needed to run the script:
 # - User.Read.All (to read user details)
@@ -21,8 +21,39 @@
 # - Microsoft.Graph.Users.Actions (to send the email with the report)
 # - ImportExcel (optional, to generate Excel worksheets for the report attachments)
 
+[array]$RequiredScopes = "Group.Read.All, GroupMember.Read.All, Tasks.Read.All, Mail.Send, User.Read.All"
+$Interactive = $false
 
-Connect-MgGraph -Identity 
+# Determine if we're interactive or not
+If ([Environment]::UserInteractive) { 
+    # We're running interactively...
+    Clear-Host
+    Write-Host "Script running interactively... connecting to the Graph" -ForegroundColor Yellow
+    Connect-MgGraph -NoWelcome -Scopes $RequiredScopes
+    $Interactive = $true
+    # Email address to use when sending email from interactive session
+    $MsgFrom = (Get-MgContext).Account    
+} Else { 
+    # We're not, so likely in Azure Automation
+    Write-Output "Executing the runbook to send email about outstanding tasks..." 
+    Connect-MgGraph -Identity -NoWelcome
+    # Email address to use when sending email from Azure Automation - update for your tenant
+    $MsgFrom = "no-reply@office365itpros.com"
+}
+
+# Check that we have the right permissions - in Azure Automation, we assume that the automation account has the right permissions
+If ($Interactive) {
+    [int]$RequiredScopesCount = $RequiredScopes.Count
+    [string[]]$CurrentScopes = (Get-MgContext).Scopes
+    [string[]]$RequiredScopes = $RequiredScopes
+
+    $CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
+    If ($CheckScopes.Count -ne $RequiredScopesCount ) { 
+        Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f $RequiredScopes) -ForegroundColor Red
+        Disconnect-Graph
+        Break
+    }
+}
 
 # Find the set of users to process - we use a group to define the target set
 Try {
@@ -152,9 +183,6 @@ $Report = $Report | Where-Object { $_.UserEmail -ne $null } | Sort-Object User, 
 # Reduce the set to the folks we are interested in (i.e. those in our target group)
 $UniqueUsers = $UniqueUsers | Where-Object { $Members -contains $_.Id }
 
-# The message is sent from the signed in user.
-$MsgFrom = (Get-MgContext).Account
-
 # Set up to use the ImportExcel module to generate Excel worksheets if it is available. If not, the report will be generated in CSV format instead.
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
@@ -170,10 +198,18 @@ ForEach ($Id in $UniqueUsers) {
 
     # Generate the attachment in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
     If ($ExcelGenerated) {
-        $AttachmentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TasksTemporary_$($UserName).xlsx"
-        $UserTasks | Export-Excel -Path $AttachmentFile -WorksheetName "OutstandingTasks" -Title ("Outstanding Tasks {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Tasks" 
+        If ($Interactive) {
+            $AttachmentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TasksTemporary_$($UserName).xlsx"
+        } Else {
+            $AttachmentFile = "TasksTemporary_$($UserName).xlsx"
+        }
+            $UserTasks | Export-Excel -Path $AttachmentFile -WorksheetName "OutstandingTasks" -Title ("Outstanding Tasks {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Tasks" 
     } Else {
-        $AttachmentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TasksTemporary_$($UserName).CSV"
+        If ($Interactive) {
+            $AttachmentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TasksTemporary_$($UserName).csv"
+        } Else {
+            $AttachmentFile = "TasksTemporary_$($UserName).csv"
+        }
         $UserTasks | Export-Csv -Path $AttachmentFile -NoTypeInformation -Encoding Utf8
     }
 
@@ -223,9 +259,6 @@ ForEach ($Id in $UniqueUsers) {
     # Clean up temporary CSV file
     Remove-Item -Path $AttachmentFile -ErrorAction SilentlyContinue
 }
-
-
-
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
