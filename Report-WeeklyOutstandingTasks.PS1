@@ -193,25 +193,27 @@ ForEach ($Id in $UniqueUsers) {
     $DestinationEmailAddress = $UsersHash[$Id].Mail
     $UserName = $UsersHash[$Id].DisplayName
     Write-Output "Sending email to $UserName ($DestinationEmailAddress) with their outstanding tasks"
+    # Get list of outstanding tasks for the user
     [array]$UserTasks = $Report | Where-Object { $_.Id -eq $Id }
 
     # Generate the attachment in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
     If ($ExcelGenerated) {
         If ($Interactive) {
-            $AttachmentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TasksTemporary_$($UserName).xlsx"
+            $AttachmentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TasksTemporary_$($Id).xlsx"
         } Else {
             $AttachmentFile = "TasksTemporary_$($Id).xlsx"
         }
             $UserTasks | Export-Excel -Path $AttachmentFile -WorksheetName "OutstandingTasks" -Title ("Outstanding Tasks {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Tasks" 
     } Else {
         If ($Interactive) {
-            $AttachmentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TasksTemporary_$($UserName).csv"
+            $AttachmentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TasksTemporary_$($Id).csv"
         } Else {
             $AttachmentFile = "TasksTemporary_$($Id).csv"
         }
         $UserTasks | Export-Csv -Path $AttachmentFile -NoTypeInformation -Encoding Utf8
     }
 
+    # prepare the attachment for sending in the email
     $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
     $MsgAttachments = @(
     @{
@@ -221,12 +223,16 @@ ForEach ($Id in $UniqueUsers) {
         ContentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     }
     )
+
+    # Generate the HTML body for the email
     $HtmlHeading = "<h2>Outstanding Planner Tasks for $UserName</h2>"
     $HtmlContent = "<p>Dear $UserName,</p><p>Here is a list of your <b>$($UserTasks.count)</b> outstanding Planner tasks as of $(Get-Date -Format 'dd-MMM-yyyy').</p>"
     $HtmlContent += "<p>Keep up the good work and try to get these tasks completed as soon as possible!</p>"
     $HtmlTable = $UserTasks | Select-Object Group, Plan, Task, Bucket, 'Assigned Date', 'Start Date', 'Due Date' | `
         Sort-Object {'Assigned Date' -as [datetime]} | ConvertTo-Html -Fragment
     $HtmlMessage = $HtmlHeading + $HtmlContent + $HtmlTable
+
+    # Add message details
     $ToRecipient = @{}
     $ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
     [array]$MsgTo = $ToRecipient
