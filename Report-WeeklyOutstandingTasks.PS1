@@ -8,7 +8,7 @@
 # - User.Read.All (to read user details)
 # - Group.Read.All (to read group details and membership)
 # - GroupMember.Read.All (to read group membership)
-# - Tasks.Read.All (to read the tasks assigned to users)
+# - Tasks.Read.All (to read the tasks assigned to users by an app). If running interactively, Tasks.Read is sufficient.
 
 # The script is intended to run as a scheduled Azure Automation runbook. Make sure that the Azure automation account has the
 # necessary permissions to run the script and access the Microsoft Graph API.
@@ -21,7 +21,7 @@
 # - Microsoft.Graph.Users.Actions (to send the email with the report)
 # - ImportExcel (optional, to generate Excel worksheets for the report attachments)
 
-[array]$RequiredScopes = "Group.Read.All, GroupMember.Read.All, Tasks.Read.All, Mail.Send, User.Read.All"
+[array]$RequiredScopes = "Group.Read.All", "GroupMember.Read.All", "Tasks.Read", "Mail.Send", "User.Read.All"
 $Interactive = $false
 
 # Determine if we're interactive or not
@@ -29,7 +29,7 @@ If ([Environment]::UserInteractive) {
     # We're running interactively...
     Clear-Host
     Write-Host "Script running interactively... connecting to the Graph" -ForegroundColor Yellow
-    Connect-MgGraph -NoWelcome -Scopes $RequiredScopes
+    Connect-MgGraph -NoWelcome
     $Interactive = $true
     # Email address to use when sending email from interactive session
     $MsgFrom = (Get-MgContext).Account    
@@ -50,14 +50,13 @@ If ($Interactive) {
     $CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
     If ($CheckScopes.Count -ne $RequiredScopesCount ) { 
         Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f $RequiredScopes) -ForegroundColor Red
-        Disconnect-Graph
         Break
     }
 }
 
-# Find the set of users to process - we use a group to define the target set
+# Find the set of users to process - we use a group to define the target set. Update this in your tenant to point to a group to use.
 Try {
-    $Group = Get-MgGroup -Filter "displayName eq 'Ultimate Guide to Office 365'" -ErrorAction Stop
+    $Group = Get-MgGroup -Filter "displayName eq 'Weekly Task Updates'" -ErrorAction Stop
 } Catch {
     Write-Error "Failed to retrieve the group: $_"
     break
@@ -161,9 +160,9 @@ ForEach ($Member in $Members) {
                                 Plan                = $Plan.Title
                                 Task                = $Task.Title
                                 Bucket              = $BucketsHash[$Task.BucketId]
-                                AssignedDateTime    = Get-Date $AssignedDateTime -format 'dd-MMM-yyyy HH:mm'
-                                StartDate           = If ($Task.StartDateTime) { Get-Date $Task.StartDateTime -format 'dd-MMM-yyyy' } Else { $null }
-                                DueDate             = If ($Task.DueDateTime) { Get-Date $Task.DueDateTime -format 'dd-MMM-yyyy' } Else { $null }
+                                'Assigned Date'     = Get-Date $AssignedDateTime -format 'dd-MMM-yyyy HH:mm'
+                                'Start Date'        = If ($Task.StartDateTime) { Get-Date $Task.StartDateTime -format 'dd-MMM-yyyy' } Else { $null }
+                                'Due Date'          = If ($Task.DueDateTime) { Get-Date $Task.DueDateTime -format 'dd-MMM-yyyy' } Else { $null }
                                 Id                  = $Assignee
                             }
                             $Report.Add($ReportLine)
@@ -177,11 +176,11 @@ ForEach ($Member in $Members) {
     }   
 }
 
-$Report = $Report | Where-Object { $_.UserEmail -ne $null } | Sort-Object User, Group, Plan, AssignedDateTime
+$Report = $Report | Where-Object { $_.UserEmail -ne $null } | Sort-Object User, Group, Plan, 'Assigned Date'
 # Get the unique set of users in the report so we can send them an email with their outstanding tasks
 [array]$UniqueUsers = $Report | Select-Object -Property Id -Unique
 # Reduce the set to the folks we are interested in (i.e. those in our target group)
-$UniqueUsers = $UniqueUsers | Where-Object { $Members -contains $_.Id }
+$UniqueUsers = $UniqueUsers | Where-Object { $Members -contains $_.Id } | Select-Object -ExpandProperty Id
 
 # Set up to use the ImportExcel module to generate Excel worksheets if it is available. If not, the report will be generated in CSV format instead.
 If (Get-Module ImportExcel -ListAvailable) {
@@ -201,14 +200,14 @@ ForEach ($Id in $UniqueUsers) {
         If ($Interactive) {
             $AttachmentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TasksTemporary_$($UserName).xlsx"
         } Else {
-            $AttachmentFile = "TasksTemporary_$($UserName).xlsx"
+            $AttachmentFile = "TasksTemporary_$($Id).xlsx"
         }
             $UserTasks | Export-Excel -Path $AttachmentFile -WorksheetName "OutstandingTasks" -Title ("Outstanding Tasks {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Tasks" 
     } Else {
         If ($Interactive) {
             $AttachmentFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TasksTemporary_$($UserName).csv"
         } Else {
-            $AttachmentFile = "TasksTemporary_$($UserName).csv"
+            $AttachmentFile = "TasksTemporary_$($Id).csv"
         }
         $UserTasks | Export-Csv -Path $AttachmentFile -NoTypeInformation -Encoding Utf8
     }
@@ -225,8 +224,8 @@ ForEach ($Id in $UniqueUsers) {
     $HtmlHeading = "<h2>Outstanding Planner Tasks for $UserName</h2>"
     $HtmlContent = "<p>Dear $UserName,</p><p>Here is a list of your <b>$($UserTasks.count)</b> outstanding Planner tasks as of $(Get-Date -Format 'dd-MMM-yyyy').</p>"
     $HtmlContent += "<p>Keep up the good work and try to get these tasks completed as soon as possible!</p>"
-    $HtmlTable = $UserTasks | Select-Object Group, Plan, Task, Bucket, AssignedDateTime, StartDate, DueDate | `
-        Sort-Object {$_.AssignedDateTime -as [datetime]} | ConvertTo-Html -Fragment
+    $HtmlTable = $UserTasks | Select-Object Group, Plan, Task, Bucket, 'Assigned Date', 'Start Date', 'Due Date' | `
+        Sort-Object {'Assigned Date' -as [datetime]} | ConvertTo-Html -Fragment
     $HtmlMessage = $HtmlHeading + $HtmlContent + $HtmlTable
     $ToRecipient = @{}
     $ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
