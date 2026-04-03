@@ -161,6 +161,7 @@ ForEach ($Member in $Members) {
                                 Task                = $Task.Title
                                 Bucket              = $BucketsHash[$Task.BucketId]
                                 'Assigned Date'     = Get-Date $AssignedDateTime -format 'dd-MMM-yyyy HH:mm'
+                                'Days Outstanding'  = (New-TimeSpan -Start $AssignedDateTime -End (Get-Date)).Days
                                 'Start Date'        = If ($Task.StartDateTime) { Get-Date $Task.StartDateTime -format 'dd-MMM-yyyy' } Else { $null }
                                 'Due Date'          = If ($Task.DueDateTime) { Get-Date $Task.DueDateTime -format 'dd-MMM-yyyy' } Else { $null }
                                 Id                  = $Assignee
@@ -188,6 +189,7 @@ If (Get-Module ImportExcel -ListAvailable) {
     Import-Module ImportExcel -ErrorAction SilentlyContinue
 }
 
+[int]$UpdatesSent = 0
 # Send mail to $usersHash[$member].mail
 ForEach ($Id in $UniqueUsers) {
     $DestinationEmailAddress = $UsersHash[$Id].Mail
@@ -223,11 +225,16 @@ ForEach ($Id in $UniqueUsers) {
         ContentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     }
     )
-
+    $AverageDaysOutstanding = [math]::Round(($UserTasks | Measure-Object -Property 'Days Outstanding' -Average).Average, 2)
+    $LongestOutstandingTask = $UserTasks | Sort-Object -Property 'Days Outstanding' -Descending | Select-Object -First 1
+    $MostTasksinBucket = $UserTasks | Group-Object -Property Bucket | Sort-Object -Property Count -Descending | Select-Object -First 1
     # Generate the HTML body for the email
-    $HtmlHeading = "<h2>Outstanding Planner Tasks for $UserName</h2>"
+    $HtmlHeading = "<h2 style='background-color:#CC0000;color:white;padding:10px;'>Outstanding Planner Tasks for $UserName</h2>"
     $HtmlContent = "<p>Dear $UserName,</p><p>Here is a list of your <b>$($UserTasks.count)</b> outstanding Planner tasks as of $(Get-Date -Format 'dd-MMM-yyyy').</p>"
-    $HtmlContent += "<p>Keep up the good work and try to get these tasks completed as soon as possible!</p>"
+    $HtmlContent += "<p>On average, these tasks have been outstanding for <b>$AverageDaysOutstanding</b> days, with the longest outstanding task being <b>$($LongestOutstandingTask.Task)</b> from the plan <b>$($LongestOutstandingTask.Plan)</b>, which has been outstanding for <b>$($LongestOutstandingTask.'Days Outstanding')</b> days.</p>"
+    $HtmlContent += "<p>The bucket with the most tasks is <b>$($MostTasksinBucket.Name)</b> in the <b>$($MostTasksinBucket.Group.Plan[0])</b> plan with <b>$($MostTasksinBucket.Count)</b> tasks.</p>"
+    $HtmlContent += "<p>Please try to get these tasks completed as soon as possible!</p>"
+
     $HtmlTable = $UserTasks | Select-Object Group, Plan, Task, Bucket, 'Assigned Date', 'Start Date', 'Due Date' | `
         Sort-Object {'Assigned Date' -as [datetime]} | ConvertTo-Html -Fragment
     $HtmlMessage = $HtmlHeading + $HtmlContent + $HtmlTable
@@ -256,7 +263,7 @@ ForEach ($Id in $UniqueUsers) {
     Try {
         Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
         Write-Output ("Outstanding Planner Tasks reminder emailed to {0}" -f $DestinationEmailAddress)
-        Write-Output "All done!"
+        $UpdatesSent++
     } Catch {
         Write-Output "Unable to send email"
         Write-Output $_.Exception.Message
@@ -264,6 +271,8 @@ ForEach ($Id in $UniqueUsers) {
     # Clean up temporary CSV file
     Remove-Item -Path $AttachmentFile -ErrorAction SilentlyContinue
 }
+
+Write-Output ("All done! {0} email(s) sent with outstanding tasks information." -f $UpdatesSent)    
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
