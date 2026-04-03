@@ -1,5 +1,5 @@
 # Report-WeeklyOutstandingTasks.PS1
-# This script generates a weekly report of outstanding tasks for a user and sends the list to them via email
+# This script generates a weekly report of incomplete tasks for a user and sends the list to them via email
 
 # V1.0 1-Apr-2026
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-WeeklyOutstandingTasks.PS1
@@ -35,7 +35,7 @@ If ([Environment]::UserInteractive) {
     $MsgFrom = (Get-MgContext).Account    
 } Else { 
     # We're not, so likely in Azure Automation
-    Write-Output "Executing the runbook to send email about outstanding tasks..." 
+    Write-Output "Executing the runbook to send email about incomplete tasks..." 
     Connect-MgGraph -Identity -NoWelcome
     # Email address to use when sending email from Azure Automation - update for your tenant
     $MsgFrom = "no-reply@office365itpros.com"
@@ -54,6 +54,7 @@ If ($Interactive) {
     }
 }
 
+Write-Output "Outstanding Tasks Check starting up..."
 # Find the set of users to process - we use a group to define the target set. Update this in your tenant to point to a group to use.
 Try {
     $Group = Get-MgGroup -Filter "displayName eq 'Weekly Task Updates'" -ErrorAction Stop
@@ -83,11 +84,12 @@ $GroupsHash = @{}
 ForEach ($Member in $Members) {
 
     # Get the groups the user is a member of - we need this to determine which tasks to report on. Reduce the fetched set
-    # to find just the Mkicrosoft 365 groups, which is where plans are located
+    # to find just the Microsoft 365 groups, which is where plans are located
     [array]$Groups = Get-MgUserMemberOfAsGroup -UserId $Member -All -PageSize 500 -Property Id, DisplayName, GroupTypes `
         | Where-Object {$_.groupTypes -contains "unified"}
     
     Write-Output "Processing plans for user: $($UsersHash[$Member].DisplayName) ($($UsersHash[$Member].Mail)) - Groups: $($Groups.Count)"
+    Write-Output "----------------------------------------------------------------------------------------------------------------------"
 
     ForEach ($Group in $Groups) {
 
@@ -110,7 +112,8 @@ ForEach ($Member in $Members) {
         ForEach ($Plan in $Plans) {
             Write-Output "    Processing plan: $($Plan.Title)"
             Try {
-                [array]$Tasks = Get-MgPlannerPlanTask -PlannerPlanId $Plan.Id -All -PageSize 500 -ErrorAction Stop
+                [array]$Tasks = Get-MgPlannerPlanTask -PlannerPlanId $Plan.Id -All -PageSize 500 `
+                    -Property Id, Title, CompletedDateTime, StartDateTime, DueDateTime, BucketId, Assignments -ErrorAction Stop
                 [array]$Buckets = Get-MgPlannerPlanBucket -PlannerPlanId $Plan.Id -All -PageSize 500 -ErrorAction Stop
             } Catch {
                 Write-Error "Failed to retrieve tasks for plan $($Plan.Title)"
@@ -123,13 +126,13 @@ ForEach ($Member in $Members) {
                 $BucketsHash.Add($Bucket.Id, $Bucket.Name)
             }
             # Filter the tasks to find those that are assigned to the user and are not completed
-            $OutstandingTasks = $Tasks | Where-Object { $_.PercentComplete -lt 100 }
+            $IncompleteTasks = $Tasks | Where-Object { $null -eq $_.CompletedDateTime }
             
-            If ($OutstandingTasks.Count -gt 0) {
-                Write-Output "      Found $($OutstandingTasks.Count) outstanding tasks in plan $($Plan.Title)"
-                # Here you would add code to format the list of outstanding tasks and send it via email to the user
+            If ($IncompleteTasks.Count -gt 0) {
+                Write-Output "      Found $($IncompleteTasks.Count) incomplete tasks in plan $($Plan.Title)"
+                # Here you would add code to format the list of incomplete tasks and send it via email to the user
                 # For example, you could create an HTML table of the tasks and use Send-MailMessage to send it
-                ForEach ($Task in $OutstandingTasks) {
+                ForEach ($Task in $IncompleteTasks) {
                     # Get the assignees
                     [array]$Assignees = @($Task.Assignments.AdditionalProperties.Keys)
                     If ($Assignees) {
@@ -171,14 +174,14 @@ ForEach ($Member in $Members) {
                     }   
                 }
             } Else {
-                Write-Output "      No outstanding tasks found in plan $($Plan.Title)"
+                Write-Output "      No incomplete tasks found in plan $($Plan.Title)"
             }
         }
     }   
 }
 
 $Report = $Report | Where-Object { $_.UserEmail -ne $null } | Sort-Object User, Group, Plan, 'Assigned Date'
-# Get the unique set of users in the report so we can send them an email with their outstanding tasks
+# Get the unique set of users in the report so we can send them an email with their incomplete tasks
 [array]$UniqueUsers = $Report | Select-Object -Property Id -Unique
 # Reduce the set to the folks we are interested in (i.e. those in our target group)
 $UniqueUsers = $UniqueUsers | Where-Object { $Members -contains $_.Id } | Select-Object -ExpandProperty Id
@@ -194,8 +197,8 @@ If (Get-Module ImportExcel -ListAvailable) {
 ForEach ($Id in $UniqueUsers) {
     $DestinationEmailAddress = $UsersHash[$Id].Mail
     $UserName = $UsersHash[$Id].DisplayName
-    Write-Output "Sending email to $UserName ($DestinationEmailAddress) with their outstanding tasks"
-    # Get list of outstanding tasks for the user
+    Write-Output "Sending email to $UserName ($DestinationEmailAddress) with their incomplete tasks"
+    # Get list of incomplete tasks for the user
     [array]$UserTasks = $Report | Where-Object { $_.Id -eq $Id }
 
     # Generate the attachment in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
@@ -229,9 +232,10 @@ ForEach ($Id in $UniqueUsers) {
     $LongestOutstandingTask = $UserTasks | Sort-Object -Property 'Days Outstanding' -Descending | Select-Object -First 1
     $MostTasksinBucket = $UserTasks | Group-Object -Property Bucket | Sort-Object -Property Count -Descending | Select-Object -First 1
     # Generate the HTML body for the email
-    $HtmlHeading = "<h2 style='background-color:#CC0000;color:white;padding:10px;'>Outstanding Planner Tasks for $UserName</h2>"
-    $HtmlContent = "<p>Dear $UserName,</p><p>Here is a list of your <b>$($UserTasks.count)</b> outstanding Planner tasks as of $(Get-Date -Format 'dd-MMM-yyyy').</p>"
-    $HtmlContent += "<p>On average, these tasks have been outstanding for <b>$AverageDaysOutstanding</b> days, with the longest outstanding task being <b>$($LongestOutstandingTask.Task)</b> from the plan <b>$($LongestOutstandingTask.Plan)</b>, which has been outstanding for <b>$($LongestOutstandingTask.'Days Outstanding')</b> days.</p>"
+    $HtmlHeading = "<h2 style='background-color:#CC0000;color:white;padding:10px;'>Incomplete Planner Tasks for $UserName</h2>"
+    $HtmlContent = "<p>Dear $UserName</p>"
+    $HtmlContent += "<p>Here is a list of your <b>$($UserTasks.count)</b> incomplete Planner tasks as of $(Get-Date -Format 'dd-MMM-yyyy').</p>"
+    $HtmlContent += "<p>On average, these tasks have been incomplete for <b>$AverageDaysOutstanding</b> days, with the longest incomplete task being <b>$($LongestOutstandingTask.Task)</b> from the plan <b>$($LongestOutstandingTask.Plan)</b>, which has been incomplete for <b>$($LongestOutstandingTask.'Days Outstanding')</b> days.</p>"
     $HtmlContent += "<p>The bucket with the most tasks is <b>$($MostTasksinBucket.Name)</b> in the <b>$($MostTasksinBucket.Group.Plan[0])</b> plan with <b>$($MostTasksinBucket.Count)</b> tasks.</p>"
     $HtmlContent += "<p>Please try to get these tasks completed as soon as possible!</p>"
 
@@ -243,7 +247,7 @@ ForEach ($Id in $UniqueUsers) {
     $ToRecipient = @{}
     $ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
     [array]$MsgTo = $ToRecipient
-    $MsgSubject = "Your outstanding Planner Tasks - $(Get-Date -Format 'dd-MMM-yyyy')"
+    $MsgSubject = "Your incomplete Planner Tasks - $(Get-Date -Format 'dd-MMM-yyyy')"
     # Construct the message body 	
     $MsgBody = @{}
     $MsgBody.Add('Content', "$($HtmlMessage)")
@@ -262,7 +266,7 @@ ForEach ($Id in $UniqueUsers) {
     # Send the message
     Try {
         Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
-        Write-Output ("Outstanding Planner Tasks reminder emailed to {0}" -f $DestinationEmailAddress)
+        Write-Output ("Incomplete Planner Tasks reminder emailed to {0}" -f $DestinationEmailAddress)
         $UpdatesSent++
     } Catch {
         Write-Output "Unable to send email"
@@ -272,7 +276,7 @@ ForEach ($Id in $UniqueUsers) {
     Remove-Item -Path $AttachmentFile -ErrorAction SilentlyContinue
 }
 
-Write-Output ("All done! {0} email(s) sent with outstanding tasks information." -f $UpdatesSent)    
+Write-Output ("All done! {0} email(s) sent to users with information about their incomplete tasks." -f $UpdatesSent)    
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
