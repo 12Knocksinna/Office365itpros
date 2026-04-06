@@ -15,10 +15,6 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
 # Connect to the Microsoft Graph with the necessary permissions to read group information. The script will prompt for consent to the required permissions if not already granted.
 Connect-MgGraph -Scopes "GroupMember.Read.All", "Group.Read.All", "Organization.Read.All" -NoWelcome
 
-# Search the audit log for group operations in the last 30 days
-$StartDate = (Get-Date).AddDays(-30)
-$EndDate = Get-Date
-
 Write-Host "Finding Microsoft 365 groups in the tenant..." -ForegroundColor Green
 # Find all Microsoft 365 groups in the tenant
 [array]$Groups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'unified')" -All -PageSize 500 `
@@ -36,10 +32,15 @@ If ($Groups) {
     Break
 }
 
+# Search the audit log for group operations in the last 30 days
+$StartDate = (Get-Date).AddDays(-30)
+$EndDate = Get-Date
+
 # Group administration operations include adding, updating, and deleting groups - https://learn.microsoft.com/purview/audit-log-activities?WT.mc_id=M365-MVP-9501#microsoft-entra-group-administration-activities
 $Operations = "Add group.", "Update group.", "Delete group."
 Write-Host "Searching the audit log for group operations from $($StartDate.ToShortDateString()) to $($EndDate.ToShortDateString())..." -ForegroundColor Green   
-[array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations $Operations -Formatted -ResultSize 5000 -SessionCommand ReturnLargeSet
+[array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations $Operations -Formatted -ResultSize 5000 `
+    -SessionCommand ReturnLargeSet -RecordType AzureActiveDirectory
 
 If ($Records) {
     # Remove duplicate records based on the identity field
@@ -54,7 +55,7 @@ $AuditReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Rec in $Records) {
     $AuditData = ConvertFrom-Json -InputObject $Rec.AuditData 
     $GroupId = $AuditData.Target.Id[1]
-    # Only report if the group is a Microsoft 365 group - the audit log may include other group types such as security groups or distribution groups, but we are only interested in Microsoft 365 groups for this report
+    # Only report if the group is a Microsoft 365 group - the audit log may include other group types such as security groups or distribution lists, but we are only interested in Microsoft 365 groups for this report
     If ($GroupHash.ContainsKey($GroupId)) {
         $ReportItem = [PSCustomObject]@{
             GroupName = $AuditData.Target.Id[3]
