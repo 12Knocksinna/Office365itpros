@@ -1,9 +1,9 @@
-# Report-RecentGroupOperations.PS1
-# A script to report recent additions, changes, and deletions of Microsoft 365 groups over the last 30 days. The script also generates
-# a list of all the Microsoft 365 groups in the tenant, along with details of their membership and ownership. The report is generated in HTML format, and also in either Excel or CSV format depending on the availability of the ImportExcel module.
+# Report-RecentDLChanges.PS1
+# A script to report recent additions, changes, and deletions of Exchange Online distribution lists over the last 30 days. The script also generates
+# a list of all the Exchange Online distribution lists in the tenant, along with details of their membership and ownership. The report is generated in HTML format, and also in either Excel or CSV format depending on the availability of the ImportExcel module.
 
-# V1.0 11-Mar-2025
-# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RecentGroupOperations.PS1
+# V1.0 6-Apr-2025
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RecentDLChanges.PS1
 
 # Connect to Exchange Online PowerShell
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
@@ -12,41 +12,37 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
     Connect-ExchangeOnline -ShowBanner:$false
 }   
 
-# Connect to the Microsoft Graph with the necessary permissions to read group information. The script will prompt for consent to the required permissions if not already granted.
-Connect-MgGraph -Scopes "GroupMember.Read.All", "Group.Read.All", "Organization.Read.All" -NoWelcome
+Write-Host "Finding Exchange Online distribution lists in the tenant..." -ForegroundColor Green
+# Find all Exchange Online distribution lists in the tenant
+[array]DLs = Get-DistributionGroup -ResultSize Unlimited    
 
-Write-Host "Finding Microsoft 365 groups in the tenant..." -ForegroundColor Green
-# Find all Microsoft 365 groups in the tenant
-[array]$Groups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'unified')" -All -PageSize 500 `
-     -ExpandProperty "Members(`$Select=displayName)" -Property Id, Members, displayName, Visibility, CreatedDateTime, ExpirationDateTime 
-
-If ($Groups) {
-    Write-Host ("Found {0} Microsoft 365 groups in the tenant." -f $Groups.Count) -ForegroundColor Green
-    # Create a hash table of groups for quick lookup when processing the audit log records
-    $GroupHash = @{}
-    ForEach ($Group in $Groups) {
-        $GroupHash.Add($Group.Id, $Group.displayName)
+If ($DLs) {
+    Write-Host ("Found {0} Exchange Online distribution lists in the tenant." -f $Groups.Count) -ForegroundColor Green
+    # Create a hash table of distribution lists for quick lookup when processing the audit log records
+    $DLHash = @{}
+    ForEach ($DL in $DLs) {
+        $DLHash.Add($DL.Identity, $DL.DisplayName)
     }
 } Else {
-    Write-Host "No Microsoft 365 groups found in the tenant." -ForegroundColor Yellow
+    Write-Host "No Exchange Online distribution lists found in the tenant." -ForegroundColor Yellow
     Break
 }
 
-# Search the audit log for group operations in the last 30 days
+# Search the audit log for distribution list operations in the last 30 days
 $StartDate = (Get-Date).AddDays(-30)
 $EndDate = Get-Date
 
-# Group administration operations include adding, updating, and deleting groups - https://learn.microsoft.com/purview/audit-log-activities?WT.mc_id=M365-MVP-9501#microsoft-entra-group-administration-activities
-$Operations = "Add group.", "Update group.", "Delete group."
-Write-Host "Searching the audit log for group operations from $($StartDate.ToShortDateString()) to $($EndDate.ToShortDateString())..." -ForegroundColor Green   
+# Distribution list administration operations include adding, updating, and deleting distribution lists - https://learn.microsoft.com/purview/audit-log-activities?WT.mc_id=M365-MVP-9501#microsoft-entra-group-administration-activities
+$Operations = "Add-DistributionGroup", "Update-DistributionGroup", "Remove-DistributionGroup", "Add-DistributionGroupMember", "Remove-DistributionGroupMember"
+Write-Host "Searching the audit log for distribution list operations from $($StartDate.ToShortDateString()) to $($EndDate.ToShortDateString())..." -ForegroundColor Green   
 [array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations $Operations -Formatted -ResultSize 5000 `
-    -SessionCommand ReturnLargeSet -RecordType AzureActiveDirectory
+    -SessionCommand ReturnLargeSet -RecordType ExchangeAdmin
 
 If ($Records) {
     # Remove duplicate records based on the identity field
     $Records = $Records | Sort-Object Identity -Unique
 } Else {
-    Write-Host "No group operations found in the audit log for the specified date range." -ForegroundColor Yellow
+    Write-Host "No distribution list operations found in the audit log for the specified date range." -ForegroundColor Yellow
     Break
 }
 
@@ -54,12 +50,12 @@ Write-Host "Analyzing audit log records..." -ForegroundColor Green
 $AuditReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Rec in $Records) {
     $AuditData = ConvertFrom-Json -InputObject $Rec.AuditData 
-    $GroupId = $AuditData.Target.Id[1]
-    # Only report if the group is a Microsoft 365 group - the audit log may include other group types such as security groups or distribution lists, but we are only interested in Microsoft 365 groups for this report
-    If ($GroupHash.ContainsKey($GroupId)) {
+    $DLId = $AuditData.Target.Id[1]
+    # Only report if the distribution list is in the hash table
+    If ($DLHash.ContainsKey($DLId)) {
         $ReportItem = [PSCustomObject]@{
-            GroupName = $AuditData.Target.Id[3]
-            GroupId = $GroupId
+            DLName = $AuditData.Target.Id[3]
+            DLId = $DLId
             Operation = $Rec.Operations
             User =  $Auditdata.Actor.id[0]
             Date = Get-Date $Rec.CreationDate -format 'dd/MM/yyyy HH:mm:ss'
