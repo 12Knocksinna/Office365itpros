@@ -1,6 +1,8 @@
 # Analyze-MailtrafficUsers.PS1
-# An example of using the Exchange Online message trace log to analyze inbound and outbound traffic
-# for a Microsoft 365 tenant
+# An example of using the Exchange Online message trace log to analyze messages sent to external and internal domains by mailboxes
+# in a Microsoft 365 tenant. See https://office365itpros.com/2023/09/26/message-trace-user-analysis/ for more information.
+
+# V2.0 8-Apr-2026 - Updated to use Get-MessageTraceV2, which is the cmdlet that will be used in the future.
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Analyze-MailTrafficUsers.PS1
 
 # Check if we can run an Exchange Online cmdlet. If we can, go on, else connect to Exchange Online
@@ -8,23 +10,37 @@ If ($Null -eq (Get-ConnectionInformation)) {
     Connect-ExchangeOnline
 }
 
-[int]$i = 1
-$MoreMessages = $True
 [array]$Messages = $Null
 # Message trace date is kept for a maximum of 10 days
 $StartDate = (Get-Date).AddDays(-10)
-$EndDate = (Get-Date).AddDays(1)
+$EndDate = (Get-Date)
 
 Write-Host ("Message trace data will be analyzed between {0} and {1}" -f $StartDate, $EndDate)
-While ($MoreMessages -eq $True) {
-    Write-Host ("Fetching message trace data to analyze - Page {0}" -f $i)
-    [array]$MessagePage = Get-MessageTrace -StartDate $StartDate -EndDate $EndDate -PageSize 1000 -Page $i -Status "Delivered"
-    If ($MessagePage)  {
-        $i++
-        $Messages += $MessagePage
-    } Else {
-        $MoreMessages = $False
-    }
+[array]$Messages = $Null
+[int]$BatchSizeForMessages = 2000
+    # original code [array]$MessagePage = Get-MessageTrace -StartDate $StartDate -EndDate $EndDate -PageSize 1000 -Page $i -Status "Delivered"
+Try {
+    # The warning action is suppressed here because we don't want to see warnings when more data is available
+    [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate `
+        	-ResultSize $BatchSizeForMessages -Status "Delivered" -ErrorAction Stop -WarningAction SilentlyContinue
+    $Messages += $MessagePage
+} Catch {
+    Write-Host ("Error fetching message trace data: {0}" -f $_.Exception.Message)
+    Break
+}
+If ($MessagePage.count -eq $BatchSizeForMessages) {
+    Do {
+        Write-Host ("Fetched {0} messages so far" -f $Messages.count)
+        $LastMessageFetched = $MessagePage[-1]
+        $LastMessageFetchedDate = $LastMessageFetched.Received.ToString("O")
+        $LastMessageFetchedRecipient = $LastMessageFetched.RecipientAddress
+        # Fetch the next page of messages
+        [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $LastMessageFetchedDate `
+            -StartingRecipientAddress $LastMessageFetchedRecipient -ResultSize $BatchSizeForMessages -Status "Delivered" -ErrorAction Stop -WarningAction SilentlyContinue
+        If ($MessagePage) {
+            $Messages += $MessagePage
+        }
+    } While ($MessagePage.count -eq $BatchSizeForMessages)
 }
 
 # Remove Exchange Online public folder hierarchy synchronization messages
