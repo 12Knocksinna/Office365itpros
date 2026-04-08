@@ -209,7 +209,7 @@ $htmlhead="<html>
            <div align=center>
            <p><h1>Distribution List Operations Report</h1></p>
            <p><h2><b>For the " + $Organization + " organization</b></h2></p>
-           <p><h3>Generated: " + (Get-Date -format g) + "</h3></p></div>"
+           <p><h3>Generated: " + (Get-Date -format 'dd-MMM-yyyy HH:mm') + "</h3></p></div>"
 
 $HTMLAnalysisSectionHead = "<p><h2><u>Analysid of Distribution List Activity</u></h2></p>" +
                    "<p>The report shows all distribution lists in the tenant, along with details of their membership and ownership. The report also includes a list of recent distribution list operations in the tenant, including additions, updates, and removals.</p>" +
@@ -270,9 +270,9 @@ $HTMLTail = "<p><h3>Report created for: " + $Organization + "</h3></p>" +
              "<p>Number of distribution lists without a manager:         " + ($DLReport | Where-Object { $_."Owner Count" -eq 0 }).Count + "</p>" +
              "<p>Number of distribution lists with no members:           " + ($DLReport | Where-Object { $_."Member Count" -eq 0 }).Count + "</p>" +
              "<p>Number of recent distribution list audit events found:  " + $AuditReport.Count + "</p>" +
-             "<p>Number of recent distribution list additions:           " + $GroupAdditions.Count + "</p>" +
-             "<p>Number of recent distribution list updates:             " + $GroupUpdates.Count + "</p>" +
-             "<p>Number of recent distribution list removals:            " + $GroupRemovals.Count + "</p>" +
+             "<p>Number of recent distribution list additions:           " + $DLAdditions.Count + "</p>" +
+             "<p>Number of recent distribution list updates:             " + $DLUpdates.Count + "</p>" +
+             "<p>Number of recent distribution list removals:            " + $DLRemovals.Count + "</p>" +
              "<p>Number of recent distribution list member additions:    " + $DLMemberAdditions.Count + "</p>" +
              "<p>Number of recent distribution list member removals:     " + $DLMemberRemovals.Count + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
@@ -314,6 +314,8 @@ $MsgAttachments = @(
     }
 )
 
+# Connect to the Graph SDK to send the email
+Connect-MgGraph -Scopes "Mail.Send" -NoWelcome
 # The message is sent from the signed in user.
 $MsgFrom = (Get-MgContext).Account
 # The message is sent to the specified recipient - change the sender and recipient to the appropriate recipient for your tenant
