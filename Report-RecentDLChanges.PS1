@@ -14,15 +14,10 @@ If ("ExchangeOnlineManagement" -notin $Modules) {
 
 Write-Host "Finding Exchange Online distribution lists in the tenant..." -ForegroundColor Green
 # Find all Exchange Online distribution lists in the tenant
-[array]DLs = Get-DistributionGroup -ResultSize Unlimited    
+[array]$DLs = Get-DistributionGroup -ResultSize Unlimited | Where-Object { $_.RecipientTypeDetails -eq "MailUniversalDistributionGroup" }
 
 If ($DLs) {
-    Write-Host ("Found {0} Exchange Online distribution lists in the tenant." -f $Groups.Count) -ForegroundColor Green
-    # Create a hash table of distribution lists for quick lookup when processing the audit log records
-    $DLHash = @{}
-    ForEach ($DL in $DLs) {
-        $DLHash.Add($DL.Identity, $DL.DisplayName)
-    }
+    Write-Host ("Found {0} Exchange Online distribution lists in the tenant." -f $DLs.Count) -ForegroundColor Green
 } Else {
     Write-Host "No Exchange Online distribution lists found in the tenant." -ForegroundColor Yellow
     Break
@@ -33,7 +28,7 @@ $StartDate = (Get-Date).AddDays(-30)
 $EndDate = Get-Date
 
 # Distribution list administration operations include adding, updating, and deleting distribution lists - https://learn.microsoft.com/purview/audit-log-activities?WT.mc_id=M365-MVP-9501#microsoft-entra-group-administration-activities
-$Operations = "Add-DistributionGroup", "Update-DistributionGroup", "Remove-DistributionGroup", "Add-DistributionGroupMember", "Remove-DistributionGroupMember"
+$Operations = "New-DistributionGroup", "Update-DistributionGroup", "Remove-DistributionGroup", "Add-DistributionGroupMember", "Remove-DistributionGroupMember"
 Write-Host "Searching the audit log for distribution list operations from $($StartDate.ToShortDateString()) to $($EndDate.ToShortDateString())..." -ForegroundColor Green   
 [array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations $Operations -Formatted -ResultSize 5000 `
     -SessionCommand ReturnLargeSet -RecordType ExchangeAdmin
@@ -41,81 +36,170 @@ Write-Host "Searching the audit log for distribution list operations from $($Sta
 If ($Records) {
     # Remove duplicate records based on the identity field
     $Records = $Records | Sort-Object Identity -Unique
+    Write-Host ("Found {0} distribution list operations in the audit log for the specified date range." -f $Records.Count) -ForegroundColor Green
 } Else {
     Write-Host "No distribution list operations found in the audit log for the specified date range." -ForegroundColor Yellow
     Break
 }
 
+$DLHash = @{}
+$DLMemberHash = @{}
 Write-Host "Analyzing audit log records..." -ForegroundColor Green
 $AuditReport = [System.Collections.Generic.List[Object]]::new()
+
+$Records = $Records | Sort-Object {$_.CreationDate -as [datetime]}
 ForEach ($Rec in $Records) {
+    $DLMemberDisplayName = $null
     $AuditData = ConvertFrom-Json -InputObject $Rec.AuditData 
-    $DLId = $AuditData.Target.Id[1]
-    # Only report if the distribution list is in the hash table
-    If ($DLHash.ContainsKey($DLId)) {
-        $ReportItem = [PSCustomObject]@{
-            DLName = $AuditData.Target.Id[3]
-            DLId = $DLId
-            Operation = $Rec.Operations
-            User =  $Auditdata.Actor.id[0]
-            Date = Get-Date $Rec.CreationDate -format 'dd/MM/yyyy HH:mm:ss'
+    $DLIdentity = $Auditdata.parameters | Where-Object {$_.Name -eq 'Identity'} | Select-Object -ExpandProperty Value
+    $DLMemberId = $Auditdata.parameters | Where-Object {$_.Name -eq 'Member'} | Select-Object -ExpandProperty Value
+
+    # If the action removes a distribution group, we won't be able to retrieve details of the group or its members, so we'll just use the identity and display name
+    $DLMemberId = $null
+    Switch ($Rec.Operations) {
+        "Remove-DistributionGroup" {
+            $DLIdentity = $Auditdata.parameters | Where-Object {$_.Name -eq 'Identity'} | Select-Object -ExpandProperty Value
+            $DLDisplayName = $DLIdentity.Split("onmicrosoft.com/")[1] + " (Deleted)"
         }
-        $AuditReport.Add($ReportItem)
-    } Else {
-        Continue
+        "New-DistributionGroup" {
+            # For new distribution groups, get the display name and identity and store the data in the hash table
+            $DLIdentity = $AuditData.ObjectId
+            $DLDisplayName = $DLIdentity.Split("onmicrosoft.com/")[1]
+            # Possibility exists that we process an audit record for the update of a new distribution group before we process the audit record for the creation of the distribution group, so we should only add the new distribution group to the hash table if it doesn't already exist
+            If ($DLHash.Keys -NotContains $DLIdentity) {
+                $DLHash.Add($DLIdentity, $DLDisplayName)
+            }
+        }
+        Default {
+            If ($DLHash.ContainsKey($DLIdentity)) {
+                $DLDisplayName = $DLHash[$DLIdentity]
+            } Else {
+                Try {
+                    $DLDisplayName = (Get-Recipient -Identity $DLIdentity -ErrorAction Stop).DisplayName 
+                    If ($DLHash.Keys -NotContains $DLIdentity) {
+                        $DLHash.Add($DLIdentity, $DLDisplayName)
+                    }  
+                } Catch {
+                    Write-Host ("Error retrieving distribution list details for {0} (probably removed):" -f $DLIdentity) -ForegroundColor Red
+                    $DLDisplayName = $DLIdentity.Split("onmicrosoft.com/")[1] + " (Deleted)"
+                }    
+            }
+            $DLMemberId = $Auditdata.parameters | Where-Object {$_.Name -eq 'Member'} | Select-Object -ExpandProperty Value
+        }
     }
+
+    If ($DLMemberId) {
+        If ($DLMemberHash.ContainsKey($DLMemberId)) {
+            $DLMemberDisplayName = $DLMemberHash[$DLMemberId]
+        } Else {
+            Try {
+                $DLMemberDisplayName = (Get-Recipient -Identity $DLMemberId -ErrorAction Stop).DisplayName 
+            $DLMemberHash.Add($DLMemberId, $DLMemberDisplayName)
+            } Catch {
+                Write-Host ("Error retrieving member details for {0}:" -f $DLMemberId) -ForegroundColor Red
+            }
+        }
+    }
+
+    $ReportItem = [PSCustomObject]@{
+        DLName      = $DLDisplayName
+        DLId        = $DLIdentity
+        Operation   = $Rec.Operations
+        Actor       = $Rec.UserIds
+        Member      = $DLMemberDisplayName
+        Date        = Get-Date $Rec.CreationDate -format 'dd/MM/yyyy HH:mm:ss'
+    }
+    $AuditReport.Add($ReportItem)
 }
 
-$AuditReport = $AuditReport | Sort-Object {$_.Date -as [datetime]} -Descending
+$AuditReport = $AuditReport | Sort-Object {$_.Date -as [datetime]}
 
-Write-Host "Analyzing group details..." -ForegroundColor Green
-$GroupReport = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Group in $Groups) {
-    $MemberCount =  $Group.Members.additionalProperties.displayName.Count
-    $MemberNames = $Group.Members.additionalProperties.displayName -join ", "
-    $Owners = Get-MgGroupOwner -GroupId $Group.Id -All
-    $OwnerCount = $Owners.Count
-    $OwnerNames = $Owners.additionalProperties.displayName -join ", "
+Write-Host "Analyzing distribution list details..." -ForegroundColor Green
+$DLReport = [System.Collections.Generic.List[Object]]::new()
+ForEach ($DL in $DLs) {
+    [array]$DLMembers = $null
+    Write-Host "Analyzing distribution list $($DL.DisplayName)..." -ForegroundColor Green
+    [array]$DLMembers = Get-DistributionGroupMember -Identity $DL.Alias -ResultSize Unlimited
+    [array]$DLMemberMailboxes = ($DLMembers | Where-Object { $_.RecipientTypeDetails -eq "UserMailbox" }).DisplayName
+    [array]$DLMemberContacts = ($DLMembers | Where-Object { $_.RecipientTypeDetails -eq "MailContact" }).DisplayName
+    [array]$DLMemberPFs = ($DLMembers | Where-Object { $_.RecipientTypeDetails -eq "PublicFolder" }).DisplayName
+    [array]$DLMemberGroups = ($DLMembers | Where-Object { $_.RecipientTypeDetails -eq "MailUniversalDistributionGroup" }).DisplayName
+    [array]$DLMemberSharedMailboxes = ($DLMembers | Where-Object { $_.RecipientTypeDetails -eq "SharedMailbox" }).DisplayName
+    $MemberCount =  $DLMembers.Count
+    $MemberNames = $DLMembers.DisplayName -join ", "
+    [array]$DLOwners = $null
+    # Figure out owner details
+    ForEach ($Owner in $DL.ManagedBy) {
+        Try {
+            $OwnerDetails = Get-Recipient -Identity $Owner -ErrorAction Stop
+            If ($OwnerDetails.RecipientTypeDetails -eq "UserMailbox") {
+                $DLOwners += $OwnerDetails.DisplayName
+            } ElseIf ($OwnerDetails.RecipientTypeDetails -eq "MailUniversalDistributionGroup") {
+                $DLOwners += $OwnerDetails.DisplayName
+            } Else {
+                $DLOwners += $Owner
+            }
+        } Catch {
+            Write-Host ("Error retrieving owner details for {0}: (probably no owners)" -f $DL.DisplayName) -ForegroundColor Red
+            $DLOwners = $null
+            Continue
+        }
+    }
+    $OwnerNames = $DLOwners -join ", "
+    $OwnerCount = $DLOwners.Count
+    Switch ($DL.HiddenFromAddressListsEnabled) {
+        "False" { $DLVisibility = "Public" }
+        "True" { $DLVisibility = "Private" }
+        Default { $DLVisibility = "Unknown" }
+    }
     $ReportItem = [PSCustomObject]@{
-        Group               = $Group.displayName
-        GroupId             = $Group.Id
+        DL                  = $DL.displayName
+        DLId                = $DL.Identity
         "Member Count"      = $MemberCount
         "Member Names"      = $MemberNames
         "Owner Count"       = $OwnerCount
         "Owner Names"       = $OwnerNames
-        Visibility          = $Group.Visibility
-        Created             = $Group.CreatedDateTime
-        "Expiration Date"   = $Group.ExpirationDateTime
+        "User Members"      = $DLMemberMailboxes.Count
+        "Group Members"     = $DLMemberGroups.Count
+        "Contact Members"   = $DLMemberContacts.Count
+        "Shared Mailbox Members" = $DLMemberSharedMailboxes.Count   
+        "Public Folder Members" = $DLMemberPFs.Count
+        Visibility          = $DLVisibility
+        Created             = $DL.WhenCreated
     }
-    $GroupReport.Add($ReportItem)
+    $DLReport.Add($ReportItem)
 }
 
-$GroupReport = $GroupReport | Sort-Object Group
+$DLReport = $DLReport | Sort-Object DL
 
 If ($AuditReport) {
-    Write-Host ("Found {0} unique group operations in the audit log since {1}." -f $Records.Count, $StartDate.ToShortDateString()   ) -ForegroundColor Green
-    [array]$GroupAdditions = $AuditReport | Where-Object { $_.Operation -eq "Add group." }
-    [array]$GroupUpdates = $AuditReport | Where-Object { $_.Operation -eq "Update group." }
-    [array]$GroupRemovals = $AuditReport | Where-Object { $_.Operation -eq "Delete group." }
-    Write-Host ("Group Additions: {0}" -f $GroupAdditions.Count) -ForegroundColor Cyan
-    Write-Host ("Group Updates: {0}" -f $GroupUpdates.Count) -ForegroundColor Cyan
-    Write-Host ("Group Removals: {0}" -f $GroupRemovals.Count) -ForegroundColor Cyan  
+    Write-Host ("Found {0} unique distribution list operations in the audit log since {1}." -f $Records.Count, $StartDate.ToShortDateString()   ) -ForegroundColor Green
+    [array]$DLAdditions = $AuditReport | Where-Object { $_.Operation -eq "New-DistributionGroup" }
+    [array]$DLUpdates = $AuditReport | Where-Object { $_.Operation -eq "Update-DistributionGroup" }
+    [array]$DLRemovals = $AuditReport | Where-Object { $_.Operation -eq "Remove-DistributionGroup" }
+    [array]$DLMemberAdditions = $AuditReport | Where-Object { $_.Operation -eq "Add-DistributionGroupMember" }
+    [array]$DLMemberRemovals = $AuditReport | Where-Object { $_.Operation -eq "Remove-DistributionGroupMember" }
+    Write-Host ("Distribution List Additions: {0}" -f $DLAdditions.Count) -ForegroundColor Cyan
+    Write-Host ("Distribution List Member Additions: {0}" -f $DLMemberAdditions.Count) -ForegroundColor Cyan
+    Write-Host ("Distribution List Member Removals: {0}" -f $DLMemberRemovals.Count) -ForegroundColor Cyan
+    Write-Host ("Distribution Lists Updates: {0}" -f $DLUpdates.Count) -ForegroundColor Cyan
+    Write-Host ("Distribution List Removals: {0}" -f $DLRemovals.Count) -ForegroundColor Cyan  
 } Else {
-    Write-Host "No recent group operations found in the audit log." -ForegroundColor Yellow 
+    Write-Host "No recent distribution list operations found in the audit log." -ForegroundColor Yellow 
 }
 
 Write-Host "Generating HTML report..." -ForegroundColor Green
 $CreationDate = Get-Date -format 'dd-MMM-yyyy HH:mm:ss'
 $Version = "1.0"
-$Organization = (Get-MgOrganization).DisplayName
+$Organization = (Get-OrganizationConfig).DisplayName
 
 # Create the HTML report
 $htmlhead="<html>
 	   <style>
 	   BODY{font-family: Arial; font-size: 8pt;}
-	   H1{font-size: 36px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-	   H2{font-size: 24px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-	   H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H1{font-size: 48px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H2{font-size: 30px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H3{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
 	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
 	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
 	   TD{border: 1px solid #969595; padding: 5px; }
@@ -123,88 +207,106 @@ $htmlhead="<html>
 	   </style>
 	   <body>
            <div align=center>
-           <p><h1>Microsoft 365 Groups Report</h1></p>
+           <p><h1>Distribution List Operations Report</h1></p>
            <p><h2><b>For the " + $Organization + " organization</b></h2></p>
            <p><h3>Generated: " + (Get-Date -format g) + "</h3></p></div>"
 
 $HTMLAnalysisSectionHead = "<p><h2>Analysis</h2></p>" +
-                   "<p>The report shows all Microsoft 365 groups in the tenant, along with details of their membership and ownership. The report also includes a list of recent group operations in the tenant, including group additions, updates, and removals.</p>" +
-                   "<p>Use this report to understand the current state of Microsoft 365 groups in the tenant, and to identify any recent changes to groups that may require attention.</p>"
-$HTMLAnalysisAdditions = "<p><h3>Group Additions</h3></p>" +
-                 "<p>The following groups have been added in the last 30 days:</p>" +
-                 ($AuditReport | Where-Object { $_.Operation -eq "Add group." }| Select-Object -Property GroupName, User, Date | `
+                   "<p>The report shows all distribution lists in the tenant, along with details of their membership and ownership. The report also includes a list of recent distribution list operations in the tenant, including additions, updates, and removals.</p>" +
+                   "<p>Use this report to understand the current state of distribution lists in the tenant, and to identify any recent changes to distribution lists that may require attention.</p>"
+$HTMLAnalysisAdditions = "<p><h3>Distribution List Additions</h3></p>" +
+                 "<p>The following distribution lists have been added in the last 30 days:</p>" +
+                 ($AuditReport | Where-Object { $_.Operation -eq "Add-DistributionGroup" }| Select-Object -Property DLName, Actor, Date | `
                  ConvertTo-Html -Fragment)
-$HTMLAnalysisUpdates = "<p><h3>Group Updates</h3></p>" +
-                 "<p>The following groups have been updated in the last 30 days:</p>" +
-                 ($AuditReport | Where-Object { $_.Operation -eq "Update group." }| Select-Object -Property GroupName, User, Date | ConvertTo-Html -Fragment)
-$HTMLAnalysisRemovals = "<p><h3>Group Removals</h3></p>" +
-                 "<p>The following groups have been removed in the last 30 days:</p>" +
-                 ($AuditReport | Where-Object { $_.Operation -eq "Delete group." }| Select-Object -Property GroupName, User, Date | ConvertTo-Html -Fragment)
+$HTMLAnalysisUpdates = "<p><h3>Distribution List Updates</h3></p>" +
+                 "<p>The following distribution lists have been updated in the last 30 days:</p>" +
+                 ($AuditReport | Where-Object { $_.Operation -eq "Update-DistributionGroup" }| Select-Object -Property DLName, Actor, Date | ConvertTo-Html -Fragment)
+$HTMLAnalysisRemovals = "<p><h3>Distribution List Removals</h3></p>" +
+                 "<p>The following distribution lists have been removed in the last 30 days:</p>" +
+                 ($AuditReport | Where-Object { $_.Operation -eq "Remove-DistributionGroup" }| Select-Object -Property DLName, Actor, Date | ConvertTo-Html -Fragment)
+$HTMLAnalysisMemberAdditions = "<p><h3>Distribution List Member Additions</h3></p>" +
+                 "<p>The following distribution list members have been added in the last 30 days:</p>" +
+                 ($AuditReport | Where-Object { $_.Operation -eq "Add-DistributionGroupMember" }| Select-Object -Property DLName, Actor, Member, Date | ConvertTo-Html -Fragment)
+$HTMLAnalysisMemberRemovals = "<p><h3>Distribution List Member Removals</h3></p>" +
+                 "<p>The following distribution list members have been removed in the last 30 days:</p>" +
+                 ($AuditReport | Where-Object { $_.Operation -eq "Remove-DistributionGroupMember" }| Select-Object -Property DLName, Actor, Member,Date | ConvertTo-Html -Fragment)
 
 $HTMLBody = $HTMLHead + $HTMLAnalysisSectionHead
-If ($GroupAdditions.Count -gt 0) {
+If ($DLAdditions.Count -gt 0) {
     $HTMLBody += $HTMLAnalysisAdditions
 } Else {
-    $HTMLBody += "<p><h3>Microsoft 365 Group Additions</h3></p><p>No additions of Microsoft 365 Groups in the last 30 days.</p>"
+    $HTMLBody += "<p><h3>Distribution List Additions</h3></p><p>No additions of distribution lists found for the last 30 days.</p>"
 }
-If ($GroupUpdates.Count -gt 0) {
+If ($DLUpdates.Count -gt 0) {
     $HTMLBody += $HTMLAnalysisUpdates
 } Else {
-    $HTMLBody += "<p><h3>Microsoft 365 Group Updates</h3></p><p>No updates for Microsoft 365 Groups found for the last 30 days.</p>"
+    $HTMLBody += "<p><h3>Distribution List Updates</h3></p><p>No updates for distribution lists found for the last 30 days.</p>"
 }
-If ($GroupRemovals.Count -gt 0) {
+If ($DLRemovals.Count -gt 0) {
     $HTMLBody += $HTMLAnalysisRemovals
 } Else {
-    $HTMLBody += "<p><h3>Microsoft 365 Group Removals</h3></p><p>No removals of Microsoft 365 Groups found for the last 30 days.</p>"
+    $HTMLBody += "<p><h3>Distribution List Removals</h3></p><p>No removals of distribution lists found for the last 30 days.</p>"
+}
+If ($DLMemberAdditions.Count -gt 0) {
+    $HTMLBody += $HTMLAnalysisMemberAdditions
+} Else {
+    $HTMLBody += "<p><h3>Distribution List Member Additions</h3></p><p>No additions of distribution list members found for the last 30 days.</p>"
+}
+If ($DLMemberRemovals.Count -gt 0) {
+    $HTMLBody += $HTMLAnalysisMemberRemovals
+} Else {
+    $HTMLBody += "<p><h3>Distribution List Member Removals</h3></p><p>No removals of distribution list members found for the last 30 days.</p>"
 }
 
-$GroupDetailsHeader = "<p><h2>Microsoft 365 Groups Details</h2></p>" +
-                      "<p>The following table shows details of all Microsoft 365 groups in the tenant, including their membership and ownership information.</p>"
-$GroupDetailsTable = $GroupReport | Select-Object Group, GroupId, "Member Count", "Owner Count", Visibility, Created, "Expiration Date" | ConvertTo-Html -Fragment
-$HTMLBody = $HTMLBody + $GroupDetailsHeader + $GroupDetailsTable    
+$DLDetailsHeader = "<p><h2>Details of Distribution Lists</h2></p>" +
+                      "<p>The following table shows details of all distribution lists in the tenant, including their membership and ownership information.</p>"
+$DLDetailsTable = $DLReport | Select-Object DL, Created, "Member Count", "Owner Count", "Owner Names", "Member Names", "User Members", "Group Members", "Contact Members", "Shared Mailbox Members", "Public Folder Members"| ConvertTo-Html -Fragment
+$HTMLBody = $HTMLBody + $DLDetailsHeader + $DLDetailsTable    
 
 $HTMLTail = "<p><h3>Report created for: " + $Organization + "</h3></p>" +
              "<p>Created: " + $CreationDate + "<p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+  
-             "<p>Number of Microsoft 365 Groups found:                     " + $GroupReport.Count + "</p>" +
-             "<p>Number of Microsoft 365 Groups without a manager:         " + ($GroupReport | Where-Object { $_."Owner Count" -eq 0 }).Count + "</p>" +
-             "<p>Number of Microsoft 365 Groups with no members:           " + ($GroupReport | Where-Object { $_."Member Count" -eq 0 }).Count + "</p>" +
-             "<p>Number of recent Microsoft 365 Groups audit events found: " + $AuditReport.Count + "</p>" +
-             "<p>Number of recent Microsoft 365 Group additions:           " + $GroupAdditions.Count + "</p>" +
-             "<p>Number of recent Microsoft 365 Group updates:             " + $GroupUpdates.Count + "</p>" +
-             "<p>Number of recent Microsoft 365 Group removals:            " + $GroupRemovals.Count + "</p>" +
+             "<p>Number of distribution lists found:                     " + $DLReport.Count + "</p>" +
+             "<p>Number of distribution lists without a manager:         " + ($DLReport | Where-Object { $_."Owner Count" -eq 0 }).Count + "</p>" +
+             "<p>Number of distribution lists with no members:           " + ($DLReport | Where-Object { $_."Member Count" -eq 0 }).Count + "</p>" +
+             "<p>Number of recent distribution list audit events found:  " + $AuditReport.Count + "</p>" +
+             "<p>Number of recent distribution list additions:           " + $GroupAdditions.Count + "</p>" +
+             "<p>Number of recent distribution list updates:             " + $GroupUpdates.Count + "</p>" +
+             "<p>Number of recent distribution list removals:            " + $GroupRemovals.Count + "</p>" +
+             "<p>Number of recent distribution list member additions:    " + $DLMemberAdditions.Count + "</p>" +
+             "<p>Number of recent distribution list member removals:     " + $DLMemberRemovals.Count + "</p>" +
              "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"+
-             "<p>Microsoft 365 Groups Report <b>" + $Version + "</b>"	
+             "<p>Distribution Lists Report <b>" + $Version + "</b>"	
 
 $HTMLReport = $HTMLBody + $HTMLTail
-$HTMLReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Groups.html"
+$HTMLReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Distribution Lists.html"
 $HTMLReport | Out-File $HTMLReportFile -Encoding UTF8
 
 # Generate the report in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
 If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
     Import-Module ImportExcel -ErrorAction SilentlyContinue
-    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Groups.xlsx"
-    $GroupReport | Export-Excel -Path $ExcelOutputFile -WorksheetName "Microsoft 365 Groups" -Title ("Microsoft 365 Groups {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "M365Groups" 
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Distribution Lists.xlsx"
+    $DLReport | Export-Excel -Path $ExcelOutputFile -WorksheetName "Distribution Lists" -Title ("Distribution Lists {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "DistributionLists" 
 } Else {
-    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Groups.CSV"
-    $GroupReport | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Distribution Lists.CSV"
+    $DLReport | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
 }   
 
 If ($ExcelGenerated -eq $true) {
-    Write-Host ("Microsoft 365 groups report is available in Excel workbook {0}" -f $ExcelOutputFile)
+    Write-Host ("Distribution lists report is available in Excel workbook {0}" -f $ExcelOutputFile)
     $AttachmentFile = $ExcelOutputFile
 } Else {
-    Write-Host ("Microsoft 365 groups report is available in CSV file {0}" -f $CSVOutputFile)
+    Write-Host ("Distribution lists report is available in CSV file {0}" -f $CSVOutputFile)
     $AttachmentFile = $CSVOutputFile
 }
 
-Write-Host ("HTML report of Microsoft 365 groups is available at {0}" -f $HTMLReportFile) -ForegroundColor Green
+Write-Host ("HTML report of distribution lists is available at {0}" -f $HTMLReportFile) -ForegroundColor Green
 
 # Send the spreadsheet as an email attachment
 $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
 $MsgAttachments = @(
-    @{
+    @{      
         '@odata.type' = '#microsoft.graph.fileAttachment'
         Name = (Split-Path $AttachmentFile -Leaf)
         ContentBytes = $EncodedAttachmentFile
@@ -220,7 +322,7 @@ $DestinationEmailAddress = "Customer.Services@Office365itpros.com"
 $ToRecipient = @{}
 $ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
 [array]$MsgTo = $ToRecipient
-$MsgSubject = "Microsoft 365 Groups Report - $(Get-Date -Format 'dd-MMM-yyyy')"
+$MsgSubject = "Distribution Lists Report - $(Get-Date -Format 'dd-MMM-yyyy')"
 
 # Construct the message body 	
 $MsgBody = @{}
@@ -241,7 +343,7 @@ $EmailParameters.Add('isDeliveryReceiptRequested', $true)
 # Send the message
 Try {
     Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
-    Write-Output ("Microsoft 365 groups report emailed to {0}" -f $DestinationEmailAddress)
+    Write-Output ("Distribution lists report emailed to {0}" -f $DestinationEmailAddress)
     Write-Output "All done!"
 } Catch {
     Write-Output "Unable to send email"
