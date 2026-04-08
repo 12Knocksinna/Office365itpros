@@ -28,7 +28,7 @@ $StartDate = (Get-Date).AddDays(-30)
 $EndDate = Get-Date
 
 # Distribution list administration operations include adding, updating, and deleting distribution lists - https://learn.microsoft.com/purview/audit-log-activities?WT.mc_id=M365-MVP-9501#microsoft-entra-group-administration-activities
-$Operations = "New-DistributionGroup", "Update-DistributionGroup", "Remove-DistributionGroup", "Add-DistributionGroupMember", "Remove-DistributionGroupMember"
+$Operations = "New-DistributionGroup", "Set-DistributionGroup", "Remove-DistributionGroup", "Add-DistributionGroupMember", "Remove-DistributionGroupMember"
 Write-Host "Searching the audit log for distribution list operations from $($StartDate.ToShortDateString()) to $($EndDate.ToShortDateString())..." -ForegroundColor Green   
 [array]$Records = Search-UnifiedAuditLog -StartDate $StartDate -EndDate $EndDate -Operations $Operations -Formatted -ResultSize 5000 `
     -SessionCommand ReturnLargeSet -RecordType ExchangeAdmin
@@ -175,7 +175,7 @@ $DLReport = $DLReport | Sort-Object DL
 If ($AuditReport) {
     Write-Host ("Found {0} unique distribution list operations in the audit log since {1}." -f $Records.Count, $StartDate.ToShortDateString()   ) -ForegroundColor Green
     [array]$DLAdditions = $AuditReport | Where-Object { $_.Operation -eq "New-DistributionGroup" }
-    [array]$DLUpdates = $AuditReport | Where-Object { $_.Operation -eq "Update-DistributionGroup" }
+    [array]$DLUpdates = $AuditReport | Where-Object { $_.Operation -eq "Set-DistributionGroup" }
     [array]$DLRemovals = $AuditReport | Where-Object { $_.Operation -eq "Remove-DistributionGroup" }
     [array]$DLMemberAdditions = $AuditReport | Where-Object { $_.Operation -eq "Add-DistributionGroupMember" }
     [array]$DLMemberRemovals = $AuditReport | Where-Object { $_.Operation -eq "Remove-DistributionGroupMember" }
@@ -211,16 +211,16 @@ $htmlhead="<html>
            <p><h2><b>For the " + $Organization + " organization</b></h2></p>
            <p><h3>Generated: " + (Get-Date -format g) + "</h3></p></div>"
 
-$HTMLAnalysisSectionHead = "<p><h2>Analysis</h2></p>" +
+$HTMLAnalysisSectionHead = "<p><h2><u>Analysid of Distribution List Activity</u></h2></p>" +
                    "<p>The report shows all distribution lists in the tenant, along with details of their membership and ownership. The report also includes a list of recent distribution list operations in the tenant, including additions, updates, and removals.</p>" +
                    "<p>Use this report to understand the current state of distribution lists in the tenant, and to identify any recent changes to distribution lists that may require attention.</p>"
 $HTMLAnalysisAdditions = "<p><h3>Distribution List Additions</h3></p>" +
                  "<p>The following distribution lists have been added in the last 30 days:</p>" +
-                 ($AuditReport | Where-Object { $_.Operation -eq "Add-DistributionGroup" }| Select-Object -Property DLName, Actor, Date | `
+                 ($AuditReport | Where-Object { $_.Operation -eq "New-DistributionGroup" }| Select-Object -Property DLName, Actor, Date | `
                  ConvertTo-Html -Fragment)
 $HTMLAnalysisUpdates = "<p><h3>Distribution List Updates</h3></p>" +
                  "<p>The following distribution lists have been updated in the last 30 days:</p>" +
-                 ($AuditReport | Where-Object { $_.Operation -eq "Update-DistributionGroup" }| Select-Object -Property DLName, Actor, Date | ConvertTo-Html -Fragment)
+                 ($AuditReport | Where-Object { $_.Operation -eq "Set-DistributionGroup" }| Select-Object -Property DLName, Actor, Date | ConvertTo-Html -Fragment)
 $HTMLAnalysisRemovals = "<p><h3>Distribution List Removals</h3></p>" +
                  "<p>The following distribution lists have been removed in the last 30 days:</p>" +
                  ($AuditReport | Where-Object { $_.Operation -eq "Remove-DistributionGroup" }| Select-Object -Property DLName, Actor, Date | ConvertTo-Html -Fragment)
@@ -250,12 +250,12 @@ If ($DLRemovals.Count -gt 0) {
 If ($DLMemberAdditions.Count -gt 0) {
     $HTMLBody += $HTMLAnalysisMemberAdditions
 } Else {
-    $HTMLBody += "<p><h3>Distribution List Member Additions</h3></p><p>No additions of distribution list members found for the last 30 days.</p>"
+    $HTMLBody += "<p><h3>Additions of Members to Distribution List</h3></p><p>No additions of distribution list members found for the last 30 days.</p>"
 }
 If ($DLMemberRemovals.Count -gt 0) {
     $HTMLBody += $HTMLAnalysisMemberRemovals
 } Else {
-    $HTMLBody += "<p><h3>Distribution List Member Removals</h3></p><p>No removals of distribution list members found for the last 30 days.</p>"
+    $HTMLBody += "<p><h3>Removals of Members from Distribution List</h3></p><p>No removals of distribution list members found for the last 30 days.</p>"
 }
 
 $DLDetailsHeader = "<p><h2>Details of Distribution Lists</h2></p>" +
