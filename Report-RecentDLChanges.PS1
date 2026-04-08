@@ -211,7 +211,7 @@ $htmlhead="<html>
            <p><h2><b>For the " + $Organization + " organization</b></h2></p>
            <p><h3>Generated: " + (Get-Date -format 'dd-MMM-yyyy HH:mm') + "</h3></p></div>"
 
-$HTMLAnalysisSectionHead = "<p><h2><u>Analysid of Distribution List Activity</u></h2></p>" +
+$HTMLAnalysisSectionHead = "<p><h2><u>Analysis of audited Distribution List Activity</u></h2></p>" +
                    "<p>The report shows all distribution lists in the tenant, along with details of their membership and ownership. The report also includes a list of recent distribution list operations in the tenant, including additions, updates, and removals.</p>" +
                    "<p>Use this report to understand the current state of distribution lists in the tenant, and to identify any recent changes to distribution lists that may require attention.</p>"
 $HTMLAnalysisAdditions = "<p><h3>Distribution List Additions</h3></p>" +
