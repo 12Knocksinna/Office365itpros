@@ -1,6 +1,7 @@
 # Analyze-TeamsMeetings.PS1
 # a script to show how to use Graph APIs to analyze Teams meetings and attendance reports for the last 60 days
 # V1.0 28-May-2024
+# V2.0 9-Apr-2026  - Updated to deal with the new format of a Teams meeting URI
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Analyze-TeamsMeetings.PS1
 
 # Connect to the Graph using an appId, tenantId, and certificate thumbprint
@@ -52,8 +53,8 @@ ForEach ($Organizer in $TeamsOrganizers) {
         # Get the meeting URL
         $MeetingURL =  $Item.onlinemeeting.joinUrl.trim()
         $DecodedURL = [System.Web.HttpUtility]::UrlDecode($MeetingURL)
-        $MeetingIdStart = $DecodedURL.IndexOf("19:") 
-        $MeetingIdEnd = $DecodedURL.IndexOf("thread")
+        $MeetingIdStart = $MeetingIdEnd = $DecodedURL.IndexOf("thread")
+        $MeetingIdEnd = Get-Date ($Item.End.DateTime) 
         $MeetingId = $DecodedURL.Substring($MeetingIdStart, $MeetingIdEnd - $MeetingIdStart +9)
         $MeetingIdLookup = ("1*{0}*0**{1}" -f $Organizer.id, $MeetingId)
         $Base64MeetingId = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($MeetingIdLookup))
@@ -105,9 +106,9 @@ ForEach ($Organizer in $TeamsOrganizers) {
             $AttendanceRecords = $null; $Participant = $null
             $Uri = $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/attendanceReports/{2}?`$expand=attendanceRecords" -f `
                 $Organizer.Id, $Base64MeetingId, $AR.Id)
-            [array]$AttendanceRecords = Invoke-MgGraphRequest -Method get -Uri $Uri
-            $AttendanceRecords = $AttendanceRecords.AttendanceRecords
-            ForEach ($Participant in $AttendanceRecords) {  
+            [array]$AttendanceRecords = Invoke-MgGraphRequest -Method Get -Uri $Uri -OutputType PSObject
+            $IndividualAttendanceRecords = $AttendanceRecords.AttendanceRecords
+            ForEach ($Participant in $IndividualAttendanceRecords) {  
                 If ($Participant.identity.tenantId -eq $TenantId) {
                     $ParticipantTenantName = $TenantName
                 } Else {
@@ -150,9 +151,9 @@ $RunDate = (Get-Date).ToString("dd-MMM-yyyy HH:mm:ss")
 $HtmlHead="<html>
 	   <style>
 	   BODY{font-family: Arial; font-size: 10pt;}
-	   H1{font-size: 32px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-	   H2{font-size: 24px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
-	   H3{font-size: 20px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H1{font-size: 48px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H2{font-size: 36px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	   H3{font-size: 24px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
 	   TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
 	   TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
 	   TD{border: 1px solid #969595; padding: 5px; }
