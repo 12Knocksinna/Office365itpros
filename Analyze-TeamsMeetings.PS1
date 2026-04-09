@@ -127,11 +127,12 @@ ForEach ($Organizer in $TeamsOrganizers) {
                         $ParticipantTenantName = $TenantName
                     } Else {
                         $LookUpTenantId = $Participant.identity.tenantId
-                    Try {
-                        $ExternalTenantData = Find-MgTenantRelationshipTenantInformationByTenantId -tenantId $LookUpTenantId -ErrorAction SilentlyContinue
-                        $ParticipantTenantName = $ExternalTenantData.displayName
-                    } Catch {
-                        $ParticipantTenantName = "Unknown"
+                        Try {
+                            $ExternalTenantData = Find-MgTenantRelationshipTenantInformationByTenantId -tenantId $LookUpTenantId -ErrorAction SilentlyContinue
+                            $ParticipantTenantName = $ExternalTenantData.displayName
+                        } Catch {
+                            $ParticipantTenantName = "Unknown"
+                        }
                     }
                 }
                 $TimeInMeeting = [timespan]::fromseconds($Participant.totalAttendanceInSeconds)
