@@ -53,14 +53,14 @@ ForEach ($Organizer in $TeamsOrganizers) {
         # Get the meeting URL
         $MeetingURL =  $Item.onlinemeeting.joinUrl.trim()
         $DecodedURL = [System.Web.HttpUtility]::UrlDecode($MeetingURL)
-        $MeetingIdStart = $MeetingIdEnd = $DecodedURL.IndexOf("thread")
-        $MeetingIdEnd = Get-Date ($Item.End.DateTime) 
+        $MeetingIdStart = $DecodedURL.IndexOf("19:") 
+        $MeetingIdEnd =  $DecodedURL.IndexOf("thread")
         $MeetingId = $DecodedURL.Substring($MeetingIdStart, $MeetingIdEnd - $MeetingIdStart +9)
         $MeetingIdLookup = ("1*{0}*0**{1}" -f $Organizer.id, $MeetingId)
         $Base64MeetingId = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($MeetingIdLookup))
-        $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}" -f $Organizer.Id, $Base64MeetingId)
+        # $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}" -f $Organizer.Id, $Base64MeetingId)
         Try {
-            [array]$MeetingData = Invoke-MgGraphRequest -Method Get -Uri $Uri
+            [array]$MeetingData = Get-MgUserOnlineMeeting -OnlineMeetingId $Base64MeetingId -UserId $Organizer.Id -ErrorAction Stop
         } Catch {
             Write-Host ("Ran into an issue retieving information for meeting {0} (created {1})" -f $Item.subject, $Item.CreatedDateTime, $($PSItem.ToString())) -ForegroundColor Red
             Continue
@@ -75,13 +75,13 @@ ForEach ($Organizer in $TeamsOrganizers) {
             Organizer               = $DisplayName
             'Creation timestamp'    = (Get-Date $MeetingData.creationDateTime -format 'dd-MMM-yyyy HH:mm:ss')
             'Meeting start'         = (Get-Date $MeetingData.startDatetime -format 'dd-MMM-yyyy HH:mm')
-            'Meeting snd'           = (Get-Date $MeetingData.endDateTime -format 'dd-MMM-yyyy HH:mm')
+            'Meeting end'           = (Get-Date $MeetingData.endDateTime -format 'dd-MMM-yyyy HH:mm')
             'Time zone'             = $Item.originalStartTimeZone
             'Meeting duration'      = ("{0:hh\:mm\:ss}" -f $MeetingDuration)
             Subject                 = $MeetingData.subject
             'Allow presenters'      = $MeetingData.allowedpresenters
             'Lobby bypass'          = $MeetingData.lobbyBypassSettings.scope
-            'Auto admit'            = $MeetingData.autoAdmittedUsers
+            'Auto admit'            = $MeetingData.additionalProperties.autoAdmittedUsers
             'Allow recording'       = $MeetingData.allowRecording
             'Record automatically'  = $MeetingData.recordAutomatically
             'Allow chat'            = $MeetingData.allowMeetingChat
@@ -96,17 +96,28 @@ ForEach ($Organizer in $TeamsOrganizers) {
 
     # Now get the attendance reports for the meeting
     Write-Host "Fetching attendance reports for the meetings..."
-    $Uri = $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/attendanceReports" -f $Organizer.Id, $Base64MeetingId)
-    [array]$AttendanceReports = Invoke-MgGraphRequest -Method get -Uri $Uri
-    $AttendanceReports = $AttendanceReports.value
- 
+    # $Uri = $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/attendanceReports" -f $Organizer.Id, $Base64MeetingId)
+    Try {
+        [array]$AttendanceReports = Get-MgUserOnlineMeetingAttendanceReport -OnlineMeetingId $Base64MeetingId -UserId $Organizer.Id -ErrorAction Stop
+    } Catch {
+        Write-Host ("Ran into an issue retieving attendance reports for meeting {0} (created {1})" -f $Item.subject, $Item.CreatedDateTime, $($PSItem.ToString())) -ForegroundColor Red
+        Continue    
+    }
     If ($AttendanceReports) {
         ForEach ($AR in $AttendanceReports) {
           
             $AttendanceRecords = $null; $Participant = $null
-            $Uri = $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/attendanceReports/{2}?`$expand=attendanceRecords" -f `
-                $Organizer.Id, $Base64MeetingId, $AR.Id)
-            [array]$AttendanceRecords = Invoke-MgGraphRequest -Method Get -Uri $Uri -OutputType PSObject
+            # $Uri = $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/attendanceReports/{2}?`$expand=attendanceRecords" -f `
+            #   $Organizer.Id, $Base64MeetingId, $AR.Id)
+            #[array]$AttendanceRecords = Invoke-MgGraphRequest -Method Get -Uri $Uri -OutputType PSObject
+            Try {
+                [array]$AttendanceRecords = Get-MgUserOnlineMeetingAttendanceReport -MeetingAttendanceReportId $AR -OnlineMeetingId $Base64MeetingId `
+                     -UserId $Organizer.Id -ExpandProperty attendanceRecords -ErrorAction Stop
+            } Catch {
+                Write-Host ("Ran into an issue retieving attendance records for meeting {0} (created {1})" -f $Item.subject, $Item.CreatedDateTime, $($PSItem.ToString())) -ForegroundColor Red
+                Continue    
+            }
+
             $IndividualAttendanceRecords = $AttendanceRecords.AttendanceRecords
             ForEach ($Participant in $IndividualAttendanceRecords) {  
                 If ($Participant.identity.tenantId -eq $TenantId) {
@@ -114,7 +125,7 @@ ForEach ($Organizer in $TeamsOrganizers) {
                 } Else {
                     $LookUpTenantId = $Participant.identity.tenantId
                     $Uri = ("https://graph.microsoft.com/V1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='{0}')" -f $LookUpTenantId)
-                    $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
+                    $ExternalTenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get -OutputType PSObject
                     $ParticipantTenantName = $ExternalTenantData.displayName
                 }
                 $TimeInMeeting = [timespan]::fromseconds($Participant.totalAttendanceInSeconds)
