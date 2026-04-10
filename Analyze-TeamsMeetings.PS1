@@ -165,7 +165,6 @@ ForEach ($Organizer in $TeamsOrganizers) {
         }
     }
 }
-}
 
 # Now let's generate a HTML report
 $HtmlBody = $null
