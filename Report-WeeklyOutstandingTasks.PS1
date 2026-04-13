@@ -55,6 +55,7 @@ If ($Interactive) {
 }
 
 Write-Output "Outstanding Tasks Check starting up..."
+$OrganizationId = (Get-MgOrganization).id
 # Find the set of users to process - we use a group to define the target set. Update this in your tenant to point to a group to use.
 Try {
     $Group = Get-MgGroup -Filter "displayName eq 'Weekly Task Updates'" -ErrorAction Stop
@@ -156,6 +157,9 @@ ForEach ($Member in $Members) {
                                 }
                               
                             }
+                            # Add a hyperlink to the task in Planner in the report. The URL format is based on the structure of Planner URLs and may need to be updated if Microsoft changes how Planner URLs are structured in the future.
+                            $TaskUri = ("https://planner.cloud.microsoft/webui/v1/plan/{0}/view/board/task/{1}?tid={2}" -f $Plan.id, $Task.id, $organizationId)
+                            $TaskHyperlink = '<a href="' + $TaskUri + '" target="_blank">' + $Task.Title + "</a>"
                             $ReportLine = [PSCustomObject]@{
                                 User                = $AssignedUser
                                 UserEmail           = $AssignedUserEmail
@@ -168,6 +172,7 @@ ForEach ($Member in $Members) {
                                 'Start Date'        = If ($Task.StartDateTime) { Get-Date $Task.StartDateTime -format 'dd-MMM-yyyy' } Else { $null }
                                 'Due Date'          = If ($Task.DueDateTime) { Get-Date $Task.DueDateTime -format 'dd-MMM-yyyy' } Else { $null }
                                 Id                  = $Assignee
+                                'Task link'         = $TaskHyperlink
                             }
                             $Report.Add($ReportLine)
                         }
@@ -239,8 +244,12 @@ ForEach ($Id in $UniqueUsers) {
     $HtmlContent += "<p>The bucket with the most tasks is <b>$($MostTasksinBucket.Name)</b> in the <b>$($MostTasksinBucket.Group.Plan[0])</b> plan with <b>$($MostTasksinBucket.Count)</b> tasks.</p>"
     $HtmlContent += "<p>Please try to get these tasks completed as soon as possible!</p>"
 
-    $HtmlTable = $UserTasks | Select-Object Group, Plan, Task, Bucket, 'Assigned Date', 'Start Date', 'Due Date' | `
+    $HtmlTable = $UserTasks | Select-Object Group, Plan, 'Task link', Bucket, 'Assigned Date', 'Start Date', 'Due Date' | `
         Sort-Object {'Assigned Date' -as [datetime]} | ConvertTo-Html -Fragment
+
+    # ConvertTo-Html HTML-encodes special characters by default, turning <a> tags into literal text like &lt;a href=...&gt;. This command
+    # decode the tags back after the conversion so that the task hyperlinks are rendered correctly.
+    $HtmlTable = $HtmlTable -replace '&lt;', '<' -replace '&gt;', '>' -replace '&amp;', '&' -replace '&#39;', "'" -replace '&quot;', '"'
     $HtmlMessage = $HtmlHeading + $HtmlContent + $HtmlTable
 
     # Add message details
