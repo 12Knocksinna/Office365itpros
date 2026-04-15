@@ -60,6 +60,8 @@ If ($Sites.Count -eq 0) {
    Write-Host "No SharePoint Online sites found.... exiting..." ; break 
 }
 $Sites = $Sites | Where-Object { $_.ArchiveStatus -eq "NotArchived" } # Remove archived sites
+# Remove sites used for Teams private/shared channels. Comment this out if you want to include the channel sites in the report.
+$Sites = $Sites | Where-Object {$_.Template.upper() -ne "TEAMCHANNEL#0" -and $_.Template.upper() -ne "TEAMCHANNEL#1"} 
 
 Clear-Host
 $ProgressDelta = 100/($Sites.count); $PercentComplete = 0; $SiteNumber = 0
