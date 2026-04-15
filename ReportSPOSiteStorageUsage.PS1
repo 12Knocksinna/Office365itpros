@@ -7,7 +7,7 @@
 
 Function Get-Microsoft365GroupOwners([String]$SiteURL) {
 # Function to return the owners of an Microsoft 365 Group identified by the group GUID
-$Owners = $Null; $DeletedGroup = $False; $i = 0; $SiteOwners = $Null
+$Owners = $Null; $DeletedGroup = $False; $SiteOwners = $Null
 # Get the site properties. We need a separate call here because Get-SPOSite doesn't return all properties when it fetches a set of sites
 $GroupId = (Get-SPOSite -Identity $SiteURL) 
 If ($GroupId.Template -eq  "TEAMCHANNEL#0" -or $GroupId.Template -eq "TEAMCHANNEL#1") { # If Teams private or shared channel, we use the Related Group Id
@@ -30,13 +30,7 @@ If ($Null -eq $Owners) { # Got nothing back, maybe because of an error
       $SiteOwners = "Possibly deleted Microsoft 365 Group"
    } Else { # We have some owners, now format them
       $Owners = $Owners | Select-Object -ExpandProperty DisplayName
-      ForEach ($Owner in $Owners)  {
-         If ($i -eq 0) { 
-            $SiteOwners = $Owner; $i = 1 
-         } Else { 
-            $SiteOwners = $SiteOwners + "; " + $Owner
-         }
-      }
+      $SiteOwners = $Owners -join ", "
    }
 
 Return $SiteOwners 
@@ -66,6 +60,7 @@ $Sites = $Sites | Where-Object {$_.Template.upper() -ne "TEAMCHANNEL#0" -and $_.
 Clear-Host
 $ProgressDelta = 100/($Sites.count); $PercentComplete = 0; $SiteNumber = 0
 $Report = [System.Collections.Generic.List[Object]]::new() 
+$TotalSPOStorageUsed = [Math]::Round(($Sites."Storage Used (Byte)" | Measure-Object -Sum).Sum /1024,2)
 ForEach ($Site in $Sites) {   
    $SiteOwners = $Null ; $Process = $True; $SiteType = $null
    $SiteNumber++

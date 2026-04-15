@@ -3,14 +3,14 @@
 #
 # V1.0 27-Mar-2020
 # V2.0 17-Feb-2024 Updated for the Graph SDK
-# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSPOSiteStorageUsedGraph.PS1
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSPOSiteStorageUsedGraph.PS1
 
 Clear-Host
 
 Connect-MgGraph -NoWelcome -Scopes Reports.Read.All, Directory.Read.All
 $ObscureFlag = $false
 $TempDownloadFile = "c:\temp\x.csv"
-
+  
 # Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
 $DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri 'https://graph.microsoft.com/V1.0/admin/reportSettings'
 If ($DisplaySettings['displayConcealedNames'] -eq $true) { # data is obscured, so let's reset it to allow the report to run
