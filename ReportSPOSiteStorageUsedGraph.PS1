@@ -12,11 +12,11 @@ $ObscureFlag = $false
 $TempDownloadFile = "c:\temp\x.csv"
 
 # Check if the tenant has obscured real names for reports - see https://office365itpros.com/2022/09/09/graph-usage-report-tips/
-$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri 'https://graph.microsoft.com/beta/admin/reportSettings'
+$DisplaySettings = Invoke-MgGraphRequest -Method Get -Uri 'https://graph.microsoft.com/V1.0/admin/reportSettings'
 If ($DisplaySettings['displayConcealedNames'] -eq $true) { # data is obscured, so let's reset it to allow the report to run
    $ObscureFlag = $true
    Write-Host "Setting tenant data concealment for reports to False" -foregroundcolor red
-   Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/beta/admin/reportSettings' `
+   Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/V1.0/admin/reportSettings' `
     -Body (@{"displayConcealedNames"= $false} | ConvertTo-Json) 
 }
 
@@ -69,7 +69,7 @@ If ($Site."Root Web Template" -notin $SiteTypesToReport) {
 # Switch the tenant report obscure data setting back if necessary
 If ($ObscureFlag -eq $True) {
   Write-Host "Resetting tenant data concealment for reports to True" -foregroundcolor red
-  Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/beta/admin/reportSettings' `
+  Invoke-MgGraphRequest -Method PATCH -Uri 'https://graph.microsoft.com/V1.0/admin/reportSettings' `
    -Body (@{"displayConcealedNames"= $true} | ConvertTo-Json) 
 }
 
