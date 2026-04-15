@@ -1,21 +1,23 @@
 # ReportSPOSiteStorageUsage.PS1
 # Uses SharePoint Online and Exchange Online PowerShell modules
 # Session must be connected to an admin account
+
+# V2.0 15-Apr-2026 Updated to exclude archived sites and to handle sites used for Teams shared channels
 # https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSPOSiteStorageUsage.PS1
 
 Function Get-Microsoft365GroupOwners([String]$SiteURL) {
-# Function to return the owners of an Office 365 Group identified by the group GUID
+# Function to return the owners of an Microsoft 365 Group identified by the group GUID
 $Owners = $Null; $DeletedGroup = $False; $i = 0; $SiteOwners = $Null
 # Get the site properties. We need a separate call here because Get-SPOSite doesn't return all properties when it fetches a set of sites
 $GroupId = (Get-SPOSite -Identity $SiteURL) 
-If ($GroupId.Template -eq  "TEAMCHANNEL#0") { # If Teams private channel, we use the Related Group Id
+If ($GroupId.Template -eq  "TEAMCHANNEL#0" -or $GroupId.Template -eq "TEAMCHANNEL#1") { # If Teams private or shared channel, we use the Related Group Id
    $GroupId = $GroupId | Select-Object -ExpandProperty RelatedGroupId 
 } Else { # And for all other group-enabled sites, we use the GroupId
-   $Groupid = $GroupId | Select-Object -ExpandProperty GroupId 
+   $GroupId = $GroupId | Select-Object -ExpandProperty GroupId 
 }
 
 If ($GroupId.Guid -eq "00000000-0000-0000-0000-000000000000") { # Null group id stored in site
-       $SiteOwners = "Deleted group"; $DeletedGroup = $True }
+      $SiteOwners = "Deleted group"; $DeletedGroup = $True }
 If ($DeletedGroup -eq $False) {      
    Try { 
       $Owners = (Get-UnifiedGroupLinks -Identity $GroupId.Guid -LinkType Owners -ErrorAction SilentlyContinue) 
@@ -51,26 +53,29 @@ If (!($ModulesLoaded -match "Microsoft.Online.Sharepoint.PowerShell")) {
 
 # Get all SPO sites
 Clear-Host
-Write-Host "Fetching site information..."
-[array]$Sites = Get-SPOSite -Limit All | Select-Object Title, URL, StorageQuota, StorageUsageCurrent, Template | `
+Write-Host "Fetching information about SharePoint Online sites..."
+[array]$Sites = Get-SPOSite -Limit All | Select-Object Title, URL, StorageQuota, StorageUsageCurrent, LastContentModifiedDate, ArchiveStatus, Template | `
    Sort-Object StorageUsageCurrent -Descending
-If ($Sites.Count -eq 0) { Write-Host "No SharePoint Online sites found.... exiting..." ; break }
-$TotalSPOStorageUsed = [Math]::Round(($Sites.StorageUsageCurrent | Measure-Object -Sum).Sum /1024,2)
+If ($Sites.Count -eq 0) { 
+   Write-Host "No SharePoint Online sites found.... exiting..." ; break 
+}
+$Sites = $Sites | Where-Object { $_.ArchiveStatus -eq "NotArchived" } # Remove archived sites
 
 Clear-Host
 $ProgressDelta = 100/($Sites.count); $PercentComplete = 0; $SiteNumber = 0
 $Report = [System.Collections.Generic.List[Object]]::new() 
-ForEach ($Site in $Sites) {
-   $SiteOwners = $Null ; $Process = $True
+ForEach ($Site in $Sites) {   
+   $SiteOwners = $Null ; $Process = $True; $SiteType = $null
    $SiteNumber++
    $SiteStatus = $Site.Title + " ["+ $SiteNumber +"/" + $Sites.Count + "]"
    Write-Progress -Activity "Processing site" -Status $SiteStatus -PercentComplete $PercentComplete
    $PercentComplete += $ProgressDelta
    $NoCheckGroup = $False
-   Switch ($Site.Template) {  #Figure out the type of site and if we should process it - this might not be an exhaustive set of site templates
-      "RedirectSite#0"            {$SiteType = "Redirect"; $Process = $False }
+   Switch ($Site.Template.toUpper()) {  #Figure out the type of site and if we should process it - this might not be an exhaustive set of site templates
       "GROUP#0"                   {$SiteType = "Group-enabled team site"}
-      "TEAMCHANNEL#0"             {$SiteType = "Teams Private Channel" }
+      "TEAMCHANNEL#0"             {$SiteType = "Teams Private or Shared Channel"}         
+      "TEAMCHANNEL#1"             {$SiteType = "Teams Shared or Private Channel"}
+      "STS#0"                     {$SiteType = "Team Site"; $NoCheckGroup = $True; $SiteOwners = "System"}
       "REVIEWCTR#0"               {$SiteType = "Review Center"; $Process = $False}
       "APPCATALOG#0"              {$SiteType = "App Catalog"; $Process = $False}
       "STS#3"                     {$SiteType = "Team Site"; $NoCheckGroup = $True; $SiteOwners = "System"}
@@ -81,8 +86,10 @@ ForEach ($Site in $Sites) {
       "SITEPAGEPUBLISHING#0"      {$SiteType = "Site page"; $NoCheckGroup = $True; $SiteOwners = "System"}
       "POINTPUBLISHINGHUB#0"      {$SiteType = "Communications Site"; $NoCheckGroup = $True; $SiteOwners = "System" }
       "POINTPUBLISHINGPERSONAL#0" {$SiteType = "OneDrive for Business"; $Process = $False}
-      "POINTPUBLISHINGTOPIC#0"    {$SiteType = "Office 365 Video"; $NoCheckGroup = $True; $SiteOwners = "System"} }
-
+      "POINTPUBLISHINGTOPIC#0"    {$SiteType = "Office 365 Video"; $NoCheckGroup = $True; $SiteOwners = "System"} 
+      "REDIRECTSITE#0"            {$SiteType = "Redirect site"; $Process = $False; $SiteOwners }
+      Default                     {$SiteType = "Other"}
+      }
    If ($NoCheckGroup -eq $False) { # Get owner information if it's a Microsoft 365 Group
       $SiteOwners = Get-Microsoft365GroupOwners($Site.URL)
    }
@@ -90,17 +97,29 @@ ForEach ($Site in $Sites) {
    $UsedGB = [Math]::Round($Site.StorageUsageCurrent/1024,2) 
    $PercentTenant = ([Math]::Round($Site.StorageUsageCurrent/1024,4)/$TotalSPOStorageUsed).tostring("P")           
 
+   # Calculate how long it's been since the last conetnt modification date, if we have one. This helps us 
+   # understand if the site is still active or not, and can be used to filter the report if necessary
+   If ($Site.LastContentModifiedDate) {
+      $LastModifiedDate = Get-Date $Site.LastContentModifiedDate -Format 'dd-MMM-yyyy hh:mm'
+      $DaysSinceModified = (New-TimeSpan -Start $Site.LastContentModifiedDate -End (Get-Date)).Days
+   } Else {
+      $LastModifiedDate = "No content"
+   }
+
 # And write out the information about the site
    If ($Process -eq $True) {
       $ReportLine = [PSCustomObject]@{
-         URL           = $Site.URL
-         SiteName      = $Site.Title
-         Owner         = $SiteOwners
-         Template      = $SiteType
-         QuotaGB       = [Math]::Round($Site.StorageQuota/1024,0) 
-         UsedGB        = $UsedGB
-         PercentUsed   = ([Math]::Round(($Site.StorageUsageCurrent/$Site.StorageQuota),4).ToString("P")) 
-         PercentTenant = $PercentTenant}
+         URL               = $Site.URL
+         SiteName          = $Site.Title
+         Owner             = $SiteOwners
+         Template          = $SiteType
+         QuotaGB           = [Math]::Round($Site.StorageQuota/1024,0) 
+         UsedGB            = $UsedGB
+         PercentUsed       = ([Math]::Round(($Site.StorageUsageCurrent/$Site.StorageQuota),4).ToString("P")) 
+         PercentTenant     = $PercentTenant
+         LastModified      = $LastModifiedDate
+         DaysSinceModified = $DaysSinceModified
+      }
       $Report.Add($ReportLine)
    }
 }
