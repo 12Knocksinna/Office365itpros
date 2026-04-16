@@ -29,6 +29,9 @@ $URI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(pe
 Invoke-MgGraphRequest -Uri $Uri -Method GET -OutputFilePath $TempDownloadFile
 [array]$Sites = Import-CSV $TempDownloadFile
 
+# Remove redirect sites. These are not really sites, but just placeholders that point to the real site, and they don't have any activity or storage usage themselves, so we can remove them from the report. Comment this out if you want to include the redirect sites in the report.
+$Sites = $Sites | Where-Object {$_.Template -ne "REDIRECTSITE#0"}
+
 $TotalSPOStorageUsed = [Math]::Round(($Sites."Storage Used (Byte)" | Measure-Object -Sum).Sum /1GB,2)
 $Report = [System.Collections.Generic.List[Object]]::new() 
 ForEach ($Site in $Sites) {

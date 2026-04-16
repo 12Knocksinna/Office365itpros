@@ -52,7 +52,7 @@ Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Certif
 # Get all SPO sites
 Clear-Host
 Write-Host "Fetching information about SharePoint Online sites..."
-[array]$Sites = Get-SPOSite -Limit All | Select-Object Title, URL, StorageQuota, StorageUsageCurrent, ArchiveStatus, Template | `
+[array]$Sites = Get-SPOSite -Limit All | Select-Object Title, URL, StorageQuota, StorageUsageCurrent, ArchiveStatus, CreatedTime, Template | `
    Sort-Object StorageUsageCurrent -Descending
 If ($Sites.Count -eq 0) { 
    Write-Host "No SharePoint Online sites found.... exiting..." ; break 
@@ -62,6 +62,14 @@ $Sites = $Sites | Where-Object { $_.ArchiveStatus -eq "NotArchived" } # Remove a
 $Sites = $Sites | Where-Object {$_.Template -ne "TEAMCHANNEL#0" -and $_.Template -ne "TEAMCHANNEL#1"} 
 # Remove redirect sites. These are not really sites, but just placeholders that point to the real site, and they don't have any activity or storage usage themselves, so we can remove them from the report. Comment this out if you want to include the redirect sites in the report.
 $Sites = $Sites | Where-Object {$_.Template -ne "REDIRECTSITE#0"}
+
+# Check whether the obfuscation setting for reports is set and if so, reset it to allow clear values to be obtained
+$ObfuscationChanged = $false
+If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $True) {
+   $Parameters = @{ displayConcealedNames = $False }
+   Update-MgAdminReportSetting -BodyParameter $Parameters
+   $ObfuscationChanged = $true
+}
 
 Write-Host "Fetching SharePoint Online site activity information from the Microsoft Graph..."
 $TempDownLoadFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\download.csv"
@@ -137,22 +145,41 @@ ForEach ($Site in $Sites) {
    } Else {
       $LastActivityDate = "No activity"
       $DaysSinceActivity = "N/A"
-   }    
+   }   
+   
+# Calculate obsolete status for the site
+# If less than seven days old, continue
+# If no activity, and more than 90 days old, obsolete
+# If activity, but last activity more than 180 days ago, obsolete
+# If the nummber of files is less than 20 and no activity in the last 180 days, obsolete. This is to catch sites that have had some activity, but are essentially empty and not being used.  
+   If ((New-TimeSpan -Start $Site.CreatedTime -End (Get-Date)).Days -lt 7) {
+      $SiteObsolete = $False
+   } ElseIf ($LastActivityDate -eq "No activity" -and (New-TimeSpan -Start $Site.CreatedTime -End (Get-Date)).Days -gt 90) {
+      $SiteObsolete = $True
+   } ElseIf ($LastActivityDate -ne "No activity" -and $DaysSinceActivity -gt 180) {
+      $SiteObsolete = $True
+   } ElseIf ($LastActivityDate -ne "No activity" -and $DaysSinceActivity -gt 180 -and $LastActivityInfo.'File Count' -lt 20) {
+      $SiteObsolete = $True
+   } Else {    
+      $SiteObsolete = $False
+   }  
 
 # And write out the information about the site
    If ($Process -eq $True) {
       $ReportLine = [PSCustomObject]@{
-        URL               = $Site.URL
-        SiteName          = $Site.Title
-        Owner             = $SiteOwners
-        Template          = $SiteType
-        QuotaGB           = [Math]::Round($Site.StorageQuota/1024,0) 
-        UsedGB            = $UsedGB
-        Files             = $LastActivityInfo.'File Count'
-        PercentUsed       = ([Math]::Round(($Site.StorageUsageCurrent/$Site.StorageQuota),4).ToString("P")) 
-        PercentTenant     = $PercentTenant
-        'Last Activity'   = $LastActivityDate
-        DaysSinceActivity = $DaysSinceActivity
+         URL               = $Site.URL
+         SiteName          = $Site.Title
+         Owner             = $SiteOwners
+         Template          = $SiteType
+         QuotaGB           = [Math]::Round($Site.StorageQuota/1024,0) 
+         UsedGB            = $UsedGB
+         Files             = $LastActivityInfo.'File Count'
+         PercentUsed       = ([Math]::Round(($Site.StorageUsageCurrent/$Site.StorageQuota),4).ToString("P")) 
+         PercentTenant     = $PercentTenant
+         'Last Activity'   = $LastActivityDate
+         DaysSinceActivity = $DaysSinceActivity
+         CreatedTime       = $Site.CreatedTime
+         SiteObsolete      = $SiteObsolete
       }
       $Report.Add($ReportLine)
    }
@@ -179,6 +206,13 @@ If ($ExcelGenerated -eq $true) {
     Write-Host ("SPO sites report is available in CSV file {0}" -f $CSVOutputFile)
 }
 
+# If necessary, reset tenant obfuscation settings to True
+If ($ObfuscationChanged) {
+    If ((Get-MgAdminReportSetting).DisplayConcealedNames -eq $False) {
+       $Parameters = @{ displayConcealedNames = $True }
+       Update-MgAdminReportSetting -BodyParameter $Parameters
+    }
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
