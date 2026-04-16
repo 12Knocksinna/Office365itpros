@@ -13,7 +13,7 @@ Function Get-Microsoft365GroupOwners([String]$SiteURL) {
    $GroupId = (Get-SPOSite -Identity $SiteURL) 
    If ($GroupId.Template -eq  "TEAMCHANNEL#0" -or $GroupId.Template -eq "TEAMCHANNEL#1") { # If Teams private or shared channel, we use the Related Group Id
       #$GroupId = $GroupId | Select-Object -ExpandProperty RelatedGroupId 
-      $SiteOwners = "Parent team site owners"
+      $SiteOwners = "Channel owners"
    } Else { # And for all other group-enabled sites, we use the GroupId
       $GroupId = $GroupId | Select-Object -ExpandProperty GroupId 
    }
