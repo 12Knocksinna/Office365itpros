@@ -3,30 +3,33 @@
 # Session must be connected to an admin account
 
 # V2.0 15-Apr-2026 Updated to exclude archived sites and to handle sites used for Teams shared channels
-# https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSPOSiteStorageUsage.PS1
+# 
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSPOSiteStorageUsage.PS1
 
 Function Get-Microsoft365GroupOwners([String]$SiteURL) {
 # Function to return the owners of an Microsoft 365 Group identified by the group GUID
-$Owners = $Null; $DeletedGroup = $False; $SiteOwners = $Null
-# Get the site properties. We need a separate call here because Get-SPOSite doesn't return all properties when it fetches a set of sites
-$GroupId = (Get-SPOSite -Identity $SiteURL) 
-If ($GroupId.Template -eq  "TEAMCHANNEL#0" -or $GroupId.Template -eq "TEAMCHANNEL#1") { # If Teams private or shared channel, we use the Related Group Id
-   $GroupId = $GroupId | Select-Object -ExpandProperty RelatedGroupId 
-} Else { # And for all other group-enabled sites, we use the GroupId
-   $GroupId = $GroupId | Select-Object -ExpandProperty GroupId 
-}
-
-If ($GroupId.Guid -eq "00000000-0000-0000-0000-000000000000") { # Null group id stored in site
-      $SiteOwners = "Deleted group"; $DeletedGroup = $True }
-If ($DeletedGroup -eq $False) {      
-   Try { 
-      $Owners = (Get-UnifiedGroupLinks -Identity $GroupId.Guid -LinkType Owners -ErrorAction SilentlyContinue) 
-   } Catch { 
-      $SiteOwners = "Possibly deleted Microsoft 365 Group"; $DeletedGroup = $True 
+   $Owners = $Null; $DeletedGroup = $False; $SiteOwners = $Null
+   # Get the site properties. We need a separate call here because Get-SPOSite doesn't return all properties when it fetches a set of sites
+   $GroupId = (Get-SPOSite -Identity $SiteURL) 
+   If ($GroupId.Template -eq  "TEAMCHANNEL#0" -or $GroupId.Template -eq "TEAMCHANNEL#1") { # If Teams private or shared channel, we use the Related Group Id
+      #$GroupId = $GroupId | Select-Object -ExpandProperty RelatedGroupId 
+      $SiteOwners = "Parent team site owners"
+   } Else { # And for all other group-enabled sites, we use the GroupId
+      $GroupId = $GroupId | Select-Object -ExpandProperty GroupId 
    }
-}
 
-If ($Null -eq $Owners) { # Got nothing back, maybe because of an error
+   If ($GroupId.Guid -eq "00000000-0000-0000-0000-000000000000") { # Null group id stored in site
+      $SiteOwners = "Deleted group"; $DeletedGroup = $True 
+   }
+   If ($DeletedGroup -eq $False -and $null -eq $SiteOwners) {      
+      Try { 
+         $Owners = (Get-UnifiedGroupLinks -Identity $GroupId.Guid -LinkType Owners -ErrorAction SilentlyContinue) 
+      } Catch { 
+         $SiteOwners = "Possibly deleted Microsoft 365 Group"; $DeletedGroup = $True 
+      }
+   }
+
+   If ($Null -eq $Owners) { # Got nothing back, maybe because of an error
       $SiteOwners = "Possibly deleted Microsoft 365 Group"
    } Else { # We have some owners, now format them
       $Owners = $Owners | Select-Object -ExpandProperty DisplayName
