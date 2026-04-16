@@ -85,6 +85,7 @@ $URI = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(pe
 Invoke-MgGraphRequest -Uri $Uri -Method GET -OutputFilePath $TempDownloadFile
 [array]$SitesActivityData = Import-CSV $TempDownloadFile
 
+Write-Host "Processing site activity data..."
 $SiteActivityHash = @{}
 ForEach ($Site in $SitesActivityData) {
     $SiteId = $Site.'Site Id'
