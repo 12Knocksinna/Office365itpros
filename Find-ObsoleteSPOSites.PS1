@@ -7,7 +7,6 @@
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-ObsoleteSPOSites.PS1
 
 # Graph application permissions required:
-# Group.Read.All                 Read details of Microsoft 365 groups connected to sites
 # Reports.Read.All               Read usage report for SharePoint Online site activity
 # ReportSettings.ReadWrite.All   Read and write report settings to alter setting for usage data obfuscation
 # User.ReadBasic.All             Read display names of group owners to report their names
@@ -29,7 +28,7 @@ Function Get-Microsoft365GroupOwners([String]$SiteURL) {
       $SiteOwners = "Deleted group"; $DeletedGroup = $True }
    If ($DeletedGroup -eq $False) {      
       Try { 
-         $GroupId = $GroupId.Guid
+         [string]$GroupId = $GroupId.Guid
          [array]$Owners = Get-MgGroupOwner -GroupId $GroupId -ErrorAction Stop
       } Catch { 
          $SiteOwners = "Possibly deleted Microsoft 365 Group"; $DeletedGroup = $True 
