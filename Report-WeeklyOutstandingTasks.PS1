@@ -154,8 +154,7 @@ ForEach ($Member in $Members) {
                                 } Catch {
                                     Write-Error ("Failed to retrieve user details for assignee {0} in task {1}:" -f $Assignee, $Task.Title)
                                     continue
-                                }
-                              
+                                }                            
                             }
                             # Add a hyperlink to the task in Planner in the report. The URL format is based on the structure of Planner URLs and may need to be updated if Microsoft changes how Planner URLs are structured in the future.
                             $TaskUri = ("https://planner.cloud.microsoft/webui/v1/plan/{0}/view/board/task/{1}?tid={2}" -f $Plan.id, $Task.id, $organizationId)
@@ -226,12 +225,12 @@ ForEach ($Id in $UniqueUsers) {
     # prepare the attachment for sending in the email
     $EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($AttachmentFile))
     $MsgAttachments = @(
-    @{
+      @{
         '@odata.type' = '#microsoft.graph.fileAttachment'
         Name = (Split-Path $AttachmentFile -Leaf)
         ContentBytes = $EncodedAttachmentFile
         ContentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    }
+      }
     )
     $AverageDaysOutstanding = [math]::Round(($UserTasks | Measure-Object -Property 'Days Outstanding' -Average).Average, 2)
     $LongestOutstandingTask = $UserTasks | Sort-Object -Property 'Days Outstanding' -Descending | Select-Object -First 1

@@ -1804,3 +1804,33 @@ If ($Policy) {
         Write-Error ("Failed to enable 'Block Weekend Access' policy: {0}" -f $_.Exception.Message)
     }
 } 
+
+# Adding items to a SharePoint Online list for outstanding task count
+$UpdateList = $false
+$Uri = "https://redmondassociates.sharepoint.com/sites/O365ExchPro"
+$SiteId = $Uri.Split('//')[1].split("/")[0] + ":/sites/" + $Uri.Split('//')[1].split("/")[2]
+$Site = Get-MgSite -SiteId $SiteId
+$List = Get-MgSiteList -SiteId $Site.Id -Filter "displayName eq 'Planner Task Burndown'"   
+If ($List) {
+    $UpdateList = $true
+}
+
+# Extract data that we want to report on 
+[array]$PlanData = $UserTasks | Where-Object {$_.Plan -eq 'MAC Tasks'}
+$NewItemParameters = @{
+	fields = @{
+	    Title                   = (New-Guid).Guid
+        Plan                    = $PlanData[0].Plan
+        UPN                     = $PlanData[0].UserEmail
+        Username                = $PlanData[0].User
+        Tasks                   = $PlanData.count
+        RunDate                 = Get-Date -Format 'dd-MMM-yyyy HH:mm'
+        Averagedaysoutstanding  = [math]::Round(($PlanData | Measure-Object -Property 'Days Outstanding' -Average).Average, 2)        
+    }
+}
+Try {
+    $NewItem = New-MgSiteListItem -SiteId $Site.Id -ListId $List.Id -BodyParameter $NewItemParameters -ErrorAction Stop
+    Write-Output ("Created new list item with ID {0}" -f $NewItem.Id)
+} Catch {
+    Write-Error ("Failed to create new list item: {0}" -f $_.Exception.Message)
+}
