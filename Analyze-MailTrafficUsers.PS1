@@ -17,13 +17,16 @@ $EndDate = (Get-Date)
 
 Write-Host ("Message trace data will be analyzed between {0} and {1}" -f $StartDate, $EndDate)
 [array]$Messages = $Null
-[int]$BatchSizeForMessages = 2000
+# Define the page size to fetch messages.
+[int]$BatchSizeForMessages = 1000
     # original code [array]$MessagePage = Get-MessageTrace -StartDate $StartDate -EndDate $EndDate -PageSize 1000 -Page $i -Status "Delivered"
 Try {
     # The warning action is suppressed here because we don't want to see warnings when more data is available
     [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate `
         	-ResultSize $BatchSizeForMessages -Status "Delivered" -ErrorAction Stop -WarningAction SilentlyContinue
     $Messages += $MessagePage
+    # Very basic throttling in an attempt to avoid Exchange Online not being able to return pages of message trace data.
+    Start-Sleep -Milliseconds 250
 } Catch {
     Write-Host ("Error fetching message trace data: {0}" -f $_.Exception.Message)
     Break

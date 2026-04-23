@@ -1805,9 +1805,9 @@ If ($Policy) {
     }
 } 
 
-# Adding items to a SharePoint Online list for outstanding task count
+# See if a site list is available to add details of each user to
 $UpdateList = $false
-$Uri = "https://redmondassociates.sharepoint.com/sites/O365ExchPro"
+$Uri = "https://office365itpros.sharepoint.com/sites/O365ExchPro"
 $SiteId = $Uri.Split('//')[1].split("/")[0] + ":/sites/" + $Uri.Split('//')[1].split("/")[2]
 $Site = Get-MgSite -SiteId $SiteId
 $List = Get-MgSiteList -SiteId $Site.Id -Filter "displayName eq 'Planner Task Burndown'"   
