@@ -2,6 +2,7 @@
 # This script generates a weekly report of incomplete tasks for a user and sends the list to them via email
 
 # V1.0 1-Apr-2026
+# V2.0 24-Apr-2026  Split tasks into newly assigned (in the last week) and old tasks.
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-WeeklyOutstandingTasks.PS1
 
 # Permissions needed to run the script:
@@ -114,7 +115,7 @@ ForEach ($Member in $Members) {
             Write-Output "    Processing plan: $($Plan.Title)"
             Try {
                 [array]$Tasks = Get-MgPlannerPlanTask -PlannerPlanId $Plan.Id -All -PageSize 500 `
-                    -Property Id, Title, CompletedDateTime, StartDateTime, DueDateTime, BucketId, Assignments -ErrorAction Stop
+                    -Property Id, Title, CompletedDateTime, CreatedDateTime, StartDateTime, DueDateTime, BucketId, Assignments -ErrorAction Stop
                 [array]$Buckets = Get-MgPlannerPlanBucket -PlannerPlanId $Plan.Id -All -PageSize 500 -ErrorAction Stop
             } Catch {
                 Write-Error "Failed to retrieve tasks for plan $($Plan.Title)"
@@ -165,6 +166,7 @@ ForEach ($Member in $Members) {
                                 Group               = $Group.DisplayName
                                 Plan                = $Plan.Title
                                 Task                = $Task.Title
+                                TaskCreated         = $Task.CreatedDateTime
                                 Bucket              = $BucketsHash[$Task.BucketId]
                                 'Assigned Date'     = Get-Date $AssignedDateTime -format 'dd-MMM-yyyy HH:mm'
                                 'Days Outstanding'  = (New-TimeSpan -Start $AssignedDateTime -End (Get-Date)).Days
@@ -195,6 +197,10 @@ If (Get-Module ImportExcel -ListAvailable) {
     $ExcelGenerated = $True
     Import-Module ImportExcel -ErrorAction SilentlyContinue
 }
+# Email will check for tasks assigned in the last week and highlight them
+[datetime]$WeekAgo = (Get-Date).AddDays(-7)
+$HtmlTableNewTasksHeader = "<h2 style='background-color:#0000FF;color:white;padding:10px;'>Talks Assigned in the Last Week</h2>"
+$HtmlTableOlderTasksHeader = "<h2 style='background-color:#0000FE;color:white;padding:10px;'>Older Tasks</h2>"
 
 [int]$UpdatesSent = 0
 # Send mail to $usersHash[$member].mail
@@ -204,6 +210,14 @@ ForEach ($Id in $UniqueUsers) {
     Write-Output "Sending email to $UserName ($DestinationEmailAddress) with their incomplete tasks"
     # Get list of incomplete tasks for the user
     [array]$UserTasks = $Report | Where-Object { $_.Id -eq $Id }
+      # If no tasks, get out and go to next user. If tasks, split them into this week and older tasks
+    If ($UserTasks) {
+        [array]$NewTasks = $UserTasks | Where-Object {$_.TaskCreated -ge $WeekAgo }   
+        [array]$OlderTasks = $UserTasks | Where-Object {$_.TaskCreated -le $WeekAgo} 
+    } Else {
+        Write-Output ("No open tasks to report for identifuer {0} - moving to next user" -f $DestinationEmailAddress)
+        Continue
+    }
 
     # Generate the attachment in either Excel worksheet or CSV format, depending on if the ImportExcel module is available
     If ($ExcelGenerated) {
@@ -243,13 +257,31 @@ ForEach ($Id in $UniqueUsers) {
     $HtmlContent += "<p>The bucket with the most tasks is <b>$($MostTasksinBucket.Name)</b> in the <b>$($MostTasksinBucket.Group.Plan[0])</b> plan with <b>$($MostTasksinBucket.Count)</b> tasks.</p>"
     $HtmlContent += "<p>Please try to get these tasks completed as soon as possible!</p>"
 
-    $HtmlTable = $UserTasks | Select-Object Group, Plan, 'Task link', Bucket, 'Assigned Date', 'Start Date', 'Due Date' | `
-        Sort-Object {'Assigned Date' -as [datetime]} | ConvertTo-Html -Fragment
-
+    # Create HTML tables for new and older tasks
     # ConvertTo-Html HTML-encodes special characters by default, turning <a> tags into literal text like &lt;a href=...&gt;. This command
-    # decode the tags back after the conversion so that the task hyperlinks are rendered correctly.
-    $HtmlTable = $HtmlTable -replace '&lt;', '<' -replace '&gt;', '>' -replace '&amp;', '&' -replace '&#39;', "'" -replace '&quot;', '"'
-    $HtmlMessage = $HtmlHeading + $HtmlContent + $HtmlTable
+    # decode the tags back after the conversion so that the task hyperlinks are rendered correctly in the two tables.
+
+    If ($NewTasks) {
+        $HtmlTableNewTasks = $NewTasks | Select-Object Group, Plan, 'Task link', Bucket, 'Assigned Date', 'Start Date', 'Due Date' | `
+            Sort-Object {'Assigned Date' -as [datetime]} | ConvertTo-Html -Fragment
+        $HtmlTableNewTasks = $HtmlTableNewTasks -replace '&lt;', '<' -replace '&gt;', '>' -replace '&amp;', '&' -replace '&#39;', "'" -replace '&quot;', '"'
+    }
+    If ($OlderTasks) {
+        $HtmlTableOlderTasks = $OlderTasks | Select-Object Group, Plan, 'Task link', Bucket, 'Assigned Date', 'Start Date', 'Due Date' | `
+            Sort-Object {'Assigned Date' -as [datetime]} | ConvertTo-Html -Fragment
+        $HtmlTableOlderTasks = $HtmlTableOlderTasks -replace '&lt;', '<' -replace '&gt;', '>' -replace '&amp;', '&' -replace '&#39;', "'" -replace '&quot;', '"'
+    }
+    # Figure output that needs to be in the message
+    If ($NewTasks -and $OlderTasks) {
+        # include both sections in the message
+        $HtmlMessage = $HtmlHeading + $HtmlContent + $HtmlTableNewTasksHeader + $HtmlTableNewTasks + $HtmlTableOlderTasksHeader + $HtmlTableOlderTasks
+    } ElseIf ($NewTasks -and (!($OlderTasks))) {
+        # Include just this week's tasks in the message
+        $HtmlMessage = $HtmlHeading + $HtmlContent + $HtmlTableNewTasksHeader + $HtmlTableNewTasks 
+    } ElseIf ((!($NewTasks)) -and $OlderTasks) {
+        # Just older tasks
+        $HtmlMessage = $HtmlHeading + $HtmlContent + $HtmlTableOlderTasksHeader + $HtmlTableOlderTasks 
+    } 
 
     # Add message details
     $ToRecipient = @{}
