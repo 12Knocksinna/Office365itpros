@@ -133,10 +133,10 @@ Write-Host "Finding licensed user accounts..."
   Sort-Object DisplayName
 
 If (!($Users)) { 
-  Write-Host "No licensed user accounts found - exiting"; break 
-}
-Else { 
-  Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) 
+    Write-Host "No licensed user accounts found - exiting"
+    break 
+} Else { 
+    Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) 
 }
 
 # These are the properties used to create analyses for.
