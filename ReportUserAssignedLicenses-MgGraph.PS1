@@ -62,7 +62,7 @@ $Version = "1.95"
 # See https://practical365.com/connect-microsoft-graph-powershell-sdk/ for information about connecting to the Graph.
 # In a production environment, it's best to use a registered Entra ID app to connect (app-only mode) to avoid the need for
 # the signed-in user to have any administrative roles, like Exchange administrator.
-Connect-MgGraph -Scope "Directory.AccessAsUser.All, Directory.Read.All, AuditLog.Read.All" -NoWelcome
+Connect-MgGraph -Scope "Directory.AccessAsUser.All, Organization.Read.All, AuditLog.Read.All" -NoWelcome
 
 <#
 Add your tenant identifier here
@@ -77,8 +77,11 @@ Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredent
 #>
 
 # This step depends on the availability of some CSV files generated to hold information about the product licenses used in the tenant and 
-# the service plans in those licenses. See https://github.com/12Knocksinna/Office365itpros/blob/master/CreateCSVFilesForSKUsAndServicePlans.PS1 
-# for code to generate the CSVs. After the files are created, you need to edit them to add the display names for the SKUs and plans.
+# the service plans in those licenses. The source CSV file containing product and service plan identifiers is available
+# at https://learn.microsoft.com/en-us/entra/identity/users/licensing-service-plan-reference
+# See https://github.com/12Knocksinna/Office365itpros/blob/master/CreateCSVFilesForSKUsAndServicePlans.PS1 for code to generate the CSVs
+# used in this script. After the files are created, you need to edit them to add the display names for the SKUs and plans.
+
 # Build Hash of Skus for lookup so that we report user-friendly display names - you need to create these CSV files from SKU and service plan
 # data in your tenant.
 
@@ -124,7 +127,7 @@ If ($ImportSkus[0].Price) {
 # Find tenant accounts - but filtered so that we only fetch those with licenses
 Write-Host "Finding licensed user accounts..."
 [Array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'"  `
-  -ConsistencyLevel eventual -CountVariable Records -All -PageSize 999 `
+  -ConsistencyLevel eventual -CountVariable Records -All -PageSize 500 `
   -Property id, displayName, userPrincipalName, country, department, assignedlicenses, OnPremisesExtensionAttributes, `
   licenseAssignmentStates, createdDateTime, jobTitle, signInActivity, companyName, accountenabled |  `
   Sort-Object DisplayName

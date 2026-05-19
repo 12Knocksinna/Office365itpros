@@ -1964,3 +1964,44 @@ $CurrentData = [PSCustomObject] @{
 }
     
 $UserItems += $CurrentData
+
+
+# Role assignments report
+[array]$DirectoryRoles = Get-MgRoleManagementDirectoryRoleDefinition -All | Sort-Object DisplayName
+ForEach ($Role in $DirectoryRoles) {
+    $RoleId = $Role.Id
+    [array]$RoleMembers = Get-MgRoleManagementDirectoryRoleAssignment -Filter "roleDefinitionId eq '$RoleId'" -ExpandProperty Principal
+    If ($RoleMembers) {
+        $RoleName = $Role.DisplayName      
+        ForEach ($Member in $RoleMembers) {
+            Switch ($Member.Principal.additionalProperties["@odata.type"]) {
+                "#microsoft.graph.user" {
+                Write-Output ("{0} is a user member of the {1} role" -f $Member.Principal.additionalProperties.displayName, $RoleName) 
+            }
+                "#microsoft.graph.servicePrincipal" {
+                Write-Output ("{0} is a service principal member of the {1} role" -f $Member.Principal.additionalProperties.displayName, $RoleName)
+            }
+                "#microsoft.graph.group" {
+                Write-Output ("{0} is a group member of the {1} role" -f $Member.Principal.additionalProperties.displayName, $RoleName)
+            }
+            Default {
+                Write-Output ("A principal with ID {0} and type {1} is a member of the {2} role" -f $Member.PrincipalId, $Member.Principal.additionalProperties["@odata.type"], $RoleName)
+            }
+            }
+        }
+    }
+}
+
+ForEach ($Label in $TenantLabels) {
+    If ($Label.Sublabels) {
+        $TenantLabels += $Label.Sublabels
+    }  
+} 
+$TenantLabels = $TenantLabels | Sort-Object Id -Unique
+
+ForEach ($Label in $UserLabels) {
+    If ($Label.Parent.Id) {
+        $UserLabels += $Label.Parent
+    }  
+}
+$UserLabels = $UserLabels | Sort-Object Name -Unique
