@@ -1,5 +1,7 @@
 # CleanUpMailbox-Graph.PS1
 # A simple PowerShell script to show how to use Graph queries to clean up mailbox items
+
+# V1.1 21-May-2026 Fixed a few bugs and improved the flow of processing.
 # 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/CleanUpMailbox-Graph.PS1
 # See https://practical365.com/mailbox-contents-report/ for an article describing how to use the script
@@ -155,7 +157,9 @@ $Level3 = $Null; $Level4 = $Null; $Level2 = $Null; $NFF2 = $Null; $NFF3 = $Null
 
 # Check that we have the necessary Exchange Online module loaded
 $ModulesLoaded = Get-Module | Select-Object Name
-If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break}
+If (!($ModulesLoaded -match "ExchangeOnlineManagement")) {
+  Write-Host "Please connect to the Exchange Online Management module and then restart the script"; break
+}
 
 # Set these values to those appropriate in your tenant
 # Removing AppId, TenantID, and AppSecret variables, and pass them as parameters
@@ -179,7 +183,9 @@ $Headers = @{
             'Authorization' = "Bearer $Token" 
             'ConsistencyLevel' = "eventual" }
 
-If (!($Token)) { Write-Host "Can't get access token - exiting" ; break }
+If (!($Token)) { 
+  Write-Host "Can't get access token - exiting" ; break 
+}
 
 # Prepare search filter
 $SearchFilter = "subject:$MessageSubject" 
@@ -198,7 +204,8 @@ If (($StartDateFilter) -and ($EndDateFilter)) {
   $SearchFilter = $SearchFilter + " AND received>=$StartDateFilter AND received<=$EndDateFilter" }
 
 If ($SearchQuery) {
-  $SearchFilter = $SearchFilter + " AND '" + $SearchQuery + "'" }
+  $SearchFilter = $SearchFilter + " AND '" + $SearchQuery + "'" 
+}
 
 Write-Host "Search criteria:"
 Write-Host "----------------"
@@ -216,40 +223,56 @@ If ($Mailbox -eq "All") {
    [array]$Mbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox, SharedMailbox }
 Else {
    [array]$Mbx = Get-ExoMailbox -Identity $Mailbox }
-If (!($Mbx)) { Write-Host "No mailboxes found - exiting"; break }
-Write-Host ("{0} mailboxes found." -f $Mbx.count)
+If (!($Mbx)) { 
+  Write-Host "No mailboxes found - exiting"; break 
+} Else {
+  Write-Host ("{0} mailboxes found." -f $Mbx.count)
+}
 
+$counter = 0
 $DeletionsList = [System.Collections.Generic.List[Object]]::new()
 ForEach ($M in $Mbx) {
-  $DataTable = @{}
+  $counter++
+
   If ($Folder -eq "All") { # Process all folders
-   # Get list of folders in the mailbox
-   $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders?includeHiddenFolders=true" -f $M.ExternalDirectoryObjectId)
-   [array]$AllFolders = Get-GraphData -Uri $Uri -AccessToken $Token
-   $AllFolders = $AllFolders | Sort-Object Id -Unique
-   # Build a hash table of folder ids and display names
-   ForEach ($F in $AllFolders) {
-     $DataTable.Add([String]$F.Id,[String]$F.DisplayName) }
-   # Find folders with child folders
-   [array]$FoldersWithChildFolders = $AllFolders | Where-Object {$_.ChildFolderCount -gt 0}
-
-   ForEach ($ChildFolder in $FoldersWithChildFolders) {
-   [array]$ChildFolders = UnpackFolders -FolderId $ChildFolder.Id -UserId $M.ExternalDirectoryObjectId
-   ForEach ($F in $ChildFolders) {
-     Try {
-        $DataTable.Add([String]$F.Id,[String]$F.DisplayName) }
-     Catch {}
+    # Get list of folders in the mailbox
+    $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/MailFolders?includeHiddenFolders=true" -f $M.ExternalDirectoryObjectId)
+    [array]$AllFolders = Get-GraphData -Uri $Uri -AccessToken $Token
+    $AllFolders = $AllFolders | Sort-Object Id -Unique
+    # Build a hash table of folder ids and display names
+    $DataTable = @{}
+    ForEach ($F in $AllFolders) {
+       $DataTable.Add([String]$F.Id,[String]$F.DisplayName) 
     }
-   }
+    # Find folders with child folders
+    [array]$FoldersWithChildFolders = $AllFolders | Where-Object {$_.ChildFolderCount -gt 0}
 
-   # Build Uri to look for matching messages across all folders
-   $Uri = 'https://graph.microsoft.com/v1.0/users/' + $M.ExternalDirectoryObjectId + "/messages?`$search=" + '"' + $SearchFilter + '"' + "&`$select=id,parentfolderid,receivedDateTime,subject,from" 
+    ForEach ($ChildFolder in $FoldersWithChildFolders) {
+      [array]$ChildFolders = UnpackFolders -FolderId $ChildFolder.Id -UserId $M.ExternalDirectoryObjectId
+      ForEach ($F in $ChildFolders) {
+        If ([string]::IsNullOrEmpty($F.DisplayName)) {  # Don't bother with blank folder names
+          continue
+        }
+        If ($DataTable.ContainsKey($F.Id)) { # Folder is already in the hash table, so skip it
+            continue
+        } Else {
+          Try {
+            $DataTable.Add([String]$F.Id,[String]$F.DisplayName) }
+          Catch {}
+        }
+      }
+    }   
+        
+    # Build Uri to look for matching messages across all folders
+    $Uri = 'https://graph.microsoft.com/v1.0/users/' + $M.ExternalDirectoryObjectId + "/messages?`$search=" + '"' + $SearchFilter + '"' + "&`$select=id,parentfolderid,receivedDateTime,subject,from" 
 } # End if
   Else { # Process an individual folder
    # Find the target folder
    $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/mailFolders?`$filter=displayName eq '{1}'" -f $M.ExternalDirectoryObjectId, $Folder) 
    [Array]$TargetFolder = Get-GraphData -AccessToken $Token -Uri $Uri
-   If (!($TargetFolder)) { Write-Host ("Can't find the {0} folder - exiting" -f $Folder); break }
+   If (!($TargetFolder)) { 
+    Write-Host ("Can't find the {0} folder - exiting" -f $Folder); break 
+  }
    Write-Host ""
    Write-Host ( $("Mailbox        {0}" -f $M.DisplayName))
    Write-Host ( $("Target folder  {0}" -f $TargetFolder.displayName))
@@ -269,12 +292,22 @@ Write-Host ("Searching for matching messages in mailbox {0}... ({1}/{2})" -f $M.
 # Get messages that aren't in user folders that aren't Deleted Items
 [Array]$Messages = Get-GraphData -Uri $Uri -AccessToken $Token
 
+# If nothing is found in the target set of folders, nullify the variable to avoid confusion
+If ($Messages.count -eq 1 -and $null -eq $messages[0].id) {
+  $Messages = $Null
+}
+
 # If processing all folders, search Deleted Items too
 # Using Well-known folder names https://docs.microsoft.com/en-us/dotnet/api/microsoft.exchange.webservices.data.wellknownfoldername?view=exchange-ews-api
 If ($Folder -eq "All") {
    $Uri = 'https://graph.microsoft.com/v1.0/users/' + $M.ExternalDirectoryObjectId + "/mailfolders('DeletedItems')/messages?`$search=" + '"' + $SearchFilter + '"' + "&`$select=id,parentfolderid,receivedDateTime,subject,from"
    [array]$DeletedItemsMessages = Get-GraphData -Uri $Uri -AccessToken $Token
-   $Messages = $Messages + $DeletedItemsMessages }
+   $Messages += $DeletedItemsMessages 
+}
+If ($Messages.count -eq 1 -and $null -eq $messages[0].id) {
+  $Messages = $Null
+}
+$Messages = @($Messages | Where-Object { $_ -and -not [string]::IsNullOrWhiteSpace($_.Id) })
 
 # Fetch messages in the Deletions folder in Recoverable Items
 # No point in including them if we're deleting items because the Graph won't let you delete them
@@ -290,53 +323,60 @@ If (($Action -eq "Report only") -and ($Folder -eq "All")) {
   $DeletionFolderId = $DeletionFolderData[0].id
   $DeletionFolderName = $DeletionFolderData[0].DisplayName
   $DataTable.Add([String]$DeletionFolderId,[String]$DeletionFolderName)
- }
+}
 
-# Sometimes the set of messages returns includes an item with @odata.context rather than @odata.etag. This filter removes those records
- $Messages = $Messages | Where-Object {$_.id -ne $Null}
-
-If (($Messages.Count -gt 0) -and ($Null -eq $Messages."@odata.context")) { #We have some messages to delete or report
+If ($Messages.Count -gt 0)  { 
+  #We have some messages to delete or report
 
   Write-Host ("Found {0} matching message(s) in mailbox {1} " -f $Messages.count, $M.DisplayName)
   ForEach ($Message in $Messages) {
     $i++
-    Write-Host ("Processing Message {0} ({1})" -f $i, $Action)
+    Write-Host ("Processing Message {0} number {1} ({2})" -f $Message.Subject,$i, $Action)
     # Log details of what happened to a message
-   $FolderName = $Folder 
-   If ($Folder -eq "All") { #Resolve parent folder name
-     Try {
-        $FolderName = $DataTable[$Message.ParentFolderId] }
-     Catch {
-        $FolderName = "Unresolved folder name" }
+    $FolderName = $Folder 
+    If ($Folder -eq "All") { #Resolve parent folder name
+      Try {
+        $FolderName = $DataTable[$Message.ParentFolderId] 
+      } Catch {
+        $FolderName = "Unresolved folder name" 
+      }
     }
     If ($Message.From.EmailAddress.Address -like "*ExchangeLabs*")  {
-          $MessageSender = $M.PrimarySmtpAddress }
-    Else {
-          $MessageSender = $Message.From.EmailAddress.Address }
+      $MessageSender = $M.PrimarySmtpAddress 
+    } Else {
+      $MessageSender = $Message.From.EmailAddress.Address 
+    }
        
     If ([string]::IsNullOrEmpty($Message.ReceivedDateTime)) { 
-          $ReceivedDate = "Not noted" }
-    Else {
-          $ReceivedDate =  Get-Date ($Message.ReceivedDateTime) -format g }
+      $ReceivedDate = "Not noted" 
+    } Else {
+      $ReceivedDate =  Get-Date ($Message.ReceivedDateTime) -format g 
+    }
 
-       $DeletionLine = [PSCustomObject][Ordered]@{  # Write out details of the group
-          Mailbox             = $M.DisplayName
-          UPN                 = $M.UserPrincipalName
-          "User type"         = $M.RecipientTypeDetails
-          Subject             = $Message.Subject
-          Folder              = $FolderName
-          From                = $MessageSender
-          ReceivedDate        = $ReceivedDate
-          Id                  = $Message.Id  
-          ProcessDate         = Get-Date -format u
-          Action              = $Action }
-       $DeletionsList.Add($DeletionLine) 
-       If ($Action -eq "Delete") {
+    $DeletionLine = [PSCustomObject][Ordered]@{  # Write out details of the group
+      Mailbox             = $M.DisplayName
+      UPN                 = $M.UserPrincipalName
+      "User type"         = $M.RecipientTypeDetails
+      Subject             = $Message.Subject
+      Folder              = $FolderName
+      From                = $MessageSender
+      ReceivedDate        = $ReceivedDate
+      Id                  = $Message.Id  
+      ProcessDate         = Get-Date -format u
+      Action              = $Action 
+    }
+    $DeletionsList.Add($DeletionLine) 
+    If ($Action -eq "Delete") {
           # This puts the deleted item into the Deletions sub-folder of Recoverable Items
-          $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/messages/{1}" -f $M.ExternalDirectoryObjectId, $Message.Id)
-          $Status = Invoke-RestMethod $Uri -Method 'Delete' -Headers $Headers  }
-       }
-    } #End If check that some items exist
+      $Uri = $("https://graph.microsoft.com/v1.0/users/{0}/messages/{1}" -f $M.ExternalDirectoryObjectId, $Message.Id)
+      Try {
+        Invoke-RestMethod $Uri -Method 'Delete' -Headers $Headers -contenttype "application/json" -ErrorAction Stop | Out-Null
+      } Catch {
+        Write-Warning ("Couldn't delete message with id {0} in mailbox {1} - check the error message" -f $Message.Id, $M.DisplayName)
+      }
+    }
+  }
+  } #End If check that some items exist
 } #End loop through Mbx
 
 Write-Host ""
