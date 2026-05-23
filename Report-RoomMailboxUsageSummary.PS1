@@ -1,11 +1,11 @@
 # Report-RoomMailboxUsageSummary.PS1
 # A very simple script to show how to detect whether room mailboxes are being used
 # Application needs Calendar.ReadBasic permissions in the Graph to run successfully
-# See https://practical365.com/room-mailbox-usage-summary/ for the article explaining how to generate a more comprehensive
+# See https://practical365.com/room-mailbox-statistics-new/ for an article explaining how to generate a more comprehensive
 # analysis of room mailbox usage using the Graph API and PowerShell. 
 
 # V1.0 23-May-2026
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-RoomMailboxUsageSummary.PS1
 
 # This is the command to use the Places API to find room mailboxes
 #[array]$RoomMailboxes = Get-MgPlaceAsRoom -All -Sort "displayName"
