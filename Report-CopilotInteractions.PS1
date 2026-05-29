@@ -7,6 +7,7 @@
 
 # V1.0 5-Sep-2024
 # V1.1 5-Nov-2024 added Microsoft Copilot interactions
+# 29-May-2026 This script now longer works because the Graph blocks access to non-IPM folders.
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-CopilotInteractions.PS1
 
