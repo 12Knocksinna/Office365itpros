@@ -3,6 +3,7 @@
 # Session must be connected to an admin account
 
 # V2.0 15-Apr-2026 Updated to exclude archived sites and to handle sites used for Teams shared channels
+# V2.1 30-May-2026 Fix #154
 # 
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/ReportSPOSiteStorageUsage.PS1
 
@@ -18,7 +19,7 @@ Function Get-Microsoft365GroupOwners([String]$SiteURL) {
       $GroupId = $GroupId | Select-Object -ExpandProperty GroupId 
    }
 
-   If ($GroupId.Guid -eq "00000000-0000-0000-0000-000000000000") { # Null group id stored in site
+   If ($GroupId.Guid -eq [Guid]::Empty ) { # Null group id stored in site
       $SiteOwners = "Deleted group"; $DeletedGroup = $True 
    }
    If ($DeletedGroup -eq $False -and $null -eq $SiteOwners) {      
@@ -58,7 +59,7 @@ If ($Sites.Count -eq 0) {
 }
 $Sites = $Sites | Where-Object { $_.ArchiveStatus -eq "NotArchived" } # Remove archived sites
 # Remove sites used for Teams private/shared channels. Comment this out if you want to include the channel sites in the report.
-$Sites = $Sites | Where-Object {$_.Template.upper() -ne "TEAMCHANNEL#0" -and $_.Template.upper() -ne "TEAMCHANNEL#1"} 
+$Sites = $Sites | Where-Object {$_.Template.toUpper() -ne "TEAMCHANNEL#0" -and $_.Template.toUpper() -ne "TEAMCHANNEL#1"} 
 
 Clear-Host
 $ProgressDelta = 100/($Sites.count); $PercentComplete = 0; $SiteNumber = 0

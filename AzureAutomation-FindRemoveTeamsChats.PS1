@@ -4,6 +4,8 @@
 # V2.0 30-May-2026 Updated cmdlets to make sure that everything works with the latest Graph SDK and V1.0 cmdlets. Added the ability to
 #                  check message content as well as chat topics.
 
+# GitHub Link: 
+
 Function Add-MessageRecipients {
 # Function to build an addressee list to send email   
  [cmdletbinding()]
