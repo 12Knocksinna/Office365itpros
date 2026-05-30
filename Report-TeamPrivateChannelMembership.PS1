@@ -74,11 +74,11 @@ If ($ExcelGenerated) {
     $OutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TeamsPrivateChannelMembership.xlsx"
     $ChannelsList | Export-Excel -Path $OutputFile -WorksheetName "PrivateChannelMembership" -Title ("Teams Private Channel Membership {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "PrivateChannels"         
 } Else {
-    $OutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TeamsPrivateChannelMembership_$($Id).csv"
+    $OutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TeamsPrivateChannelMembership.csv"
     $ChannelsList | Export-Csv -Path $OutputFile     -NoTypeInformation -Encoding Utf8
 }
 
-Write-Output "Report generated in: $OutputFile" -ForegroundColor Green
+Write-Host "Report generated in: $OutputFile" -ForegroundColor Green
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 

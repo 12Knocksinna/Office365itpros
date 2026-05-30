@@ -4,7 +4,7 @@
 # V2.0 30-May-2026 Updated cmdlets to make sure that everything works with the latest Graph SDK and V1.0 cmdlets. Added the ability to
 #                  check message content as well as chat topics.
 
-# GitHub Link: 
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/AzureAutomation-FindRemoveTeamsChats.PS1
 
 Function Add-MessageRecipients {
 # Function to build an addressee list to send email   
@@ -24,11 +24,44 @@ Function Add-MessageRecipients {
 # User.Read.All - read user accounts
 # Chat.ReadWrite.All - read chat messages
 # Chat.ManageDeletion.All - manage chat deletions
+# Mail.Send - send the message
 
-# For Azure Automation, use a managed identity 
-Connect-MgGraph -Identity 
+[array]$RequiredScopes = "User.Read.All", "Chat.ReadWrite.All", "Chat.ManageDeletion.All", "Mail.Send"
+$Interactive = $false
 
-# Otherwise for app-only access
+# Determine if we're interactive or not
+If ([Environment]::UserInteractive) { 
+    # We're running interactively...
+    Clear-Host
+    Write-Host "Script running interactively... connecting to the Graph" -ForegroundColor Yellow
+    Connect-MgGraph -NoWelcome
+    $Interactive = $true
+    # Email address to use when sending email from interactive session
+    $MsgFrom = (Get-MgContext).Account    
+} Else { 
+    # We're not, so likely in Azure Automation
+    Write-Output "Executing the runbook to send email about incomplete tasks..." 
+    Connect-MgGraph -Identity -NoWelcome
+    # Email address to use when sending email from Azure Automation - update for your tenant
+    $MsgFrom = "no-reply@office365itpros.com"
+}
+# Add the recipient address to receive the report of deleted chat threads. Update this for your needs. 
+$EmailRecipient = "Customer.Services@Office365itpros.com"
+
+# Check that we have the right permissions - in Azure Automation, we assume that the automation account has the right permissions
+If ($Interactive) {
+    [int]$RequiredScopesCount = $RequiredScopes.Count
+    [string[]]$CurrentScopes = (Get-MgContext).Scopes
+    [string[]]$RequiredScopes = $RequiredScopes
+
+    $CheckScopes =[object[]][Linq.Enumerable]::Intersect($RequiredScopes,$CurrentScopes)
+    If ($CheckScopes.Count -ne $RequiredScopesCount ) { 
+        Write-Host ("To run this script, you need to connect to Microsoft Graph with the following scopes: {0}" -f $RequiredScopes) -ForegroundColor Red
+        Break
+    }
+}
+
+# To sign in interactively with app-only access
 # $AppId = '8af0f6ae-bb6c-416d-ab6b-45668a3c15ee'
 # $TenantId = '72f988bf-86f1-4111-9a1a-0123456789ab'
 # $CertificateThumbprint = '1234567890abcdef1234567890abcdef12345678
@@ -41,7 +74,7 @@ $StartDate = (Get-Date).AddMonths(-1).ToUniversalTime().ToString("yyyy-MM-ddTHH:
 $EndDate   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 # Define an array of chat thread topics that we want to find and remove
 # Other filters are possible, but this is the easiest one to use to illustrate the principal
-[array]$Topics = "Loopy Conversation", "Sensitive Stuff", "Project Aurora Stand-up", "Supervision troubleshooting", "Inappropriate content"
+[array]$Topics = "Loopy Conversation", "Sensitive Stuff", "Project Aurora", "Supervision troubleshooting", "Inappropriate content"
 
 # Compiled regex pattern to check if any of the topics are in the chat topic or message content. This is used to avoid having to loop through all the topics for each message. The regex will be used with the -match operator, which is case-insensitive by default.
 $Pattern = ($Topics | ForEach-Object {[regex]::Escape($_)}) -join "|"
@@ -50,19 +83,14 @@ $Regex = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::I
 # Find users with licenses
 Try {
     [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All -Sort "displayName" -Property Id, UserPrincipalName, DisplayName
+    Write-Output ("Found {0} user accounts to process..." -f $Users.Count)
 } Catch {    
     Write-Output "Error getting users: $_"
     Break
 }
 
-If ($Users) {
-    Write-Output ("Found {0} user accounts to process..." -f $Users.Count)
-} Else {
-    Write-Output "No user accounts found to process"
-    Break
-}
-
-$Report = [System.Collections.Generic.List[Object]]::new()     
+$Report = [System.Collections.Generic.List[Object]]::new()  
+Write-Output "Processing users to find and remove chat threads with specific topics..."   
 ForEach ($User in $Users) {
     # See if any matching chat threads exist for this user
     Try {
@@ -147,32 +175,74 @@ ForEach ($User in $Users) {
 
 $Report | Format-Table Timestamp, Action, User, Topic -AutoSize
 
-$EmailRecipient = "Peter.Bedson@o365maestro.onmicrosoft.com"
-# Send a message from the shared mailbox
-$MsgFrom = "Azure.Management.Account@office365itpros.com"
-# Add your recipient address here
+# Set up to use the ImportExcel module to generate Excel worksheets if it is available. If not, the report will be generated in CSV format instead.
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+}
+
+# Generate the attachment in either Excel worksheet or CSV format, depending on if the ImportExcel module is available. If interactive, create
+# the file in the user's Downloads folder, otherwise create it in the current directory.
+If ($ExcelGenerated) {
+    If ($Interactive) {
+        $OutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TeamsChatsRemoved.xlsx"
+    } Else {
+        $OutputFile = "TeamsChatsRemoved.xlsx"
+    }
+    $Report | Export-Excel -Path $OutputFile -WorksheetName "Teams Chats Removed" -Title ("Teams Chats Removed {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "TeamsChatsRemoved"         
+} Else {
+    If ($Interactive) {
+        $OutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TeamsChatsRemoved.csv"
+    } Else {
+        $OutputFile = "TeamsChatsRemoved.csv"
+    }
+    $Report | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding Utf8
+}
+
+Write-Host "Report generated in: $OutputFile" -ForegroundColor Green
+
+$Attachment = (Get-Item -Path $OutputFile).Name
+$EncodedAttachmentFile = [Convert]::ToBase64String([IO.File]::ReadAllBytes($OutputFile))
+
+$MsgAttachments = @(
+    @{
+	"@odata.type" = "#microsoft.graph.fileAttachment"
+	Name = ($Attachment -split '\\')[-1]
+	ContentType = "application/vnd.ms-excel"
+	ContentBytes = $EncodedAttachmentFile
+	}
+)
+
 $ToRecipientList   = @( $EmailRecipient )
 [array]$MsgToRecipients = Add-MessageRecipients -ListOfAddresses $ToRecipientList
 $MsgSubject = "Teams chat thread deletions"
 $HtmlHead = "<h2>Teams chat thread deletions</h2><p>The following requests to remove chat threads have been processed.</p>"
 $HtmlBody = $Report | ConvertTo-Html -Fragment 
-$HtmlMsg = "</body></html><p>" + $HtmlHead + $Htmlbody + "<p>"
+$HtmlMsg = "</body></html><p>" + $HtmlHead + $HtmlBody + "<p>"
 # Construct the message body
 $MsgBody = @{
   Content = "$($HtmlMsg)"
   ContentType = 'html'  
  }
 
-$Message =  @{subject           = $MsgSubject}
-$Message += @{toRecipients      = $MsgToRecipients}  
-$Message += @{body              = $MsgBody}
-$Params   = @{'message'         = $Message}
-$Params  += @{'saveToSentItems' = $True}
-$Params  += @{'isDeliveryReceiptRequested' = $True}
+$Message = @{}
+$Message.Add("subject", $MsgSubject)
+$Message.Add("toRecipients", $MsgToRecipients)
+$Message.Add("body", $MsgBody)
+$Message.Add("attachments", $MsgAttachments)
+$EmailParameters = @{}
+$EmailParameters.Add("message", $Message)
+$EmailParameters.Add("saveToSentItems", $True)
+$EmailParameters.Add("isDeliveryReceiptRequested", $True)
+
 
 # And send the message using the parameters that we've filled in
-Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params
-Write-Output ("Message containing deleted chat information sent to {0}!" -f $EmailRecipient)
+Try {
+    Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters
+    Write-Output ("Message containing deleted chat information sent to {0}!" -f $EmailRecipient)
+} Catch {
+    Write-Output ("Error sending email: $_")
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
