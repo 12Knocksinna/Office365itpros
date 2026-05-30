@@ -14,9 +14,22 @@ Function Add-MessageRecipients {
            }    
         }
 } 
+
 # Start
 # Connect to the Graph SDK with the correct permissions - if run in Azure Automation, make sure that the automation account has these permissions.
-Connect-MgGraph -Identity -Scopes User.Read.Basic, Chat.Read.Basic, Mail.Send, Chat.ManageDeletion.All
+
+# User.Read.All - read user accounts
+# Chat.ReadWrite.All - read chat messages
+# Chat.ManageDeletion.All - manage chat deletions
+
+# For Azure Automation, use a managed identity 
+Connect-MgGraph -Identity 
+
+# Otherwise for app-only access
+# $AppId = '8af0f6ae-bb6c-416d-ab6b-45668a3c15ee'
+# $TenantId = '72f988bf-86f1-4111-9a1a-0123456789ab'
+# $CertificateThumbprint = '1234567890abcdef1234567890abcdef12345678
+# Connect-MgGraph -ClientId "app-id" -TenantId "tenant-id" -CertificateThumbprint "thumbprint"
 $TenantId = (Get-MgOrganization).Id
 
 # Parameters for search
@@ -30,7 +43,6 @@ $EndDate   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 # Compiled regex pattern to check if any of the topics are in the chat topic or message content. This is used to avoid having to loop through all the topics for each message. The regex will be used with the -match operator, which is case-insensitive by default.
 $Pattern = ($Topics | ForEach-Object {[regex]::Escape($_)}) -join "|"
 $Regex = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-
 
 # Find users with licenses
 Try {
@@ -47,14 +59,12 @@ If ($Users) {
     Break
 }
 
-Write-Output ("Found {0} user accounts to process..." -f $users.Count)
-
 ForEach ($User in $Users) {
     # See if any matching chat threads exist for this user
     Try {
         # Find group or meeting topics created in the last month about the topics we're loooking for.
         [array]$Chats = Get-MgUserChat -Userid $UserId -All -Filter "(chatType eq 'Group' or chatType eq 'Meeting') and (createdDateTime ge $StartDate and createdDateTime le $EndDate) and (tenantId eq '$TenantId')" 
-        Write-Host ("Found {0} chats for user {1}" -f $Chats.Count, $User.displayName)
+        Write-Host ("Checking {0} chats for user {1}" -f $Chats.Count, $User.displayName)
     } Catch {
         Write-Output ("Error getting chats for user {0}: $_" -f $User.UserPrincipalName)
         Continue
@@ -101,7 +111,7 @@ ForEach ($User in $Users) {
                 # Soft-delete the chat thread
                 Write-Output ("Removing the chat thread {0}..." -f $Chat.Id)
                 Try {
-                    # Remove-MgChat -ChatId $Chat.Id
+                    Remove-MgChat -ChatId $Chat.Id
                     $ReportLine = [PSCustomObject][Ordered]@{
                         Timestamp            = (Get-date)
                         Action               = "Chat deleted"
