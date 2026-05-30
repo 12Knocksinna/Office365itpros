@@ -17,7 +17,7 @@ Function Add-MessageRecipients {
 # Start
 # Connect to the Graph SDK with the correct permissions - if run in Azure Automation, make sure that the automation account has these permissions.
 Connect-MgGraph -Identity -Scopes User.Read.Basic, Chat.Read.Basic, Mail.Send, Chat.ManageDeletion.All
-$Organization = Get-MgOrganization
+$TenantId = (Get-MgOrganization).Id
 
 # Parameters for search
 # Search only goes back a month - change this if you think it should go cover a different period. 
@@ -26,6 +26,11 @@ $EndDate   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 # Define an array of chat thread topics that we want to find and remove
 # Other filters are possible, but this is the easiest one to use to illustrate the principal
 [array]$Topics = "Loopy Conversation", "Sensitive Stuff", "Project Aurora Stand-up", "Supervision troubleshooting", "Inappropriate content"
+
+# Compiled regex pattern to check if any of the topics are in the chat topic or message content. This is used to avoid having to loop through all the topics for each message. The regex will be used with the -match operator, which is case-insensitive by default.
+$Pattern = ($Topics | ForEach-Object {[regex]::Escape($_)}) -join "|"
+$Regex = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+
 
 # Find users with licenses
 Try {
@@ -44,72 +49,83 @@ If ($Users) {
 
 Write-Output ("Found {0} user accounts to process..." -f $users.Count)
 
-$Report = [System.Collections.Generic.List[Object]]::new()
-
 ForEach ($User in $Users) {
     # See if any matching chat threads exist for this user
     Try {
         # Find group or meeting topics created in the last month about the topics we're loooking for.
-        [array]$Chats = Get-MgUserChat -Userid $UserId -All -Filter "(chatType eq 'Group' or chatType eq 'Meeting') and (createdDateTime ge $StartDate and createdDateTime le $EndDate) and (tenantId eq '$TenantId')" `
-        | Where-Object {$_.Topic -in $Topics}
-        Write-Host ("Found {0} matching chats for user {1}" -f $Chats.Count, $User.displayName)
+        [array]$Chats = Get-MgUserChat -Userid $UserId -All -Filter "(chatType eq 'Group' or chatType eq 'Meeting') and (createdDateTime ge $StartDate and createdDateTime le $EndDate) and (tenantId eq '$TenantId')" 
+        Write-Host ("Found {0} chats for user {1}" -f $Chats.Count, $User.displayName)
     } Catch {
         Write-Output ("Error getting chats for user {0}: $_" -f $User.UserPrincipalName)
         Continue
     }
     If ($Chats) {
+        $Report = [System.Collections.Generic.List[Object]]::new()        
         ForEach ($Chat in $Chats) {
-            Write-Output ("Found chat in account {0} with topic {1}" -f $User.displayName, $Chat.topic) 
-            # Get members of the chat thread
-            [array]$Members = Get-MgUserChatMember -UserId $UserId -ChatId $Chat.Id
-            # Extract the member email addresses and remove any blanks (accounts that no longer exist)
-            [array]$MemberNames = $Members.additionalProperties.email | Sort-Object -Unique
-            $NumberOfParticipants = $MemberNames.Count
-            If ($MemberNames.Count -gt 0) {
-                $MemberNamesOutput = $MemberNames -Join ", "
+            $DeleteThread = $false
+            $MemberNamesOutput = $null
+            $TopicFound = $null
+            # Is the chat topic one of the ones we're looking for? If so, it should be deleted
+            If ($Chat.Topic -in $Topics) {
+                Write-Output ("Found chat with topic {0} for user {1}" -f $Chat.Topic, $User.displayName)
+                $DeleteThread = $true
+                $TopicFound = "Topic"
             }
-            # If the chat thread originates in this tenant, we can delete it
-            If ($Chat.TenantId -eq $Organization.Id) {
-            # Soft-delete the chat thread
+            If ($DeleteThread -eq $false) {
+                # If not, we need to check the content of the messages in the thread to see if any of them contain the topic. 
+                # The API doesn't allow us to filter messages based on content, so we have to get all messages and check them one by one.
+                # This is not ideal, but it's the only way to do it at the moment. 
+            # Is the banned topic in the text of any of the messages in the thread?
+                [array]$Messages = Get-MgChatMessage -ChatId $Chat.Id -All
+                ForEach ($Message in $Messages) {
+                    # Strip out HTML tags
+                    $Content = ($Message.Body.Content -replace '<[^>]+>', '')
+                    # Check messages to see if they contain any of the topics we're looking for. If so, the thread should be deleted. We only need one message to match to delete the thread, so we can stop checking after the first match.
+                    If ($Regex.IsMatch($Content) -and $DeleteThread -eq $false) {
+                        Write-Output ("Found chat message with matching content in chat {0} for user {1}" -f $Chat.Id, $User.displayName)
+                        $DeleteThread = $true
+                        $TopicFound = "Content"
+                    }
+                }
+            }
+            If ($DeleteThread -eq $true) {
+                # Get members of the chat thread
+                [array]$Members = Get-MgUserChatMember -UserId $UserId -ChatId $Chat.Id
+                # Extract the member email addresses and remove any blanks (accounts that no longer exist)
+                [array]$MemberNames = $Members.additionalProperties.email | Sort-Object -Unique
+                $NumberOfParticipants = $MemberNames.Count
+                If ($MemberNames.Count -gt 0) {
+                    $MemberNamesOutput = $MemberNames -Join ", "
+                }
+
+                # Soft-delete the chat thread
                 Write-Output ("Removing the chat thread {0}..." -f $Chat.Id)
                 Try {
-                    Remove-MgChat -ChatId $Chat.Id
+                    # Remove-MgChat -ChatId $Chat.Id
+                    $ReportLine = [PSCustomObject][Ordered]@{
+                        Timestamp            = (Get-date)
+                        Action               = "Chat deleted"
+                        User                 = $User.UserPrincipalName
+                        UserId               = $User.Id
+                        ChatType             = $Chat.ChatType
+                        Topic                = $Chat.Topic
+                        "Problem found in"   = $TopicFound
+                        Participants         = $MemberNamesOutput
+                        NumberOfParticipants = $NumberOfParticipants
+                        Created              = $Chat.CreatedDateTime
+                        LastUpdated          = $Chat.LastUpdatedDateTime
+                        TenantId             = $Chat.TenantId
+                        Id                   = $Chat.Id 
+                    }                     
+                    # Update what we found     
+                    $Report.Add($ReportLine) 
                 } Catch {
                     Write-Output ("Error removing chat {0}: $_" -f $Chat.Id)
                 }
                 # Wait a second to avoid throttling
                 Start-Sleep -Seconds 1
-                $ReportLine = [PSCustomObject][Ordered]@{
-                  Timestamp            = (Get-date)
-                  Action               = "Chat deleted"
-                  User                 = $User.UserPrincipalName
-                  UserId               = $User.Id
-                  ChatType             = $Chat.ChatType
-                  Topic                = $Chat.Topic
-                  Participants         = $MemberNamesOutput
-                  NumberOfParticipants = $NumberOfParticipants
-                  Created              = $Chat.CreatedDateTime
-                  LastUpdated          = $Chat.LastUpdatedDateTime
-                  TenantId             = $Chat.TenantId
-                  Id                   = $Chat.Id }     
-            } Else {  
-                 Write-Host ("Chat thread {0} originates in tenant {1} and cannot be removed" -f $Chat.topic, $Chat.tenant)
-                 $ReportLine = [PSCustomObject][Ordered]@{
-                  Timestamp            = (Get-date)
-                  Action               = "Chat found in other tenant"
-                  User                 = $User.UserPrincipalName
-                  UserId               = $User.Id
-                  ChatType             = $Chat.ChatType
-                  Topic                = $Chat.Topic
-                  Participants         = $MemberNamesOutput
-                  NumberOfParticipants = $NumberOfParticipants
-                  Created              = $Chat.CreatedDateTime
-                  LastUpdated          = $Chat.LastUpdatedDateTime
-                  TenantId             = $Chat.TenantId
-                  Id                   = $Chat.Id }  
-            }    
-            # Update what we found     
-            $Report.Add($ReportLine) 
+                
+            }
         } # End Foreach Chats
     } # End if Chats
 } #End Foreach Users
