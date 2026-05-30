@@ -1,6 +1,7 @@
 # Runbook to search Teams chat threads in a tenant to find and remove threads with a specific topic.
 # An example of using the Teams Delete Chat API
 # V1.0 9-Sept-2023
+# V1.1 30-May-2026 Updated cmdlets to make sure that everything works with the latest Graph SDK and V1.0 cmdlets
 
 Function Add-MessageRecipients {
 # Function to build an addressee list to send email   
@@ -14,27 +15,53 @@ Function Add-MessageRecipients {
         }
 } 
 # Start
-# Connect to the Graph SDK with the correct permissions
-Connect-MgGraph -Identity -Scopes User.Read.All, Chat.Read.Basic, Mail.Send
+# Connect to the Graph SDK with the correct permissions - if run in Azure Automation, make sure that the automation account has these permissions.
+Connect-MgGraph -Identity -Scopes User.Read.Basic, Chat.Read.Basic, Mail.Send, Chat.ManageDeletion.All
 $Organization = Get-MgOrganization
 
-# Find users with licenses
-[array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All
-Write-Output ("Found {0} user accounts to process..." -f $users.Count)
+# Parameters for search
+# Search only goes back a month - change this if you think it should go cover a different period. 
+$StartDate = (Get-Date).AddMonths(-1).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+$EndDate   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 # Define an array of chat thread topics that we want to find and remove
 # Other filters are possible, but this is the easiest one to use to illustrate the principal
-[array]$Topics = "Loopy Conversation", "Sensitive Stuff", "Project Aurora Stand-up", "Supervision troubleshooting"
+[array]$Topics = "Loopy Conversation", "Sensitive Stuff", "Project Aurora Stand-up", "Supervision troubleshooting", "Inappropriate content"
+
+# Find users with licenses
+Try {
+    [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All
+} Catch {
+    Write-Output "Error getting users: $_"
+    Break
+}
+
+If ($Users) {
+    Write-Output ("Found {0} user accounts to process..." -f $Users.Count)
+} Else {
+    Write-Output "No user accounts found to process"
+    Break
+}
+
+Write-Output ("Found {0} user accounts to process..." -f $users.Count)
+
 $Report = [System.Collections.Generic.List[Object]]::new()
 
 ForEach ($User in $Users) {
-    $UserId = $User.Id
     # See if any matching chat threads exist for this user
-    [array]$Chats = Get-MgBetaUserChat -Userid $UserId -All -Filter "chatType eq 'Group' or chatType eq 'Meeting'" | Where-Object {$_.Topic -in $Topics}
+    Try {
+        # Find group or meeting topics created in the last month about the topics we're loooking for.
+        [array]$Chats = Get-MgUserChat -Userid $UserId -All -Filter "(chatType eq 'Group' or chatType eq 'Meeting') and (createdDateTime ge $StartDate and createdDateTime le $EndDate) and (tenantId eq '$TenantId')" `
+        | Where-Object {$_.Topic -in $Topics}
+        Write-Host ("Found {0} matching chats for user {1}" -f $Chats.Count, $User.displayName)
+    } Catch {
+        Write-Output ("Error getting chats for user {0}: $_" -f $User.UserPrincipalName)
+        Continue
+    }
     If ($Chats) {
         ForEach ($Chat in $Chats) {
             Write-Output ("Found chat in account {0} with topic {1}" -f $User.displayName, $Chat.topic) 
             # Get members of the chat thread
-            [array]$Members = Get-MgBetaUserChatMember -UserId $UserId -ChatId $Chat.Id
+            [array]$Members = Get-MgUserChatMember -UserId $UserId -ChatId $Chat.Id
             # Extract the member email addresses and remove any blanks (accounts that no longer exist)
             [array]$MemberNames = $Members.additionalProperties.email | Sort-Object -Unique
             $NumberOfParticipants = $MemberNames.Count
@@ -45,7 +72,11 @@ ForEach ($User in $Users) {
             If ($Chat.TenantId -eq $Organization.Id) {
             # Soft-delete the chat thread
                 Write-Output ("Removing the chat thread {0}..." -f $Chat.Id)
-                Remove-MgBetaChat -ChatId $Chat.Id
+                Try {
+                    Remove-MgChat -ChatId $Chat.Id
+                } Catch {
+                    Write-Output ("Error removing chat {0}: $_" -f $Chat.Id)
+                }
                 # Wait a second to avoid throttling
                 Start-Sleep -Seconds 1
                 $ReportLine = [PSCustomObject][Ordered]@{
