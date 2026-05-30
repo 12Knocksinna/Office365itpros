@@ -46,8 +46,8 @@ $Regex = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::I
 
 # Find users with licenses
 Try {
-    [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All
-} Catch {
+    [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All -Sort "displayName" -Property Id, UserPrincipalName, DisplayName
+} Catch {    
     Write-Output "Error getting users: $_"
     Break
 }
@@ -59,18 +59,20 @@ If ($Users) {
     Break
 }
 
+$Report = [System.Collections.Generic.List[Object]]::new()     
 ForEach ($User in $Users) {
     # See if any matching chat threads exist for this user
     Try {
         # Find group or meeting topics created in the last month about the topics we're loooking for.
+        # Remove the filter for chat type if you also want to check one-on-one chats, but be aware that this will increase the number of chats that need to be checked and may cause the script to run for a long time if you have a lot of users and chat threads.
         [array]$Chats = Get-MgUserChat -Userid $User.Id -All -Filter "(chatType eq 'Group' or chatType eq 'Meeting') and (createdDateTime ge $StartDate and createdDateTime le $EndDate) and (tenantId eq '$TenantId')" 
-        Write-Host ("Checking {0} chats for user {1}" -f $Chats.Count, $User.displayName)
     } Catch {
         Write-Output ("Error getting chats for user {0}: $_" -f $User.UserPrincipalName)
         Continue
     }
     If ($Chats) {
-        $Report = [System.Collections.Generic.List[Object]]::new()        
+        Write-Host ("Checking {0} chats for user {1}" -f $Chats.Count, $User.displayName)
+      
         ForEach ($Chat in $Chats) {
             $DeleteThread = $false
             $MemberNamesOutput = $null
