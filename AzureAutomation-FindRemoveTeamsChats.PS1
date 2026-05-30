@@ -63,7 +63,7 @@ ForEach ($User in $Users) {
     # See if any matching chat threads exist for this user
     Try {
         # Find group or meeting topics created in the last month about the topics we're loooking for.
-        [array]$Chats = Get-MgUserChat -Userid $UserId -All -Filter "(chatType eq 'Group' or chatType eq 'Meeting') and (createdDateTime ge $StartDate and createdDateTime le $EndDate) and (tenantId eq '$TenantId')" 
+        [array]$Chats = Get-MgUserChat -Userid $User.Id -All -Filter "(chatType eq 'Group' or chatType eq 'Meeting') and (createdDateTime ge $StartDate and createdDateTime le $EndDate) and (tenantId eq '$TenantId')" 
         Write-Host ("Checking {0} chats for user {1}" -f $Chats.Count, $User.displayName)
     } Catch {
         Write-Output ("Error getting chats for user {0}: $_" -f $User.UserPrincipalName)
