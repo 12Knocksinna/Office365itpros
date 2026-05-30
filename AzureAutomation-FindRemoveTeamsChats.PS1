@@ -1,7 +1,8 @@
 # Runbook to search Teams chat threads in a tenant to find and remove threads with a specific topic.
 # An example of using the Teams Delete Chat API
 # V1.0 9-Sept-2023
-# V1.1 30-May-2026 Updated cmdlets to make sure that everything works with the latest Graph SDK and V1.0 cmdlets
+# V2.0 30-May-2026 Updated cmdlets to make sure that everything works with the latest Graph SDK and V1.0 cmdlets. Added the ability to
+#                  check message content as well as chat topics.
 
 Function Add-MessageRecipients {
 # Function to build an addressee list to send email   
