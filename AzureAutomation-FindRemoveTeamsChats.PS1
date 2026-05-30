@@ -80,10 +80,12 @@ $EndDate   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 $Pattern = ($Topics | ForEach-Object {[regex]::Escape($_)}) -join "|"
 $Regex = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
-# Find users with licenses
+# Find users with Teams licenses
+[guid]$TeamsServicePlanId = "57ff2da0-773e-42df-b2af-ffb7a2317929" #Teams
 Try {
-    [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" -ConsistencyLevel eventual -CountVariable Records -All -Sort "displayName" -Property Id, UserPrincipalName, DisplayName
+    [array]$Users = Get-MgUser -filter "assignedPlans/any(s:s/serviceplanid eq $TeamsServicePlanId)" -Property Id, UserPrincipalName, DisplayName -ConsistencyLevel eventual -CountVariable Records -All -PageSize 500
     Write-Output ("Found {0} user accounts to process..." -f $Users.Count)
+    $Users = $Users | Sort-Object -Property DisplayName
 } Catch {    
     Write-Output "Error getting users: $_"
     Break
