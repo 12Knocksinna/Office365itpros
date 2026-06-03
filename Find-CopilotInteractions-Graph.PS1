@@ -13,8 +13,8 @@ $Thumbprint = '32C9529B1FFD08BCD483A5D98807E47A472C5318'
 $TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint -NoWelcome
 
-$StartDate = (Get-Date).AddDays(-30).toString('yyyy-MM-ddT00:00:00Z')
-$EndDate = (Get-Date).AddDays(1).toString('yyyy-MM-ddT00:00:00Z')
+$StartDate = (Get-Date).AddDays(-30).toUniversalTime().toString('yyyy-MM-ddT00:00:00Z')
+$EndDate = (Get-Date).AddDays(1).toUniversalTime().toString('yyyy-MM-ddT00:00:00Z')
 $StartDateForReport = Get-Date $StartDate -format 'dd-MMM-yyyy'
 $EndDateForReport = Get-Date $EndDate -format 'dd-MMM-yyyy'
 
