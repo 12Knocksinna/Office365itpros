@@ -1,6 +1,7 @@
 # Find Copilot interactions for a user between two dates using the aiInteractionHistory API
 # V1.0 4-Dec-2024
 # V1.1 24-May-2025 added $Top parameter to the API call to fetch 100 records at a time, which seems to be the current maximum
+# V1.2 3-June-2026 Added extra Copilot license and made some other improvements
 
 # Requires an app with User.Read.All and AiEnterpriseInteraction.Read.All permissions
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-CopilotInteractions-Graph.PS1
@@ -131,7 +132,7 @@ $PercentAutomaticInteractions = ($NumberOfAutomaticInteractions/$Report.Count).T
 $PerecentUserInteractions = ($UserInteractions/$Report.Count).ToString("P")
 
 Write-Host ""
-Write-Host ("Copilot interactions for {0} betweeen {1} and {2}" -f $User.DisplayName, $StartDateForReport, $EndDateForReport)
+Write-Host ("Copilot interactions for {0} between {1} and {2}" -f $User.DisplayName, $StartDateForReport, $EndDateForReport)
 $Report | Group-Object 'Copilot App' | Select-Object Name, Count | Sort-Object Count -Descending | Format-Table
 
 Write-Host ("{0} of the {1} interactions are automatic ({2})" -f $NumberOfAutomaticInteractions, $Report.Count, $PercentAutomaticInteractions)
