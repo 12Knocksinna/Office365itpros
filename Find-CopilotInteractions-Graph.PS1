@@ -34,7 +34,7 @@ If ($HasCopilot -eq $false) {
     Break
 }
 
-$Uri = ("https://graph.microsoft.com/beta/copilot/users/{0}/interactionHistory/getAllEnterpriseInteractions?`$top=100&`$filter=createdDateTime gt {1} and createdDateTime lt {2}" `
+$Uri = ("https://graph.microsoft.com/V1.0/copilot/users/{0}/interactionHistory/getAllEnterpriseInteractions?`$top=100&`$filter=createdDateTime gt {1} and createdDateTime lt {2}" `
     -f $User.Id, $StartDate, $EndDate)
 Write-Host ("Searching for Copilot interactions for {0} between {1} and {2}" -f $User.DisplayName, $StartDateForReport, $EndDateForReport)
 [array]$CopilotData = $null
