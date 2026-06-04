@@ -1,7 +1,8 @@
 # Find Copilot interactions for a user between two dates using the aiInteractionHistory API
 # V1.0 4-Dec-2024
 # V1.1 24-May-2025 added $Top parameter to the API call to fetch 100 records at a time, which seems to be the current maximum
-# V1.2 3-June-2026 Added extra Copilot license and made some other improvements
+# V2.0 4-June-2026 Added extra Copilot license and made some other improvements, like figuring out how to extract
+#                  the body text for Copilot responses.
 
 # Requires an app with User.Read.All and AiEnterpriseInteraction.Read.All permissions
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-CopilotInteractions-Graph.PS1
@@ -34,13 +35,19 @@ If ($HasCopilot -eq $false) {
     Break
 }
 
-$Uri = ("https://graph.microsoft.com/V1.0/copilot/users/{0}/interactionHistory/getAllEnterpriseInteractions?`$top=100&`$filter=createdDateTime gt {1} and createdDateTime lt {2}" `
+$Uri = ("https://graph.microsoft.com/V1.0/copilot/users/{0}/interactionHistory/getAllEnterpriseInteractions?`$top=200&`$filter=createdDateTime gt {1} and createdDateTime lt {2}" `
     -f $User.Id, $StartDate, $EndDate)
 Write-Host ("Searching for Copilot interactions for {0} between {1} and {2}" -f $User.DisplayName, $StartDateForReport, $EndDateForReport)
 [array]$CopilotData = $null
 # Get the first set of records
-[array]$Data = Invoke-MgGraphRequest -Uri $Uri -Method GET -OutputType PSObject
-$CopilotData = $Data.Value
+Try {
+    [array]$Data = Invoke-MgGraphRequest -Uri $Uri -Method GET -OutputType PSObject -ErrorAction Stop
+    $CopilotData = $Data.Value
+} Catch {
+    Write-Host ("Error fetching Copilot interactions for {0} - check the error message" -f $User.DisplayName)
+    Write-Host $_.Exception.Message
+}
+    
 If (!($CopilotData)) {
     Write-Host ("No Copilot interactions found for {0} between {1} and {2}" -f $User.DisplayName, $StartDateForReport, $EndDateForReport)
     Break
@@ -49,9 +56,15 @@ If (!($CopilotData)) {
 $Nextlink = $Data.'@odata.nextLink'
 While ($null -ne $Nextlink) {
     Write-Host ("Fetching more records - currently at {0}" -f $CopilotData.count)
-    [array]$Data = Invoke-MgGraphRequest -Uri $Nextlink -Method Get -OutputType PSObject
-    $CopilotData += $Data.Value
-    $Nextlink = $Data.'@odata.nextLink'
+    Try {
+        [array]$Data = Invoke-MgGraphRequest -Uri $Nextlink -Method Get -OutputType PSObject -ErrorAction Stop
+        $CopilotData += $Data.Value
+        $Nextlink = $Data.'@odata.nextLink'
+    } Catch {
+        Write-Host ("Error fetching more Copilot interactions for {0} - check the error message" -f $User.DisplayName)
+        Write-Host $_.Exception.Message
+        Break
+    }
 }
 # Remove any null records
 $CopilotData = $CopilotData | Where-Object { $_ -ne $null }
