@@ -2,7 +2,7 @@
 # This script identifies inactive channels in Microsoft Teams based on the last activity date of a user message posted to the channel.
 
 # V1.0 5-June-2026
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-InactiveTeamsChannels.PS1
 
 Connect-MgGraph
 
