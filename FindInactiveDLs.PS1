@@ -3,6 +3,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindInactiveDLs.PS1
 
 # Updated 27-Aug-2025 for the new Message trace
+# Updated 5-June-2026 to export in Excel and some other miscellaneous updates
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ($Modules -notcontains "ExchangeOnlineManagement") {
