@@ -12,9 +12,7 @@ Function Add-MessageRecipients {
      Param(
      [array]$ListOfAddresses )
       ForEach ($SMTPAddress in $ListOfAddresses) {
-           @{
-              emailAddress = @{address = $SMTPAddress}
-           }    
+           @{ emailAddress = @{address = $SMTPAddress}  }    
         }
 } 
 
@@ -64,7 +62,7 @@ If ($Interactive) {
 # To sign in interactively with app-only access
 # $AppId = '8af0f6ae-bb6c-416d-ab6b-45668a3c15ee'
 # $TenantId = '72f988bf-86f1-4111-9a1a-0123456789ab'
-# $CertificateThumbprint = '1234567890abcdef1234567890abcdef12345678
+# $CertificateThumbprint = '1234567890abcdef1234567890abcdef12345678'
 # Connect-MgGraph -ClientId "app-id" -TenantId "tenant-id" -CertificateThumbprint "thumbprint"
 $TenantId = (Get-MgOrganization).Id
 
