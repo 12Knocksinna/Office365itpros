@@ -13,7 +13,6 @@ If ($Modules -notcontains "ExchangeOnlineManagement") {
 
 $EndDate = Get-Date
 $StartDate = $EndDate.AddDays(-10)
-$CSVFile = "c:\Temp\ListofDLs.csv"
 [array]$Messages = $Null 
 [int]$BatchSizeForMessages = 2000
 
