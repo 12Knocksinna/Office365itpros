@@ -206,7 +206,15 @@ $ToRecipientList   = @( $EmailRecipient )
 [array]$MsgToRecipients = Add-MessageRecipients -ListOfAddresses $ToRecipientList
 $MsgSubject = "Inactive Teams Channels Report - $((Get-Date).ToString("dd-MMM-yyyy"))"
 $HtmlHead = "<p><h2>Inactive Teams Channels Report</h2><p>"
-$HtmlHead += "The following Teams channels have been identified as potentially inactive because no user messages have been posted to the channel for over $($ThresholdDays) days.</p>"
+$HtmlHead += "<p>Total channels checked:<b> $TotalChannels</b></p>"
+$HtmlHead += "<p>Inactive channels: <b> $InactiveChannels</b> ($InactivePercentage%)</p>"
+$HtmlHead += "<p>Active channels: <b> $ActiveChannels</b></p>"     
+$htmlHead += "<p>Average days since last activity for inactive channels: <b>$AverageDaysSinceLastActivity</b></p>"
+If ($LongestInactiveChannel) {
+    $HtmlHead += ("<p>The channel that has been inactive for the longest period is <i><b>{0}</i></b> in the <b>{1}</b> team. The channel was created on {2} and it is <b><u>{3}</u></b> days since the last noted activity.</p>" -f $LongestInactiveChannel.Channel, $LongestInactiveChannel.Team, $LongestInactiveChannel.'Created date', $LongestInactiveChannel.'Days since last activity')
+}   
+$htmlHead += "<p>Channels are deemed inactive if users have not posted messages to the channel in the last $ThresholdDays days. This does not mean that other channel resources have not been used in that time. However, you should check the inactive channels and decide to keep, archive, or remove the channels.</p>"
+$HtmlHead += "<h3>The following Teams channels have been identified as potentially inactive.</h3></p>"
 $HtmlBody = $Report | Where-Object { $_.ChannelStatus -eq "Inactive" } | `
     Select-Object Team, Channel, 'Created date', 'Days since last activity' | ConvertTo-Html -Fragment 
 $HtmlMsg = "</body></html><p>" + $HtmlHead + $HtmlBody + "<p>"
