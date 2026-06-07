@@ -2,8 +2,51 @@
 # Find inactive distribution lists based on the message trace information, which means we can only go back ten days...
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindInactiveDLs.PS1
 
-# Updated 27-Aug-2025 for the new Message trace
-# Updated 5-June-2026 to export in Excel and some other miscellaneous updates
+# V1.1 Updated 27-Aug-2025  Replaced old message trace cmdlet with Get-MessageTraceV2
+# V2.0 Updated 7-June-2026  Fetch message data for DL expansion events for the entire 90 days it is available online.
+#                           Also added export to Excel worksheet if the ImportExcel module is available and some other miscellaneous updates
+
+function Get-DateRangeData {
+    param (
+        [datetime]$StartDate,
+        [datetime]$EndDate
+    )
+    
+    # Function to fetch message trace data for expanded events over a 10-day period.
+    [array]$Messages = $null
+    Write-Host ("Collecting message trace data between {0} and {1}..." -f $StartDate, $EndDate)
+    [int]$BatchSizeForMessages = 2000
+    Try {
+        # The warning action is suppressed here because we don't want to see warnings when more data is available
+        [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate `
+        	-ResultSize $BatchSizeForMessages -Status "Expanded" -ErrorAction Stop -WarningAction SilentlyContinue
+        $Messages += $MessagePage
+    } Catch {
+        Write-Host ("Error fetching message trace data: {0}" -f $_.Exception.Message)
+        Break
+    }
+    If ($MessagePage.count -eq $BatchSizeForMessages) {
+        Do {
+            Write-Host ("Fetched {0} messages so far" -f $Messages.count)
+            $LastMessageFetched = $MessagePage[-1]
+            $LastMessageFetchedDate = $LastMessageFetched.Received.ToString("O")
+            $LastMessageFetchedRecipient = $LastMessageFetched.RecipientAddress
+            # Fetch the next page of messages
+            [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $LastMessageFetchedDate `
+                -StartingRecipientAddress $LastMessageFetchedRecipient -ResultSize $BatchSizeForMessages -Status "Expanded" -ErrorAction Stop -WarningAction SilentlyContinue
+            If ($MessagePage) {
+                $Messages += $MessagePage
+            }
+        } While ($MessagePage.count -eq $BatchSizeForMessages)
+}
+
+    # Remove Exchange Online public folder hierarchy synchronization messages
+    $Messages = $Messages | Where-Object {$_.Subject -NotLike "*HierarchySync*"}
+    # Call to API to get data for the specified date range goes here, for example:
+    # $Data = Get-MgAuditLog -StartDateTime $StartDate -EndDateTime $EndDate
+    return $Messages
+}
+# Start of processing
 
 [array]$Modules = Get-Module | Select-Object -ExpandProperty Name
 If ($Modules -notcontains "ExchangeOnlineManagement") {
@@ -11,41 +54,39 @@ If ($Modules -notcontains "ExchangeOnlineManagement") {
     Connect-ExchangeOnline -ShowBanner:$False
 }
 
-$EndDate = Get-Date
-$StartDate = $EndDate.AddDays(-10)
-[array]$Messages = $Null 
-[int]$BatchSizeForMessages = 2000
+# It's possible to go back 90 days, but the message trace data must be retrieved in 10-day chunnks.
+# This code creates an array of 10-day ranges to fetch the message trace data.
+$StartDate = (Get-Date).AddDays(-90).ToUniversalTime()
+$EndDate = (Get-Date).ToUniversalTime()
+
+$iterations = 9
+[int]$i = 0
+
+[array]$DateRanges = $null
+
+For ($i=0; $i -lt $iterations; $i++) {
+    $RangeStart = $StartDate.AddDays($i * 10)
+    $RangeEnd = $StartDate.AddDays(($i + 1) * 10)
+    If ($RangeEnd -gt $EndDate) {
+        $RangeEnd = $EndDate
+    }
+    $DateRanges += @{Start=$RangeStart; End=$RangeEnd}
+}
 
 $Report = [System.Collections.Generic.List[Object]]::new()
 
-Write-Host "Collecting message trace data for the last 10 days"
-Try {
-    # The warning action is suppressed here because we don't want to see warnings when more data is available
-    [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate `
-        	-ResultSize $BatchSizeForMessages -Status "Expanded" -ErrorAction Stop -WarningAction SilentlyContinue
-    $Messages += $MessagePage
-} Catch {
-    Write-Host ("Error fetching message trace data: {0}" -f $_.Exception.Message)
-    Break
-}
-If ($MessagePage.count -eq $BatchSizeForMessages) {
-    Do {
-        Write-Host ("Fetched {0} messages so far" -f $Messages.count)
-        $LastMessageFetched = $MessagePage[-1]
-        $LastMessageFetchedDate = $LastMessageFetched.Received.ToString("O")
-        $LastMessageFetchedRecipient = $LastMessageFetched.RecipientAddress
-        # Fetch the next page of messages
-        [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $LastMessageFetchedDate `
-            -StartingRecipientAddress $LastMessageFetchedRecipient -ResultSize $BatchSizeForMessages -Status "Expanded" -ErrorAction Stop -WarningAction SilentlyContinue
-        If ($MessagePage) {
-            $Messages += $MessagePage
-        }
-    } While ($MessagePage.count -eq $BatchSizeForMessages)
+[array]$Data = $null
+[array]$Messages = $null
+
+# Fetch each of the 10-day chunks of message trace data and add it to the Messages array
+ForEach ($DateRange in $DateRanges) {
+    $Data = Get-DateRangeData -StartDate $DateRange.Start -EndDate $DateRange.End
+    # Process the data for this date range, for example by adding it to a report or exporting it to a file
+    Write-Host ("Fetched {0} messages between {1} and {2}" -f $Data.count, $DateRange.Start, $DateRange.End)
+    $Messages+= $Data
 }
 
-# Remove Exchange Online public folder hierarchy synchronization messages
-$Messages = $Messages | Where-Object {$_.Subject -NotLike "*HierarchySync*"}
-
+# Create an array of unique recipient addresses from the message trace data, which will be used to check against the distribution lists in the tenant
 [array]$MessageTable = ($Messages | Sort-Object RecipientAddress -Unique)
 [array]$DLs = Get-DistributionGroup -ResultSize Unlimited -RecipientTypeDetails 'MailUniversalDistributionGroup'
 Write-Host ("Processing {0} distribution lists..." -f $DLs.count)

@@ -2005,3 +2005,70 @@ ForEach ($Label in $UserLabels) {
     }  
 }
 $UserLabels = $UserLabels | Sort-Object Name -Unique
+
+
+$StartDate = (Get-Date).AddDays(-90).ToUniversalTime()
+$EndDate = (Get-Date).ToUniversalTime()
+
+$iterations = 9
+[int]$i = 0
+
+[array]$DateRanges = $null
+
+For ($i=0; $i -lt $iterations; $i++) {
+    $RangeStart = $StartDate.AddDays($i * 10)
+    $RangeEnd = $StartDate.AddDays(($i + 1) * 10)
+    If ($RangeEnd -gt $EndDate) {
+        $RangeEnd = $EndDate
+    }
+    $DateRanges += @{Start=$RangeStart; End=$RangeEnd}
+}
+
+function Get-DateRangeData {
+    param (
+        [datetime]$StartDate,
+        [datetime]$EndDate
+    )
+    
+    [array]$Messages = $null
+    Write-Host ("Collecting message trace data between {0} and {1}..." -f $StartDate, $EndDate)
+    [int]$BatchSizeForMessages = 2000
+    Try {
+        # The warning action is suppressed here because we don't want to see warnings when more data is available
+        [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate `
+        	-ResultSize $BatchSizeForMessages -Status "Expanded" -ErrorAction Stop -WarningAction SilentlyContinue
+        $Messages += $MessagePage
+    } Catch {
+        Write-Host ("Error fetching message trace data: {0}" -f $_.Exception.Message)
+        Break
+    }
+    If ($MessagePage.count -eq $BatchSizeForMessages) {
+        Do {
+            Write-Host ("Fetched {0} messages so far" -f $Messages.count)
+            $LastMessageFetched = $MessagePage[-1]
+            $LastMessageFetchedDate = $LastMessageFetched.Received.ToString("O")
+            $LastMessageFetchedRecipient = $LastMessageFetched.RecipientAddress
+            # Fetch the next page of messages
+            [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $LastMessageFetchedDate `
+                -StartingRecipientAddress $LastMessageFetchedRecipient -ResultSize $BatchSizeForMessages -Status "Expanded" -ErrorAction Stop -WarningAction SilentlyContinue
+            If ($MessagePage) {
+                $Messages += $MessagePage
+            }
+        } While ($MessagePage.count -eq $BatchSizeForMessages)
+}
+
+    # Remove Exchange Online public folder hierarchy synchronization messages
+    $Messages = $Messages | Where-Object {$_.Subject -NotLike "*HierarchySync*"}
+    # Call to API to get data for the specified date range goes here, for example:
+    # $Data = Get-MgAuditLog -StartDateTime $StartDate -EndDateTime $EndDate
+    return $Messages
+}
+
+[array]$Data = $null
+[array]$Messages = $null
+ForEach ($DateRange in $DateRanges) {
+    $Data = Get-DateRangeData -StartDate $DateRange.Start -EndDate $DateRange.End
+    # Process the data for this date range, for example by adding it to a report or exporting it to a file
+    Write-Host ("Fetched {0} messages between {1} and {2}" -f $Data.count, $DateRange.Start, $DateRange.End)
+    $Messages+= $Data
+}
