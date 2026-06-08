@@ -20,7 +20,7 @@ $LocalFilePath = ((New-Object -ComObject Shell.Application).Namespace('shell:Dow
 Invoke-WebRequest -Uri $DownloadFileURL -OutFile $LocalFilePath
 
 If (Test-Path -Path $LocalFilePath) {
-    Write-Host "Entra ID Prpduct Identifiers file downloaded successfully to $LocalFilePath"
+    Write-Host "Entra ID Product Identifiers file downloaded successfully to $LocalFilePath"
 } else {
     Write-Host "Failed to download the file. Script exiting"
     break
@@ -34,7 +34,7 @@ If (Test-Path -Path $LocalFilePath) {
 #select the service plans with friendly display name 
 [array]$SP_friendly = $identifiers | Select-Object Service_Plan_Id, Service_Plan_Name, Service_Plans_Included_Friendly_Names -Unique
 
-# Get prpduct subscriptions used in tenant
+# Get product subscriptions used in tenant
 [Array]$Skus = Get-MgSubscribedSku
 
 # Generate CSV of all product SKUs used in tenant

@@ -17,6 +17,18 @@ Try {
     Break
 }
 
+# Get SKU data for the tenant
+Try {
+    [array]$SKUs = Get-MgSubscribedSKU | Select-Object SkuId, SkuPartNumber
+    $SKUHash = @{}
+    ForEach ($SKU in $SKUs) {
+        $SKUHash.Add($SKU.SkuId, $SKU.SkuPartNumber)
+    }
+} Catch {
+    Write-Host ("Error fetching SKU data: {0}" -f $_.Exception.Message)
+    Break
+}
+
 # Find Places (room mailboxes - this won't find them all, but it's a start)... This data is used to mark licensed accounts as rooms if they are room
 # mailboxes with licenses (required for archive, increased quota...).
 Try {
@@ -26,34 +38,51 @@ Try {
     Continue
 }
 
-# Date to check against is 90 days ago, but this can be modified as needed. The SignInSessionsValidFromDateTime property is the date and time that the user's sign-in sessions are valid from. If the user has not signed in since that date, then they are considered inactive.
+# Date to check against is 90 days ago, but this can be modified as needed. 
+# The SignInSessionsValidFromDateTime property is the date and time that the user's sign-in sessions are valid from. 
+# If the user has not signed in since that date, then they are considered inactive.
 $CutoffDate = (Get-Date).AddDays(-90).ToUniversalTime()
 $Report = [System.Collections.Generic.List[Object]]::new()  
 
 ForEach ($User in $Users) {
    
-    If ((($null -ne $User.SignInSessionsValidFromDateTime) -and ($User.SignInSessionsValidFromDateTime -lt $CutoffDate)) -and  (($null -eq $User.SignInActivity.LastSuccessfulSignInDateTime) -or ([datetime]$User.SignInActivity.LastSuccessfulSignInDateTime -le $User.SignInSessionsValidFromDateTime))) {   
+    If ((($null -ne $User.SignInSessionsValidFromDateTime) -and ($User.SignInSessionsValidFromDateTime -lt $CutoffDate)) -and `
+    (($null -eq $User.SignInActivity.LastSuccessfulSignInDateTime) -or `
+    ([datetime]$User.SignInActivity.LastSuccessfulSignInDateTime -le $User.SignInSessionsValidFromDateTime))) {   
     
         If ($Places.DisplayName -contains $User.DisplayName) {
             $UserType = "Room"
         } else {
             $UserType = "User"
         }
+        # Resolve product SKUs to friendly names for output
+        [array]$ProductFriendlyNames = $null
+        ForEach ($License in $User.AssignedLicenses.SkuId) {
+            If ($SKUHash.ContainsKey($License)) {
+                $ProductFriendlyNames += $SKUHash[$License]
+            } Else {
+                $ProductFriendlyNames += "Unknown SKU (" + $License + ")"
+            }
+        }
+
         $ReportLine = [PSCustomObject][Ordered]@{
             UserPrincipalName   = $User.UserPrincipalName
             DisplayName         = $User.DisplayName
-            SignInSessionsValidFromDateTime = $User.SignInSessionsValidFromDateTime
+            SignInSessionsValidFromDateTime = if ($null -ne $User.SignInSessionsValidFromDateTime) { Get-Date $User.SignInSessionsValidFromDateTime -format "dd-MMM-yyyy HH:mm" } else { $null }
             SignInActivity      = If ($null -ne $User.SignInActivity.LastSuccessfulSignInDateTime) { Get-Date $User.SignInActivity.LastSuccessfulSignInDateTime -format "dd-MMM-yyyy HH:mm" } else { $null }
             DaysSinceLastSignIn = If ($null -ne $User.SignInActivity.LastSuccessfulSignInDateTime) { [int]((Get-Date) - (Get-Date $User.SignInActivity.LastSuccessfulSignInDateTime)).TotalDays } else { $null }    
             AccountEnabled      = $User.AccountEnabled
             UserType            = $UserType
-            Licenses            = $User.AssignedLicenses.SkuId
+            Licenses            = $ProductFriendlyNames -Join ", "
+            SKUs                = $User.AssignedLicenses.SkuId
         }
         $Report.Add($ReportLine)
     }
 }
 
 $Report | Out-GridView -Title "Inactive licensed user accounts" 
+
+# --- Checking for license increases for inactive accounts ---
 
 # Detect price increases for licenses assigned to inactive accounts. 
 # This is done by comparing the licenses assigned to inactive accounts with a list of licenses that have had price increases in the last 90 days. 
@@ -173,7 +202,7 @@ $IncreasedLicenses | Format-Table -AutoSize
 
 
 ForEach ($User in $Report) {
-    ForEach ($License in $User.Licenses) {
+    ForEach ($License in $User.SKUs) {
         $LicenseMatch = $IncreasedLicenses | Where-Object { $_.SkuId -eq $License }
         If ($LicenseMatch ) {
             Write-Host ("User {0} is assigned the {1} license ({2}% increase)." -f $User.DisplayName, $LicenseMatch.SkuPartNumber, $LicenseMatch.IncreasePercent) -ForegroundColor Yellow
