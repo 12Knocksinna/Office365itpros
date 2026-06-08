@@ -585,6 +585,8 @@ If ($PricingInfoAvailable) {
 
 # Inactive user accounts - these are accounts that have never signed in or whose last sign-in was more than 60 days ago  
 $InactiveUserAccounts = $Report | Where-Object {($_."Days since last signin" -ge 60) -or ($_.'Days since last signin' -eq "Unknown")}
+# Strip room mailboxes from inactive accounts list (if you want to)
+$InactiveUserAccounts = $InactiveUserAccounts | Where-Object { $_.User -notin $LicensedRoomMailboxes }
 $InactiveUserAccountsCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($InactiveUserAccounts | Measure-Object UserCosts -Sum).Sum)) # Disabled user accounts
 $DisabledUserAccounts = $Report | Where-Object { $_."Account status" -eq "disabled" }
 $DisabledUserAccountsCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DisabledUserAccounts | Measure-Object UserCosts -Sum).Sum)) 
