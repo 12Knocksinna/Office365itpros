@@ -9,7 +9,7 @@ Connect-MgGraph -Scopes "User.Read.All", "Place.Read.All", "LicenseAssignment.Re
 # Find licensed users...
 Try {
     [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
-        -Property Id, displayName, userPrincipalName, assignedLicenses, SignInSessionsValidFromDateTime, SignInactivity, AccountEnabled `
+        -Property Id, displayName, userPrincipalName, assignedLicenses, SignInSessionsValidFromDateTime, SignInactivity, licenseAssignmentStates, AccountEnabled `
         -ConsistencyLevel eventual -CountVariable Records -All -PageSize 500 | Sort-Object displayName
     Write-Host ("Fetched {0} licensed user accounts." -f $Records) -ForegroundColor Green
 } Catch {
@@ -57,6 +57,7 @@ ForEach ($User in $Users) {
         }
         # Resolve product SKUs to friendly names for output
         [array]$ProductFriendlyNames = $null
+        [array]$UserLicenses = $User.AssignedLicenses.SkuId
         ForEach ($License in $User.AssignedLicenses.SkuId) {
             If ($SKUHash.ContainsKey($License)) {
                 $ProductFriendlyNames += $SKUHash[$License]
@@ -75,7 +76,7 @@ ForEach ($User in $Users) {
             AccountEnabled      = $User.AccountEnabled
             UserType            = $UserType
             Licenses            = $ProductFriendlyNames -Join ", "
-            SKUs                = $User.AssignedLicenses.SkuId
+            SKUs                = $UserLicenses
         }
         $Report.Add($ReportLine)
     }
