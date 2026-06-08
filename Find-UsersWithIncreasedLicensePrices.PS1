@@ -1,11 +1,16 @@
+# Find-UsersWithIncreasedLicensePrices.PS1
 
-# --- Checking for license increases for accounts ---
+# V1.0 8-June-2026
+# GitHub link: 
 
-# Detect price increases for licenses assigned to user accounts. 
+# A script to report price increases for licenses assigned to user accounts. 
 # This is done by comparing the licenses assigned to user accounts with a list of licenses that have had price increases in the last 90 days. 
 # The list of licenses with price increases is obtained from the Microsoft Graph API and is stored in the $IncreasedLicenses variable. 
 # The script then checks each license assigned to user accounts against the list of licenses with price increases and outputs a message if a match is found.
 # Create a table of the Microsoft 365 SKUs affected by the July 1, 2026 Price increases
+
+# Create an array to hold details of the license price increase.
+# Information from https://www.microsoft.com/en-us/licensing/news/2026-m365-packaging-pricing-updates
 $Microsoft365PriceIncreases = @(
 
     # Office 365 Enterprise
@@ -115,6 +120,18 @@ $IncreasedLicenses = ForEach ($Sku in $TenantSkus) {
 
 $IncreasedLicenses | Format-Table -AutoSize
 
+# Go through each user and check if they are assigned any of the licenses that have had price increases. If they are, output a message to the console.
+
+# Find licensed users...
+Try {
+    [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member'" `
+        -Property Id, displayName, userPrincipalName, assignedLicenses, SignInSessionsValidFromDateTime, SignInactivity, licenseAssignmentStates, AccountEnabled `
+        -ConsistencyLevel eventual -CountVariable Records -All -PageSize 500 | Sort-Object displayName
+    Write-Host ("Fetched {0} licensed user accounts." -f $Records) -ForegroundColor Green
+} Catch {
+    Write-Host ("Error fetching user data: {0}" -f $_.Exception.Message)
+    Break
+}
 
 ForEach ($User in $Users) {
     ForEach ($License in $User.AssignedLicenses.SkuId) {
