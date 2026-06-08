@@ -23,7 +23,8 @@
 # V1.93 05-Sep-2024   Add analysis of costs by company name
 # V1.94 08-Sep-2024   Remove licenses assigned for expired subscriptions from the report
 # V1.95 03-Mar-2025   Fix issue #117 to allow script to run better without pricing information
-# V1.96 08-Jun-2026   Make sure that Excel generation of worksheets works as expected
+# V1.96 08-Jun-2026   Make sure that Excel generation of worksheets works as expected. Fixed bug that inactive user accounts
+#                     table was not being populated. Added check for licensed room mailbox accounts
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
@@ -140,6 +141,10 @@ If (!($Users)) {
     Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) 
 }
 
+# Get Microsoft Places so that we can identify licensed room mailboxes in the report
+Write-Host "Finding places (room mailboxes)..."
+[array]$Places = Get-MgPlaceAsRoom -All -PageSize 500 | Sort-Object displayName
+
 # These are the properties used to create an analysis for.
 [array]$Departments = $Users.Department | Sort-Object -Unique
 [array]$Countries = $Users.Country | Sort-Object -Unique
@@ -164,6 +169,7 @@ ForEach ($S in $CurrentSubscriptions) {
 $DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0; $LicenseErrorCount = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 $DetailedLicenseReport = [System.Collections.Generic.List[Object]]::new()
+[array]$LicensedRoomMailboxes = $null
 
 [float]$TotalUserLicenseCosts = 0
 [float]$TotalBoughtLicenseCosts = 0
@@ -334,14 +340,22 @@ ForEach ($User in $Users) {
       $AccountStatus = "Disabled" 
   } Else {
       $AccountStatus = "Enabled"
-    }
+  }
+
+  # Is this licensed account a room mailbox
+  If ($Places.DisplayName -contains $User.DisplayName) {
+      $UserDisplayName = $User.DisplayName + " (***Room Mailbox***)"
+      $LicensedRoomMailboxes += $User.DisplayName
+  } Else {
+      $UserDisplayName = $User.DisplayName
+  }
 
   If ($PricingInfoAvailable) { 
     # Output report line with pricing info
     [float]$UserCosts = Get-LicenseCosts -Licenses $UserLicenses.SkuId
     $TotalUserLicenseCosts = $TotalUserLicenseCosts + $UserCosts
     $ReportLine = [PSCustomObject][Ordered]@{  
-      User                       = $User.DisplayName
+      User                       = $UserDisplayName 
       UPN                        = $User.UserPrincipalName
       Country                    = $User.Country
       Department                 = $User.Department
@@ -351,9 +365,9 @@ ForEach ($User in $Users) {
       "Disabled Plans"           = $DisabledPlans.Trim() 
       "Group based licenses"     = $GroupLicensingAssignments
       "Annual License Costs"     = ("{0} {1}" -f $Currency, ($UserCosts.toString('F2')))
-      "Last license change"      = $LastLicenseChange
+      "Last license change"      = If ($null -ne $LastLicenseChange) { Get-Date $LastLicenseChange -format 'dd-MMM-yyyy HH:mm' } Else { "N/A" }
       "Account created"          = $AccountCreatedDate
-      "Last Signin"              = $LastAccess
+      "Last Signin"              = If ($null -ne $LastAccess -and $LastAccess -ne "Unknown") { Get-Date $LastAccess -Format 'dd-MMM-yyyy HH:mm' } Else { $null }
       "Days since last signin"   = $DaysSinceLastSignIn
       "Duplicates detected"      = $DuplicateWarningReport
       Status                     = $UnusedAccountWarning
@@ -364,7 +378,7 @@ ForEach ($User in $Users) {
   } Else { 
     # No pricing information
     $ReportLine = [PSCustomObject][Ordered]@{  
-      User                       = $User.DisplayName
+      User                       = $UserDisplayName
       UPN                        = $User.UserPrincipalName
       Country                    = $User.Country
       Department                 = $User.Department
@@ -373,15 +387,15 @@ ForEach ($User in $Users) {
       "Direct assigned licenses" = $LicenseInfo
       "Disabled Plans"           = $DisabledPlans.Trim() 
       "Group based licenses"     = $GroupLicensingAssignments
-      "Last license change"      = $LastLicenseChange
+      "Last license change"      = If ($null -ne $LastLicenseChange) { Get-Date $LastLicenseChange -format 'dd-MMM-yyyy HH:mm' } Else { "N/A" }
       "Account created"          = $AccountCreatedDate
-      "Last Signin"              = $LastAccess
-      "Days since last signin"   = $DaysSinceLastSignIn
+      "Last Signin"              = If ($null -ne $LastAccess -and $LastAccess -ne "Unknown") { Get-Date $LastAccess -Format 'dd-MMM-yyyy HH:mm' } 
       "Duplicates detected"      = $DuplicateWarningReport
       Status                     = $UnusedAccountWarning
       "Account status"           = $AccountStatus
     }
   }  
+ 
   $Report.Add($ReportLine)
 
   # Populate the detailed license assignment report
@@ -569,7 +583,8 @@ If ($PricingInfoAvailable) {
     $CompanyAnalysisHTML =  "<p>" + $CompanyAnalysisHTML + "</p>" + $CompanyHTMLFooter
 } 
 
-# Inactive user accounts - these are accounts that have never signed in or whose last sign-in was more than 60 days ago  $InactiveUserAccounts = $Report | Where-Object {($_."Days since last signin" -ge 60) -or ($_.'Days since last signin' -eq "Unknown")}
+# Inactive user accounts - these are accounts that have never signed in or whose last sign-in was more than 60 days ago  
+$InactiveUserAccounts = $Report | Where-Object {($_."Days since last signin" -ge 60) -or ($_.'Days since last signin' -eq "Unknown")}
 $InactiveUserAccountsCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($InactiveUserAccounts | Measure-Object UserCosts -Sum).Sum)) # Disabled user accounts
 $DisabledUserAccounts = $Report | Where-Object { $_."Account status" -eq "disabled" }
 $DisabledUserAccountsCost = ("{0} {1}" -f $Currency, ('{0:N2}' -f ($DisabledUserAccounts | Measure-Object UserCosts -Sum).Sum)) 
@@ -719,7 +734,10 @@ $HTMLTail = $HTMLTail +
 "<p>Count of duplicate licenses:               " + $DuplicateSKULicenses + "</p>" +
 "<p>Count of errors:                           " + $LicenseErrorCount + "</p>" +
 "<p>-----------------------------------------------------------------------------------------------------------------------------</p>"
-          
+     
+If ($LicensedRoomMailboxes.Count -gt 0) {
+  $HTMLTail = $HTMLTail + "<p>Licensed room mailboxes detected: " + ($LicensedRoomMailboxes -join ", ") + "</p>"
+}
 $HTMLTail = $HTMLTail + "<p>Microsoft 365 Licensing Report<b> " + $Version + "</b></p>"	
 $HtmlReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.html"
 $HtmlReport = $Htmlhead + $Htmlbody1 + $HtmlSkuSeparator + $HtmlBody2 + $Htmltail
