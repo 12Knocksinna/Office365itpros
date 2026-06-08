@@ -170,7 +170,7 @@ If (Get-Module ImportExcel -ListAvailable) {
     Import-Module ImportExcel -ErrorAction SilentlyContinue
 }
 
-# Generate the attachment in either Excel worksheet or CSV format, depending on if the ImportExcel module is available. If interactive, create
+# Generate the output file in either Excel worksheet or CSV format, depending on if the ImportExcel module is available. If interactive, create
 # the file in the user's Downloads folder, otherwise create it in the current directory.
 If ($ExcelGenerated) {
     If ($Interactive) {
@@ -178,13 +178,14 @@ If ($ExcelGenerated) {
     } Else {
         $OutputFile = "InactiveTeamsChannels.xlsx"
     }
-    $Report | Export-Excel -Path $OutputFile -WorksheetName "Inactive Teams Channels" -Title ("Inactive Teams Channels {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveTeamsChannels" -AutoSize -AutoFilter -FreezeTopRow   
-} Else {
+    Remove-Item -Path $OutputFile -ErrorAction SilentlyContinue
+    $Report | Export-Excel -Path $OutputFile -WorksheetName "Inactive Teams Channels" -Title ("Inactive Teams Channels {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveTeamsChannels" -AutoSize -AutoFilter -FreezeTopRow
     If ($Interactive) {
         $OutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveTeamsChannels.csv"
     } Else {
         $OutputFile = "InactiveTeamsChannels.csv"
     }
+    Remove-Item -Path $OutputFile -ErrorAction SilentlyContinue
     $Report | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding Utf8
 }
 
