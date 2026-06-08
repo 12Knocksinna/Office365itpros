@@ -746,8 +746,8 @@ If (Get-Module ImportExcel -ListAvailable) {
 }
 
 Write-Host ""
-Write-Host "Microsoft 365 Licensing Report complete"
-Write-Host "---------------------------------------"
+Write-Host ("Microsoft 365 Licensing Report processing complete for {0} accounts" -f $Users.count)
+Write-Host "-------------------------------------------------------------------"
 Write-Host ""
 Write-Host ("An HTML report is available in {0}" -f $HtmlReportFile)
 If ($ExcelGenerated) {
