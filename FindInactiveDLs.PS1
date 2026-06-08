@@ -124,9 +124,11 @@ If (Get-Module ImportExcel -ListAvailable) {
 # the file in the user's Downloads folder, otherwise create it in the current directory.
 If ($ExcelGenerated) {
     $OutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveDLs.xlsx"
+    Remove-Item -Path $OutputFile -ErrorAction SilentlyContinue
     $Report | Export-Excel -Path $OutputFile -WorksheetName "Inactive DLs" -Title ("Inactive DLs {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveDLs" -AutoSize -AutoFilter -FreezeTopRow   
 } Else {
     $OutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveDLs.csv"
+    Remove-Item -Path $OutputFile -ErrorAction SilentlyContinue
     $Report | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding Utf8
 }
 
