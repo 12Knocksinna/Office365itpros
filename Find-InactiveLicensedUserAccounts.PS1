@@ -53,9 +53,12 @@ ForEach ($User in $Users) {
     }
 }
 
+$Report | Out-GridView -Title "Inactive licensed user accounts" 
 
-# Detect price increases for licenses assigned to inactive accounts. This is done by comparing the licenses assigned to inactive accounts with a list of licenses that have had price increases in the last 90 days. The list of licenses with price increases is obtained from the Microsoft Graph API and is stored in the $IncreasedLicenses variable. The script then checks each license assigned to inactive accounts against the list of licenses with price increases and outputs a message if a match is found.
-
+# Detect price increases for licenses assigned to inactive accounts. 
+# This is done by comparing the licenses assigned to inactive accounts with a list of licenses that have had price increases in the last 90 days. 
+# The list of licenses with price increases is obtained from the Microsoft Graph API and is stored in the $IncreasedLicenses variable. 
+# The script then checks each license assigned to inactive accounts against the list of licenses with price increases and outputs a message if a match is found.
 # Create a table of the Microsoft 365 SKUs affected by the July 1, 2026 Price increases
 $Microsoft365PriceIncreases = @(
 

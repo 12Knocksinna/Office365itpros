@@ -23,6 +23,7 @@
 # V1.93 05-Sep-2024   Add analysis of costs by company name
 # V1.94 08-Sep-2024   Remove licenses assigned for expired subscriptions from the report
 # V1.95 03-Mar-2025   Fix issue #117 to allow script to run better without pricing information
+# V1.96 08-Jun-2026   Make sure that Excel generation of worksheets works as expected
 
 Function Get-LicenseCosts {
   # Function to calculate the annual costs of the licenses assigned to a user account  
@@ -52,7 +53,7 @@ Function Get-LicenseCosts {
 
 [datetime]$RunDate = Get-Date
 [string]$ReportRunDate = Get-Date ($RunDate) -format 'dd-MMM-yyyy HH:mm'
-$Version = "1.95"
+$Version = "1.96"
 
 # Default currency - can be overwritten by a value read into the $ImportSkus array
 [string]$Currency = "USD"
@@ -60,20 +61,20 @@ $Version = "1.95"
 # Connect to the Graph. This connection uses the delegated permissions and roles available to the signed-in user. The
 # signed-in account must hold a role like Exchange administrator to access user and group details.
 # See https://practical365.com/connect-microsoft-graph-powershell-sdk/ for information about connecting to the Graph.
-# In a production environment, it's best to use a registered Entra ID app to connect (app-only mode) to avoid the need for
-# the signed-in user to have any administrative roles, like Exchange administrator.
+
 Connect-MgGraph -Scope "Directory.AccessAsUser.All, Organization.Read.All, AuditLog.Read.All" -NoWelcome
 
 <#
-Add your tenant identifier here
-Alternative: Use Application ID and Secured Password for authentication (you could also pass a certificate thumbprint)
-$ApplicationId = "<applicationId>"
-$SecuredPassword = "<securedPassword>"
-$tenantID = "<tenantId>"
 
-$SecuredPasswordPassword = ConvertTo-SecureString -String $SecuredPassword -AsPlainText -Force
-$ClientSecretCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ApplicationId, $SecuredPasswordPassword
-Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential
+In a production environment, instead of signing in interactively with a tenant administrator account, create an app registration, 
+give the app consent to use the application permissions listed above and then use AppId, TenantId, and Certificate Thumbprint to authenticate in app-only mode
+
+$$AppId = 'Guid for App'
+$TenantId ='GUID for tenant'
+$Thumbprint = "thumbprint for certificate uploaded into app registration"
+
+Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint -NoWelcome
+
 #>
 
 # This step depends on the availability of some CSV files generated to hold information about the product licenses used in the tenant and 
@@ -139,7 +140,7 @@ If (!($Users)) {
     Write-Host ("{0} Licensed user accounts found - now processing their license data..." -f $Users.Count) 
 }
 
-# These are the properties used to create analyses for.
+# These are the properties used to create an analysis for.
 [array]$Departments = $Users.Department | Sort-Object -Unique
 [array]$Countries = $Users.Country | Sort-Object -Unique
 [array]$CostCenters = $Users.OnPremisesExtensionAttributes.($CostCenterAttribute) | Sort-Object -Unique
@@ -163,13 +164,14 @@ ForEach ($S in $CurrentSubscriptions) {
 $DuplicateSKUsAccounts = 0; $DuplicateSKULicenses = 0; $LicenseErrorCount = 0
 $Report = [System.Collections.Generic.List[Object]]::new()
 $DetailedLicenseReport = [System.Collections.Generic.List[Object]]::new()
-$i = 0
+
 [float]$TotalUserLicenseCosts = 0
 [float]$TotalBoughtLicenseCosts = 0
 
+[int]$i = 0
 ForEach ($User in $Users) {
   $UnusedAccountWarning = "OK"; $i++; $UserCosts = 0
-  $ErrorMsg = ""; $LastLicenseChange = ""
+  $ErrorMsg = ""; $LastLicenseChange = ""; $DaysSinceLastSignIn = $null
   Write-Host ("Processing account {0} {1}/{2}" -f $User.UserPrincipalName, $i, $Users.Count)
   If ([string]::IsNullOrWhiteSpace($User.licenseAssignmentStates) -eq $False) {
     # Only process account if it has some licenses
@@ -283,13 +285,13 @@ ForEach ($User in $Users) {
       $UnlicensedAccounts++
   }
   # Figure out the last time the account signed in. This is important for detecting unused accounts
-  $LastSignIn = $User.SignInActivity.LastSignInDateTime
+  $LastSignIn = $User.SignInActivity.LastSuccessfulSignInDateTime
   $LastNonInteractiveSignIn = $User.SignInActivity.LastNonInteractiveSignInDateTime
 
   If (-not $LastSignIn -and -not $LastNonInteractiveSignIn) {
-      $DaysSinceLastSignIn = "Unknown"
+      [string]$DaysSinceLastSignIn = "Unknown"
       $UnusedAccountWarning = ("Unknown last sign-in for account")
-      $LastAccess = "Unknown"
+      [string]$LastAccess = "Unknown"
   } Else {
     # Get the newest date, if both dates contain values
     If ($LastSignIn -and $LastNonInteractiveSignIn) {
@@ -729,15 +731,18 @@ If (Get-Module ImportExcel -ListAvailable) {
   $ExcelGenerated = $True
   Import-Module ImportExcel -ErrorAction SilentlyContinue
   $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.xlsx"
+  Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
   $Report | Export-Excel -Path $ExcelOutputFile -WorksheetName "Microsoft 365 Licensing Report" -Title ("Microsoft 365 Licensing Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Microsoft365LicensingReport" 
   If ($DetailedCompanyAnalyis) {
     $DetailedExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Detailed Microsoft 365 Licensing Report.xlsx"
-    $DetailedLicenseReport | Export-Excel -Path $DetailedExcelOutputFile -WorksheetName "Detailed Microsoft 365 Licensing" `
-    	  -Title ("Detailed Microsoft 365 Licensing Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "DetailedMicrosoft365LicensingReport" 
+    Remove-Item $DetailedExcelOutputFile -ErrorAction SilentlyContinue
+    $DetailedLicenseReport | Export-Excel -Path $DetailedExcelOutputFile -WorksheetName "Microsoft 365 Licensing" `
+   	  -Title ("Detailed Microsoft 365 Licensing Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "Microsoft365LicensingDetails" 
   }
-  } Else {
+} Else {
     $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Microsoft 365 Licensing Report.CSV"
-    $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+    Remove-Item $CSVOutputFile -ErrorAction SilentlyContinue
+    $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8 
 }
 
 Write-Host ""
