@@ -1,8 +1,10 @@
 # Find-InactiveLicensedUserAccounts.PS1
-# A script to find licensed user accounts that have not been active for a specified period of time
+# A script to find licensed user accounts that have not been active for a specified period of time. The script
+# examines the baseline time for refresh tokens and the last successful sign-in date to determine if an account is inactive. The script also checks if the account is a room mailbox, as these can have licenses assigned but may not be used for sign-in.
+# Application needs User.Read.All, Place.Read.All and LicenseAssignment.Read.All permissions in the Graph
 
 # V1.0 7-June-2026
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-InactiveLicensedUserAccounts.PS1
 
 Connect-MgGraph -Scopes "User.Read.All", "Place.Read.All", "LicenseAssignment.Read.All" -NoWelcome
 
