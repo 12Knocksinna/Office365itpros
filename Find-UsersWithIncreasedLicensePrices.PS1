@@ -1,12 +1,15 @@
 # Find-UsersWithIncreasedLicensePrices.PS1
 
-# V1.0 8-June-2026
-# GitHub link: 
-
 # A script to report price increases for licenses assigned to user accounts. 
 # This is done by comparing the licenses assigned to user accounts with a list of licenses that have had price increases in the last 90 days. 
 # The list of licenses with price increases is obtained from the Microsoft Graph API and is stored in the $IncreasedLicenses variable. 
 # The script then checks each license assigned to user accounts against the list of licenses with price increases and outputs a message if a match is found.
+
+# V1.0 8-June-2026
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-UsersWithIncreasedLicensePrices.PS1
+
+# only permission required is User.Read.All to fetch user accounts with details of their assigned licenses
+Connect-MgGraph -Scopes User.Read.All -NoWelcome
 
 # Default currency for script
 $DefaultCurrency = "US $"
