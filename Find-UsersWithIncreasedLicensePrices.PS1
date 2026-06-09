@@ -11,6 +11,7 @@
 
 # Create an array to hold details of the license price increase.
 # Information from https://www.microsoft.com/en-us/licensing/news/2026-m365-packaging-pricing-updates
+
 $Microsoft365PriceIncreases = @(
 
     # Office 365 Enterprise
@@ -18,18 +19,24 @@ $Microsoft365PriceIncreases = @(
         SkuId = "6fd2c87f-b296-42f0-b197-1e91e994b900"
         Name  = "Office 365 E3"
         IncreasePercent = 13
+        OldPrice = 23
+        NewPrice = 26
     } # ENTERPRISEPACK 
 
     [PSCustomObject]@{
         SkuId = "c7df2760-2c81-4ef7-b578-5b5392b571df"
         Name  = "Office 365 E5"
         IncreasePercent = 8
+        OldPrice = 38
+        NewPrice = 41
     } # ENTERPRISEPREMIUM 
 
     [PSCustomObject]@{
         SkuId = "cf50bae9-29e8-4775-b07c-56ee10e3776d"
         Name  = "Office 365 E5 without Teams"
         IncreasePercent = 8
+        OldPrice = '29.45'
+        NewPrice = '32.45'
     } # ENTERPRISEPREMIUM without Teams
 
     # Microsoft 365 Enterprise 
@@ -37,17 +44,23 @@ $Microsoft365PriceIncreases = @(
         SkuId = "05e9a617-0261-4cee-bb44-138d3ef5d965"
         Name  = "Microsoft 365 E3"
         IncreasePercent = 8
+        OldPrice = 36
+        NewPrice = 39
     } # SPE_E3 
 
     [PSCustomObject]@{
         SkuId = "3271cf8e-2be5-4a09-a549-70fd05baaa17"
         Name  = "Microsoft 365 E5 without Teams"
         IncreasePercent = 5
+        OldPrice = '48.45'
+        NewPrice  = '51.45'
     } # Microsoft 365 E5 without Teams
     [PSCustomObject]@{
         SkuId = "06ebc4ee-1bb5-47dd-8120-11324bc54e06"
         Name  = "Microsoft 365 E5"
         IncreasePercent = 5
+        OldPrice = 57
+        NewPrice = 60
     } # SPE_E5 
 
     # Frontline
@@ -55,12 +68,16 @@ $Microsoft365PriceIncreases = @(
         SkuId = "44575883-256e-4a79-9da4-ebe9acabe2b2"
         Name  = "Microsoft 365 F1"
         IncreasePercent = 33
+        OldPrice = '2.25'
+        NewPrice = 3
     }
 
     [PSCustomObject]@{
         SkuId = "66b55226-6b4f-492c-910c-a3b7a3c9d993"
         Name  = "Microsoft 365 F3"
         IncreasePercent = 25
+        OldPrice = 8
+        NewPrice = 10
     }
 
     # Business
@@ -68,12 +85,16 @@ $Microsoft365PriceIncreases = @(
         SkuId = "f245ecc8-75af-4f8e-b61f-27d8114de5f3"
         Name  = "Microsoft 365 Business Basic"
         IncreasePercent = 16
+        OldPrice = 6
+        NewPrice = 7
     }
 
     [PSCustomObject]@{
         SkuId = "cbdc14ab-d96c-4c30-b9f4-6ada7cdc1d46"
         Name  = "Microsoft 365 Business Standard"
         IncreasePercent = 12
+        OldPrice = '12.50'
+        NewPrice = '14'
     }
 
     # Standalone / components
@@ -81,18 +102,32 @@ $Microsoft365PriceIncreases = @(
         SkuId = "efccb6f7-5641-4e0e-bd10-b4976e1bf68e"
         Name  = "Enterprise Mobility + Security E3"
         IncreasePercent = 13
+        OldPrice = '16.40'
+        NewPrice = 18
     } # EMS 
 
     [PSCustomObject]@{
         SkuId = "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
-        Name  = "Entra ID Plan 1 (Azure AD Premium P1)"
+        Name  = "Entra Plan 1 (Azure AD Premium P1)"
         IncreasePercent = 16
+        OldPrice = 6
+        NewPrice = 7
     } # AAD_PREMIUM 【
+
+    [PSCustomObject]@{
+        SkuId = "84a661c4-e949-4bd2-a560-ed7766fcaf2b"
+        Name  = "Entra Plan 2 (Azure AD Premium P2)"
+        IncreasePercent = 16
+        OldPrice = 9
+        NewPrice = 11
+    } # AAD_PREMIUM_P2 【
 
     [PSCustomObject]@{
         SkuId = "cdd28e44-67e3-425e-be4c-737fab2899d3"
         Name  = "Microsoft 365 Apps for Business"
         IncreasePercent = 21
+        OldPrice = '8.25'
+        NewPrice = '10'
     } # O365_BUSINESS 
 )
 
@@ -114,6 +149,8 @@ $IncreasedLicenses = ForEach ($Sku in $TenantSkus) {
             ConsumedUnits    = $Sku.ConsumedUnits
             EnabledUnits     = $Sku.EnabledUnits
             IncreasePercent  = $Match.IncreasePercent
+            OldPrice         = $Match.OldPrice
+            NewPrice         = $Match.NewPrice
         }
     }
 }
@@ -133,16 +170,56 @@ Try {
     Break
 }
 
+$Report = [System.Collections.Generic.List[Object]]::new()  
+# Go through each user and check if they are assigned any of the licenses that have had price increases. If they are, output a message to the console.
 ForEach ($User in $Users) {
     ForEach ($License in $User.AssignedLicenses.SkuId) {
         $LicenseMatch = $IncreasedLicenses | Where-Object { $_.SkuId -eq $License }
         If ($LicenseMatch ) {
-            Write-Host ("User {0} is assigned the {1} license ({2}% increase)." -f $User.DisplayName, $LicenseMatch.SkuPartNumber, $LicenseMatch.IncreasePercent) -ForegroundColor Yellow
-            Break
+            $ReportLine = [PSCustomObject][Ordered]@{
+                Name            = $User.DisplayName
+                UserPrincipalName = $User.UserPrincipalName
+                SkuId           = $LicenseMatch.SkuId
+                SkuPartNumber   = $LicenseMatch.SkuPartNumber
+                IncreasePercent = $LicenseMatch.IncreasePercent
+                OldPrice        = $LicenseMatch.OldPrice
+                NewPrice        = $LicenseMatch.NewPrice
+            }
+            $Report.Add($ReportLine)
         }
     }  
 }
 
+Write-Host ""
+Write-Host "Summary of licensed users with price increases:" -ForegroundColor Cyan
+$Report | Select-Object Name, SkuPartNumber, IncreasePercent, OldPrice, NewPrice | Format-Table -AutoSize
+
+Write-Host ""
+Write-Host ("Total licensed users with price increases: {0}" -f $Report.Count) -ForegroundColor Yellow
+Write-Host ("Total license spend before price increases: `$USD {0:N2}" -f ([decimal](($Report | Measure-Object -Property OldPrice -Sum).Sum))) -ForegroundColor Yellow
+Write-Host ("Total license spend after price increases: `$USD {0:N2}" -f ([decimal](($Report | Measure-Object -Property NewPrice -Sum).Sum)))  -ForegroundColor Yellow
+Write-Host ("Overall monthly price increase for affected licenses: `$USD {0:N2}" -f ([decimal](($Report | Measure-Object -Property NewPrice -Sum).Sum) - [decimal](($Report | Measure-Object -Property OldPrice -Sum).Sum)))  -ForegroundColor Yellow
+Write-Host ("Overall percentage price increase for affected licenses: {0:N2}%" -f (([decimal](($Report | Measure-Object -Property NewPrice -Sum).Sum) - [decimal](($Report | Measure-Object -Property OldPrice -Sum).Sum)) / [decimal](($Report | Measure-Object -Property OldPrice -Sum).Sum) * 100))  -ForegroundColor Yellow
+
+# Set up to use the ImportExcel module to generate Excel worksheets if it is available. If not, the report will be generated in CSV format instead.
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+}
+
+# Generate the output file in either Excel worksheet or CSV format, depending on if the ImportExcel module is available. If interactive, create
+# the file in the user's Downloads folder, otherwise create it in the current directory.
+If ($ExcelGenerated) {
+    $OutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Price Increases.xlsx"
+    Remove-Item -Path $OutputFile -ErrorAction SilentlyContinue
+    $Report | Export-Excel -Path $OutputFile -WorksheetName "Price Increases" -Title ("License Price Increases {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "PriceIncreases" -AutoSize -AutoFilter -FreezeTopRow
+} Else {
+    $OutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Price Increases.csv"
+    Remove-Item -Path $OutputFile -ErrorAction SilentlyContinue
+    $Report | Export-Csv -Path $OutputFile -NoTypeInformation -Encoding Utf8
+}
+
+Write-Host ("Report generated: {0}" -f $OutputFile) -ForegroundColor Green
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
