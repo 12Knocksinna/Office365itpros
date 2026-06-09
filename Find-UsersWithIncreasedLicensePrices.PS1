@@ -8,8 +8,9 @@
 # V1.0 8-June-2026
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-UsersWithIncreasedLicensePrices.PS1
 
-# only permission required is User.Read.All to fetch user accounts with details of their assigned licenses
-Connect-MgGraph -Scopes User.Read.All -NoWelcome
+# Permissions required are User.Read.All to fetch user accounts with details of their assigned licenses and
+# LicenseAssignment.Read.All to read details of the tenant subscriptions
+Connect-MgGraph -Scopes User.Read.All, LicenseAssignment.Read.All -NoWelcome
 
 # Default currency for script
 $DefaultCurrency = "US $"
@@ -143,9 +144,7 @@ $TenantSkus = Get-MgSubscribedSku -All | Select-Object SkuId, SkuPartNumber,
 
 # Join with price increases on SkuId
 $IncreasedLicenses = ForEach ($Sku in $TenantSkus) {
-
     $Match = $Microsoft365PriceIncreases | Where-Object { $_.SkuId -eq $Sku.SkuId }
-
     If ($Match) {
         [PSCustomObject]@{
             Name             = $Match.Name
@@ -160,7 +159,9 @@ $IncreasedLicenses = ForEach ($Sku in $TenantSkus) {
     }
 }
 
-$IncreasedLicenses | Format-Table -AutoSize
+Write-Host ""
+Write-Host "Licenses with price increases:" -ForegroundColor Cyan
+$IncreasedLicenses | Select-Object Name, SKUPartNumber, ConsumedUnits, OldPrice, NewPrice | Format-Table -AutoSize
 
 # Go through each user and check if they are assigned any of the licenses that have had price increases. If they are, output a message to the console.
 
