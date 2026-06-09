@@ -7,7 +7,9 @@
 # This is done by comparing the licenses assigned to user accounts with a list of licenses that have had price increases in the last 90 days. 
 # The list of licenses with price increases is obtained from the Microsoft Graph API and is stored in the $IncreasedLicenses variable. 
 # The script then checks each license assigned to user accounts against the list of licenses with price increases and outputs a message if a match is found.
-# Create a table of the Microsoft 365 SKUs affected by the July 1, 2026 Price increases
+
+# Default currency for script
+$DefaultCurrency = "US $"
 
 # Create an array to hold details of the license price increase.
 # Information from https://www.microsoft.com/en-us/licensing/news/2026-m365-packaging-pricing-updates
@@ -196,9 +198,9 @@ $Report | Select-Object Name, SkuPartNumber, IncreasePercent, OldPrice, NewPrice
 
 Write-Host ""
 Write-Host ("Total licensed users with price increases: {0}" -f $Report.Count) -ForegroundColor Yellow
-Write-Host ("Total license spend before price increases: `$USD {0:N2}" -f ([decimal](($Report | Measure-Object -Property OldPrice -Sum).Sum))) -ForegroundColor Yellow
-Write-Host ("Total license spend after price increases: `$USD {0:N2}" -f ([decimal](($Report | Measure-Object -Property NewPrice -Sum).Sum)))  -ForegroundColor Yellow
-Write-Host ("Overall monthly price increase for affected licenses: `$USD {0:N2}" -f ([decimal](($Report | Measure-Object -Property NewPrice -Sum).Sum) - [decimal](($Report | Measure-Object -Property OldPrice -Sum).Sum)))  -ForegroundColor Yellow
+Write-Host ("Total license spend before price increases: {0} {1:N2}" -f $defaultCurrency, ([decimal](($Report | Measure-Object -Property OldPrice -Sum).Sum))) -ForegroundColor Yellow
+Write-Host ("Total license spend after price increases: {0} {1:N2}" -f $defaultCurrency, ([decimal](($Report | Measure-Object -Property NewPrice -Sum).Sum)))  -ForegroundColor Yellow
+Write-Host ("Overall monthly price increase for affected licenses: {0} {1:N2}" -f $defaultCurrency, ([decimal](($Report | Measure-Object -Property NewPrice -Sum).Sum) - [decimal](($Report | Measure-Object -Property OldPrice -Sum).Sum)))  -ForegroundColor Yellow
 Write-Host ("Overall percentage price increase for affected licenses: {0:N2}%" -f (([decimal](($Report | Measure-Object -Property NewPrice -Sum).Sum) - [decimal](($Report | Measure-Object -Property OldPrice -Sum).Sum)) / [decimal](($Report | Measure-Object -Property OldPrice -Sum).Sum) * 100))  -ForegroundColor Yellow
 
 # Set up to use the ImportExcel module to generate Excel worksheets if it is available. If not, the report will be generated in CSV format instead.
