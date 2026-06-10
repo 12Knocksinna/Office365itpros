@@ -3,6 +3,8 @@
 # about the service principals in the tenant.
 
 # V1.0 20-Nov-2024
+# V1.1 10-Jun-2026 Updated for Automating Microsoft 365 with PowerShell (2027 edition)
+
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-UnusedServicePrincipals.PS1
 
 Connect-MgGraph -Scopes AuditLog.Read.All, Application.Read.All
@@ -14,22 +16,33 @@ ForEach ($SP in $ServicePrincipals) {
     $SPHash.Add($SP.AppId, $SP.DisplayName)
 }
 
-$CheckDate = (Get-Date).AddYears(-1).toString('yyyy-MM-ddTHH:mm:ssZ')
+$CheckDate = (Get-Date).AddYears(-1).toUniversalTime().toString('yyyy-MM-ddTHH:mm:ssZ')
 # Output report
-Write-Host "Fetching service principal sign-in activity data..."
 $Report = [System.Collections.Generic.List[Object]]::new()
-[array]$SPSignInLogs = Get-MgBetaReportServicePrincipalSignInActivity -Filter "(lastSignInActivity/lastSignInDateTime lt $CheckDate)" -All -PageSize 500
-If (!($SPSignInLogs)) {
-    Write-Host "No sign-ins found for service principals"
+
+Write-Host "Fetching service principal sign-in activity data..."
+Try {
+    [array]$SPSignInLogs = Get-MgBetaReportServicePrincipalSignInActivity `
+        -Filter "(lastSignInActivity/lastSignInDateTime lt $CheckDate)" -All -PageSize 500 -ErrorAction Stop
+}
+Catch {
+    Write-Host "Error fetching service principal sign-in activity data: $_"
+    Break
+}
+    If (!($SPSignInLogs)) {
+    Write-Host "No summary sign-in records found for service principals"
     Break
 }   Else {
-    Write-Host ("Found {0} sign-ins for service principals" -f $SPSignInLogs.Count)
+    Write-Host ("Found {0} summary sign-in records for service principals" -f $SPSignInLogs.Count)
 }
 
 Write-Host "Analyzing data..."
 ForEach ($SPSignIn in $SPSignInLogs) {
+    $DaysSince = $null
     $SPName = $SPHash[$SPSignIn.appId]
-    $DaysSince = (New-TimeSpan $SPSignIn.lastSignInActivity.lastSignInDateTime).Days
+    If ($null -ne $SPSignIn.lastSignInActivity.lastSignInDateTime) {
+        $DaysSince = (New-TimeSpan $SPSignIn.lastSignInActivity.lastSignInDateTime).Days
+    }
     $ReportLine = [PSCustomObject]@{
         'Service Principal Name'    = $SPName
         AppId                       = $SPSignin.AppId
@@ -45,7 +58,7 @@ $HomeTenant = (Get-MgOrganization).DisplayName
 ForEach ($TenantId in $TenantIds) {
     $NumberApps = ($ServicePrincipals | Where-Object {$_.AppOwnerOrganizationId -eq $TenantId}).Count
     $Uri = ("https://graph.microsoft.com/V1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='{0}')" -f $TenantId.ToString())
-    $TenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get
+    $TenantData = Invoke-MgGraphRequest -Uri $Uri -Method Get -OutputType PSObject
     $ReportLine = [PSCustomObject]@{
         'Tenant Name'   = $TenantData.DisplayName
         'Tenant ID'     = $TenantId
@@ -57,7 +70,8 @@ ForEach ($TenantId in $TenantIds) {
 $TenantReport = $TenantReport | Sort-Object 'Number of apps' -Descending
 [array]$AppsNoName = $Report | Where-Object {$_.'Service Principal Name' -eq $null}
 
-Write-Host ("Some notes about service principals for the {0} tenant" -f $HomeTenant)
+Write-Host ""
+Write-Host ("Some notes about service principals in use in the {0} tenant" -f $HomeTenant)
 Write-Host "------------------------------------------------------------------------"
 Write-Host ""
 Write-Host "Service Principals by owning tenant"
@@ -77,6 +91,9 @@ Write-Host "Report detailing service principals with last sign-in longer than a 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+
+# The Automating Microsoft 365 with PowerShell eBook is available from https://o365itpros.gumroad.com/l/M365PS in EPUB and PDF format 
+# or in paperback at https://amzn.to/3L4IBmU
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
