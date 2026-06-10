@@ -97,8 +97,8 @@ ForEach ($DL in $DLs) {
         $ActiveStatus = "Active"; $ActiveStatusCount++
         $LastActiveDate = $MessageTable | Where-Object {$_.RecipientAddress -eq $DL.PrimarySMTPAddress} | Select-Object -ExpandProperty Received
         $LastActiveDate = Get-Date ($LastActiveDate) -format 'dd-MMM-yyyy HH:mm:ss'
-        Write-Host ("{0} is active - message found on {1}" -f $DL.DisplayName, $LastActiveDate) -Foregroundcolor Yellow 
         $NumberOfExpandedEvents = ($Messages | Where-Object {$_.RecipientAddress -eq $DL.PrimarySMTPAddress}).Count
+        Write-Host ("{0} is active - most recent message was on {1} with a total of {2} messages found" -f $DL.DisplayName, $LastActiveDate, $NumberOfExpandedEvents) -Foregroundcolor Yellow 
     } Else {
         $ActiveStatus = "Inactive"
         Write-Host ("{0} is inactive" -f $DL.DisplayName) -Foregroundcolor Red 
