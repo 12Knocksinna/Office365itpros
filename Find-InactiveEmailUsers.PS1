@@ -44,8 +44,6 @@ function Get-DateRangeData {
 
     # Remove Exchange Online public folder hierarchy synchronization messages
     $Messages = $Messages | Where-Object {$_.Subject -NotLike "*HierarchySync*"}
-    # Call to API to get data for the specified date range goes here, for example:
-    # $Data = Get-MgAuditLog -StartDateTime $StartDate -EndDateTime $EndDate
     return $Messages
 }
 
