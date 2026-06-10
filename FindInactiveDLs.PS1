@@ -92,26 +92,28 @@ Write-Host ("Processing {0} distribution lists..." -f $DLs.count)
 $Report = [System.Collections.Generic.List[Object]]::new()
 [int]$ActiveStatusCount = 0
 ForEach ($DL in $DLs) {
-   $LastActiveDate = "Unknown"
-   If ($MessageTable.recipientaddress -Match $DL.PrimarySMTPAddress) {
-      $ActiveStatus = "Active"; $ActiveStatusCount++
-      $LastActiveDate = $MessageTable | Where-Object {$_.RecipientAddress -eq $DL.PrimarySMTPAddress} | Select-Object -ExpandProperty Received
-      $LastActiveDate = Get-Date ($LastActiveDate) -format 'dd-MMM-yyyy HH:mm:ss'
-      Write-Host ("{0} is active - message found on {1}" -f $DL.DisplayName, $LastActiveDate) -Foregroundcolor Yellow 
-   } Else {
-      $ActiveStatus = "Inactive"
-      Write-Host ("{0} is inactive" -f $DL.DisplayName) -Foregroundcolor Red 
-   }
-   $Reportline = [pscustomobject]@{
-      Name = $DL.DisplayName 
-      Active = $ActiveStatus 
-      LastActiveDate = $LastActiveDate
-   }
-   $Report.Add($ReportLine)
-   $Text = ("DL state checked on {0} and determined as {1}. Last message addressed on {2}" `
+    $LastActiveDate = "Unknown"; $NumberOfExpandedEvents = 0
+    If ($MessageTable.recipientaddress -Match $DL.PrimarySMTPAddress) {
+        $ActiveStatus = "Active"; $ActiveStatusCount++
+        $LastActiveDate = $MessageTable | Where-Object {$_.RecipientAddress -eq $DL.PrimarySMTPAddress} | Select-Object -ExpandProperty Received
+        $LastActiveDate = Get-Date ($LastActiveDate) -format 'dd-MMM-yyyy HH:mm:ss'
+        Write-Host ("{0} is active - message found on {1}" -f $DL.DisplayName, $LastActiveDate) -Foregroundcolor Yellow 
+        $NumberOfExpandedEvents = ($Messages | Where-Object {$_.RecipientAddress -eq $DL.PrimarySMTPAddress}).Count
+    } Else {
+        $ActiveStatus = "Inactive"
+        Write-Host ("{0} is inactive" -f $DL.DisplayName) -Foregroundcolor Red 
+    }
+    $Reportline = [pscustomobject]@{
+        Name = $DL.DisplayName 
+        Active = $ActiveStatus 
+        'Last active date' = $LastActiveDate
+        'Number of messages sent to DL' = $NumberOfExpandedEvents
+    }
+    $Report.Add($ReportLine)
+    $Text = ("DL state checked on {0} and determined as {1}. Last message addressed on {2}" `
          -f (Get-Date -format g), $ActiveStatus, $LastActiveDate )
       # This line updates the DL with details of the assessment. Comment it out if you don't want to do this
-   Set-DistributionGroup -Identity $DL.ExternalDirectoryObjectId -CustomAttribute15 $Text
+    Set-DistributionGroup -Identity $DL.ExternalDirectoryObjectId -CustomAttribute15 $Text
 }
 
 # Set up to use the ImportExcel module to generate Excel worksheets if it is available. If not, the report will be generated in CSV format instead.
