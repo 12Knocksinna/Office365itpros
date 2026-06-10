@@ -3,7 +3,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/FindInactiveDLs.PS1
 
 # V1.1 Updated 27-Aug-2025  Replaced old message trace cmdlet with Get-MessageTraceV2
-# V2.0 Updated 7-June-2026  Fetch message data for DL expansion events for the entire 90 days it is available online.
+# V2.0 Updated 10-June-2026 Fetch message data for DL expansion events for the entire 90 days it is available online.
 #                           Also added export to Excel worksheet if the ImportExcel module is available and some other miscellaneous updates
 
 function Get-DateRangeData {
@@ -57,7 +57,7 @@ If ($Modules -notcontains "ExchangeOnlineManagement") {
 # It's possible to go back 90 days, but the message trace data must be retrieved in 10-day chunnks.
 # This code creates an array of 10-day ranges to fetch the message trace data.
 $StartDate = (Get-Date).AddDays(-90).ToUniversalTime()
-$EndDate = (Get-Date).ToUniversalTime()
+$EndDate = (Get-Date).ToUniversalTime().AddMinutes(10)
 
 $iterations = 9
 [int]$i = 0
@@ -73,8 +73,6 @@ For ($i=0; $i -lt $iterations; $i++) {
     $DateRanges += @{Start=$RangeStart; End=$RangeEnd}
 }
 
-$Report = [System.Collections.Generic.List[Object]]::new()
-
 [array]$Data = $null
 [array]$Messages = $null
 
@@ -86,10 +84,14 @@ ForEach ($DateRange in $DateRanges) {
     $Messages+= $Data
 }
 
+# Sort the messages by received date in descending order so that we can easily find the most recent message for each distribution list
+$Messages = $Messages | Sort-Object {$_.Received -as [datetime]} -Descending
+
 # Create an array of unique recipient addresses from the message trace data, which will be used to check against the distribution lists in the tenant
 [array]$MessageTable = ($Messages | Sort-Object RecipientAddress -Unique)
 [array]$DLs = Get-DistributionGroup -ResultSize Unlimited -RecipientTypeDetails 'MailUniversalDistributionGroup'
 Write-Host ("Processing {0} distribution lists..." -f $DLs.count)
+$Report = [System.Collections.Generic.List[Object]]::new()
 [int]$ActiveStatusCount = 0
 ForEach ($DL in $DLs) {
    $LastActiveDate = "Unknown"
@@ -135,10 +137,10 @@ If ($ExcelGenerated) {
 Write-Host "Report generated in: $OutputFile" -ForegroundColor Green
 
 Write-Host ""
-Write-Host ("Total distribution lists checked: {0}" -f $DLs.count)
-Write-Host ("Active distribution lists:        {0}" -f $ActiveStatusCount)
-Write-Host ("Inactive distribution lists:      {0}" -f ($DLs.count - $ActiveStatusCount))
-Write-Host ""
+Write-Host ("Total distribution lists checked: {0} using messages sent between {1} and {2}" -f $DLs.count, (Get-Date $StartDate -format 'dd-MMM-yyyy HH:mm'), (Get-Date $EndDate -format 'dd-MMM-yyyy HH:mm'))
+Write-Host ("Active distribution lists:        {0} ({1:P2})" -f $ActiveStatusCount, ($ActiveStatusCount / $DLs.count))
+Write-Host ("Inactive distribution lists:      {0} ({1:P2})" -f ($DLs.count - $ActiveStatusCount), (($DLs.count - $ActiveStatusCount) / $DLs.count))
+Write-Host ""   
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
