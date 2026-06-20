@@ -2,7 +2,9 @@
 # A script to find SharePoint Online sites that have not had any content modifications for a specified number of days. This can be used to identify sites that are potentially obsolete and can be removed or archived.
 # The script uses the Get-SPOSite cmdlet to retrieve information about all sites in the tenant, and then filters the sites based on the last content modification date. The script also retrieves the owners of the site if it is a Microsoft 365 Group-enabled site, and includes this information in the report.
 # Requires Exchange Online and SharePoint Online PowerShell modules
-# Session must be connected to an admin account
+# Session must be connected to an admin account.
+
+# V1.0 20-June-2026
 
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-ObsoleteSPOSites.PS1
 
@@ -64,11 +66,14 @@ Write-Host "Fetching information about SharePoint Online sites..."
 If ($Sites.Count -eq 0) { 
    Write-Host "No SharePoint Online sites found.... exiting..." ; break 
 }
-$Sites = $Sites | Where-Object { $_.ArchiveStatus -eq "NotArchived" } # Remove archived sites
+# Remove archived sites
+$Sites = $Sites | Where-Object { $_.ArchiveStatus -eq "NotArchived" }
 # Remove sites used for Teams private/shared channels. Comment this out if you want to include the channel sites in the report.
 $Sites = $Sites | Where-Object {$_.Template -ne "TEAMCHANNEL#0" -and $_.Template -ne "TEAMCHANNEL#1"} 
 # Remove redirect sites. These are not really sites, but just placeholders that point to the real site, and they don't have any activity or storage usage themselves, so we can remove them from the report. Comment this out if you want to include the redirect sites in the report.
 $Sites = $Sites | Where-Object {$_.Template -ne "REDIRECTSITE#0"}
+# Remove sites that are in SharePoint Online but are deleted and kept for retention. These sites have a GUID in their URL.
+$Sites = $Sites | Where-Object {$_.Url -notmatch '/sites/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(/|$)' }
 
 # Check whether the obfuscation setting for reports is set and if so, reset it to allow clear values to be obtained
 $ObfuscationChanged = $false
@@ -146,15 +151,23 @@ ForEach ($Site in $Sites) {
    # Calculate how long it's been since the last activity date from the usage report data, if we have one. This helps us 
    # understand if the site is still active or not, and can be used to filter the report if necessary
    $LastActivityInfo = $SiteActivityHash[$Site.URL]
-   $LastActivityDate = $LastActivityInfo.'Last Activity Date'
-   If ($LastActivityDate -and $LastActivityDate -ne "No activity") {
-      $LastActivityDate = Get-Date $LastActivityDate -Format 'dd-MMM-yyyy'
-      $DaysSinceActivity = (New-TimeSpan -Start $LastActivityDate -End (Get-Date)).Days
+   If ($LastActivityInfo) {
+      $LastActivityDate = $LastActivityInfo.'Last Activity Date'
+      $SiteFiles = $LastActivityInfo.'File Count'
+      If ($LastActivityDate -and $LastActivityDate -ne "No activity") {
+         $LastActivityDate = Get-Date $LastActivityDate -Format 'dd-MMM-yyyy'
+         $DaysSinceActivity = (New-TimeSpan -Start $LastActivityDate -End (Get-Date)).Days
+      } Else {
+         $LastActivityDate = "No activity"
+         $DaysSinceActivity = "N/A"
+         $SiteFiles = "No data"
+      }   
    } Else {
       $LastActivityDate = "No activity"
+      $SiteFiles = "No data"
       $DaysSinceActivity = "N/A"
-   }   
-   
+   }
+
 # Calculate obsolete status for the site
 # If less than seven days old, continue
 # If no activity, and more than 90 days old, obsolete
@@ -172,6 +185,8 @@ ForEach ($Site in $Sites) {
       $SiteObsolete = $False
    }  
 
+   $SiteQuotaGB = [Math]::Round($Site.StorageQuota/1024,0)
+   $SitePercentUsed = [Math]::Round(($Site.StorageUsageCurrent/$Site.StorageQuota)*100,2)
 # And write out the information about the site
    If ($Process -eq $True) {
       $ReportLine = [PSCustomObject]@{
@@ -179,10 +194,10 @@ ForEach ($Site in $Sites) {
          SiteName          = $Site.Title
          Owner             = $SiteOwners
          Template          = $SiteType
-         QuotaGB           = [Math]::Round($Site.StorageQuota/1024,0) 
+         QuotaGB           = $SiteQuotaGB
          UsedGB            = $UsedGB
-         Files             = $LastActivityInfo.'File Count'
-         PercentUsed       = ([Math]::Round(($Site.StorageUsageCurrent/$Site.StorageQuota),4).ToString("P")) 
+         Files             = $SiteFiles
+         PercentUsed       = $SitePercentUsed
          PercentTenant     = $PercentTenant
          'Last Activity'   = $LastActivityDate
          DaysSinceActivity = $DaysSinceActivity

@@ -53,7 +53,7 @@ ForEach ($Module in $O365Modules) {
    # No version of the module found. It's in our list, so we install it.
      Write-Host ("No module found on this PC for {0}" -f $Module)
      Write-Host ("Installing module {0}..." -f $Module)  -foregroundcolor Yellow
-     Install-Module $Module -Scope AllUsers -Confirm:$False -AllowClobber -Force
+     Install-Module $Module -Scope AllUsers -Confirm:$False -AllowClobber -Force -SkipPublisherCheck
      $InstalledModules++
    }
 
@@ -103,7 +103,7 @@ ForEach ($Module in $ModulesToProcess) {
         [datetime]$VersionDate = $Version.PublishedDate
         If ($VersionDate -lt $MostRecentVersionDate)  { # Old version - remove
            Write-Host ("Uninstalling version {0} of module {1}" -f $Version.Version, $Module) -foregroundcolor Red 
-           Uninstall-Module -Name $Module -RequiredVersion $Version.Version -Force
+           Uninstall-Module -Name $Module -RequiredVersion $Version.Version -Force 
            $RemovedModules++
          } #End if version check
       } # End ForEach versions 
