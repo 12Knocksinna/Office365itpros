@@ -4,6 +4,7 @@
 # V1.0 1-Apr-2026
 # V2.0 24-Apr-2026  Split tasks into newly assigned (in the last week) and old tasks.
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-WeeklyOutstandingTasks.PS1
+# See https://office365itpros.com/2026/04/15/weekly-incomplete-task-report/ for an article explaining what this script does
 
 # Permissions needed to run the script:
 # - User.Read.All (to read user details)
