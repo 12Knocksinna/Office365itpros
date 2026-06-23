@@ -2,11 +2,11 @@
 # This script retrieves the last six weeks of Planner task data from a SharePoint list and generates a summary of tasks per user per week, including an average tasks per week metric.
 
 # V1.0 22-June-2026
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Get-OpenPlannerTasksAnalysis.PS1
 
 Connect-MgGraph -Scopes "Sites.Read.All", "Sites.ReadWrite.All"
-# Define URL for the SharePoint site and construct the SiteId
-$Uri = "https://redmondassociates.sharepoint.com/sites/O365ExchPro"
+# Define URL for the SharePoint site and construct the SiteId - This site is obviously different for your tenant
+$Uri = "https://office365itpros.sharepoint.com/sites/O365ExchPro"
 $SiteId = $Uri.Split('//')[1].split("/")[0] + ":/sites/" + $Uri.Split('//')[1].split("/")[2]
 $Site = Get-MgSite -SiteId $SiteId
 # Find the list named "Planner Task Burndown" in the SharePoint site
@@ -36,11 +36,9 @@ If ($List) {
 
 # Define the date range for the last six weeks, starting from the most recent Saturday
 $Today = (Get-Date).Date
-
 $LastSaturday = $Today.AddDays(-(($Today.DayOfWeek - [System.DayOfWeek]::Saturday + 7) % 7))
-[datetime]$SixWeeksAgo = $LastSaturday.AddDays(-42)
 
-# Create six week buckets, oldest to newest
+# Create six weekly segments for reporting the columns, oldest to newest
 $Weeks = 5..0 | ForEach-Object {
     $WeekStart = $LastSaturday.AddDays(-7 * $_)
 
@@ -52,9 +50,10 @@ $Weeks = 5..0 | ForEach-Object {
     }
 }
 
-# Data window to select items for the six week period: from oldest Saturday to end of latest Saturday-based week
-$StartDate = ($Weeks | Sort-Object WeekNumber | Select-Object -First 1).WeekStart
-$EndDate = ($Weeks | Sort-Object WeekNumber | Select-Object -Last 1).WeekEnd
+# Calculate the date window to select items for the six week period: from oldest Saturday to end of latest Saturday-based week
+$Weeks = $Weeks | Sort-Object WeekNumber
+$StartDate = ($Weeks | Select-Object -First 1).WeekStart
+$EndDate = ($Weeks | Select-Object -Last 1).WeekEnd
 
 # Find set of unique users who have had outstanding tasks
 $UniqueUsersWithTasks = $ItemData | Sort-Object UPN -Unique | Select-Object UPN, UserName
@@ -63,7 +62,7 @@ $UniqueUsersWithTasks = $ItemData | Sort-Object UPN -Unique | Select-Object UPN,
 [array]$SixWeeksTasks = $ItemData | Where-Object {[datetime]$_.RunDate -ge $StartDate -and [datetime]$_.RunDate -lt $EndDate}
 
 # Create a hash table of tasks for each user. Without the hash table, we would scan $SixWeeksTasks six times per user
-# or 600 times for 100 users.This way we do the scan one and direct lookups thereafter
+# or 600 times for 100 users. This way we do the scan one and direct lookups thereafter
 $TasksByUPN = @{}
 Foreach ($Task in $SixWeeksTasks) {
     If (-not $TasksByUPN.ContainsKey($Task.UPN)) {
