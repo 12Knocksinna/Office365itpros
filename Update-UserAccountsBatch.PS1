@@ -3,14 +3,14 @@
 # two properties for each account using JSON batching.
 
 # V1.0 3-July-2026
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Update-UserAccountsBatch.PS1
 
 Connect-MgGraph -Scopes "User.ReadWrite.All"
 
 # Get a set of users to process. We only need the identifier and displayname 
 [array]$Users = Get-MgUser -All -Filter "userType eq 'member'" -Property Id, DisplayName, CompanyName, OfficeLocation | Select-Object Id, DisplayName, CompanyName, OfficeLocation
 
-Write-Host "Found $($users.Count) users to update"
+Write-Host "Found $($Users.Count) users to update"
 
 # Define the values for the properties to update. In this example, we update the company name and office location.
 $newCompanyName = "Office 365 Maestro (UK) Limited"
@@ -54,8 +54,7 @@ For ($i = 0; $i -lt $Batches; $i++) {
     $BatchBody = @{ Requests = $batchRequests }
 
     Try {
-        $Response = Invoke-MgGraphRequest -Method POST `
-            -Uri "https://graph.microsoft.com/v1.0/`$batch" `
+        $Response = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/`$batch" `
             -Body ($batchBody | ConvertTo-Json -Depth 10) -ErrorAction Stop
         # Check each individual response inside the batch for errors
         ForEach ($Result in $Response.responses) {
