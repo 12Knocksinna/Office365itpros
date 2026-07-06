@@ -31,10 +31,8 @@ $UM10 = "notify@mstechcommunity.microsoft.com"
 $UM11 = "notifications@owler.com"
 
 # Set the start and end dates for the search - starting five years ago and ending 30 days ago
-[datetime]$StartDate = (Get-Date).AddDays(-1825)
-[string]$StartDate = Get-Date $StartDate -Format "yyyy-MM-ddTHH:mm:ssZ"
-[datetime]$EndDate = (Get-Date).AddDays(-30)
-[string]$EndDate = Get-Date $EndDate -Format "yyyy-MM-ddTHH:mm:ssZ"
+[string]$StartDate = (Get-Date).AddDays(-1825).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+[string]$EndDate = (Get-Date).AddDays(-30).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 
 # Define the service plan IDs for Exchange Online (Plan 1) and Exchange Online (Plan 2)
 $ExoServicePlan1 = "9aaf7827-d63c-4b61-89c3-182f06f82e5c"
@@ -42,7 +40,7 @@ $ExoServicePlan2 = "efb87545-963c-4e0d-99df-69c6916d9eb0"
 
 # Find users assigned a license that includes the Exchange Online (Plan 1) or Exchange Online (Plan 2) service plans.
 # The check also looks for users with the Exchange Online service plan enabled.
-Write-Host "Finding mailboxes..." -ForegroundColor Cyan
+Write-Host "Finding accounts with Exchange Online mailboxes..." -ForegroundColor Cyan
 [array]$Users = Get-MgUser -Filter "assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan1 and capabilityStatus eq 'Enabled') `
   or assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan2 and capabilityStatus eq 'Enabled')" `
     -ConsistencyLevel eventual -CountVariable Test -All -PageSize 999 -Sort ('displayname') `
@@ -71,31 +69,28 @@ ForEach ($User in $Users) {
     If ($Messages) {
         # If messages are found, delete them!
         ForEach ($Message in $Messages) {
+            $FailedMessage = $false
             Try {
-                Remove-MgUserMessage -UserId $User.Id -MessageId $Message.Id -ErrorAction Continue
+                Remove-MgUserMessage -UserId $User.Id -MessageId $Message.Id -ErrorAction Stop
                 $i++
-                $ReportLine = [PSCustomObject][Ordered]@{ 
-                    Timestamp   = (Get-Date -format s)   
-                    Action      = 'Message Deleted'
-                    Mailbox     = $User.DisplayName
-                    SMTPAddress = $User.UserPrincipalName
-                    Subject     = $Message.Subject
-                    SenderEmail = $Message.Sender.EmailAddress.Address
-                    SenderName  = $Message.Sender.EmailAddress.Name
-                    Sent        = $Message.SentDateTime
-                }
             } Catch {
                 Write-Host ("Failed to remove message {0} from mailbox {1} with error {2}" -f $Message.Id, $User.DisplayName, $_.Exception.Message) -ForegroundColor Red
-                $ReportLine = [PSCustomObject][Ordered]@{  
-                    Timestamp   = (Get-Date -format s)  
-                    Action      = 'Message Deletion Failed'
-                    Mailbox     = $User.DisplayName
-                    SMTPAddress = $User.UserPrincipalName
-                    Subject     = $Message.Subject
-                    SenderEmail = $Message.Sender.EmailAddress.Address
-                    SenderName  = $Message.Sender.EmailAddress.Name
-                    Sent        = $Message.SentDateTime
-                }
+                $FailedMessage = $true
+            }
+            If ($FailedMessage) {
+                $MessageStatus = "Message deletion failed"
+            } Else {
+                $MessageStatus = "Message deleted"
+            }
+            $ReportLine = [PSCustomObject][Ordered]@{  
+                Timestamp   = (Get-Date -format s)  
+                Action      = $MessageStatus
+                Mailbox     = $User.DisplayName
+                SMTPAddress = $User.UserPrincipalName
+                Subject     = $Message.Subject
+                SenderEmail = $Message.Sender.EmailAddress.Address
+                SenderName  = $Message.Sender.EmailAddress.Name
+                Sent        = $Message.SentDateTime
             }
             $Report.Add($ReportLine)
         }
