@@ -1,13 +1,15 @@
 # Report-OneDriveUsage.PS1
 # Example of generating a report about OneDrive for Business storage consumption using Microsoft 365 usage reports
 # V1.0 21-Feb-2024
+# V1.1 16-Jul-2026 - Added check for successful read of $UserData hash table
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Report-OneDriveUsage.PS1
 
 Connect-MgGraph -NoWelcome -Scopes User.Read.All, Reports.Read.All, ReportSettings.ReadWrite.All
 
 $ObscureFlag = $false
-$CSVOutputFile = "c:\temp\OneDriveSiteConsumption.CSV"
-$TempExportFile = "c:\temp\TempExportFile.CSV"
+$CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\OneDriveSiteConsumption.CSV"
+$TempExportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\TempExportFile.CSV"
+
 If (Get-Item $TempExportFile -ErrorAction SilentlyContinue) {
     Remove-Item $TempExportFile
 }
@@ -32,13 +34,13 @@ ForEach ($User in $Users) {
 }    
 
 # Get a list of OneDrive for Business sites in the tenant sorted by the biggest consumer of quota
-Write-Host "Finding OneDrive sites..."
+Write-Host "Finding usage data for OneDrive accounts..."
 # This could also be done with Get-MgReportOneDriveUsageAccountDetail -Period D7 -Outfile $TempExportFile
 $Uri = "https://graph.microsoft.com/v1.0/reports/getOneDriveUsageAccountDetail(period='D7')"
 Invoke-MgGraphRequest -Uri $Uri -Method GET -OutputFilePath $TempExportFile
 [array]$ODFBSites = Import-CSV $TempExportFile | Sort-Object 'User display name'
 If (!($ODFBSites)) { 
-    Write-Host "No OneDrive sites found (surprisingly...)" ; 
+    Write-Host "No OneDrive accounts found (surprisingly...)" ; 
     break 
 }
 # Calculate total storage used by OneDrive for Business accounts
@@ -48,9 +50,20 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 # Store information for each OneDrive site
 ForEach ($Site in $ODFBSites) {
     [array]$UserData = $UserHash[$Site.'Owner Principal name']
+    If ($UserData) {
+       $City = $UserData.City
+       $Country = $UserData.Country
+       $Department = $UserData.Department
+       $JobTitle = $UserData.JobTitle
+    } Else {
+       $City = $null
+       $Country = $Null
+       $Department = $null
+       $JobTitle = $null
+    }
     $ReportLine   = [PSCustomObject]@{
         Owner       = $Site.'Owner display name'
-        UPN	        = $Site.'Owner Principal name'
+        UPN	    = $Site.'Owner Principal name'
         City        = $UserData.city
         Country     = $UserData.Country
         Department  = $UserData.Department
@@ -74,7 +87,7 @@ If ($ObscureFlag -eq $true) {
     Update-MgAdminReportSetting -BodyParameter $Parameters
 }
 
-# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
