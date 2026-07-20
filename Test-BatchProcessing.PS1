@@ -66,7 +66,7 @@ $Batches = For($i = 0; $i -lt $Mbx.count; $i += $BatchSize) {
         'ContentType' = 'application/json'
         'Body'        = @{
             'requests' = @($RequestData)
-        } | ConvertTo-Json
+        } | ConvertTo-Json -Depth 10
     }
 }
 

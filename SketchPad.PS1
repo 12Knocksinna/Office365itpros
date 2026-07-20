@@ -2081,7 +2081,7 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($User in $Users) {
     Write-Host ("Processing mailbox {0}" -f $User.DisplayName) -ForegroundColor Yellow
 
-    [array]$Messages = Get-MgUserMailFolderMessage -UserId $User.Id -MailFolderId 'Inbox' `
+    [array]$Messages = Get-MgUserMessage -UserId $User.Id `
     -Filter "(ReceivedDateTime ge $StartDate and ReceivedDateTime le $EndDate) `
         and (sender/emailAddress/address eq '$UM0' or sender/emailAddress/address eq '$UM1' or sender/emailAddress/address eq '$UM2' `
         or sender/emailAddress/address eq '$UM3' or sender/emailAddress/address eq '$UM4' or sender/emailAddress/address eq '$UM5' `
@@ -2110,10 +2110,10 @@ ForEach ($User in $Users) {
 
         ForEach ($Message in $CurrentBatch) {
             $Counter++
-            $URI = "/users/{0}/Messages/{1}" -f $User.Id, $Message.Id
+            $URI = "/users/{0}/Messages/{1}/permanentDelete" -f $User.Id, $Message.Id
             $BatchRequest = [PSCustomObject][Ordered]@{
                 id      = "$counter"
-                method  = "DELETE"
+                method  = "POST"
                 url     = $Uri
                 headers = @{ "Content-Type" = "application/json" }
             }
@@ -2160,3 +2160,53 @@ ForEach ($User in $Users) {
 }
 
 Write-Host ("Message removal complete. {0} messages removed from {1} unique mailboxes" -f ($Report | Where-Object { $_.Action -eq 'Message Deleted' }).Count, ($Report | Select-Object -ExpandProperty Mailbox | Sort-Object -Unique).Count)
+
+
+
+# Define batch size (maxiumum 20)
+$BatchSize = 20
+# Define output list (concurrent bag to store user details)
+$MessageDetails = [System.Collections.Concurrent.ConcurrentBag[System.Object]]::new()
+$Batches = For($i = 0; $i -lt $Messages.count; $i += $BatchSize) {
+    $End = $i + $BatchSize - 1
+    If ($end -ge $Messages.count) { 
+        $end = $Messages.count 
+    }
+    # Create requests from the next batch of mailboxes
+    $Requests = $Messages[$i..($end)] 
+    # For each message in the batch, create a request to get user details
+    $RequestData = [System.Collections.Generic.List[Object]]::new()
+    ForEach ($Request in $Requests) {
+        $Counter++
+        $URI = "/users/{0}/Messages/{1}" -f $User.Id, $Message.Id
+        $BatchRequest = [PSCustomObject][Ordered]@{
+                id      = "$counter"
+                method  = "DELETE"
+                url     = $Uri
+                headers = @{ "Content-Type" = "application/json" }
+            }
+        $RequestData.Add($BatchRequest)
+    }
+
+    # Create a batch request
+    @{
+        'Method'      = 'Post'
+        'Uri'         = 'https://graph.microsoft.com/v1.0/$batch'
+        'ContentType' = 'application/json'
+        'Body'        = @{
+            'requests' = @($RequestData)
+        } | ConvertTo-Json -depth 10
+    }
+}
+
+
+$Batches | ForEach-Object -Parallel {
+    $Responses = $using:MessageDetails
+    $RequestSubmission = Invoke-MgGraphRequest @PSItem
+     # Invoke-MgGraphRequest deserializes request to a hashtable
+    $RequestSubmission.Responses | ForEach-Object { $Responses.Add([PSCustomObject]$PSItem.Body) }
+}
+If ($MessageDetails.Count -ne $Messages.Count) { 
+        throw [System.Exception]::new() 
+}
+Write-Host ("Total of {0} messages processed" -f $MessageDetails.count)
