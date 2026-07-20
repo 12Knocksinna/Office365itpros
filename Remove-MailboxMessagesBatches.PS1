@@ -2,7 +2,7 @@
 # An example of how to use JSON batching to permanently remove (send to the Purges folder) mailbox items.
 
 # V1.0 20-Jul-2026
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-MailboxMessagesBatches.PS1
 
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-UtilityMessagesFromMailboxes.PS1 is the original version of a script
 # to remove utility messages from mailboxes. This script is a modified version of that script to illustrate how to use JSON batching to remove mailbox items.
