@@ -3,6 +3,7 @@
 
 # An example of using the Microsoft Graph PowerShell SDK to generate a report of Teams memberships for selected users. 
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-TeamsForUser.PS1
+# Article link: https://office365itpros.com/2026/07/08/managers-and-direct-reports/
 
 Connect-MgGraph -NoWelcome -Scopes Group.Read.All, Groups.Read.All, Team.ReadBasic.All
 
@@ -60,8 +61,8 @@ If ($ExcelGenerated -eq $true) {
     Write-Host ("Teams memberships report is available in CSV file {0}" -f $CSVOutputFile)
 }
 
-# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Microsoft 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
