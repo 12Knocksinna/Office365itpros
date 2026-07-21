@@ -3,6 +3,7 @@
 
 # V1.0 20-Feb-2026
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ManagersAndDirectReportsGraph.PS1
+# Article link: https://office365itpros.com/2026/07/08/managers-and-direct-reports/
 
 Connect-Graph -Scopes User.Read.All, Organization.Read.All
 
@@ -110,7 +111,7 @@ If ($ExcelGenerated -eq $true) {
     Write-Host ("Managers and Direct Reports data available in CSV file {0}" -f $CSVOutputFile)
 }
 
-# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
+# An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
