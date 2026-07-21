@@ -4,6 +4,7 @@
 
 # V1.0 3-July-2026
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Update-UserAccountsBatch.PS1
+# Article at: https://office365itpros.com/2026/07/21/json-batching-primer/
 
 Connect-MgGraph -Scopes "User.ReadWrite.All"
 

@@ -20,7 +20,8 @@ $TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478"
 
 Connect-MgGraph -NoWelcome -ClientId $AppId -TenantId $TenantId -CertificateThumbprint $AppThumbprint
 
-# List the email addresses of the notification messages to search for and remove
+# List the email addresses of the notification messages to search for and remove. Change these values to whatever addresses
+# you want to remove.
 $UM0 = "notifications@communityhub.microsoft.com"
 $UM1 = "messages-noreply@linkedin.com"
 $UM2 = "noreply@microsoft.com"
@@ -30,7 +31,7 @@ $UM5 = "microsoft@powerapps.com"
 $UM6 = "o365mc@microsoft.com"
 $UM7 = "jobs-listings@linkedin.com"
 $UM8 = "postmaster@online.zdnet.com"
-$UM9 = "noreply@amazon.com"
+$UM9 = "irishtimeslunchtimelatest@comms.irishtimes.com"
 $UM10 = "notify@mstechcommunity.microsoft.com"
 $UM11 = "irishtimeseveningupdate@comms.irishtimes.com"
 
