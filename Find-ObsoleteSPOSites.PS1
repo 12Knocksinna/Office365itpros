@@ -7,6 +7,7 @@
 # V1.0 20-June-2026
 
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-ObsoleteSPOSites.PS1
+# Article at: https://office365itpros.com/2026/07/13/find-obsolete-sites/
 
 # Graph application permissions required:
 # Reports.Read.All               Read usage report for SharePoint Online site activity
