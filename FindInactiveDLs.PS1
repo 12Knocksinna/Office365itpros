@@ -1,6 +1,8 @@
 # FindInactiveDls
-# Find inactive distribution lists based on the message trace information, which means we can only go back ten days...
-# https://github.com/12Knocksinna/Office365itpros/blob/master/FindInactiveDLs.PS1
+# Find inactive distribution lists based on the message trace information, which means we can only go back 90 days in 10-day chunks.
+
+# Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/FindInactiveDLs.PS1
+# Article link: https://office365itpros.com/2026/07/09/inactive-distribution-list-2026/
 
 # V1.1 Updated 27-Aug-2025  Replaced old message trace cmdlet with Get-MessageTraceV2
 # V2.0 Updated 10-June-2026 Fetch message data for DL expansion events for the entire 90 days it is available online.
