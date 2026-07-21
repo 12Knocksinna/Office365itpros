@@ -47,12 +47,12 @@ $ExoServicePlan2 = "efb87545-963c-4e0d-99df-69c6916d9eb0"
 # The check also looks for users with the Exchange Online service plan enabled.
 Write-Host "Finding accounts with Exchange Online mailboxes..." -ForegroundColor Cyan
 [array]$Users = Get-MgUser -Filter "assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan1 and capabilityStatus eq 'Enabled') `
-  or assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan2 and capabilityStatus eq 'Enabled')" `
+  or assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan2 and capabilityStatus eq 'Enabled') and accountEnabled eq true" `
     -ConsistencyLevel eventual -CountVariable Test -All -PageSize 999 -Sort ('displayname') `
     -Property Id, displayName, userprincipalName, assignedLicenses, assignedPlans, department, country, CreatedDateTime
 
 If ($Users) {
-    Write-Output ("{0} users licensed for Exchange Online found" -f $Users.Count)
+    Write-Output ("{0} user accounts licensed for Exchange Online found" -f $Users.Count)
 } Else {
     Write-Output "No mailboxes found"
     Break
@@ -92,9 +92,9 @@ ForEach ($User in $Users) {
 
         ForEach ($Message in $CurrentBatch) {
             $Counter++
-            $URI = "/users/{0}/Messages/{1}/permanentDelete" -f $User.Id, $Message.Id
+            $Uri = "/users/{0}/Messages/{1}/permanentDelete" -f $User.Id, $Message.Id
             $BatchRequest = [PSCustomObject][Ordered]@{
-                id      = "$counter"
+                id      = "$Counter"
                 method  = "POST"
                 url     = $Uri
                 headers = @{ "Content-Type" = "application/json" }
@@ -102,15 +102,15 @@ ForEach ($User in $Users) {
             $BatchRequests.Add($BatchRequest)
         }
 
-        $BatchBody = @{ Requests = $batchRequests }
+        $BatchBody = @{ Requests = $BatchRequests }
 
         Try {
-            $Response = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/`$batch" -Body ($batchBody | ConvertTo-Json -Depth 10) -ErrorAction Stop
+            $Response = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/`$batch" -Body ($BatchBody | ConvertTo-Json -Depth 10) -ErrorAction Stop
             # Check each individual response inside the batch for errors
             ForEach ($Result in $Response.responses) {
                 $FailedStatus = $false
                 If ($Result.status -ge 400) {
-                    $FailedMessage = $currentBatch[[int]$result.id - 1]
+                    $FailedMessage = $CurrentBatch[[int]$Result.id - 1]
                     $FailedStatus = $true
                     Write-Warning "Failed to delete $($FailedMessage.Subject): Status $($Result.status) - $($Result.body.error.message)"
                 }
@@ -131,7 +131,7 @@ ForEach ($User in $Users) {
                 }
                 $Report.Add($ReportLine)  
             }
-            Write-Host "Batch $($i + 1) of $batches completed"
+            Write-Host "Batch $($i + 1) of $Batches completed"
         } Catch {
             Write-Error "Batch $($i + 1) failed entirely: $_"
         }
@@ -141,7 +141,7 @@ ForEach ($User in $Users) {
     }
 }
 
-Write-Host ("Message removal complete. {0} messages removed from {1} unique mailboxes" -f ($Report | Where-Object { $_.Action -eq 'Message Deleted' }).Count, ($Report | Select-Object -ExpandProperty Mailbox | Sort-Object -Unique).Count)
+Write-Host ("Message removal complete. {0} messages removed from {1} unique mailboxes" -f ($Report | Where-Object { $_.Action -eq 'Message deleted' }).Count, ($Report | Select-Object -ExpandProperty Mailbox | Sort-Object -Unique).Count)
 
 # Generate reports in Excel or CSV format depending on whether the ImportExcel module is available
 If (Get-Module ImportExcel -ListAvailable) {
@@ -157,8 +157,11 @@ If (Get-Module ImportExcel -ListAvailable) {
     $Report | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8 
 }
 
-Write-Host ("Report saved to {0}" -f (If ($ExcelGenerated) { $ExcelOutputFile } Else { $CSVOutputFile })) -ForegroundColor Green
-
+If ($ExcelGenerated) {
+    Write-Host ("Report saved to {0}" -f $ExcelOutputFile) -ForegroundColor Green
+} Else {
+    Write-Host ("Report saved to {0}" -f $CSVOutputFile) -ForegroundColor Green
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Microsoft 365 for IT Pros repository 
