@@ -3,6 +3,7 @@
 
 # V1.0 5-June-2026
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-InactiveTeamsChannels.PS1
+# Article link: https://office365itpros.com/2026/06/24/find-inactive-channels/
 
 # Necessary permissions Team.ReadBasic.All, Channel.ReadBasic.All, ChannelMessage.Read.All, ChannelMember.Read.All
 # if you want the script to archive channels automatically, you'll need ChannelSettings.ReadWrite.All
@@ -243,8 +244,8 @@ Try {
     Write-Output ("Error sending email: $_")
 }
 
-# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Microsoft 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # The Automating Microsoft 365 with PowerShell eBook is available from https://o365itpros.gumroad.com/l/M365PS in EPUB and PDF format 
