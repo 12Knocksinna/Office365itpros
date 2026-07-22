@@ -170,7 +170,7 @@ ForEach ($Address in $IndividualMailboxes) {
     $HTMLMsg = $HTMLHeader + $HTMLReport + $HTMLFooter
     # Add the recipient using the mailbox's primary SMTP address
     $EmailAddress  = @{address = $Address} 
-    $MsgToRecipients = @{EmailAddress = $EmailAddress}  
+    $EmailRecipient = @{EmailAddress = $EmailAddress}  
     
   # Construct the message body
     $MsgBody = @{
@@ -178,22 +178,18 @@ ForEach ($Address in $IndividualMailboxes) {
         ContentType = 'html'   
     }
 
-    $Message =  @{subject           = $MsgSubject}
-    $Message += @{toRecipients      = $MsgToRecipients}  
-    $Message += @{ccRecipients      = $MsgCcRecipients}  
-    $Message += @{attachments       = $MsgAttachments}
-    $Message += @{body              = $MsgBody}
-    $Params   = @{'message'         = $Message}
-    $Params  += @{'saveToSentItems' = $True}
-    $Params  += @{'isDeliveryReceiptRequested' = $True}
-
+    # Create a draft message in the sending mailbox
+    Try {
+        $NewMessage = New-MgUserMessage -UserId $MsgFrom -Body $MsgBody -ToRecipients $EmailRecipient -Subject $MsgSubject -ErrorAction Stop
+    } Catch {
+        Write-Host "Error creating draft message for" $User.DisplayName ":" $_.Exception.Message
+    }
     # Send the message
     Try {
-        Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params -ErrorAction Stop
+        Send-MgUserMessage -UserId $MsgFrom -MessageId $NewMessage.Id -ErrorAction Stop
     } Catch {
-        Write-Host "Error sending message to" $User.DisplayName ":" $_.Exception.Message
+        Write-Host "Error sending draft message for" $User.DisplayName ":" $_.Exception.Message
     }
-
 }
 
 Write-Host ("Message removal complete. {0} messages removed from {1} unique mailboxes" -f ($Report | Where-Object { $_.Action -eq 'Message deleted' }).Count, ($Report | Select-Object -ExpandProperty Mailbox | Sort-Object -Unique).Count)
