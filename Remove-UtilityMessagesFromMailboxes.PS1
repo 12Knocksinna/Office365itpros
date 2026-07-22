@@ -4,6 +4,9 @@
 # V1.0 26-Aug-2024
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-UtilityMessagesFromMailboxes.PS1
 
+# A version of the script that uses JSON batching to permanently remove messages is available
+# at https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-MailboxMessagesBatches.PS1
+
 # Connect to the Microsoft Graph
 $AppThumbprint = "F79286DB88C21491110109A0222348FACF694CBD"
 $AppId = "d58578ac-7cb4-4b5a-a296-f19218a03f11"
@@ -42,7 +45,7 @@ $ExoServicePlan2 = "efb87545-963c-4e0d-99df-69c6916d9eb0"
 # The check also looks for users with the Exchange Online service plan enabled.
 Write-Host "Finding accounts with Exchange Online mailboxes..." -ForegroundColor Cyan
 [array]$Users = Get-MgUser -Filter "assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan1 and capabilityStatus eq 'Enabled') `
-  or assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan2 and capabilityStatus eq 'Enabled')" `
+  or assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan2 and capabilityStatus eq 'Enabled') and accountEnabled eq true" `
     -ConsistencyLevel eventual -CountVariable Test -All -PageSize 999 -Sort ('displayname') `
     -Property Id, displayName, userprincipalName, assignedLicenses, assignedPlans, department, country, CreatedDateTime
 

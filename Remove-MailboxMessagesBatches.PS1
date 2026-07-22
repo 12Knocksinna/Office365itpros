@@ -141,6 +141,61 @@ ForEach ($User in $Users) {
     }
 }
 
+# Email messages to mailboxes that had messages deleted
+# Change this email address to select a suitable mailbox from your tenant
+$MsgFrom = 'Azure.Management.Account@office365itpros.com'
+
+# Find the set of mailboxes to receive email
+[array]$IndividualMailboxes = $Report | Sort-Object SMTPAddress -Unique | Select-Object -ExpandProperty SMTPAddress
+$MsgSubject = "Notification Messages Removed from Your Mailbox"
+
+$HTMLHeader = "<body><h1>Messages removed by the ever-loyal Utility Message Removal Service</h1>
+     <p><strong>Generated:</strong> $(Get-Date -Format 'dd-MMM-yyyy HH:mm')</p>  
+     <h2><u>Messages removed from your Inbox</u></h2></p>
+     <p>The background agent removes messages from selected senders from your mailbox to avoid a build-up of messages with little value.</p>
+     <p>If necessary, you can recover these messages by going to the Deleted Items folder and using the <i>Recover items recently removed from this folder</i> option.</p>"
+$HTMLFooter = 
+    "<p>------------------------------------------------------------------------------</p>" +
+    "<p>This email was sent by the Utility Message Removal service" +
+    "<p>------------------------------------------------------------------------------</p></body>"
+
+ForEach ($Address in $IndividualMailboxes) {
+  
+    # Create a HTML fragment containing details of the messages removed from the mailbox
+    $HTMLReport = $Report | Where-Object {$_.SMTPAddress -eq $Address -and $_.Action -eq 'Message Deleted'} | `
+        Select-Object Action, Subject, SenderEmail, SenderName, Sent | Sort-Object {$_.Sent -as [datetime]} -Descending
+    Write-Host ("Sending notification about {0} removed messages to {1}" -f $HTMLReport.count, $Address)
+    $HTMLReport = $HTMLReport | ConvertTo-Html -Fragment
+    # Assemble the pieces into a complete HTML message
+    $HTMLMsg = $HTMLHeader + $HTMLReport + $HTMLFooter
+    # Add the recipient using the mailbox's primary SMTP address
+    $EmailAddress  = @{address = $Address} 
+    $MsgToRecipients = @{EmailAddress = $EmailAddress}  
+    
+  # Construct the message body
+    $MsgBody = @{
+        Content = "$($HtmlMsg)"
+        ContentType = 'html'   
+    }
+
+    $Message =  @{subject           = $MsgSubject}
+    $Message += @{toRecipients      = $MsgToRecipients}  
+    $Message += @{ccRecipients      = $MsgCcRecipients}  
+    $Message += @{attachments       = $MsgAttachments}
+    $Message += @{body              = $MsgBody}
+    $Params   = @{'message'         = $Message}
+    $Params  += @{'saveToSentItems' = $True}
+    $Params  += @{'isDeliveryReceiptRequested' = $True}
+
+    # Send the message
+    Try {
+        Send-MgUserMail -UserId $MsgFrom -BodyParameter $Params -ErrorAction Stop
+    } Catch {
+        Write-Host "Error sending message to" $User.DisplayName ":" $_.Exception.Message
+    }
+
+}
+
 Write-Host ("Message removal complete. {0} messages removed from {1} unique mailboxes" -f ($Report | Where-Object { $_.Action -eq 'Message deleted' }).Count, ($Report | Select-Object -ExpandProperty Mailbox | Sort-Object -Unique).Count)
 
 # Generate reports in Excel or CSV format depending on whether the ImportExcel module is available
