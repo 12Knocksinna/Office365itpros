@@ -7,6 +7,10 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-UtilityMessagesFromMailboxes.PS1 is the original version of a script
 # to remove utility messages from mailboxes. This script is a modified version of that script to illustrate how to use JSON batching to remove mailbox items.
 
+# The app needs the following application permissions:
+# User.Read.All: Read user account details
+# Mail.ReadWrite: Read and write mail in all mailboxes
+# Mail.Send: Send mail as a user
 
 # Connect to the Microsoft Graph
 $AppThumbprint = "F79286DB88C21491110109A0222348FACF694CBD"
