@@ -14,7 +14,11 @@
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Check-SharedMailboxesForMDO.PS1
 
 # This ia an example of running a script in app-only mode for both the Microsoft Graph PowerShell SDK and Exchange Online management module.
-# An X.509 certificate loaded into a registered app is used to authenticate for both connections.
+# An X.509 certificate loaded into a registered app is used to authenticate for both connections. The app must have these permissions:
+
+# Calendar.Read for Microsoft Graph to read the shared mailbox calendar to check for Teams meetings organized by the mailbox.
+# Mail.Send to send the report email from a service account to the recipient of your choice.
+# Domain.Read.All to read the list of verified domains for the tenant.
 
 function Get-TeamsMeetings {
     # Function to check events in a shared mailbox calendar to detect if any meetings are Teams meetings organized by
@@ -89,6 +93,7 @@ Write-Output "Connecting to Microsoft Graph..."
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint 
 
 # Get the tenant information and the list of verified domains for the tenant
+Write-Host "Fetching tenant information and verified domains..."
 $TenantInfo = Get-MgOrganization
 $DefaultDomain = $TenantInfo.VerifiedDomains | Where-Object {$_.IsDefault -eq $true} | Select-Object -ExpandProperty Name    
 
@@ -145,6 +150,7 @@ For ($i=0; $i -lt $iterations; $i++) {
 [array]$Messages = $null
 
 # Fetch each of the 1-day chunks of message trace data and add it to the Messages array
+Write-Output ("Fetching message trace data for {0} days in 1-day chunks..." -f $DateRanges.Count)
 ForEach ($DateRange in $DateRanges) {
     $Data = Get-DateRangeData -StartDate $DateRange.Start -EndDate $DateRange.End
     # Process the data for this date range, for example by adding it to a report or exporting it to a file
@@ -159,12 +165,13 @@ $Messages = $Messages | Sort-Object {$_.Received -as [datetime]} -Descending
 [array]$MessageTable = $Messages | Sort-Object SenderAddress -Unique
 
 $Report = [System.Collections.Generic.List[Object]]::new()  
-Write-Host ("Checking for MDO Plan 2. If running in an SME tenant, modify the code to check for MDO Plan 1 {0} instead." -f $MDOPlan1) -ForegroundColor Yellow
+Write-Host ("Checking shared mailboxes for MDO Plan 2. If running in an SME tenant, modify the code to check for MDO Plan 1 {0} instead." -f $MDOPlan1) -ForegroundColor Yellow
 ForEach ($M in $Mbx) {
     $NeedsMDO = $false
     Write-Output ("Checking shared mailbox {0}" -f $M.DisplayName)
     $NeedsMDO = $false
     $HasMDO = $false
+    $CheckForOneDriveLicense = $false
 
     $InboxTrafficCheck = $MessageTable | Where-Object {$_.RecipientAddress -eq $M.PrimarySmtpAddress}
     #[array]$InboxTraffic = Get-MessageTraceV2 -RecipientAddress $M.PrimarySmtpAddress -StartDate (Get-Date).AddDays(-10) -EndDate (Get-Date) -ResultSize 5000
@@ -211,21 +218,33 @@ ForEach ($M in $Mbx) {
             Write-Output ("Shared mailbox {0} does not have an Exchange Online Plan 2 license." -f $M.DisplayName)
             $EXOPlan2Licensed = $false
         }
+
+        # Check if any Teams Meetings have been organized by the shared mailbox over the last 90 days. If so, the shared mailbox might need a OneDrive license to retain meeting recordings.
+        $TeamsMeetingsFound = Get-TeamsMeetings -UserId $M.ExternalDirectoryObjectId
+        If ($TeamsMeetingsFound -gt 0) {
+            Write-Output ("Shared mailbox {0} has organized {1} Teams meetings over the last 90 days. It might need a OneDrive license to retain meeting recordings." -f $M.DisplayName, $TeamsMeetingsFound)
+            $CheckForOneDriveLicense = $true        
+        } Else {
+            Write-Output ("Shared mailbox {0} has not organized any Teams meetings over the last 90 days." -f $M.DisplayName)
+        }   
+
         $ReportLine = [PSCustomObject][Ordered]@{ 
-            Mailbox                     = $M.DisplayName
-            PrimarySmtpAddress          = $M.PrimarySmtpAddress  
-            NeedsMDO                    = $NeedsMDO
-            HasMDO                      = $HasMDO
-            HasExoPlan2License          = $EXOPlan2Licensed
-            'Count of external email'   = $NumberOfExternalMessages
-            'External Domains'          = ($ExternalTrafficDomains -join ", ")
+            Mailbox                         = $M.DisplayName
+            PrimarySmtpAddress              = $M.PrimarySmtpAddress  
+            NeedsMDO                        = $NeedsMDO
+            HasMDO                          = $HasMDO
+            HasExoPlan2License              = $EXOPlan2Licensed
+            'Teams Meetings Organized'      = $TeamsMeetingsFound
+            'Check for OneDrive License'    = $CheckForOneDriveLicense
+            'Count of external email'       = $NumberOfExternalMessages
+            'External Domains'              = ($ExternalTrafficDomains -join ", ")
         }
         $Report.Add($ReportLine)
 
     }  
 }
 
-# Send email with the results
+# Send email with the results - define your own email address here and the address to receive the report.
 $MsgFrom = "PowerShell.Reports@office365itpros.com"
 $DestinationEmailAddress = "User.Administration@office365itpros.com"
 # Build the array of a single TO recipient detailed in a hash table - change this to the appropriate recipient for your tenant
@@ -233,9 +252,11 @@ $ToRecipient = @{}
 $ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
 [array]$MsgTo = $ToRecipient
 # Define the message subject
-$MsgSubject = "Important: Shared Mailboxes that need Microsoft Defender for Office 365 Licenses"
+$MsgSubject = "Important: Shared Mailboxes that potentially need Microsoft Defender for Office 365 Licenses"
 # Create the HTML content
-$HtmlMsg = ("</body></html><p>The following <b>{0} Shared Mailboxes need Microsoft Defender for Office 365 Licenses</b> based on their email traffic over the last 10 days. Please review the information at your convenience</p>" -f $Report.Count)
+$HtmlMsg = ("</body></html><p>The following <b>{0} Shared Mailboxes need Microsoft Defender for Office 365 Licenses</b> based on external email traffic received over the last 90 days.</p>" -f $Report.Count)
+$HtmlMsg += "<p>The report also checked shared mailboxes to detect online Teams meetings organized by the mailbox. If this situation exists, you should assign a license containing an OneDrive for Business service plan to the mailbox to ensure meeting recordings are retained. </p>"
+$HtmlMsg += "<p>Please review the information at your convenience</p>"
 # Construct the message body 	
 $HtmlBody = $Report | ConvertTo-Html -As Table -PostContent "</body></html>" -Fragment
 $HtmlMsg = $HtmlMsg + $HtmlBody
@@ -260,7 +281,7 @@ Write-Output ""
 # Send the message
 Try {
     Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
-    Write-Output ("Shared Mailboxes without MDO2 license report emailed to {0}" -f $ToRecipient.emailAddress.address)
+    Write-Output ("Shared Mailboxes potential licensing report emailed to {0}" -f $ToRecipient.emailAddress.address)
 } Catch {
     Write-Output "Unable to send email"
     Write-Output $_.Exception.Message
