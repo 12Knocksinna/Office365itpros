@@ -1,5 +1,5 @@
 # Find-InactiveEmailUsers.PS1
-# Find inactive email users based on the message trace information, which means we can only go back ten days...
+# Find inactive email users based on the message trace information, which means we can only go back 90 days in 10-day chunks
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Find-InactiveEmailUsers.PS1
 
@@ -91,7 +91,7 @@ ForEach ($DateRange in $DateRanges) {
 # Make sure that the messages are sorted in descending order by received date, so that we can easily find the last message sent by a user.
 $Messages = $Messages | Sort-Object {$_.Received -as [datetime]} -Descending
 
-# Create an array of unique sender addresses from the message trace data, which will be used to check against the distribution lists in the tenant
+# Create an array of unique sender addresses from the message trace data, which will be used to check against the mailboxes in the tenant
 [array]$MessageTable = ($Messages | Sort-Object SenderAddress -Unique)
 
 Write-Host "Looking for mailboxes..."
