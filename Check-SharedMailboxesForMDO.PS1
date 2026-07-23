@@ -5,15 +5,83 @@
 # external domains that don't belong to the tenant. If a shared mailbox only receives email from internal users, it doesn't need an MDO license.
 # See https://office365itpros.com/2025/10/31/mdo-p2-licensing/ for more information.
 
-# V1,0 13-Nov-2025
+# V1.0 13-Nov-2025
+# V2.0 23-Jul-2026 Updated to fetch all message trace data for the last 90 days in 10-day chunks. This means that the check
+#                  for external email traffic is more accurate.
+#                  Also included a check for Teams meetings organized by shared mailboxes becaause they might need 
+#                  a OneDrive license to retain meeting recordings. See https://office365itpros.com/2026/07/16/schedule-teams-meeting-shared-mbx/
+
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Check-SharedMailboxesForMDO.PS1
 
 # This ia an example of running a script in app-only mode for both the Microsoft Graph PowerShell SDK and Exchange Online management module.
 # An X.509 certificate loaded into a registered app is used to authenticate for both connections.
 
-# Define the bits needed to connect in app-onl;y mode
+function Get-TeamsMeetings {
+    # Function to check events in a shared mailbox calendar to detect if any meetings are Teams meetings organized by
+    # the shared mailbox. If so, the shared mailbox might need a OneDrive license to retain meeting recordings.
+    param (
+        [string]$UserId
+    )
+
+    $StartDate = (Get-Date).AddDays(-90).toString('yyyy-MM-dd')
+    $EndDate = (Get-Date).AddDays(7).toString('yyyy-MM-dd')
+    $DefaultUserCalendar = Get-MgUserDefaultCalendar -UserId $UserId
+    [array]$Events = Get-MgUserCalendarView -UserId $UserId -CalendarId $DefaultUserCalendar.Id -EndDateTime $EndDate -StartDateTime $StartDate
+
+    [int]$TeamsMeetingsFound = 0
+
+    ForEach ($Event in $Events) {
+    # Check if the event is a meeting organized by the shared mailbox
+        If ((($Event.organizer.emailaddress.address.trim() -eq $M.primarySMTPAddress.trim()) -and $Event.OnlineMeetingProvider -eq 'teamsForBusiness')) {
+            $TeamsMeetingsFound++
+        }
+    }
+    return $TeamsMeetingsFound
+}
+function Get-DateRangeData {
+    param (
+        [datetime]$StartDate,
+        [datetime]$EndDate
+    )
+    
+    # Function to fetch message trace data for expanded events over a 10-day period.
+    [array]$Messages = $null
+    Write-Host ("Collecting message trace data between {0} and {1}..." -f $StartDate, $EndDate)
+    [int]$BatchSizeForMessages = 2000
+    Try {
+        # The warning action is suppressed here because we don't want to see warnings when more data is available
+        [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $EndDate `
+        	-ResultSize $BatchSizeForMessages -Status "Delivered" -ErrorAction Stop -WarningAction SilentlyContinue
+        $Messages += $MessagePage
+    } Catch {
+        Write-Host ("Error fetching message trace data: {0}" -f $_.Exception.Message)
+        Break
+    }
+    If ($MessagePage.count -eq $BatchSizeForMessages) {
+        Do {
+            Write-Host ("Fetched {0} messages so far for this chunk..." -f $Messages.count)
+            $LastMessageFetched = $MessagePage[-1]
+            $LastMessageFetchedDate = $LastMessageFetched.Received.ToString("O")
+            $LastMessageFetchedRecipient = $LastMessageFetched.RecipientAddress
+            # Fetch the next page of messages
+            [array]$MessagePage = Get-MessageTraceV2 -StartDate $StartDate -EndDate $LastMessageFetchedDate `
+                -StartingRecipientAddress $LastMessageFetchedRecipient -ResultSize $BatchSizeForMessages -Status "Delivered" -ErrorAction Stop -WarningAction SilentlyContinue
+            If ($MessagePage) {
+                $Messages += $MessagePage
+            }
+        } While ($MessagePage.count -eq $BatchSizeForMessages)
+}
+
+    # Remove Exchange Online public folder hierarchy synchronization messages
+    $Messages = $Messages | Where-Object {$_.Subject -NotLike "*HierarchySync*"}
+    return $Messages
+}
+
+# --- Start of processing --
+
+# Define the bits needed to connect in app-only mode. Make sure to update these for your tenant.
 $AppId = "9725b779-7b69-41b9-9137-394a5801e651"
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478"
+$TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478"
 $Thumbprint = "8CD4AD070C7447BA767EAB5DA659A02E6411BB80"
 
 # Connect to the Microsoft Graph 
@@ -38,7 +106,8 @@ If ($Domains.Count -eq 0) {
 Write-Output "Connecting to Exchange Online..."
 Connect-ExchangeOnline -CertificateThumbprint $Thumbprint -AppId $AppId -Organization $DefaultDomain -ShowBanner:$false
  
-# Define the MDO service plan IDs for P1 and P2 along with the Exchange Online Plan 2 plan. The MDO Plan 1 is onbly used for Microsoft 365 SME tenants.
+# Define the MDO service plan IDs for P1 and P2 along with the Exchange Online Plan 2 plan. 
+# The MDO Plan 1 is only used for Microsoft 365 SME tenants.
 $MDOPlan1 = "f20fedf3-f3c3-43c3-8267-2bfdd51c0939"
 $MDOPlan2 = "8e0c0a52-6a6c-4d40-8370-dd62790dcd70"
 $EXOPlan2 = "efb87545-963c-4e0d-99df-69c6916d9eb0"
@@ -53,23 +122,66 @@ If ($Mbx) {
     Break
 }
 
+# Determine 1-day chunks to fetch message trace data for the tenant
+$StartDate = (Get-Date).AddDays(-90).ToUniversalTime()
+$EndDate = (Get-Date).ToUniversalTime()
+
+$iterations = 90
+[int]$i = 0
+
+[array]$DateRanges = $null
+
+For ($i=0; $i -lt $iterations; $i++) {
+    $RangeStart = $StartDate.AddDays($i + 1)
+    $RangeEnd = $StartDate.AddDays(($i + 1) +1 )
+    If ($RangeEnd -gt $EndDate) {
+        $RangeEnd = $EndDate
+    }
+    $DateRanges += @{Start=$RangeStart; End=$RangeEnd}
+}
+
+# Fetch the message trace data
+[array]$Data = $null
+[array]$Messages = $null
+
+# Fetch each of the 1-day chunks of message trace data and add it to the Messages array
+ForEach ($DateRange in $DateRanges) {
+    $Data = Get-DateRangeData -StartDate $DateRange.Start -EndDate $DateRange.End
+    # Process the data for this date range, for example by adding it to a report or exporting it to a file
+    Write-Host ("Fetched {0} messages delivered between {1} and {2}" -f $Data.count, $DateRange.Start, $DateRange.End)
+    $Messages+= $Data
+}
+
+# Make sure that the messages are sorted in descending order by received date, so that we can easily find the last message sent by a user.
+$Messages = $Messages | Sort-Object {$_.Received -as [datetime]} -Descending
+
+# Create an array of unique sender addresses from the message trace data, which will be used to check against the mailboxes in the tenant
+[array]$MessageTable = $Messages | Sort-Object SenderAddress -Unique
+
 $Report = [System.Collections.Generic.List[Object]]::new()  
+Write-Host ("Checking for MDO Plan 2. If running in an SME tenant, modify the code to check for MDO Plan 1 {0} instead." -f $MDOPlan1) -ForegroundColor Yellow
 ForEach ($M in $Mbx) {
     $NeedsMDO = $false
     Write-Output ("Checking shared mailbox {0}" -f $M.DisplayName)
-    $DeliveredTraffic = $null
     $NeedsMDO = $false
     $HasMDO = $false
 
-    [array]$InboxTraffic = Get-MessageTraceV2 -RecipientAddress $M.PrimarySmtpAddress -StartDate (Get-Date).AddDays(-10) -EndDate (Get-Date) -ResultSize 5000
-    If ($InboxTraffic.Count -eq 0) {
-        Write-Output ("No message trace data found for shared mailbox {0} over the last 10 days." -f $M.UserPrincipalName)
+    $InboxTrafficCheck = $MessageTable | Where-Object {$_.RecipientAddress -eq $M.PrimarySmtpAddress}
+    #[array]$InboxTraffic = Get-MessageTraceV2 -RecipientAddress $M.PrimarySmtpAddress -StartDate (Get-Date).AddDays(-10) -EndDate (Get-Date) -ResultSize 5000
+    
+    If ($InboxTrafficCheck) {
+        # Get set of messasges delivered to the shared mailbox.
+        [array]$InboxTraffic = $Messages | Where-Object {$_.RecipientAddress -eq $M.PrimarySmtpAddress} 
+    } Else {
+        $InboxTraffic = @()
+        Write-Output ("No message trace data found for shared mailbox {0} over the last 90 days." -f $M.UserPrincipalName)
         Continue
     }
-    $DeliveredTraffic = $InboxTraffic | Where-Object {$_.Status -eq "Delivered"}
+       
+    # Check if any of the messages delivered to the shared mailbox are from external domains
     [array]$ExternalTrafficDomains = $null
     [int]$NumberOfExternalMessages = 0
-    ForEach ($Message in $DeliveredTraffic) {
+    ForEach ($Message in $InboxTraffic) {
         $SenderDomain = $Message.SenderAddress.Split("@")[1].ToLower()
         If ($VerifiedDomains -notcontains $SenderDomain) {
             $NeedsMDO = $true
@@ -81,16 +193,16 @@ ForEach ($M in $Mbx) {
     }
     If ($NeedsMDO -and $ExternalTrafficDomains) {
         [array]$AssignedPlans = Get-MgUser -UserId $M.ExternalDirectoryObjectId -Property AssignedPlans | Select-Object -ExpandProperty assignedPlans | Where-Object {$_.CapabilityStatus -eq 'Enabled'} | Select-Object -ExpandProperty ServicePlanId
-        
+        # If running in an SME tenant, use MDO Plan 1   
         If ($MDOPlan2 -notin $AssignedPlans) {
             $HasMDO = $false
         } Else {
             $HasMDO = $true
         }   
         If ($HasMDO) {
-            Write-Output ("Shared mailbox {0} has an MDO license." -f $M.DisplayName)
+            Write-Output ("Shared mailbox {0} has an MDO Plan 2 license." -f $M.DisplayName)
         } Else {
-            Write-Output ("Shared mailbox {0} does not have an MDO license and needs one because the mailbox has received external email from {1}" -f $M.DisplayName, ($ExternalTrafficDomains -join ", "))
+            Write-Output ("Shared mailbox {0} does not have an MDO Plan 2 license and needs one because the mailbox has received external email from {1}" -f $M.DisplayName, ($ExternalTrafficDomains -join ", "))
         }
         If ($ExoPlan2 -in $AssignedPlans) {
             Write-Output ("Shared mailbox {0} has an Exchange Online Plan 2 license." -f $M.DisplayName)
@@ -111,7 +223,6 @@ ForEach ($M in $Mbx) {
         $Report.Add($ReportLine)
 
     }  
-    
 }
 
 # Send email with the results

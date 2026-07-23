@@ -65,17 +65,28 @@ ForEach ($Module in $O365Modules) {
       [datetime]$PCModuleDate = $PCModule.PublishedDate
 
       If ($PCModuleDate -eq $CurrentModuleDate) { 
-         Write-Host ("Latest version of {0} is installed on this PC - no need to update" -f $Module) 
+        Write-Host ("Latest version of {0} is installed on this PC - no need to update" -f $Module) 
       } Else {
-         Write-Host ("Updating {0} module to version {1}" -f $Module, $CurrentVersion) -foregroundcolor Yellow
-         Remove-Module $Module -ErrorAction SilentlyContinue 
-         If ($Module -eq "Maester") { # see https://maester.dev/blog/the-end-of-code-signing/ for Maester issue, so skip the publisher check
-           Uninstall-Module $Module
-           Update-Module $Module -Force -Confirm:$False -Scope AllUsers -AllowPreRelease 
-         } Else {
-           Update-Module $Module -Force -Confirm:$False -Scope AllUsers
-         }
-         $UpdatedModules++
+        Write-Host ("Updating {0} module to version {1}" -f $Module, $CurrentVersion) -foregroundcolor Yellow
+        Remove-Module $Module -ErrorAction SilentlyContinue 
+        Switch ($Module) {
+          "Maester" { # see https://maester.dev/blog/the-end-of-code-signing/ for Maester issue, so skip the publisher check
+            Uninstall-Module $Module
+            Update-Module $Module -Force -Confirm:$False -Scope AllUsers -AllowPreRelease 
+          }
+          "Pnp.PowerShell" {
+            Uninstall-Module $Module
+            Install-Module $Module -Force -Confirm:$False -Scope AllUsers -SkipPublisherCheck
+          }
+          "MSIdentityTools" {
+            Uninstall-Module $Module
+            Install-Module $Module -Force -Confirm:$False -Scope AllUsers -SkipPublisherCheck
+          }
+          default {
+            Update-Module $Module -Force -Confirm:$False -Scope AllUsers
+          }
+        }
+        $UpdatedModules++
       } # End if 
     }
 } # End ForEach Module
