@@ -34,9 +34,9 @@ function Get-TeamsMeetings {
 
     [int]$TeamsMeetingsFound = 0
 
-    ForEach ($Event in $Events) {
+    ForEach ($CalendarEvent in $Events) {
     # Check if the event is a meeting organized by the shared mailbox
-        If ((($Event.organizer.emailaddress.address.trim() -eq $M.primarySMTPAddress.trim()) -and $Event.OnlineMeetingProvider -eq 'teamsForBusiness')) {
+        If ((($CalendarEvent.organizer.emailaddress.address.trim() -eq $M.primarySMTPAddress.trim()) -and $CalendarEvent.OnlineMeetingProvider -eq 'teamsForBusiness')) {
             $TeamsMeetingsFound++
         }
     }

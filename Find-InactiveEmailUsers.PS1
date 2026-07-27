@@ -142,7 +142,7 @@ If (Get-Module ImportExcel -ListAvailable) {
     Import-Module ImportExcel -ErrorAction SilentlyContinue
     $OutputXLSXFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveMailUsers.xlsx"
     Remove-Item -Path $OutputXLSXFile -ErrorAction SilentlyContinue
-    $Report | Export-Excel -Path $OutputXLSXFile -WorksheetName "Inactive Mail Users Report" -Title ("Inactive Mail Users Report{0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveMailUsers" 
+    $Report | Export-Excel -Path $OutputXLSXFile -WorksheetName "Inactive Mail Users Report" -Title ("Inactive Mail Users Report {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "InactiveMailUsers" 
 } Else {
     $OutputCSVFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\InactiveMailUsers.csv"
     Remove-Item -Path $OutputCSVFile -ErrorAction SilentlyContinue
