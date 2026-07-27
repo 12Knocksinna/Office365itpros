@@ -55,7 +55,13 @@ $Cutoff = (Get-Date).AddYears(-1 * $RetentionYears)
 Write-Host ("Retention window: {0} year(s). Basis: {1}. Cutoff: {2}" -f $RetentionYears, $DateBasis, $Cutoff.ToString('dd-MMM-yyyy')) -ForegroundColor Cyan
 
 # Get collection of Microsoft 365 Groups
-[array]$Groups = Get-MgGroup -All -Filter "groupTypes/any(c:c eq 'Unified')" -Property Id,DisplayName,CreatedDateTime 
+Try {
+    [array]$Groups = Get-MgGroup -All -Filter "groupTypes/any(c:c eq 'Unified')" `
+         -Property Id,DisplayName,CreatedDateTime -PageSize 500 -ErrorAction Stop
+} Catch {
+    Write-Warning "Failed to retrieve Microsoft 365 Groups: $($_.Exception.Message)"
+    return
+}
 If (!$Groups) {
     Write-Warning "No Microsoft 365 Groups found in the tenant."
     return
@@ -77,43 +83,55 @@ ForEach ($Group in $Groups) {
     }
 
     ForEach ($Plan in $Plans) {
-        [array]$Tasks = Get-MgPlannerPlanTask -PlannerPlanId $Plan.Id -All -ErrorAction SilentlyContinue
+        [array]$Tasks = Get-MgPlannerPlanTask -PlannerPlanId $Plan.Id -All -PageSize 200 -ErrorAction SilentlyContinue
 
         $Completed  = @($Tasks | Where-Object PercentComplete -eq 100)
         $InProgress = @($Tasks | Where-Object PercentComplete -eq 50)
         $NotStarted = @($Tasks | Where-Object PercentComplete -eq 0)
 
         # Completed tasks whose ageing date is older than the threshold
-        $Expiring = @($Completed | Where-Object {
-            $ageDate = Get-TaskAgeDate -Task $_ -Basis $DateBasis
+        $Expiring = @($Completed | Where-Object {$ageDate = Get-TaskAgeDate -Task $_ -Basis $DateBasis
             $ageDate -and $ageDate -lt $Cutoff
         })
 
         # Oldest ageing date among completed tasks (respects chosen basis)
         $OldestCompleted = $Completed | ForEach-Object { Get-TaskAgeDate -Task $_ -Basis $DateBasis } | Sort-Object | Select-Object -First 1
        
+        If ($Completed.Count -gt 0) {
+            $PercentCompleted = [math]::Round(($Completed.Count / $Tasks.Count) * 100, 2)
+        } Else {
+            $PercentCompleted = 0
+        }
         If ($OldestCompleted) {
             $OldestCompleted = $OldestCompleted.ToString('dd-MMM-yyyy')
         }
+        If ($Expiring.Count -gt 0) {
+            Write-Host ("Plan '{0}' has {1} completed task(s) older than {2} year(s) based on the {3} date" -f $Plan.Title, $Expiring.Count, $RetentionYears, $DateBasis) -ForegroundColor Red
+            $PercentExpiring = [math]::Round(($Expiring.Count / $Tasks.Count) * 100, 2)
+        } Else {
+            $PercentExpiring = 0
+        }
 
         $ReportLine = [PSCustomObject][Ordered]@{ 
-            GroupName              = $Group.DisplayName
-            GroupId                = $Group.Id
-            PlanTitle              = $Plan.Title
-            PlanId                 = $Plan.Id
-            TaskCount              = $Tasks.Count
-            NotStartedCount        = $NotStarted.Count
-            InProgressCount        = $InProgress.Count
-            CompletedCount         = $Completed.Count
-            ExpiringCompletedCount = $Expiring.Count
-            DateBasis              = $DateBasis
-            OldestCompletedDate    = $OldestCompleted
+            GroupName                       = $Group.DisplayName
+            GroupId                         = $Group.Id
+            PlanTitle                       = $Plan.Title
+            PlanId                          = $Plan.Id
+            'Total Tasks'                   = $Tasks.Count
+            'Tasks not started'             = $NotStarted.Count
+            'Tasks in progress'             = $InProgress.Count
+            'Completed Tasks'               = $Completed.Count
+            'Percent Completed'             = ($PercentCompleted/100).toString('P')
+            'Expired and Completed Tasks'   = $Expiring.Count
+            'Percent Expired and Completed' = ($PercentExpiring/100).toString('P')
+            'Date comparision'              = $DateBasis
+            'Date of oldest completed task' = $OldestCompleted
         }
         $Report.Add($ReportLine)
     }
 }
 
-$Report | Sort-Object ExpiringCompletedCount -Descending | Format-Table GroupName, PlanTitle, TaskCount, CompletedCount, ExpiringCompletedCount, DateBasis, OldestCompletedDate -AutoSize
+$Report | Sort-Object 'Expired and Completed Tasks' -Descending | Format-Table GroupName, PlanTitle, 'Total Tasks', 'Completed Tasks', 'Expired and Completed Tasks', 'Date comparision', 'Date of oldest completed task' -AutoSize
 
 # Generate report file
 If (Get-Module ImportExcel -ListAvailable) {
@@ -129,10 +147,10 @@ If (Get-Module ImportExcel -ListAvailable) {
 }
   
 If ($ExcelGenerated) {
-  Write-Host ("An Excel report is available in {0}" -f $OutputXLSXFile)
+  Write-Host ("An Excel workbook containing Planner task data is available in {0}" -f $OutputXLSXFile)
   $AttachmentFile = $OutputXLSXFile
 } Else {
-  Write-Host ("A CSV report is available in {0}" -f $OutputCSVFile)
+  Write-Host ("A CSV file containing Planner task data is available in {0}" -f $OutputCSVFile)
   $AttachmentFile = $OutputCSVFile
 }
 
@@ -146,7 +164,7 @@ $MsgAttachments = @(
 	}
 )
 
-$totalExpiring = ($Report | Measure-Object ExpiringCompletedCount -Sum).Sum
+$totalExpiring = ($Report | Measure-Object 'Expired and Completed Tasks' -Sum).Sum
 Write-Host ("Total completed tasks older than {0} year(s) by {1} date: {2}" -f `  $RetentionYears, $DateBasis, $totalExpiring) -ForegroundColor Yellow
 
 # Send email with the results - define your own email address here and the address to receive the report.
@@ -186,7 +204,7 @@ Write-Output ""
 # Send the message
 Try {
     Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
-    Write-Output ("Planne Task Analysis report emailed to {0}" -f $ToRecipient.emailAddress.address)
+    Write-Output ("Planner Task Analysis report emailed to {0}" -f $ToRecipient.emailAddress.address)
 } Catch {
     Write-Output "Unable to send email"
     Write-Output $_.Exception.Message
