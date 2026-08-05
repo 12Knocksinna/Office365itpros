@@ -67,11 +67,13 @@ Try {
 
 $Report = [System.Collections.Generic.List[object]]::new()
 [int]$EventsNotProcessed = 0
+
 ForEach ($CalendarEvent in $Events) {
     $EventStartTime =  (Get-Date $CalendarEvent.Start.DateTime).toUniversalTime().toString('dd-MMM-yyyy HH:mm' + " UTC")
     $EventEndTime =  (Get-Date $CalendarEvent.End.DateTime).toUniversalTime().toString('dd-MMM-yyyy HH:mm' + " UTC")
     $TeamsMeeting = $false
     $TransferStatus = "Transferred"
+    $EventType = "Single"
     
     # Check if the meeting is a Teams meeting and if the source user is the organizer
     If ($CalendarEvent.Attendees.count -eq 0) {
@@ -87,29 +89,40 @@ ForEach ($CalendarEvent in $Events) {
             Write-Host ("Meeting '{0}' scheduled for {1} is a Teams online meeting." -f $CalendarEvent.Subject, $EventStartTime) -ForegroundColor Red
             $TeamsMeeting = $true
         }
-        Try {
-           Invoke-ChangeMeetingOrganizer -Identity $SourceMailboxId -EventId $CalendarEvent.Id -NewOrganizer $TargetMailboxId 
-           Start-Sleep -Milliseconds 500 # Pause to avoid throttling
-        } Catch {
-            Write-Host ("Error transferring meeting '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
-            $TransferStatus = "Failed: " + $_.Exception.Message
-            Continue
+        If ($null -ne $CalendarEvent.recurrence.pattern.type) {
+            Write-Host ("Meeting '{0}' scheduled for {1} is a recurring meeting. " -f $CalendarEvent.Subject, $EventStartTime) -ForegroundColor Yellow}
+            Try {
+                Invoke-ChangeMeetingOrganizer -Identity $SourceMailboxId -EventId $CalendarEvent.Id -NewOrganizer $TargetMailboxId `
+                    -TransferSeriesStartDate $StartDate
+                $EventType = "Recurring"
+            } Catch {
+                Write-Host ("Error transferring recurring meeting '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
+                $TransferStatus = "Failed: " + $_.Exception.Message
+                Continue
+            }
+        } Else {
+            Try {
+                Invoke-ChangeMeetingOrganizer -Identity $SourceMailboxId -EventId $CalendarEvent.Id -NewOrganizer $TargetMailboxId 
+            } Catch {
+                Write-Host ("Error transferring meeting '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
+                $TransferStatus = "Failed: " + $_.Exception.Message
+                Continue
+            }
         }
+        Start-Sleep -Milliseconds 500 # Pause to avoid throttling
        
         $ReportLine = [PSCustomObject]@{
             Subject         = $CalendarEvent.Subject
             StartTime       = $EventStartTime
             EndTime         = $EventEndTime
             IsTeamsMeeting  = $TeamsMeeting
+            EventType       = $EventType
             TransferStatus  = $TransferStatus
             Organizer       = $CalendarEvent.Organizer.EmailAddress.Address
             Attendees       = ($CalendarEvent.Attendees | ForEach-Object { $_.EmailAddress.Address }) -join ', '
         }
         $Report.Add($ReportLine)
-    } Else {
-        Write-Host ("Skipping meeting '{0}' scheduled for {1} as it does not meet transfer criteria." -f $CalendarEvent.Subject, $EventStartTime    )
-    }
-}
+} 
 
 $TeamsMeetings = $Report | Where-Object { $_.IsTeamsMeeting -eq $true} 
 $OutputCSVFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Transferred Teams Meetings.csv"
