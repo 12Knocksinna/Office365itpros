@@ -29,7 +29,7 @@ If ($StartDate -lt $CheckDate) {
 
 $AppId = '03ef5d75-e8dd-4f9e-a71c-fa81939d5ca2' # Replace with your Entra ID app ID
 $Thumbprint = "0CF6CE3F3548FD73E7AC8CF20226ED447E125C71" # Replace with your certificate thumbprint
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478" # Replace with your tenant ID
+$TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478" # Replace with your tenant ID
 
 # Connect to the Microsoft Graph in app-only mode
 Write-Host "Connecting to Microsoft Graph..."
@@ -73,7 +73,6 @@ ForEach ($CalendarEvent in $Events) {
     $EventEndTime =  (Get-Date $CalendarEvent.End.DateTime).toUniversalTime().toString('dd-MMM-yyyy HH:mm' + " UTC")
     $TeamsMeeting = $false
     $TransferStatus = "Transferred"
-    $EventType = "Single"
     
     # Check if the meeting is a Teams meeting and if the source user is the organizer
     If ($CalendarEvent.Attendees.count -eq 0) {
@@ -103,6 +102,7 @@ ForEach ($CalendarEvent in $Events) {
         } Else {
             Try {
                 Invoke-ChangeMeetingOrganizer -Identity $SourceMailboxId -EventId $CalendarEvent.Id -NewOrganizer $TargetMailboxId 
+                $EventType = "Single"
             } Catch {
                 Write-Host ("Error transferring meeting '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
                 $TransferStatus = "Failed: " + $_.Exception.Message
@@ -119,7 +119,10 @@ ForEach ($CalendarEvent in $Events) {
             EventType       = $EventType
             TransferStatus  = $TransferStatus
             Organizer       = $CalendarEvent.Organizer.EmailAddress.Address
+            NewOrganizer    = $TargetMailboxDetails.PrimarySmtpAddress
             Attendees       = ($CalendarEvent.Attendees | ForEach-Object { $_.EmailAddress.Address }) -join ', '
+            StartTimeUTC    = $CalendarEvent.Start.DateTime
+            EndTimeUTC      = $CalendarEvent.End.DateTime
         }
         $Report.Add($ReportLine)
 } 
