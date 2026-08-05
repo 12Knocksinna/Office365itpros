@@ -111,13 +111,19 @@ ForEach ($CalendarEvent in $Events) {
     }
 }
 
+$TeamsMeetings = $Report | Where-Object { $_.IsTeamsMeeting -eq $true} 
+$OutputCSVFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Transferred Teams Meetings.csv"
+Remove-Item -Path $OutputCSVFile -ErrorAction SilentlyContinue
+$TeamsMeetings | Export-Csv -Path $OutputCSVFile -NoTypeInformation -Encoding Utf8
+
 Write-Host ""
 Write-Host ("Transfer process completed. Summary of {0} meetings transferred:" -f $Report.Count)
 $Report | Format-Table Subject, StartTime, EndTime, IsTeamsMeeting -AutoSize
 Write-Host ""
 Write-Host ("Total personal events not processed: {0}" -f $EventsNotProcessed)
-Write-Host ("Total Teams Meetings in transferred set: {0}" -f ($Report | Where-Object { $_.IsTeamsMeeting } | Measure-Object).Count)
-Write-Host "The Teams meetings must be created by the new organizer to ensure that the meeting link is valid and that the new organizer has control over the meeting. Please review the report above for details."
+Write-Host ("Total Teams Meetings in transferred set: {0}" -f ($TeamsMeetings.Count) )
+Write-Host "The Teams meetings must be created by the new organizer to ensure that the meeting link is valid and that the new organizer has control over the meeting."
+Write-Host ("A CSV report of the transferred Teams meetings has been saved to: {0}" -f $OutputCSVFile)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Microsoft 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
