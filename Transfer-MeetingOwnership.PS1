@@ -21,6 +21,24 @@ param(
     [datetime]$StartDate
 )
 
+# Helper function to turn dates stored with a date/time and time zone into a UTC time. 
+# The input is a compound property containing individual properties for the date/time and the time zone.
+function Get-UtcEventTime {
+    param($InputDate)
+
+    [datetime]$EventTime = $InputDate.DateTime
+    [string]$EventTimeZone = $InputDate.TimeZone
+
+    if ($EventTimeZone -eq 'UTC') {
+        return $EventTime
+    }
+
+    $Zone = [System.TimeZoneInfo]::FindSystemTimeZoneById($EventTimeZone)
+
+    return [System.TimeZoneInfo]::ConvertTimeToUtc($EventTime, $Zone)
+}
+
+
 If (-not $SourceMailbox -or -not $TargetMailbox -or -not $StartDate) {
     Write-Host "Please provide all required parameters: SourceMailbox, TargetMailbox, and StartDate."
     return
@@ -65,28 +83,44 @@ Write-Host ("Checking the calendar of {0} to find meetings that can be transferr
 Try {
     [array]$Events = Get-MgUserDefaultCalendarEvent -UserId $SourceMailboxId -All `
          -Filter "start/datetime gt '$($StartDate.ToString('yyyy-MM-ddTHH:mm:ss'))' and IsCancelled eq false" -ErrorAction Stop
-    Write-Host ("Found $($Events.Count) meetings in the calendar of {0}. Now checking transfer eligibility for each event..." -f $SourceMailbox)
 } Catch {
     Write-Host ("Error retrieving events from the source mailbox: {0}" -f $_.Exception.Message)
     return
+}
+
+# Filter out any events that the source mailbox is not then organizer of, as those cannot be transferred.
+$Events = $Events | Where-Object {$_.Organizer.EmailAddress.Address -eq $SourceMailboxDetails.PrimarySmtpAddress}
+
+If ($Events.Count -eq 0) {
+    Write-Host ("No meetings found in the calendar of {0} that can be transferred to {1}." -f $SourceMailbox, $TargetMailbox)
+    return
+} Else {
+    Write-Host ("Found $($Events.Count) meetings in the calendar of {0} that can be transferred to {1}." -f $SourceMailbox, $TargetMailbox)
 }
 
 $Report = [System.Collections.Generic.List[object]]::new()
 [int]$EventsNotProcessed = 0
 
 ForEach ($CalendarEvent in $Events) {
-    $EventStartTime =  (Get-Date $CalendarEvent.Start.DateTime).toUniversalTime().toString('dd-MMM-yyyy HH:mm' + " UTC")
-    $EventEndTime =  (Get-Date $CalendarEvent.End.DateTime).toUniversalTime().toString('dd-MMM-yyyy HH:mm' + " UTC")
+    If ($CalendarEvent.Start.TimeZone -ne 'UTC') {
+        $EventStart = Get-UtcEventTime $CalendarEvent.Start
+        $EventEnd = Get-UtcEventTime $CalendarEvent.End
+        $EventStartTime =  (Get-Date $EventStart).toString('dd-MMM-yyyy HH:mm' + " UTC")
+        $EventEndTime =  (Get-Date $EventEnd).toString('dd-MMM-yyyy HH:mm' + " UTC")
+    } Else {
+        $EventStartTime =  (Get-Date $CalendarEvent.Start.DateTime).toString('dd-MMM-yyyy HH:mm' + " UTC")
+        $EventEndTime =  (Get-Date $CalendarEvent.End.DateTime).toString('dd-MMM-yyyy HH:mm' + " UTC")
+    }
     $TeamsMeeting = $false
     $TransferStatus = "Transferred"
-    
-    # Check if the meeting is a Teams meeting and if the source user is the organizer
+       
+    # Check if the meeting is a private event with no attendees. If so, skip it.
     If ($CalendarEvent.Attendees.count -eq 0) {
         $EventsNotProcessed++
         Write-Host ("Skipping meeting '{0}' scheduled for {1} because it is a personal event with no attendees." -f $CalendarEvent.Subject, $EventStartTime) -ForegroundColor Yellow
         continue
     }
-    # Check if the event is a meeting with participants and if the source user is the organizer
+    #  If the event is a meeting with participants and if the source user is the organizer, we can transfer it to the targer user.
     If ($CalendarEvent.Organizer.EmailAddress.Address -eq $SourceMailboxDetails.PrimarySmtpAddress){
         Write-Host ("Transferring ownership of meeting '{0}' scheduled for {1} to {2}..." -f $CalendarEvent.Subject, $EventStartTime, $TargetMailbox)
          # Is it a Teams Meeting?
@@ -115,7 +149,7 @@ ForEach ($CalendarEvent in $Events) {
                 Continue
             }
         }
-        Start-Sleep -Milliseconds 500 # Pause to avoid throttling
+        Start-Sleep -Seconds 1 # Pause to avoid throttling
        
         $ReportLine = [PSCustomObject]@{
             Subject         = $CalendarEvent.Subject
