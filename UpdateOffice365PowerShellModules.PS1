@@ -1,4 +1,4 @@
-A# UpdateOffice365PowerShellModules.PS1
+# UpdateOffice365PowerShellModules.PS1
 # Mentioned in Chapter 4 of Office 365 for IT Pros
 # V2.0 4-Dec-2022
 # V2.1 9-Apr-2023

@@ -10,14 +10,14 @@
 # calendar where the meetings to be updated are stored.
 
 # V1.0 6-Aug-2026
-# GitHub link: 
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Update-TransferredTeamsMeetings.PS1
 
 # The input is a CSV file containing the following columns:
 # Subject
 # StartTime
 # Newrganizer
 
-# The output from the https://github.com/12Knocksinna/Office365itpros/blob/master/Transfer-MeetingOwnership.PS1 script can be used as input.
+# The CSV file output from the https://github.com/12Knocksinna/Office365itpros/blob/master/Transfer-MeetingOwnership.PS1 script can be used as input.
 
 [CmdletBinding()]
 param(
@@ -25,8 +25,7 @@ param(
 
 )
 
-# Helper function to turn dates stored in time and zone into a UTC time. The Outlook calendar Stores start and end dates for events in a 
-# compound property containing indiviaul properties for the date/time and the time zone.
+# Helper function to turn dates stored with a date/time and time zone into a UTC time.
 
 function Get-UtcEventTime {
     param(
