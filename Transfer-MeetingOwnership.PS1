@@ -8,6 +8,12 @@
 #Requires -Version 3.0
 #Requires -Modules @{ ModuleName="ExchangeOnlineManagement"; ModuleVersion="3.10.1" }
 
+# The app used for the script must be assigned the Exchange<ManageAsApp permisssion and the Exchange administrator role to be able to run Exchangae Online cmdlets.
+# See https://office365itpros.com/2022/10/13/exchange-online-powershell-app/ for background.
+
+# The script also uses the Microsoft Graph PowerShell SDK and needs the Calendar.Read and User.ReadBasic.All permissions to read the calendar and user information. 
+# The same app can be used to authenticate with both Exchange Online and the Graph.
+
 [CmdletBinding()]
 param(
     [string]$SourceMailbox,
