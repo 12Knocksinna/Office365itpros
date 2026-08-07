@@ -61,9 +61,9 @@ If (-not $InputMeetings) {
     Write-Host ("The input file '{0}' contains {1} meetings to be updated." -f $TransferInputFile, $InputMeetings.Count) -ForegroundColor Green
 }
 
-$AppId = '03ef5d75-e8dd-4f9e-a71c-fa81939d5ca2' # Replace with your Entra ID app ID
+$AppId = '03ef5d75-e8dd-4f9e-a71c-fa81939d5ca2' # Replace with your Entra ID app IDcd
 $Thumbprint = "0CF6CE3F3548FD73E7AC8CF20226ED447E125C71" # Replace with your certificate thumbprint
-$TenantId = "b662313f-14fc-43a2-9a7a-d2e27f4f3478" # Replace with your tenant ID
+$TenantId = "a662313f-14fc-43a2-9a7a-d2e27f4f3478" # Replace with your tenant ID
 
 # Connect to the Microsoft Graph in app-only mode
 Write-Host "Connecting to Microsoft Graph..."
@@ -93,26 +93,12 @@ ForEach ($Item in $InputMeetings) {
     [array]$Events = Get-MgUserDefaultCalendarEvent -UserId $TargetMailboxDetails.Id -Filter "start/datetime ge '$SearchDateStart' and end/datetime le '$SearchDateEnd' and subject eq '$EventSubject'"
     If ($Events.Count -eq 1) {
         $CalendarEvent = $Events[0]
+        Write-Host ("Found target event '{0}' on {1} for update." -f $CalendarEvent.Subject, $CalendarEvent.Start.DateTime) -ForegroundColor Green
     } Else {
         Write-Host ("{0} matching events found. We cannot update the meeting." -f $Events.count)
         Continue
     }
-    # Build a request body to remove the meeting information from the event.
-    $EventBody = @{}
-    $EventBody.Add("contentType", "HTML")
-    $EventBody.Add("content", "Original meeting information removed by the Transfer-MeetingOwnership script. Please contact the new organizer for details.")
-
-    $EventDetails = @{}
-    $EventDetails.Add("isOnlineMeeting", $false)
-    $EventDetails.Add("body", $EventBody)
-
-    Try {
-        $Status = Update-MgUserEvent -EventId $CalendarEvent.Id -UserId $TargetMailboxDetails.Id -BodyParameter $EventDetails -ErrorAction Stop
-    } Catch {
-        Write-Host ("Error updating event '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
-        Continue
-    }
-
+    
     # Now attempt to create a new Teams online event.
     $OnlineMeetingBody = @{
         subject       = $CalendarEvent.Subject
@@ -144,6 +130,7 @@ ForEach ($Item in $InputMeetings) {
 
     Try {
         $Status = Update-MgUserEvent -EventId $CalendarEvent.Id -UserId $TargetMailboxDetails.Id -BodyParameter $EventDetails -ErrorAction Stop
+        Write-Host ("Successfully updated event '{0}' with new Teams meeting information." -f $CalendarEvent.Subject) -ForegroundColor Green
     } Catch {
         Write-Host ("Error updating event '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
         Continue
