@@ -98,6 +98,23 @@ ForEach ($Item in $InputMeetings) {
         Write-Host ("{0} matching events found. We cannot update the meeting." -f $Events.count)
         Continue
     }
+
+    $ZeroEventDetails = "<p><b><h2>Microsoft Teams meeting information removed</h2></b></p>"
+    # Remove the current Teams meeting information from the event
+    $EventBody = @{}
+    $EventBody.Add("contentType", "HTML")
+    $EventBody.Add("content", $ZeroEventDetails)
+
+    $EventDetails = @{}
+    $EventDetails.Add("isOnlineMeeting", $false)
+    $EventDetails.Add("body", $EventBody)
+    $EventDetails.Add("onlineMeetingProvider", "null")
+    Try {
+        $Status = Update-MgUserEvent -EventId $CalendarEvent.Id -UserId $TargetMailboxDetails.Id -BodyParameter $EventDetails -ErrorAction Stop
+    } Catch {
+        Write-Host ("Error removing old Teams join information from event '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
+        Continue
+    }
     
     # Now attempt to create a new Teams online event.
     $OnlineMeetingBody = @{
@@ -136,10 +153,11 @@ ForEach ($Item in $InputMeetings) {
   
     # Now that we have an online meeting, we can update the calendar event with the new meeting information.
     $EventLink = "<p><b><h2>Microsoft Teams meeting</h2></b></p>"
-    $EventLink += "<p><b>Join:</b> <a href='$JoinUrl'>($JoinUrl)</a></p>"
-    $EventLink += "<p><b>Meeting ID:</b> $MeetingId</p>"
-    $EventLink += "<p><b>Passcode:</b> $Passcode</p>"
-    $EventLink += "<p><b>Note:</b> This meeting was transferred from another organizer. The new organizer is $TargetMailboxDetails.DisplayName.</p>"
+    $EventLink += "<p><b><h3>Join:</b> <a href='$JoinUrl'>$JoinUrl</a></h3></b></p>"
+    $EventLink += "<p><b><h3>Meeting ID:</b> $MeetingId</h3></p>"
+    $EventLink += "<p><b><h3>Passcode:</b> $Passcode</h3></p>"
+    $EventLink += "<p><p><b>Note:</b> This meeting was transferred from the previous organizer. The new organizer is $($TargetMailboxDetails.DisplayName).</p>"
+    $EventLink += "<p>If you have any issues joining the meeting, please contact the new organizer.</p>"
     $EventBody = @{}
     $EventBody.Add("contentType", "HTML")
     $EventBody.Add("content", $EventLink)
@@ -147,6 +165,7 @@ ForEach ($Item in $InputMeetings) {
     $EventDetails = @{}
     $EventDetails.Add("isOnlineMeeting", $true)
     $EventDetails.Add("body", $EventBody)
+    $EventDetails.Add("onlineMeetingProvider", "teamsForBusiness")
 
     Try {
         $Status = Update-MgUserEvent -EventId $CalendarEvent.Id -UserId $TargetMailboxDetails.Id -BodyParameter $EventDetails -ErrorAction Stop
@@ -159,6 +178,24 @@ ForEach ($Item in $InputMeetings) {
         Write-Host ("Error updating event '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
         Continue
     }   
+
+    # Hack to make sure that Teams doesn't add any more meeting information to teh event
+    [array]$CalendarEvent = Get-MgUserEvent -UserId $TargetMailboxDetails.Id -EventId $Status.Id
+    $Position = $CalendarEvent.body.content.indexOf("please contact the new organizer")
+    $Position = $Position + 40
+    If ($Position -gt 690) {
+        $HtmlContent = $CalendarEvent.body.content.substring(0, $Position)
+        $CalendarEvent.body.content = $HtmlContent
+        $EventBody = @{}
+        $EventBody.Add("contentType", "HTML")
+        $EventBody.Add("content", $HtmlContent)
+        Try {
+            $Status = Update-MgUserEvent -EventId $CalendarEvent.Id -UserId $TargetMailboxDetails.Id -BodyParameter $EventBody -ErrorAction Stop
+        } Catch {
+            Write-Host ("Error performing post processing of Teams information for event '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
+            Continue
+        }
+    }
 
 }
 
