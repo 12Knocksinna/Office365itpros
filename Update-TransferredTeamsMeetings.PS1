@@ -117,9 +117,29 @@ ForEach ($Item in $InputMeetings) {
         Write-Host ("Error creating online meeting for event '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
         Continue
     }
-    $JoinUrl = $onlineMeeting.JoinWebUrl
+    # $JoinUrl = $onlineMeeting.JoinWebUrl
+
+    # The join information is stored in the JoinInformation.Content property, which is a URL-encoded HTML string. We need to decode it to extract the join URL, meeting ID, and passcode.
+    Add-Type -AssemblyName System.Web
+    # Decode the meeting content
+    $Html = [System.Uri]::UnescapeDataString(($onlineMeeting.JoinInformation.Content -replace '^data:text/html,'))
+
+    # Extract Join URL
+    $JoinUrl = [Regex]::Match($Html,'https://teams\.microsoft\.com/meet/[^"&<\s]+').Value
+
+    # Extract Meeting ID
+    $MeetingId = ([Regex]::Match($Html,'\d{3}\+\d{3}\+\d{3}\+\d{3}\+\d{3}').Value) -replace '\+',' '
+
+    # Extract Passcode
+    $PasscodeSection = $Html.Substring($Html.IndexOf('Passcode'), 200)
+    $Passcode = ([Regex]::Matches($PasscodeSection,'[A-Za-z0-9]{8}') | Select-Object -Last 1).Value
+  
     # Now that we have an online meeting, we can update the calendar event with the new meeting information.
-    $EventLink = "<p>Microsoft Teams Meeting</p><a href='$JoinUrl'>Online Meeting Link</a></p>"
+    $EventLink = "<p><b><h2>Microsoft Teams meeting</h2></b></p>"
+    $EventLink += "<p><b>Join:</b> <a href='$JoinUrl'>($JoinUrl)</a></p>"
+    $EventLink += "<p><b>Meeting ID:</b> $MeetingId</p>"
+    $EventLink += "<p><b>Passcode:</b> $Passcode</p>"
+    $EventLink += "<p><b>Note:</b> This meeting was transferred from another organizer. The new organizer is $TargetMailboxDetails.DisplayName.</p>"
     $EventBody = @{}
     $EventBody.Add("contentType", "HTML")
     $EventBody.Add("content", $EventLink)
@@ -130,11 +150,15 @@ ForEach ($Item in $InputMeetings) {
 
     Try {
         $Status = Update-MgUserEvent -EventId $CalendarEvent.Id -UserId $TargetMailboxDetails.Id -BodyParameter $EventDetails -ErrorAction Stop
-        Write-Host ("Successfully updated event '{0}' with new Teams meeting information." -f $CalendarEvent.Subject) -ForegroundColor Green
+        If ($Status) {
+            Write-Host ("Successfully updated event '{0}' with new Teams meeting information." -f $CalendarEvent.Subject) -ForegroundColor Green
+        } Else {
+            Write-Host ("Failed to update event '{0}' with new Teams meeting information." -f $CalendarEvent.Subject) -ForegroundColor Red
+        }   
     } Catch {
         Write-Host ("Error updating event '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
         Continue
-    }
+    }   
 
 }
 
