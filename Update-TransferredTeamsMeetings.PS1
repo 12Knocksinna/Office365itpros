@@ -189,8 +189,12 @@ ForEach ($Item in $InputMeetings) {
         $EventBody = @{}
         $EventBody.Add("contentType", "HTML")
         $EventBody.Add("content", $HtmlContent)
+
+        $EventDetails = @{}
+        $EventDetails.Add("body", $EventBody)
+
         Try {
-            $Status = Update-MgUserEvent -EventId $CalendarEvent.Id -UserId $TargetMailboxDetails.Id -BodyParameter $EventBody -ErrorAction Stop
+            $Status = Update-MgUserEvent -EventId $CalendarEvent.Id -UserId $TargetMailboxDetails.Id -BodyParameter $EventDetails -ErrorAction Stop
         } Catch {
             Write-Host ("Error performing post processing of Teams information for event '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
             Continue
