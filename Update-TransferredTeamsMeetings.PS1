@@ -179,7 +179,8 @@ ForEach ($Item in $InputMeetings) {
         Continue
     }   
 
-    # Hack to make sure that Teams doesn't add any more meeting information to teh event
+    # Hack to make sure that Teams doesn't add any more meeting information to the event by removing anything after our 
+    # "please contact the new organizer" message.
     [array]$CalendarEvent = Get-MgUserEvent -UserId $TargetMailboxDetails.Id -EventId $Status.Id
     $Position = $CalendarEvent.body.content.indexOf("please contact the new organizer")
     $Position = $Position + 40
