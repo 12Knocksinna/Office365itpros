@@ -4,6 +4,8 @@
 # V1.0 22-June-2026
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Get-OpenPlannerTasksAnalysis.PS1
 
+# The signed-in account must have access to the SharePoint site and list. The script uses Microsoft Graph PowerShell SDK to connect and retrieve data.
+# Alternatively, use app-only authentication to access the SharePoint site and list with application permissions.
 Connect-MgGraph -Scopes "Sites.Read.All", "Sites.ReadWrite.All"
 # Define URL for the SharePoint site and construct the SiteId - This site is obviously different for your tenant
 $Uri = "https://office365itpros.sharepoint.com/sites/O365ExchPro"
