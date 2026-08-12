@@ -54,7 +54,7 @@ If ($Modules -notcontains "ExchangeOnlineManagement") {
     Connect-ExchangeOnline -ShowBanner:$False
 }
 
-# It's possible to go back 90 days, but the message trace data must be retrieved in 10-day chunnks.
+# It's possible to go back 90 days, but the message trace data must be retrieved in 10-day chunks.
 # This code creates an array of 10-day ranges to fetch the message trace data.
 $StartDate = (Get-Date).AddDays(-90).ToUniversalTime()
 $EndDate = (Get-Date).ToUniversalTime().AddMinutes(10)
