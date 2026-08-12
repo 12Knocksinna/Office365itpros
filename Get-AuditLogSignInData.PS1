@@ -7,23 +7,16 @@
 
 Function Get-DateRangeData {
     param (
-        [datetime]$RangeStart,
-        [datetime]$RangeEnd
+        [string]$Filter
     )
     
-    # Function to fetch message trace data for expanded events over a 10-day period.
+    # Function to fetch audit sign-in data based on the provided filter.
     [array]$Logs = $null
 
-    # Make sure that the start and end dates are UTC DateTimeOffset strings in ISO 8601 format (yyyy-MM-ddTHH:mm:ssZ) for the Microsoft Graph API
-    $Start = $RangeStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-    $End = $RangeEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     Write-Host ("Collecting audit log sign-in data between {0} and {1}..." -f $RangeStart, $RangeEnd)
 
-    # The example is to fetch successful sign-in events that have used conditional access, but the same technique
-    # can be used to fetch other types of sign-in events by changing the filter criteria.
     Try {
-        [array]$Logs = Get-MgAuditLogSignIn -Filter "createdDateTime gt $start and createdDateTime lt $end and ConditionalAccessStatus eq 'Success'" -All `
-            -ErrorAction Stop
+        [array]$Logs = Get-MgAuditLogSignIn -Filter $Filter -All -ErrorAction Stop
  
     } Catch {
         Write-Host ("Error fetching audit log sign-in data: {0}" -f $_.Exception.Message)
@@ -32,6 +25,9 @@ Function Get-DateRangeData {
     
     return $Logs
 }
+
+Connect-MgGraph -Scopes "AuditLog.Read.All"
+# Signed-in account must have an Entra P1 license to fetch audit log via an API
 
 # This code creates an array of one-day ranges to fetch the audit log data.
 $StartDate = (Get-Date).AddDays(-30).ToUniversalTime()
@@ -59,14 +55,20 @@ For ($i=0; $i -lt $iterations; $i++) {
 ForEach ($DateRange in $DateRanges) {
     $RangeStart = $DateRange.Start
     $RangeEnd = $DateRange.End
-    $Data = Get-DateRangeData -RangeStart $RangeStart -RangeEnd $RangeEnd
-    # Process the data for this date range, for example by adding it to a report or exporting it to a file
+    # Make sure that the start and end dates are UTC DateTimeOffset strings in ISO 8601 format (yyyy-MM-ddTHH:mm:ssZ) for the Microsoft Graph API
+    $Start = $RangeStart.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $End = $RangeEnd.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    # Any valid filter can be used. This example fetches only successful sign-in events that have used conditional access.
+    # You can modify the filter to suit your needs.
+    $Filter = "createdDateTime gt $start and createdDateTime lt $end and ConditionalAccessStatus eq 'Success'"
+    [array]$Data = Get-DateRangeData -Filter $Filter
+    # Process the data for this date range by adding it to the Logs array
     Write-Host ("Fetched {0} audit sign-in logs between {1} and {2}" -f $Data.count, $DateRange.Start, $DateRange.End)
     $Logs += $Data
 }
 
 # All done - tell them how many logs were fetched in total
-Write-Host ("Fetched a total of {0} audit sign-in logs over the last 30 days." -f $Logs.count)
+Write-Host ("Fetched a total of {0} audit sign-in logs over the last {1} days." -f $Logs.count, $iterations)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Microsoft 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
