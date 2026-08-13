@@ -18,7 +18,6 @@ Write-Host "Fetching licensed member users in the tenant..." -ForegroundColor Gr
     -ConsistencyLevel Eventual -CountVariable Count -Select Id,DisplayName,UserPrincipalName -PageSize 500
 
 Write-Host ("Total of {0} users found in tenant" -f $Users.count)
-$Report = [System.Collections.Generic.List[Object]]::new()
 
 [array]$TotalUsersInScope = $null
 ForEach ($Policy in $Policies) {
@@ -102,6 +101,26 @@ Write-Host "These users are not licensed for conditional access policies and are
 [array]$UsersWithoutEntraP1Licenses = $Users | Where-Object { $_.Id -in $InScopeUsersWithOutLicenses } | Select-Object DisplayName, UserPrincipalName, Id
 Write-Host ("{0} member accounts" -f $UsersWithoutEntraP1Licenses.Count)
 $UsersWithoutEntraP1Licenses
+
+Write-Host ""
+# Generate report file
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $True
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $OutputXLSXFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Unlicensed Entra P1 Accounts.xlsx"
+    Remove-Item -Path $OutputXLSXFile -ErrorAction SilentlyContinue
+    $UsersWithoutEntraP1Licenses | Export-Excel -Path $OutputXLSXFile -WorksheetName "Unlicensed Entra P1 Accounts" -Title ("Unlicensed Entra P1 Accounts {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "UnlicensedEntraP1Accounts" 
+} Else {
+    $OutputCSVFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\Unlicensed Entra P1 Accounts.csv"
+    Remove-Item -Path $OutputCSVFile -ErrorAction SilentlyContinue
+    $UsersWithoutEntraP1Licenses | Export-Csv -Path $OutputCSVFile -NoTypeInformation -Encoding Utf8
+}
+  
+If ($ExcelGenerated) {
+  Write-Host ("An Excel workbook containing unlicensed Entra P1 accounts is available in {0}" -f $OutputXLSXFile)
+} Else {
+  Write-Host ("A CSV file containing unlicensed Entra P1 accounts is available in {0}" -f $OutputCSVFile)
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Microsoft 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
