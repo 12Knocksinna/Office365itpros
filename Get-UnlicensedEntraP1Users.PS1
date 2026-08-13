@@ -11,7 +11,7 @@
 # - User.ReadBasic.All:     Read  user information like identity, display name, and email address
 # - GroupMember.Read.All:   Read group information
 
-Connect-MgGraph -Scopes "Policy.Read.All", "User.ReadBasic.All", "GroupMember.Read.All"
+Connect-MgGraph -Scopes "Policy.Read.All", "User.ReadBasic.All", "GroupMember.Read.All" -NoWelcome
 
 # The first step is to check number of users covered by CA policies
 # Start by finding the set of enabled Conditional Access policies...
@@ -103,7 +103,7 @@ Write-Host "These users are not licensed for conditional access policies and are
 [array]$InScopeUsersWithOutLicenses = $TotalUsersInScope | Where-Object { $_ -notin $LicensedP1Users.Id }
 # Create an array holding the user details for those users (most admins aren't great at reading GUIDs)
 [array]$UsersWithoutEntraP1Licenses = $Users | Where-Object { $_.Id -in $InScopeUsersWithOutLicenses } | Select-Object DisplayName, UserPrincipalName, Id
-Write-Host ("{0} member accounts" -f $UsersWithoutEntraP1Licenses.Count)
+Write-Host ("{0} member accounts should be assigned Entra P1 licenses" -f $UsersWithoutEntraP1Licenses.Count)
 $UsersWithoutEntraP1Licenses
 
 Write-Host ""
