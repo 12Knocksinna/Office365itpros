@@ -73,7 +73,7 @@ Write-Host "Fetching licensed member users in the tenant..." -ForegroundColor Gr
 
 Write-Host ("Total of {0} licensed member user accounts found in tenant" -f $Users.count)
 $Report = [System.Collections.Generic.List[object]]::new()
-[array]$TotalUsersInScope = $null
+[array]$TotalUsersFound = $null
 
 ForEach ($Policy in $Policies) {
     [array]$PolicyIncludedUsers = $Policy.Conditions.Users.IncludeUsers
@@ -103,7 +103,7 @@ ForEach ($Policy in $Policies) {
             Write-Host ("Member users excluded from policy: {0}" -f $ExcludedGroupUserIds.Count) -ForegroundColor White
         }
         Write-Host ("Member users in scope: {0}" -f $UsersInScope) -ForegroundColor Yellow
-        
+
     } Else { # Policy focuses on specific groups, users, or directory roles
         If ($Policy.Conditions.Users.IncludeGroups) {
             [array]$AllGroupMembers = $null
@@ -127,10 +127,10 @@ ForEach ($Policy in $Policies) {
         # Remove duplicates from the list of users in scope for this policy
         $IncludedUserIds = $IncludedUserIds | Sort-Object -Unique
         Write-Host ("{1} member users in scope for policy {0}" -f $Policy.DisplayName, $AllGroupMembers.Count) -ForegroundColor Yellow
-        $TotalUsersInScope += $IncludedUserIds
+        $TotalUsersFound += $IncludedUserIds
     }
     # Remove any duplicates
-    $TotalUsersInScope = $TotalUsersInScope | Sort-Object -Unique
+    $TotalUsersFound = $TotalUsersFound | Sort-Object -Unique
 
     $ReportLine = [PSCustomObject]@{
         PolicyName      = $Policy.DisplayName
@@ -141,8 +141,8 @@ ForEach ($Policy in $Policies) {
     $Report.Add($ReportLine) 
 }
 
-$TotalUsersInScope = $TotalUsersInScope | Sort-Object -Unique
-Write-Host ("A total of {0} unique member user accounts come within the scope of enabled Conditional Access policies" -f $TotalUsersInScope.Count) -ForegroundColor Green
+$TotalUsersFound = $TotalUsersFound | Sort-Object -Unique
+Write-Host ("A total of {0} unique member user accounts are calculated to come within the scope of enabled Conditional Access policies" -f $TotalUsersFound.Count) -ForegroundColor Green
 
 # Define the service plan identifiers for Entra P1 and P2 licenses
 $EntraPlan1 = "41781fb2-bc02-4b7c-bd55-b576c07bb09d"
@@ -151,11 +151,11 @@ $EntraPlan2 = "eec0eb4f-6444-4f95-aba0-50c24d67f998"
 # Find any product subscriptions in the tenant that include Entra P1 or P2 licenses
 [array]$EntraSkus = Get-MgSubscribedSku -All | Where-Object {
     $_.ServicePlans.ServicePlanId -contains $EntraPlan1 -or
-    $_.ServicePlans.ServicePlanId -contains $EntraPlan2 }  | Select-Object SkuId, Sku``PartNumber, PrepaidUnits
+    $_.ServicePlans.ServicePlanId -contains $EntraPlan2 }  | Select-Object SkuId, SkuPartNumber, PrepaidUnits
 
 Write-Host ""
 Write-Host "Product SKUs with entitlement to Entra P1 or P2 licenses in the tenant:"
-$EntraSkus | Format-Table -AutoSize
+$EntraSkus | Format-Table SkuId, SkuPartNumber, @{n="Prepaid Units"; e={$_.PrepaidUnits.Enabled}} -AutoSize
 
 # Fetch licensed users with a license that includes an Entra P1 or P2 service plan
 [array]$LicensedP1Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses -PageSize 500 -Property Id, displayName, assignedPlans `
@@ -184,9 +184,9 @@ Write-Host ""
 Write-Host "These users are not licensed for conditional access policies and are within the scope of current policies"
 
 # Get the set of users who aren't licensed for Entra P1 or P2 but are within the scope for at least one CA policy
-[array]$InScopeUsersWithOutLicenses = $TotalUsersInScope | Where-Object { $_ -notin $ListCALicensedUsers.UserId }
+[array]$UsersNeedeingEntraP1 = $TotalUsersFound | Where-Object { $_ -notin $ListCALicensedUsers.UserId }
 # Create an array holding the user details for those users (most admins aren't great at reading GUIDs)
-[array]$UsersWithoutEntraP1Licenses = $Users | Where-Object { $_.Id -in $InScopeUsersWithOutLicenses } | Select-Object DisplayName, UserPrincipalName, Id
+[array]$UsersWithoutEntraP1Licenses = $Users | Where-Object { $_.Id -in $UsersNeedeingEntraP1 } | Select-Object DisplayName, UserPrincipalName, Id
 Write-Host ("{0} member accounts should be assigned Entra P1 licenses" -f $UsersWithoutEntraP1Licenses.Count)
 Write-Host ""
 $UsersWithoutEntraP1Licenses | Sort-Object DisplayName | Format-Table -AutoSize
