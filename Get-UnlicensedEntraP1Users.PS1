@@ -11,6 +11,55 @@
 # - User.ReadBasic.All:     Read  user information like identity, display name, and email address
 # - GroupMember.Read.All:   Read group information
 
+Function Get-RoleMembers {
+    param (
+        [array]$Roles
+    )
+    # Function to fetch the members of the specified directory roles.
+    [array]$AllRoleMembers = $null
+    Write-Host "Fetching membership for included directory roles" -ForegroundColor Green
+
+    ForEach ($Role in $Roles) {
+        [array]$RoleMembers = $null
+        $RoleId = Get-MgDirectoryRole -Filter "RoleTemplateId eq '$Role'" | Select-Object -ExpandProperty Id
+        Try {
+            $Status = [array]$RoleMembers = Get-MgDirectoryRoleMember -DirectoryRoleId $RoleId -All -ErrorAction Stop | Select-Object -ExpandProperty Id
+            $AllRoleMembers += $RoleMembers
+        } Catch {
+            # Error is propbably because a role is not used in the tenant, so don't worry about it
+            # Write-Host ("Error fetching members of role {0}: {1}" -f $Role, $_.Exception.Message) -ForegroundColor Red
+            Continue
+        }
+    }
+
+    $AllRoleMembers = $AllRoleMembers | Sort-Object -Unique
+    return $AllRoleMembers
+}
+
+function Get-GroupMembers {
+    param (
+        [array]$Groups
+    )
+    # Function to fetch the members of the specified groups.
+    [array]$AllGroupMembers = $null
+    Write-Host "Fetching membership for included groups" -ForegroundColor Green
+
+    ForEach ($GroupId in $Groups) {
+        [array]$GroupMembers = $null
+        Try {
+            [array]$GroupMembers = Get-MgGroupTransitiveMemberAsUser -GroupId $GroupId -All -ErrorAction Stop | Select-Object -ExpandProperty Id
+            $AllGroupMembers += $GroupMembers
+            Write-Host ("Policy includes the {0} group with {1} members" -f (Get-MgGroup -GroupId $GroupId).DisplayName, $GroupMembers.Count) -ForegroundColor White
+        } Catch {
+            Write-Host ("Error fetching members of group {0}: {1}" -f $GroupId, $_.Exception.Message) -ForegroundColor Red
+            Continue
+        }
+    }
+
+    $AllGroupMembers = $AllGroupMembers | Sort-Object -Unique
+    return $AllGroupMembers
+}
+
 Connect-MgGraph -Scopes "Policy.Read.All", "User.ReadBasic.All", "GroupMember.Read.All" -NoWelcome
 
 # The first step is to check number of users covered by CA policies
@@ -51,27 +100,34 @@ ForEach ($Policy in $Policies) {
 
         Write-Host ("The {0} policy targets all users" -f $Policy.DisplayName) -ForegroundColor White
         If ($ExcludedGroupUserIds) {
-            Write-Host ("Member users excluded from policy: $ExcludedGroupUserIds.Count") -ForegroundColor White
+            Write-Host ("Member users excluded from policy: {0}" -f $ExcludedGroupUserIds.Count) -ForegroundColor White
         }
         Write-Host ("Member users in scope: {0}" -f $UsersInScope) -ForegroundColor Yellow
-    } Else { # Policy focuses on specific groups
+        
+    } Else { # Policy focuses on specific groups, users, or directory roles
         If ($Policy.Conditions.Users.IncludeGroups) {
-            [array]$IncludedGroupUsersIds = $null
-            ForEach ($GroupId in $Policy.Conditions.Users.IncludeGroups) {
-                [array]$Members = Get-MgGroupTransitiveMemberAsUser -GroupId $GroupId -All | Select-Object -ExpandProperty Id
-                $IncludedGroupUsersIds += $Members
-                $GroupName = (Get-MgGroup -GroupId $GroupId).DisplayName
-                $Groups += $GroupName 
-                Write-Host ("Policy includes group: $GroupName ($($Members.Count) members)") -ForegroundColor White
-            }
+            [array]$AllGroupMembers = $null
+            $AllGroupMembers = Get-GroupMembers -Groups $Policy.Conditions.Users.IncludeGroups  
         }
-        $IncludedGroupUsersIds = $IncludedGroupUsersIds 
-        # Add individual users
-        $IncludedUserIds = $PolicyIncludedUsers | Where-Object { $_ -notin $IncludedGroupUsersIds }           
-        $IncludedUserIds += $IncludedGroupUsersIds
+        [array]$IncludedRoles = $Policy.Conditions.Users.IncludeRoles
+        If ($IncludedRoles) {
+            [array]$AllRoleMembers = $null
+            $AllRoleMembers = Get-RoleMembers -Roles $IncludedRoles
+        }
+
+        # Add users to the overall set of users
+        $IncludedUserIds = $PolicyIncludedUsers | Where-Object { $_ -notin $IncludedGroupUserIds }   
+        If ($AllGroupMembers) {
+            $IncludedUserIds += $AllGroupMembers
+        }
+        # Add role members
+        If ($AllRoleMembers) {
+            $IncludedUserIds += $AllRoleMembers
+        }   
+        # Remove duplicates from the list of users in scope for this policy
         $IncludedUserIds = $IncludedUserIds | Sort-Object -Unique
-        Write-Host ("{1} member users in scope for policy {0}" -f $Policy.DisplayName, $IncludedGroupUsersIds.Count) -ForegroundColor Yellow
-        $TotalUsersInScope += $PolicyIncludedUsers
+        Write-Host ("{1} member users in scope for policy {0}" -f $Policy.DisplayName, $AllGroupMembers.Count) -ForegroundColor Yellow
+        $TotalUsersInScope += $IncludedUserIds
     }
     # Remove any duplicates
     $TotalUsersInScope = $TotalUsersInScope | Sort-Object -Unique
@@ -82,12 +138,11 @@ ForEach ($Policy in $Policies) {
         UserIds         = $IncludedUserIds
         Groups          = $Groups -join ", "
     }
-    $Report.Add($ReportLine)
-    
+    $Report.Add($ReportLine) 
 }
 
 $TotalUsersInScope = $TotalUsersInScope | Sort-Object -Unique
-Write-Host ("A total of {0} unique member user accounts come within the scope of enabled CA policies" -f $TotalUsersInScope.Count) -ForegroundColor Green
+Write-Host ("A total of {0} unique member user accounts come within the scope of enabled Conditional Access policies" -f $TotalUsersInScope.Count) -ForegroundColor Green
 
 # Define the service plan identifiers for Entra P1 and P2 licenses
 $EntraPlan1 = "41781fb2-bc02-4b7c-bd55-b576c07bb09d"
@@ -100,7 +155,7 @@ $EntraPlan2 = "eec0eb4f-6444-4f95-aba0-50c24d67f998"
 
 Write-Host ""
 Write-Host "Product SKUs with entitlement to Entra P1 or P2 licenses in the tenant:"
-$EntraSKus
+$EntraSkus | Format-Table -AutoSize
 
 # Fetch licensed users with a license that includes an Entra P1 or P2 service plan
 [array]$LicensedP1Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses -PageSize 500 -Property Id, displayName, assignedPlans `
@@ -132,8 +187,8 @@ Write-Host "These users are not licensed for conditional access policies and are
 [array]$InScopeUsersWithOutLicenses = $TotalUsersInScope | Where-Object { $_ -notin $ListCALicensedUsers.UserId }
 # Create an array holding the user details for those users (most admins aren't great at reading GUIDs)
 [array]$UsersWithoutEntraP1Licenses = $Users | Where-Object { $_.Id -in $InScopeUsersWithOutLicenses } | Select-Object DisplayName, UserPrincipalName, Id
-Write-Host ""
 Write-Host ("{0} member accounts should be assigned Entra P1 licenses" -f $UsersWithoutEntraP1Licenses.Count)
+Write-Host ""
 $UsersWithoutEntraP1Licenses | Sort-Object DisplayName | Format-Table -AutoSize
 
 Write-Host ""
@@ -151,9 +206,9 @@ If (Get-Module ImportExcel -ListAvailable) {
 }
   
 If ($ExcelGenerated) {
-  Write-Host ("An Excel workbook containing unlicensed Entra P1 accounts is available in {0}" -f $OutputXLSXFile)
+  Write-Host ("An Excel workbook containing user accounts that are not licensed for Entra P1 accounts is available in {0}" -f $OutputXLSXFile)
 } Else {
-  Write-Host ("A CSV file containing unlicensed Entra P1 accounts is available in {0}" -f $OutputCSVFile)
+  Write-Host ("A CSV file containing user accounts that are not licensed for Entra P1 accounts is available in {0}" -f $OutputCSVFile)
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
