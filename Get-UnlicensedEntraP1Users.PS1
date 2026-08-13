@@ -1,12 +1,17 @@
 # Get-UnlicensedEntraP1Users.PS1
 # A script to show how to determine the set of member user accounts which are covered by Conditional Access policies but do not have an
-# Enrta P1 or P2 license assigned. The script uses the Microsoft Graph PowerShell SDK to fetch the required data.
+# Entra P1 or P2 license assigned. The script uses the Microsoft Graph PowerShell SDK to fetch the required data.
 
 # V1.0 12-Aug-2026
 
-# GitHub Link: https://github.com/Office365itpros/Office365itpros
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Get-UnlicensedEntraP1Users.PS1
 
-Connect-MgGraph -Scopes "Policy.Read.All", "Directory.Read.All", "User.Read.All", "GroupMember.Read.All"
+# Permissions required to run this script:
+# - Policy.Read.All:        Read conditional access policy settings
+# - User.ReadBasic.All:     Read  user information like identity, display name, and email address
+# - GroupMember.Read.All:   Read group information
+
+Connect-MgGraph -Scopes "Policy.Read.All", "User.ReadBasic.All", "GroupMember.Read.All"
 
 # The first step is to check number of users covered by CA policies
 # Start by finding the set of enabled Conditional Access policies...
@@ -21,46 +26,45 @@ Write-Host ("Total of {0} users found in tenant" -f $Users.count)
 
 [array]$TotalUsersInScope = $null
 ForEach ($Policy in $Policies) {
-    [array]$IncludedUsers = $Policy.Conditions.Users.IncludeUsers
-    [array]$ExcludedUsers = $Policy.Conditions.Users.ExcludeUsers
-    [array]$ExcludedGroups = $Policy.Conditions.Users.ExcludeGroups
+    [array]$PolicyIncludedUsers = $Policy.Conditions.Users.IncludeUsers
+    [array]$PolicyExcludedUsers = $Policy.Conditions.Users.ExcludeUsers
 
     Write-Host ("Processing policy {0}" -f $Policy.DisplayName) -ForegroundColor Green
 
-    If ($IncludedUsers -contains 'All') {
-        [array]$ExcludedUserIds = $null
-        If ($ExcludedUsers) {
-            $ExcludedUserIds += $ExcludedUsers | Where-Object { $_ -ne 'GuestsOrExternalUsers' }
-        }
-        If ($ExcludedGroups) {
-            ForEach ($GroupId in $ExcludedGroups) {
+    If ($PolicyIncludedUsers -contains 'All') {
+        [array]$ExcludedGroupUserIds = $null
+        If ($PolicyExcludedUsers) {
+            $ExcludedGroupUserIds += $PolicyExcludedUsers | Where-Object { $_ -ne 'GuestsOrExternalUsers' }
+        }                       
+        If ($Policy.Conditions.Users.ExcludeGroups) {
+            ForEach ($GroupId in $Policy.Conditions.Users.ExcludeGroups) {
                 $Members = Get-MgGroupMember -GroupId $GroupId -All
-                $ExcludedUserIds += $Members.Id
+                $ExcludedGroupUserIds += $Members.Id
             }
         }
-        $ExcludedUserIds = $ExcludedUserIds | Select-Object -Unique
-        $UsersInScope = $Users.Count - $ExcludedUserIds.Count
-        $IncludedUserIds = $Users.Id | Where-Object { $_ -notin $ExcludedUserIds }
-        [array]$TotalUsersInScope += $IncludedUserIds   
+        $ExcludedGroupUserIds = $ExcludedGroupUserIds | Select-Object -Unique
+        $UsersInScope = $Users.Count - $ExcludedGroupUserIds.Count
+        $IncludedUserIds = $Users.Id | Where-Object { $_ -notin $ExcludedGroupUserIds }
+        $TotalUsersInScope += $IncludedUserIds   
 
         Write-Host ("The {0} policy targets all users" -f $Policy.DisplayName) -ForegroundColor White
-        If ($ExcludedUserIds) {
-            Write-Host ("Member users excluded from policy: $ExcludedUserIds.Count") -ForegroundColor White
-        }   
+        If ($ExcludedGroupUserIds) {
+            Write-Host ("Member users excluded from policy: $ExcludedGroupUserIds.Count") -ForegroundColor White
+        }
         Write-Host ("Member users in scope: {0}" -f $UsersInScope) -ForegroundColor Yellow
     } Else { # Policy focuses on specific users or groups
-        [array]$IncludedUserIds = $null
         If ($Policy.Conditions.Users.IncludeGroups) {
+            [array]$IncludedGroupUsersIds = $null
             ForEach ($GroupId in $Policy.Conditions.Users.IncludeGroups) {
                 $Members = Get-MgGroupMember -GroupId $GroupId -All
-                $IncludedUserIds += $Members.Id
+                $IncludedGroupUsersIds += $Members.Id
                 $GroupName = (Get-MgGroup -GroupId $GroupId).DisplayName
                 Write-Host ("Policy includes group: $GroupName ($($Members.Count) members)") -ForegroundColor White
             }
         }
-        $IncludedUserIds = $IncludedUserIds | Select-Object -Unique
-        Write-Host ("{1} member users in scope for policy {0}" -f $Policy.DisplayName, $IncludedUserIds.Count) -ForegroundColor Yellow
-        [array]$TotalUsersInScope += $IncludedUserIds
+        $IncludedGroupUsersIds = $IncludedGroupUsersIds | Select-Object -Unique
+        Write-Host ("{1} member users in scope for policy {0}" -f $Policy.DisplayName, $IncludedGroupUsersIds.Count) -ForegroundColor Yellow
+        $TotalUsersInScope += $IncludedGroupUsersIds
     }
 }
 $TotalUsersInScope = $TotalUsersInScope | Sort-Object -Unique
