@@ -22,12 +22,14 @@ Write-Host "Fetching licensed member users in the tenant..." -ForegroundColor Gr
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member' and accountEnabled ne false" `
     -ConsistencyLevel Eventual -CountVariable Count -Select Id,DisplayName,UserPrincipalName -PageSize 500
 
-Write-Host ("Total of {0} users found in tenant" -f $Users.count)
-
+Write-Host ("Total of {0} licensed member user accounts found in tenant" -f $Users.count)
+$Report = [System.Collections.Generic.List[object]]::new()
 [array]$TotalUsersInScope = $null
+
 ForEach ($Policy in $Policies) {
     [array]$PolicyIncludedUsers = $Policy.Conditions.Users.IncludeUsers
     [array]$PolicyExcludedUsers = $Policy.Conditions.Users.ExcludeUsers
+    $Groups = $null
 
     Write-Host ("Processing policy {0}" -f $Policy.DisplayName) -ForegroundColor Green
 
@@ -52,59 +54,87 @@ ForEach ($Policy in $Policies) {
             Write-Host ("Member users excluded from policy: $ExcludedGroupUserIds.Count") -ForegroundColor White
         }
         Write-Host ("Member users in scope: {0}" -f $UsersInScope) -ForegroundColor Yellow
-    } Else { # Policy focuses on specific users or groups
+    } Else { # Policy focuses on specific groups
         If ($Policy.Conditions.Users.IncludeGroups) {
             [array]$IncludedGroupUsersIds = $null
             ForEach ($GroupId in $Policy.Conditions.Users.IncludeGroups) {
                 $Members = Get-MgGroupMember -GroupId $GroupId -All
                 $IncludedGroupUsersIds += $Members.Id
                 $GroupName = (Get-MgGroup -GroupId $GroupId).DisplayName
+                $Groups += $GroupName 
                 Write-Host ("Policy includes group: $GroupName ($($Members.Count) members)") -ForegroundColor White
             }
         }
-        $IncludedGroupUsersIds = $IncludedGroupUsersIds | Select-Object -Unique
+        $IncludedGroupUsersIds = $IncludedGroupUsersIds 
+        # Add individual users
+        $IncludedUserIds = $PolicyIncludedUsers | Where-Object { $_ -notin $IncludedGroupUsersIds }           
+        $IncludedUserIds += $IncludedGroupUsersIds
+        $IncludedUserIds = $IncludedUserIds | Sort-Object -Unique
         Write-Host ("{1} member users in scope for policy {0}" -f $Policy.DisplayName, $IncludedGroupUsersIds.Count) -ForegroundColor Yellow
-        $TotalUsersInScope += $IncludedGroupUsersIds
+        $TotalUsersInScope += $PolicyIncludedUsers
     }
+    # Remove any duplicates
+    $TotalUsersInScope = $TotalUsersInScope | Sort-Object -Unique
+
+    $ReportLine = [PSCustomObject]@{
+        PolicyName      = $Policy.DisplayName
+        UsersInScope    = $IncludedUserIds.Count
+        UserIds         = $IncludedUserIds
+        Groups          = $Groups -join ", "
+    }
+    $Report.Add($ReportLine)
+    
 }
+
 $TotalUsersInScope = $TotalUsersInScope | Sort-Object -Unique
 Write-Host ("A total of {0} unique member user accounts come within the scope of enabled CA policies" -f $TotalUsersInScope.Count) -ForegroundColor Green
 
 # Define the service plan identifiers for Entra P1 and P2 licenses
-$SkuP1 = "41781fb2-bc02-4b7c-bd55-b576c07bb09d"
-$SkuP2 = "eec0eb4f-6444-4f95-aba0-50c24d67f998"
-    
+$EntraPlan1 = "41781fb2-bc02-4b7c-bd55-b576c07bb09d"
+$EntraPlan2 = "eec0eb4f-6444-4f95-aba0-50c24d67f998"
+
 # Find any product subscriptions in the tenant that include Entra P1 or P2 licenses
 [array]$EntraSkus = Get-MgSubscribedSku -All | Where-Object {
-    $_.ServicePlans.ServicePlanId -contains $SkuP1 -or
-    $_.ServicePlans.ServicePlanId -contains $SkuP2 }  | Select-Object SkuId, SkuPartNumber, PrepaidUnits
+    $_.ServicePlans.ServicePlanId -contains $EntraPlan1 -or
+    $_.ServicePlans.ServicePlanId -contains $EntraPlan2 }  | Select-Object SkuId, Sku``PartNumber, PrepaidUnits
+
+Write-Host ""
+Write-Host "Product SKUs with entitlement to Entra P1 or P2 licenses in the tenant:"
+$EntraSKus
+
+# Fetch licensed users with a license that includes an Entra P1 or P2 service plan
+[array]$LicensedP1Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses -PageSize 500 -Property Id, displayName, assignedPlans `
+    -Filter "(assignedPlans/any(s:s/servicePlanId eq $EntraPlan2) or assignedPlans/any(s:s/servicePlanId eq $EntraPlan1)) and userType eq 'Member' and accountEnabled ne false"
+    
+# Check that the service plan is enabled and not deleted because it was proviously assighned and then removed
+$ListCALicensedUsers = [System.Collections.Generic.List[object]]::new()
+ForEach ($P1User in $LicensedP1Users) {
+   $CheckPlan = $P1User.assignedPlans | Where-Object {$_.ServicePlanId -eq $EntraPlan1} | Select-Object -ExpandProperty CapabilityStatus
+   If ($CheckPlan -eq "Enabled") {
+        $ReportLine = [PSCustomObject]@{
+            UserId          = $P1User.Id
+            DisplayName     = $P1User.DisplayName
+            UserPrincipalName = $P1User.UserPrincipalName
+        }
+        $ListCALicensedUsers.Add($ReportLine)
+   }    
+}
 
 If ($EntraSkus) {   
     [int]$TotalP1Licenses = ($EntraSkus.PrepaidUnits.Enabled | Measure-Object -Sum | Select-Object -ExpandProperty Sum)
-    Write-Host ("Skus found in tenant with {0} Entra P1 licenses" -f $TotalP1Licenses) -ForegroundColor Green
+    Write-Host ("Products with entitlement to {0} Entra P1 licenses are available. The licenses are assigned to {1} user accounts." -f $TotalP1Licenses, $ListCALicensedUsers.Count) -ForegroundColor Green
 }
-
-# Do we have enough Entra P1 licenses to cover all users in scope for CA policies?
-[int]$LicensingDeficit = $TotalUsersInScope.Count - $TotalP1Licenses
-If ($LicensingDeficit -gt 0) {
-    Write-Host ("Warning: {0} users within scope for CA policies do not have an Entra P1 license" -f $LicensingDeficit)  -ForegroundColor Red
-} Else {
-    Write-Host ("The tenant has sufficient Entra P1 licenses to cover {0} users" -f $TotalUsersInScope.Count) -ForegroundColor Green
-}
-
-# Licensed users for P1 or P2
-[array]$LicensedP1Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses `
-    -Filter "(assignedPlans/any(s:s/servicePlanId eq $SkuP2) or assignedPlans/any(s:s/servicePlanId eq $SkuP1)) and userType eq 'Member' and accountEnabled ne false"
 
 Write-Host ""
 Write-Host "These users are not licensed for conditional access policies and are within the scope of current policies"
 
-# Get the set of users who aren't licensed for Entra P1 or P2 but are in scope for CA policies
-[array]$InScopeUsersWithOutLicenses = $TotalUsersInScope | Where-Object { $_ -notin $LicensedP1Users.Id }
+# Get the set of users who aren't licensed for Entra P1 or P2 but are within the scope for at least one CA policy
+[array]$InScopeUsersWithOutLicenses = $TotalUsersInScope | Where-Object { $_ -notin $ListCALicensedUsers.UserId }
 # Create an array holding the user details for those users (most admins aren't great at reading GUIDs)
 [array]$UsersWithoutEntraP1Licenses = $Users | Where-Object { $_.Id -in $InScopeUsersWithOutLicenses } | Select-Object DisplayName, UserPrincipalName, Id
+Write-Host ""
 Write-Host ("{0} member accounts should be assigned Entra P1 licenses" -f $UsersWithoutEntraP1Licenses.Count)
-$UsersWithoutEntraP1Licenses
+$UsersWithoutEntraP1Licenses | Sort-Object DisplayName | Format-Table -AutoSize
 
 Write-Host ""
 # Generate report file
