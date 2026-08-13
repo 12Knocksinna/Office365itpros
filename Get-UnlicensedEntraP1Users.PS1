@@ -40,8 +40,8 @@ ForEach ($Policy in $Policies) {
         }                       
         If ($Policy.Conditions.Users.ExcludeGroups) {
             ForEach ($GroupId in $Policy.Conditions.Users.ExcludeGroups) {
-                $Members = Get-MgGroupMember -GroupId $GroupId -All
-                $ExcludedGroupUserIds += $Members.Id
+                [array]$Members = Get-MgGroupTransitiveMemberAsUser -GroupId $GroupId -All | Select-Object -ExpandProperty Id
+                $ExcludedGroupUserIds += $Members
             }
         }
         $ExcludedGroupUserIds = $ExcludedGroupUserIds | Select-Object -Unique
@@ -58,8 +58,8 @@ ForEach ($Policy in $Policies) {
         If ($Policy.Conditions.Users.IncludeGroups) {
             [array]$IncludedGroupUsersIds = $null
             ForEach ($GroupId in $Policy.Conditions.Users.IncludeGroups) {
-                $Members = Get-MgGroupMember -GroupId $GroupId -All
-                $IncludedGroupUsersIds += $Members.Id
+                [array]$Members = Get-MgGroupTransitiveMemberAsUser -GroupId $GroupId -All | Select-Object -ExpandProperty Id
+                $IncludedGroupUsersIds += $Members
                 $GroupName = (Get-MgGroup -GroupId $GroupId).DisplayName
                 $Groups += $GroupName 
                 Write-Host ("Policy includes group: $GroupName ($($Members.Count) members)") -ForegroundColor White
