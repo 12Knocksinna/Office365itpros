@@ -69,7 +69,7 @@ Write-Host "Fetching enabled Conditional Access policies..." -ForegroundColor Gr
 # Find licensed users in the tenant (excluding guests and disabled accounts used for shared mailboxes etc.)
 Write-Host "Fetching licensed member users in the tenant..." -ForegroundColor Green
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member' and accountEnabled ne false" `
-    -ConsistencyLevel Eventual -CountVariable Count -Select Id,DisplayName,UserPrincipalName -PageSize 500
+    -ConsistencyLevel Eventual -CountVariable Count -Select Id,DisplayName,UserPrincipalName,accountEnabled -PageSize 500
 
 Write-Host ("Total of {0} licensed member user accounts found in tenant" -f $Users.count)
 $Report = [System.Collections.Generic.List[object]]::new()
@@ -96,7 +96,7 @@ ForEach ($Policy in $Policies) {
         $ExcludedGroupUserIds = $ExcludedGroupUserIds | Select-Object -Unique
         $UsersInScope = $Users.Count - $ExcludedGroupUserIds.Count
         $IncludedUserIds = $Users.Id | Where-Object { $_ -notin $ExcludedGroupUserIds }
-        $TotalUsersInScope += $IncludedUserIds   
+        [array]$TotalUsersFound += $IncludedUserIds
 
         Write-Host ("The {0} policy targets all users" -f $Policy.DisplayName) -ForegroundColor White
         If ($ExcludedGroupUserIds) {
@@ -116,21 +116,19 @@ ForEach ($Policy in $Policies) {
         }
 
         # Add users to the overall set of users
-        $IncludedUserIds = $PolicyIncludedUsers | Where-Object { $_ -notin $IncludedGroupUserIds }   
+        [array]$IncludedUserIds = $PolicyIncludedUsers | Where-Object { $_ -notin $IncludedGroupUserIds }   
         If ($AllGroupMembers) {
-            $IncludedUserIds += $AllGroupMembers
+            [array]$IncludedUserIds += $AllGroupMembers
         }
         # Add role members
         If ($AllRoleMembers) {
-            $IncludedUserIds += $AllRoleMembers
+            [array]$IncludedUserIds += $AllRoleMembers
         }   
         # Remove duplicates from the list of users in scope for this policy
         $IncludedUserIds = $IncludedUserIds | Sort-Object -Unique
         Write-Host ("{1} member users in scope for policy {0}" -f $Policy.DisplayName, $AllGroupMembers.Count) -ForegroundColor Yellow
-        $TotalUsersFound += $IncludedUserIds
+        [array]$TotalUsersFound += $IncludedUserIds
     }
-    # Remove any duplicates
-    $TotalUsersFound = $TotalUsersFound | Sort-Object -Unique
 
     $ReportLine = [PSCustomObject]@{
         PolicyName      = $Policy.DisplayName
@@ -180,16 +178,16 @@ If ($EntraSkus) {
     Write-Host ("Products with entitlement to {0} Entra P1 licenses are available. The licenses are assigned to {1} user accounts." -f $TotalP1Licenses, $ListCALicensedUsers.Count) -ForegroundColor Green
 }
 
-Write-Host ""
-Write-Host "These users are not licensed for conditional access policies and are within the scope of current policies"
-
 # Get the set of users who aren't licensed for Entra P1 or P2 but are within the scope for at least one CA policy
 [array]$UsersNeedeingEntraP1 = $TotalUsersFound | Where-Object { $_ -notin $ListCALicensedUsers.UserId }
-# Create an array holding the user details for those users (most admins aren't great at reading GUIDs)
-[array]$UsersWithoutEntraP1Licenses = $Users | Where-Object { $_.Id -in $UsersNeedeingEntraP1 } | Select-Object DisplayName, UserPrincipalName, Id
-Write-Host ("{0} member accounts should be assigned Entra P1 licenses" -f $UsersWithoutEntraP1Licenses.Count)
+# Create an array holding the user details for those users (most admins aren't great at reading GUIDs). We drop any disabled accounts from the list because they are not relevant to the report.
+[array]$UsersWithoutEntraP1Licenses = $Users | Where-Object { $_.Id -in $UsersNeedeingEntraP1 -and $_.accountEnabled -eq $True } | `
+    Select-Object DisplayName, UserPrincipalName, Id | Sort-Object DisplayName
+
 Write-Host ""
-$UsersWithoutEntraP1Licenses | Sort-Object DisplayName | Format-Table -AutoSize
+Write-Host ("{0} user member accounts should be assigned Entra P1 licenses because they come within the scope of Entra ID conditional access policies" -f $UsersWithoutEntraP1Licenses.Count)
+Write-Host ""
+$UsersWithoutEntraP1Licenses | Format-Table -AutoSize
 
 Write-Host ""
 # Generate report file
