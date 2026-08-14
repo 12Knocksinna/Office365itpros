@@ -8,7 +8,7 @@
 
 # Permissions required to run this script:
 # - Policy.Read.All:        Read conditional access policy settings
-# - User.ReadBasic.All:     Read  user information like identity, display name, and email address
+# - User.Read.All:          Read  user information like identity, display name, UPN, and assigned licenses
 # - GroupMember.Read.All:   Read group information
 
 Function Get-RoleMembers {
@@ -156,7 +156,8 @@ Write-Host "Product SKUs with entitlement to Entra P1 or P2 licenses in the tena
 $EntraSkus | Format-Table SkuId, SkuPartNumber, @{n="Prepaid Units"; e={$_.PrepaidUnits.Enabled}} -AutoSize
 
 # Fetch licensed users with a license that includes an Entra P1 or P2 service plan
-[array]$LicensedP1Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses -PageSize 500 -Property Id, displayName, userPrincipalName, ssignedPlans `
+[array]$LicensedP1Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses -PageSize 500 `
+    -Property Id, displayName, userPrincipalName, assignedPlans `
     -Filter "(assignedPlans/any(s:s/servicePlanId eq $EntraPlan2) or assignedPlans/any(s:s/servicePlanId eq $EntraPlan1)) and userType eq 'Member' and accountEnabled ne false"
     
 # Check that the service plan is enabled and not deleted because it was proviously assighned and then removed
