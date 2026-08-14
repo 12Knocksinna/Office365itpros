@@ -2123,3 +2123,7 @@ If ($MessageDetails.Count -ne $Messages.Count) {
         throw [System.Exception]::new() 
 }
 Write-Host ("Total of {0} messages processed" -f $MessageDetails.count)
+
+   $Url = "https://graph.microsoft.com/v1.0/users/$UserID/onlineMeetings/$($Meetingid)/transcripts/$($Transcriptid)/content"    
+    $TranscriptFileName = "TranscriptVND-$($Transcript.callId)-$((($Transcript.createdDateTime -as [datetime]).ToString("yyyy-MM-dd_HH-mm-ss"))).txt"
+    Invoke-MgGraphRequest -Method GET -Uri $Url -Headers $GraphHeaders -OutputFilePath "c:\temp\$TranscriptFileName"
