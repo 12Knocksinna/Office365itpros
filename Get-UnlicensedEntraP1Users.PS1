@@ -156,7 +156,7 @@ Write-Host "Product SKUs with entitlement to Entra P1 or P2 licenses in the tena
 $EntraSkus | Format-Table SkuId, SkuPartNumber, @{n="Prepaid Units"; e={$_.PrepaidUnits.Enabled}} -AutoSize
 
 # Fetch licensed users with a license that includes an Entra P1 or P2 service plan
-[array]$LicensedP1Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses -PageSize 500 -Property Id, displayName, assignedPlans `
+[array]$LicensedP1Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses -PageSize 500 -Property Id, displayName, userPrincipalName, ssignedPlans `
     -Filter "(assignedPlans/any(s:s/servicePlanId eq $EntraPlan2) or assignedPlans/any(s:s/servicePlanId eq $EntraPlan1)) and userType eq 'Member' and accountEnabled ne false"
     
 # Check that the service plan is enabled and not deleted because it was proviously assighned and then removed
@@ -179,9 +179,9 @@ If ($EntraSkus) {
 }
 
 # Get the set of users who aren't licensed for Entra P1 or P2 but are within the scope for at least one CA policy
-[array]$UsersNeedeingEntraP1 = $TotalUsersFound | Where-Object { $_ -notin $ListCALicensedUsers.UserId }
+[array]$UsersNeedingEntraP1 = $TotalUsersFound | Where-Object { $_ -notin $ListCALicensedUsers.UserId }
 # Create an array holding the user details for those users (most admins aren't great at reading GUIDs). We drop any disabled accounts from the list because they are not relevant to the report.
-[array]$UsersWithoutEntraP1Licenses = $Users | Where-Object { $_.Id -in $UsersNeedeingEntraP1 -and $_.accountEnabled -eq $True } | `
+[array]$UsersWithoutEntraP1Licenses = $Users | Where-Object { $_.Id -in $UsersNeedingEntraP1 -and $_.accountEnabled -eq $True } | `
     Select-Object DisplayName, UserPrincipalName, Id | Sort-Object DisplayName
 
 Write-Host ""
