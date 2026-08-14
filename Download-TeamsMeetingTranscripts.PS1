@@ -3,7 +3,11 @@
 # An example of how to download Teams transscript files for a meeting using the Microsoft Graph API. The script uses the Microsoft Graph PowerShell SDK to fetch the transcripts for a specific Teams meeting based on the user and meeting subject provided by the user.
 # V1.0 14-Aug-2026
 
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Download-TeamsMeetingTranscripts.PS1
+
+# See message center notification MC1393806 for details of what needs to be done to allow Graph API access to Teams meeting transcripts. T
+# The notification is titled "Microsoft Graph API support for Teams meeting transcripts" and was published on 16-June-2026.
+# In addition, for an app to be able to access transcripts, a Teams application access policy must be configured appropriately.
 
 # These permissions are sufficient if you fetch transcripts using delegated permissions (your own meetings)
 Connect-MgGraph -Scopes "OnlineMeetings.Read.All", "OnlineMeetings.Transcripts.Read.All", "User.ReadBasic.All", "Calendars.Read" -NoWelcome
