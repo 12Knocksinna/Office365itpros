@@ -17,7 +17,8 @@
 # StartTime
 # Newrganizer
 
-# The CSV file output from the https://github.com/12Knocksinna/Office365itpros/blob/master/Transfer-MeetingOwnership.PS1 script can be used as input.
+# The CSV file output from bulk transfer of meeting ownership script https://github.com/12Knocksinna/Office365itpros/blob/master/Transfer-MeetingOwnership.PS1 
+# can be used as input. See https://office365itpros.com/2026/08/10/invoke-changemeetingorganizer-bulk/ for an article about how the script works.
 
 [CmdletBinding()]
 param(
