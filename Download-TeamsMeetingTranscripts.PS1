@@ -45,22 +45,30 @@ If ($Events.count -eq 0) {
 # This code only deals with a single meeting...
 If ($Events.count -gt 1) {
     Write-Warning ("Multiple events found with subject '{0}', using the first one" -f $SearchSubject)
-    $Event = $Events[0]
+    $ExchangeEvent = $Events[0]
 } Else {        
-    $Event = $Events[0]
+    $ExchangeEvent = $Events[0]
 }
 
 # And the meeting must be a Teams meeting, otherwise there will be no transcripts to download.
-If ($Event.onlineMeetingProvider -ne 'teamsForBusiness') {
+If ($ExchangeEvent.onlineMeetingProvider -ne 'teamsForBusiness') {
     Write-Warning ("The event with subject '{0}' is not a Teams meeting" -f $SearchSubject)
     Return
 }
 
 # Fetch the JoinUrl for the event and endcode it for use in the Graph API call to fetch the meeting details. The JoinUrl is used to uniquely identify the meeting in the Graph API.
-$JoinURL = $Event.onlineMeeting.joinUrl
-$EncodedJoinUrl = [System.Web.HttpUtility]::UrlEncode($JoinUrl)
+$JoinURL = $ExchangeEvent.onlineMeeting.joinUrl
+
+# Check if the join URL is in the old or new format. We only support the new format.
+If ($JoinURL     -match '19(%3A|:)meeting_.*(%40|@)thread\.v2') {
+    Write-Warning ("The meeting with subject '{0}' is using the old Teams meeting format. This script can only fetch transcripts for meetings using the new format." -f $SearchSubject)
+    Return
+} Else {
+    $EncodedJoinUrl = [System.Web.HttpUtility]::UrlEncode($JoinURL)
+}
 
 # Can we find the online meeting? It's required, because transcripts are only available for online meetings. The meeting ID is required to fetch the transcripts.
+$Meeting = $null
 Try {
     $Meeting = Get-MgUserOnlineMeeting -Filter "JoinWebURL eq '$EncodedJoinUrl'" -UserId $UserId -ErrorAction Stop
     $MeetingId = $Meeting.Id

@@ -119,8 +119,8 @@ ForEach ($Item in $InputMeetings) {
     # Now attempt to create a new Teams online event.
     $OnlineMeetingBody = @{
         subject       = $CalendarEvent.Subject
-        startDateTime = $EventStartDate.ToString("o")
-        endDateTime   = $EventEndDate.ToString("o")
+        startDateTime = $EventStartDate.ToString("yyyy-MM-ddTHH:mm:ss")
+        endDateTime   = $EventEndDate.ToString("yyyy-MM-ddTHH:mm:ss")
 
         lobbyBypassSettings = @{
             scope = "everyone"                
@@ -134,8 +134,7 @@ ForEach ($Item in $InputMeetings) {
         Write-Host ("Error creating online meeting for event '{0}': {1}" -f $CalendarEvent.Subject, $_.Exception.Message) -ForegroundColor Red
         Continue
     }
-    # $JoinUrl = $onlineMeeting.JoinWebUrl
-
+   
     # The join information is stored in the JoinInformation.Content property, which is a URL-encoded HTML string. We need to decode it to extract the join URL, meeting ID, and passcode.
     Add-Type -AssemblyName System.Web
     # Decode the meeting content
