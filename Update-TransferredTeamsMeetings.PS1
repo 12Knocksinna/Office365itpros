@@ -106,9 +106,9 @@ ForEach ($Item in $InputMeetings) {
     $EventBody.Add("content", $ZeroEventDetails)
 
     $EventDetails = @{}
-    $EventDetails.Add("isOnlineMeeting", $false)
+    #$EventDetails.Add("isOnlineMeeting", $false)
     $EventDetails.Add("body", $EventBody)
-    $EventDetails.Add("onlineMeetingProvider", "null")
+    #$EventDetails.Add("onlineMeetingProvider", "null")
     Try {
         $Status = Update-MgUserEvent -EventId $CalendarEvent.Id -UserId $TargetMailboxDetails.Id -BodyParameter $EventDetails -ErrorAction Stop
     } Catch {
@@ -178,8 +178,11 @@ ForEach ($Item in $InputMeetings) {
         Continue
     }   
 
-    # Hack to make sure that Teams doesn't add any more meeting information to the event by removing anything after our 
-    # "please contact the new organizer" message.
+    # The code above specifies that the meeting is online and the meeting provider is Teams. This means that the calendar inserts 
+    # details of another Teams meeting into the event. We need to remove that information to avoid confusion. The code below is a hack to
+    # remove the additional Teams information from the event body by removing the content after the "please contact the new organizer" message.
+    # This is not a perfect solution, but it works for now. If Microsoft changes the way they insert Teams information into calendar events,
+    # this code may break. If that happens, please update the script.
     [array]$CalendarEvent = Get-MgUserEvent -UserId $TargetMailboxDetails.Id -EventId $Status.Id
     $Position = $CalendarEvent.body.content.indexOf("please contact the new organizer")
     $Position = $Position + 40
