@@ -60,7 +60,7 @@ If ($ExchangeEvent.onlineMeetingProvider -ne 'teamsForBusiness') {
 $JoinURL = $ExchangeEvent.onlineMeeting.joinUrl
 
 # Check if the join URL is in the old or new format. We only support the new format.
-If ($JoinURL     -match '19(%3A|:)meeting_.*(%40|@)thread\.v2') {
+If ($JoinURL -match '19(%3A|:)meeting_.*(%40|@)thread\.v2') {
     Write-Warning ("The meeting with subject '{0}' is using the old Teams meeting format. This script can only fetch transcripts for meetings using the new format." -f $SearchSubject)
     Return
 } Else {
@@ -81,7 +81,7 @@ Try {
 # This header is used to request the transcript content without speaker attribution
 # $GraphHeaders = @{ "Accept" = "application/vnd.microsoft.graph.transcript+text" }
 # Theis header fetches transcripts with speaker attribution included
-$GraphHeaders = @{ "Accept" = "text/vtt" }
+$GraphHeaders = @{ "accept" = "text/vtt" }
 
 # Loop through the transcripts and download each one to the user's Downloads folder. 
 # The transcript files are named using the meeting subject, the transcript creation date, and a counter to ensure unique filenames.
@@ -89,7 +89,6 @@ $GraphHeaders = @{ "Accept" = "text/vtt" }
 [array]$FetchedFiles = $null
 ForEach ($Transcript in $Transcripts) {
     $TranscriptCounter++
-    Write-Output ("Transcript ID: {0}, Created: {1}, End: {2}" -f $Transcript.Id, $Transcript.CreatedDateTime, $Transcript.EndDateTime)
     $TranscriptId = $Transcript.Id
     $TranscriptFileName = ("Transcript_{0}_{1}_{2}.txt" -f $MeetingSubject, ($Transcript.CreatedDateTime.ToUniversalTime().ToString("yyyy-MM-dd-HH-mm-ss")), $TranscriptCounter)
     $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/transcripts/{2}/content" -f $UserId, $MeetingId, $TranscriptId)
