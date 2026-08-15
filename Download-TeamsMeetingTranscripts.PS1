@@ -50,6 +50,12 @@ If ($Events.count -gt 1) {
     $ExchangeEvent = $Events[0]
 }
 
+# The meeting must be organized by the user we are searching for, otherwise we cannot fetch the transcripts. The organizer's email address is stored in the ExchangeEvent.organizer.emailAddress.address property.
+If ($ExchangeEvent.organizer.emailAddress.address -ne $SearchUser) {
+    Write-Warning ("The event with subject '{0}' is not organized by {1}" -f $SearchSubject, $SearchUser)
+    Return
+}
+
 # And the meeting must be a Teams meeting, otherwise there will be no transcripts to download.
 If ($ExchangeEvent.onlineMeetingProvider -ne 'teamsForBusiness') {
     Write-Warning ("The event with subject '{0}' is not a Teams meeting" -f $SearchSubject)
@@ -79,7 +85,7 @@ Try {
 [array]$Transcripts = Get-MgUserOnlineMeetingTranscript -OnlineMeetingId $MeetingId -UserId $UserId
 
 # This header is used to request the transcript content without speaker attribution
-# $GraphHeaders = @{ "Accept" = "application/vnd.microsoft.graph.transcript+text" }
+# $GraphHeaders = @{ "accept" = "application/vnd.microsoft.graph.transcript+text" }
 # Theis header fetches transcripts with speaker attribution included
 $GraphHeaders = @{ "accept" = "text/vtt" }
 
@@ -87,14 +93,14 @@ $GraphHeaders = @{ "accept" = "text/vtt" }
 # The transcript files are named using the meeting subject, the transcript creation date, and a counter to ensure unique filenames.
 [int]$TranscriptCounter = 0
 [array]$FetchedFiles = $null
+$Path = "c:\temp\"
 ForEach ($Transcript in $Transcripts) {
     $TranscriptCounter++
     $TranscriptId = $Transcript.Id
     $TranscriptFileName = ("Transcript_{0}_{1}_{2}.txt" -f $MeetingSubject, ($Transcript.CreatedDateTime.ToUniversalTime().ToString("yyyy-MM-dd-HH-mm-ss")), $TranscriptCounter)
     $Uri = ("https://graph.microsoft.com/v1.0/users/{0}/onlineMeetings/{1}/transcripts/{2}/content" -f $UserId, $MeetingId, $TranscriptId)
     # $Uri can also be fetched from $Transcript.TranscriptContentUrl, but it is not guaranteed to be present in all cases
-    $OutputTranscriptFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) `
-         + "\" + $TranscriptFileName
+    $OutputTranscriptFile = $Path + $TranscriptFileName
     Try {
         Invoke-MgGraphRequest -Method GET -Uri $Uri -Headers $GraphHeaders -OutputFilePath $OutputTranscriptFile -ErrorAction Stop
         $FetchedFiles += $OutputTranscriptFile
