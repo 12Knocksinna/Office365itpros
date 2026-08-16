@@ -47,7 +47,7 @@ function Get-UtcEventTime {
 }
 
 # Test do we have a valid input file to process?
-# $TransferInputFile = "c:\temp\Transferred Teams Meetings.csv"
+# $TransferInputFile = "c:\temp\Transferred Teams Meetings.csv"TransferInputFile = "c:\temp\Transferred Teams Meetings.csv"
 If (-not (Test-Path $TransferInputFile)) {
     Write-Host ("The input file '{0}' does not exist. Please provide a valid CSV file." -f $TransferInputFile) -ForegroundColor Red
     return
@@ -94,7 +94,7 @@ ForEach ($Item in $InputMeetings) {
     [array]$Events = Get-MgUserDefaultCalendarEvent -UserId $TargetMailboxDetails.Id -Filter "start/datetime ge '$SearchDateStart' and end/datetime le '$SearchDateEnd' and subject eq '$EventSubject'"
     If ($Events.Count -eq 1) {
         $CalendarEvent = $Events[0]
-        Write-Host ("Found target event '{0}' on {1} for update." -f $CalendarEvent.Subject, $CalendarEvent.Start.DateTime) -ForegroundColor Green
+        Write-Host ("Found target event '{0}' on {1} for update." -f $CalendarEvent.Subject, (Get-Date $CalendarEvent.Start.DateTime -format 'dd-MMM-yyyy HH:mm')) -ForegroundColor Green
     } Else {
         Write-Host ("{0} matching events found. We cannot update the meeting." -f $Events.count)
         Continue
@@ -186,7 +186,7 @@ ForEach ($Item in $InputMeetings) {
     # this code may break. If that happens, please update the script.
     [array]$CalendarEvent = Get-MgUserEvent -UserId $TargetMailboxDetails.Id -EventId $Status.Id
     $Position = $CalendarEvent.body.content.indexOf("please contact the new organizer")
-    $Position = $Position + 40
+    $Position = $Position + 39
     If ($Position -gt 690) {
         $HtmlContent = $CalendarEvent.body.content.substring(0, $Position)
         $CalendarEvent.body.content = $HtmlContent

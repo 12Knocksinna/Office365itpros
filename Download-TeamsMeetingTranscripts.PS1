@@ -65,6 +65,11 @@ If ($ExchangeEvent.onlineMeetingProvider -ne 'teamsForBusiness') {
 # Fetch the JoinUrl for the event and endcode it for use in the Graph API call to fetch the meeting details. The JoinUrl is used to uniquely identify the meeting in the Graph API.
 $JoinURL = $ExchangeEvent.onlineMeeting.joinUrl
 
+If (-not $JoinURL) {
+    Write-Warning ("The event with subject '{0}' does not include online Join information" -f $SearchSubject)
+    Return
+}
+
 # Check if the join URL is in the old or new format. We only support the new format.
 If ($JoinURL -match '19(%3A|:)meeting_.*(%40|@)thread\.v2') {
     Write-Warning ("The meeting with subject '{0}' is using the old Teams meeting format. This script can only fetch transcripts for meetings using the new format." -f $SearchSubject)
