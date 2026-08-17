@@ -4,6 +4,8 @@
 # V1.0 20-Jul-2026
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-MailboxMessagesBatches.PS1
 
+# See the article at https://office365itpros.com/2026/08/17/json-batching-mailbox-items/
+
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-UtilityMessagesFromMailboxes.PS1 is the original version of a script
 # to remove utility messages from mailboxes. This script is a modified version of that script to illustrate how to use JSON batching to remove mailbox items.
 
