@@ -179,27 +179,38 @@ ForEach ($SP in $ServicePrincipals) {
         Write-Progress -Activity "Examining application $i of $($ServicePrincipals.Count): $($SP.DisplayName)" -PercentComplete (($i / $ServicePrincipals.Count) * 100)    
     }
     $AppOwners = $null; $AppOwnersString = $null; $AppRedirectUris = $null; $AppIdentifierUris = $null; $App = $null
-    $isApp = $true
     $AppId = $SP.AppId
     Try {
         # Check if an app registration exists for this service principal
         $App = Get-MgApplication -filter "appId eq '$AppId'" `
-            -Property Id, displayName, AppId, Notes,CreateDateTime, Owners, VerifiedPublisher, Tags, AppRoles, PublisherDomain, passwordCredentials, KeyCredentials, SignInAudience, Web -ErrorAction Stop 
-        $AppOwnersString = $null
-        [array]$AppOwners = Get-MgApplicationOwner -ApplicationId $App.Id -All  
-        If ($AppOwners) {
-            $AppOwnersString = $AppOwners.additionalProperties.displayName -join "; "            
-        }
-        $AppIdentifierUris = $App.IdentifierUris -join ";"
-        $AppRedirectUris = $App.Web.RedirectUris -join ";"
-        $CreatedDateTime = Get-Date $App.CreatedDateTime -Format "dd-MMM-yyyy HH:mm"
-        $AppName = $App.DisplayName
+            -Property Id, displayName, AppId, Notes, CreateDateTime, Owners, VerifiedPublisher, Tags, AppRoles, PublisherDomain, passwordCredentials, KeyCredentials, SignInAudience, Web -ErrorAction Stop 
+        $isApp = $true
     } Catch {
         # No app found, so this service principal is probably an enterprise app or managed identity
         $CreatedDateTime = Get-Date $SP.additionalProperties['createdDateTime'] -Format "dd-MMM-yyyy HH:mm"
         $AppName = $SP.DisplayName
         $isApp = $false
     }   
+
+    If ($isApp) {
+        $AppOwnersString = $null
+        Try {
+            [array]$AppOwners = Get-MgApplicationOwner -ApplicationId $App.Id -All  
+            If ($AppOwners) {
+                $AppOwnersString = $AppOwners.additionalProperties.displayName -join "; "            
+            }
+        } Catch {
+            Write-Host "Failed to find any owners for app registration: $AppName"
+        }
+        $AppIdentifierUris = $App.IdentifierUris -join ";"
+        $AppRedirectUris = $App.Web.RedirectUris -join ";"
+        If ($App.CreatedDateTime) {
+            $CreatedDateTime = Get-Date $App.CreatedDateTime -Format "dd-MMM-yyyy HH:mm"
+        } Else {
+            $CreatedDateTime = Get-Date $SP.additionalProperties['createdDateTime'] -Format "dd-MMM-yyyy HH:mm"
+        }
+        $AppName = $App.DisplayName
+    }
      
     # Checks for potentially suspicious apps - idea from https://www.bleepingcomputer.com/news/security/find-hidden-malicious-oauth-apps-in-microsoft-365-using-cazadora/
     # Check for TraitorWare apps
