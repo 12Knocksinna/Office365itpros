@@ -200,7 +200,7 @@ ForEach ($SP in $ServicePrincipals) {
                 $AppOwnersString = $AppOwners.additionalProperties.displayName -join "; "            
             }
         } Catch {
-            Write-Host "Failed to find any owners for app registration: $AppName"
+            $AppOwnersString = "No owners found"
         }
         $AppIdentifierUris = $App.IdentifierUris -join ";"
         $AppRedirectUris = $App.Web.RedirectUris -join ";"
@@ -212,6 +212,11 @@ ForEach ($SP in $ServicePrincipals) {
         $AppName = $App.DisplayName
     }
      
+    # Make sure that we have an application name
+    If (!($AppName)) {
+        $AppName = $SP.DisplayName
+    }
+
     # Checks for potentially suspicious apps - idea from https://www.bleepingcomputer.com/news/security/find-hidden-malicious-oauth-apps-in-microsoft-365-using-cazadora/
     # Check for TraitorWare apps
     $appNameStr = ($AppName -as [string])
