@@ -3,17 +3,41 @@
 # and produce a report about their configuration, owners, permissions, and last sign-in activity.
 
 # V1.0 21-Oct-2025
+# V1.1 19-Aug-2026      Fix a few bugs!
+
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-AppsAndServicePrincipals.PS1
+# Associated article: https://practical365.com/service-principal-analysis-report/
 
 # Use app-only mode to connect to Microsoft Graph or make sure that the signed in account holds one of the roles
 # mentioned in https://learn.microsoft.com/en-us/graph/api/serviceprincipal-list-approleassignments
 # Requires the Microsoft.Graph module
 
-[array]$RequiredScopes = "RoleAssignmentSchedule.Read.Directory", "Application.Read.All", "CrossTenantInformation.ReadBasic.All", "Mail.Send", "User.ReadBasic.All"
-$Interactive = $false
+# If running interactively, don't use an elevated PowerShell (admin) session as you'll run into WAM problems 
 
-# Determine if we're interactive or not
-If ([Environment]::UserInteractive) { 
+[array]$RequiredScopes = "RoleAssignmentSchedule.Read.Directory", "Application.Read.All", "CrossTenantInformation.ReadBasic.All", `
+    "Mail.Send", "User.ReadBasic.All", "Auditog.Read.All"
+$Interactive = $false
+$AppOnly = $false
+
+# This section connects to Microsoft Graph using either app-only mode or interactive mode, depending on the context in which the script is run. 
+# Make sure to adjust the app-only settings for your tenant.
+# It also checks for the required permissions and sets up the environment for fetching service principal and application data.
+$AppId = '562b6538-de32-4d6f-90c4-580f74ae9efd'
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$Thumbprint = '8CD4AD070C7447BA767EAB5DA659A02E6411BB80'
+
+Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint -NoWelcome
+
+# Check if running in app-ony mode
+If ((Get-MgContext).AuthType -eq "AppOnly") {
+    Write-Output "Connected to Microsoft Graph in app-only mode"
+    $MsgFrom =  "no-reply@office365itpros.com"
+    $AppOnly  = $true
+    $Interactive = $false
+} 
+
+# Determine if we're interactive or in Azure Automation (or other non-interactive) context
+If ([Environment]::UserInteractive -and $AppOnly -eq $false) { 
     # We're running interactively...
     Clear-Host
     Write-Host "Script running interactively... connecting to the Graph" -ForegroundColor Yellow
@@ -21,7 +45,7 @@ If ([Environment]::UserInteractive) {
     $Interactive = $true
     # Email address to use when sending email from interactive session
     $MsgFrom = (Get-MgContext).Account    
-} Else { 
+} ElseIf ($AppOnly -eq $false) { 
     # We're not, so likely in Azure Automation
     Write-Output "Executing the runbook to create the last service principal and app registration report..." 
     Connect-MgGraph -Identity -NoWelcome
@@ -29,7 +53,7 @@ If ([Environment]::UserInteractive) {
     $MsgFrom = "no-reply@office365itpros.com"
 }
 
-# Check that we have the right permissions - in Azure Automation, we assume that the automation account has the right permissions
+# Check that we have the right permissions - in Azure Automation or app-onlu mode, we assume that the automation account has the right permissions
 If ($Interactive) {
     [int]$RequiredScopesCount = $RequiredScopes.Count
     [string[]]$CurrentScopes = (Get-MgContext).Scopes
@@ -42,6 +66,9 @@ If ($Interactive) {
         Break
     }
 }
+
+# Get tenant name
+$TenantName = (Get-MgOrganization).DisplayName
 
 # Set up to run
 # Known Traitorware apps list - see https://huntresslabs.github.io/rogueapps/
@@ -79,17 +106,27 @@ $RightsManagementApp = Get-MgServicePrincipal -Filter "DisplayName eq 'Microsoft
 ForEach ($Role in $RightsManagementApp.AppRoles) { $RightsManagementPermissions.Add([string]$Role.Id, [string]$Role.Value) }
 
 Write-Output "Fetching service principal sign-in activity records"
-[array]$SPSignInLogs = Get-MgBetaReportServicePrincipalSignInActivity -All -PageSize 999
-$SpSignInHash = @{}
-ForEach ($LogEntry in $SPSignInLogs) {
-    $SpSignInHash.Add([string]$LogEntry.AppId, [string]$LogEntry.LastSignInActivity.LastSignInDateTime.DateTime)
+Try {
+    [array]$SPSignInLogs = Get-MgBetaReportServicePrincipalSignInActivity -All 
+    $SpSignInHash = @{}
+    ForEach ($LogEntry in $SPSignInLogs) {
+        $SpSignInHash.Add([string]$LogEntry.AppId, [string]$LogEntry.LastSignInActivity.LastSignInDateTime.DateTime)
+    }
+} Catch {
+    Write-Error "Failed to retrieve service principal sign-in activity logs: $_"
+    Return
 }
 
 # Define email address for message with report attachment - make sure to change this to the appropriate address for your tenant
 $DestinationEmailAddress = "Customer.Services@office365itpros.com"
 
 Write-Host "Finding user details..."
-[array]$Users = Get-MgUser -Filter "usertype eq 'Member' and AccountEnabled eq true" -All -Property Id, displayName, userPrincipalName -PageSize 999 
+Try {
+    [array]$Users = Get-MgUser -Filter "usertype eq 'Member' and AccountEnabled eq true" -All -Property Id, displayName, userPrincipalName -PageSize 999 
+} Catch {
+    Write-Error "Failed to retrieve users: $_"
+    Return
+}
 # Build hash tables for user display names and UPNs to use for matching against app names
 $UserHash = @{}
 $UPNHash = @{}
@@ -139,7 +176,7 @@ $AppReport = [System.Collections.Generic.List[Object]]::new()
 ForEach ($SP in $ServicePrincipals) {
     $i++
     If ($Interactive) {
-        Write-Progress -Activity "Processing application $i of $($ServicePrincipals.Count): $($SP.DisplayName)" -PercentComplete (($i / $ServicePrincipals.Count) * 100)    
+        Write-Progress -Activity "Examining application $i of $($ServicePrincipals.Count): $($SP.DisplayName)" -PercentComplete (($i / $ServicePrincipals.Count) * 100)    
     }
     $AppOwners = $null; $AppOwnersString = $null; $AppRedirectUris = $null; $AppIdentifierUris = $null; $App = $null
     $isApp = $true
@@ -147,29 +184,23 @@ ForEach ($SP in $ServicePrincipals) {
     Try {
         # Check if an app registration exists for this service principal
         $App = Get-MgApplication -filter "appId eq '$AppId'" `
-         -Property Id, displayName, AppId, Notes,CreateDateTime, Owners, VerifiedPublisher, Tags, AppRoles, PublisherDomain, passwordCredentials, KeyCredentials, SignInAudience, Web -ErrorAction Stop 
+            -Property Id, displayName, AppId, Notes,CreateDateTime, Owners, VerifiedPublisher, Tags, AppRoles, PublisherDomain, passwordCredentials, KeyCredentials, SignInAudience, Web -ErrorAction Stop 
+        $AppOwnersString = $null
         [array]$AppOwners = Get-MgApplicationOwner -ApplicationId $App.Id -All  
-            
         If ($AppOwners) {
-            $AppOwnersString = $AppOwners.additionalProperties.displayName -join "; "
-        } Else {
-            $AppOwnersString = $null
+            $AppOwnersString = $AppOwners.additionalProperties.displayName -join "; "            
         }
         $AppIdentifierUris = $App.IdentifierUris -join ";"
         $AppRedirectUris = $App.Web.RedirectUris -join ";"
         $CreatedDateTime = Get-Date $App.CreatedDateTime -Format "dd-MMM-yyyy HH:mm"
-
         $AppName = $App.DisplayName
- 
     } Catch {
         # No app found, so this service principal is probably an enterprise app or managed identity
-    
         $CreatedDateTime = Get-Date $SP.additionalProperties['createdDateTime'] -Format "dd-MMM-yyyy HH:mm"
         $AppName = $SP.DisplayName
-
-    }
-    If (!$App) { $isApp = $false }
-    
+        $isApp = $false
+    }   
+     
     # Checks for potentially suspicious apps - idea from https://www.bleepingcomputer.com/news/security/find-hidden-malicious-oauth-apps-in-microsoft-365-using-cazadora/
     # Check for TraitorWare apps
     $appNameStr = ($AppName -as [string])
@@ -403,6 +434,7 @@ ForEach ($SP in $ServicePrincipals) {
     $AppReport.Add($AppReportLine)
 }
 
+$AppReport = $AppReport | Sort-Object AppName
 $AppReport | Out-GridView -Title 'Service Principal Report'
 
 # Get some statistics
@@ -413,7 +445,8 @@ $TotalManagedIdentities = $AppReport | Where-Object { $_.'Service Principal Type
 $TotalLegacySPs = $AppReport | Where-Object { $_.'Service Principal Type' -eq "Legacy" } | Measure-Object | Select-Object -ExpandProperty Count
 $TotalAppsNoValidPasswords = $AppReport | Where-Object { $_.AppType -eq 'App registration' -and $_.'Valid App Passwords' -eq 0 -and $_.'App Passwords' -ne "No app passwords" } | Measure-Object | Select-Object -ExpandProperty Count
 $TotalAppsNoValidCertificates = $AppReport | Where-Object { $_.AppType -eq 'App registration' -and $_.'Valid App Certificates' -eq 0 -and $_.'App Certificates' -ne "No app certificates" } | Measure-Object | Select-Object -ExpandProperty Count
-$TotalAppsNoValidPasswordsOrCertificates = $AppReport | Where-Object { $_.AppType -eq 'App registration' -and $_.'Valid App Passwords' -eq 0 -and $_.'App Certificates' -ne "No app certificates" -and $_.'Valid App Certificates' -eq 0 } | Measure-Object | Select-Object -ExpandProperty Count
+$TotalAppsNoValidPasswordsOrCertificates = $AppReport | `
+    Where-Object { $_.AppType -eq 'App registration' -and $_.'Valid App Passwords' -eq 0 -and $_.'App Certificates' -ne "No app certificates" -and $_.'Valid App Certificates' -eq 0 } | Measure-Object | Select-Object -ExpandProperty Count
 $TotalAppsWithHighPriorityPermissions = $AppReport | Where-Object { $_.AppType -eq 'App registration' -and $_.'High-priority permissions' -ne $null } | Measure-Object | Select-Object -ExpandProperty Count
 $TotalSPsWithHighPriorityPermissions = $AppReport | Where-Object { $_.AppType -eq 'Service Principal' -and $_.'High-priority permissions' -ne $null } | Measure-Object | Select-Object -ExpandProperty Count
 $TotalAppsWithWarnings = $AppReport | Where-Object { $_.AppType -eq "App registration" -and $_.'Traitor Ware App Warning' -ne $null -or $_.'Non-Alphanumeric Name Warning' -ne $null -or $_.'Test App Name Warning' -ne $null -or $_.'MACT 1445 Warning' -ne $null } | Measure-Object | Select-Object -ExpandProperty Count
