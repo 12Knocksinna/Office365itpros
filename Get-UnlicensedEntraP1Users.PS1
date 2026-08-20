@@ -69,7 +69,7 @@ Write-Host "Fetching enabled Conditional Access policies..." -ForegroundColor Gr
 # Find licensed users in the tenant (excluding guests and disabled accounts used for shared mailboxes etc.)
 Write-Host "Fetching licensed member users in the tenant..." -ForegroundColor Green
 [array]$Users = Get-MgUser -Filter "assignedLicenses/`$count ne 0 and userType eq 'Member' and accountEnabled ne false" `
-    -ConsistencyLevel Eventual -CountVariable Count -Select Id,DisplayName,UserPrincipalName,accountEnabled -PageSize 500
+    -ConsistencyLevel Eventual -CountVariable Count -Select Id,DisplayName,UserPrincipalName,accountEnabled -PageSize 500 -All
 
 Write-Host ("Total of {0} licensed member user accounts found in tenant" -f $Users.count)
 $Report = [System.Collections.Generic.List[object]]::new()
