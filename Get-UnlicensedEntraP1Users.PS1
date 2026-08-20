@@ -5,6 +5,7 @@
 # V1.0 12-Aug-2026
 
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Get-UnlicensedEntraP1Users.PS1
+# Associated article: https://office365itpros.com/2026/08/18/find-entra-p1-accounts-to-license/
 
 # Permissions required to run this script:
 # - Policy.Read.All:        Read conditional access policy settings
