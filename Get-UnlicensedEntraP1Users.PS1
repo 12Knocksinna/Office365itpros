@@ -156,7 +156,7 @@ Write-Host "Product SKUs with entitlement to Entra P1 or P2 licenses in the tena
 $EntraSkus | Format-Table SkuId, SkuPartNumber, @{n="Prepaid Units"; e={$_.PrepaidUnits.Enabled}} -AutoSize
 
 # Fetch licensed users with a license that includes an Entra P1 or P2 service plan
-[array]$LicensedP1Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses -PageSize 500 `
+[array]$LicensedP1Users = Get-MgUser -ConsistencyLevel Eventual -CountVariable Licenses -PageSize 500 -All`
     -Property Id, displayName, userPrincipalName, assignedPlans `
     -Filter "(assignedPlans/any(s:s/servicePlanId eq $EntraPlan2) or assignedPlans/any(s:s/servicePlanId eq $EntraPlan1)) and userType eq 'Member' and accountEnabled ne false"
     
