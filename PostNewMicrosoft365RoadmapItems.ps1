@@ -6,6 +6,7 @@
 # Teams channel using the Office 365 incoming webhook connector.
 
 # V1.0 7 Jan 2020
+# V1.1 7 Sept 2026 Updated to use Power Automate workflow to post to Teams channel instead of using the webhook directly. This is because the webhook connector is being deprecated by Microsoft and will be removed in 2027. The Power Automate flow is a simple flow that takes the JSON payload and posts it to the Teams channel.
 
 # URI pointing to the webhook connector for the target Teams channel - this will be different in your tenant!
 $Uri = "https://defaultb662313f14fc43a29a7ad2e27f4f34.00.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/10/workflows/29bf5cf4a6b04069bb855b7a188eac7e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=p8_vC2OTmeYOmAg0DYBE6mODjG__ktb8RaecsCELbCU"
@@ -163,8 +164,8 @@ $Payload = $PayloadObject | ConvertTo-Json -Depth 10 -Compress
     }
 }
 
-# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com. See our post about the Microsoft 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
