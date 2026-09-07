@@ -182,7 +182,8 @@ $TotalArchivedFilesSize = ($Global:ReportData | Measure-Object -Property SizeInB
 $StorageSavingsBytes = ($TotalArchivedFilesSize / 4)*3
 $StorageSavings = FormatFileSize $StorageSavingsBytes
 
-Write-Output ("Total Microsoft 365 groups processed: {0}" -f $Groups.Count)
+Write-Output ""
+Write-Output ("Total Microsoft 365 groups found for processing: {0}" -f $Groups.Count)
 If ($BlockedSites -gt 0) {
     Write-Output ("Unable to access Microsoft 365 groups: {0}" -f $BlockedSites)
 }
@@ -191,8 +192,6 @@ Write-Output ("Total files processed: {0}" -f $Global:TotalFiles)
 Write-Output ("Total archived files found: {0}" -f $Global:ReportData.Count)
 Write-Output ("Total size of archived files found: {0}" -f (FormatFileSize $TotalArchivedFilesSize))
 Write-Output ("Estimated storage savings from archived files: {0}" -f $StorageSavings)
-
-# Now analyze the results and output a report of the archived files found in the Microsoft 365 groups.
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 

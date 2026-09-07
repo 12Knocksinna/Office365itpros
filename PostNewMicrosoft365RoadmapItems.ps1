@@ -1,14 +1,14 @@
 # Adapted from the original https://github.com/einast/PS_M365_scripts/blob/master/M365RoadmapUpdates.ps1
 # See https://thingsinthe.cloud/Teams-message-cards-Getting-Office-365-roadmap-into-channel/ for details
-£ https://github.com/12Knocksinna/Office365itpros/blob/master/PostNewMicrosoft365RoadmapItems.ps1
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/PostNewMicrosoft365RoadmapItems.ps1
 # A script to grab roadmap items from the Microsoft 365 roadmap, store them in a list that's written to a CSV file after parsing
 # the items to figure out what they relate to. The second part of the script looks for recent roadmap items and posts them to a 
 # Teams channel using the Office 365 incoming webhook connector.
 
 # V1.0 7 Jan 2020
 
-# URI pointing to the Office 365 webhook connector for the target Teams channel - this will be different in your tenant!
-$URI = "https://outlook.office.com/webhook/7aa49aa6-7840-443d-806c-08ebe8f59966@b662313f-14fc-43a2-9a7a-d2e27f4f3478/IncomingWebhook/8592f62b50cf41b9b93ba0c0a00a0b88/eff4cd58-1bb8-4899-94de-795f656b4a18"
+# URI pointing to the webhook connector for the target Teams channel - this will be different in your tenant!
+$Uri = "https://defaultb662313f14fc43a29a7ad2e27f4f34.00.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/10/workflows/29bf5cf4a6b04069bb855b7a188eac7e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=p8_vC2OTmeYOmAg0DYBE6mODjG__ktb8RaecsCELbCU"
 
 $RoadmapItems = 'https://www.microsoft.com/en-us/microsoft-365/RoadmapFeatureRSS'
 $Report = [System.Collections.Generic.List[Object]]::new()
@@ -110,56 +110,56 @@ ForEach ($Item in $Updates) {
 Write-Host $Report.Count "Microsoft 365 Roadmap Items stored in c:\temp\RoadmapItems.csv"
 $Report | Sort-Object FeatureId | Export-CSV -NoTypeInformation c:\temp\RoadmapItems.csv
 
-Write-Host "Checking the Roadmap for Office 365 updates in the last" $DaysToCheck "days..."
+Write-Host "Checking the Roadmap for Microsoft 365 updates in the last" $DaysToCheck "days..."
 ForEach ($Item in $Report) {
      $ItemAge = ($Item.Date | New-TimeSpan).Days
      If ($ItemAge -lt $DaysToCheck -and $Item.O365 -eq $True ) {
-       # Convert MessageText to JSON beforehand, if not the payload will fail.
-       $MessageText = ConvertTo-Json $Item.Description
+    
        # Generate payload(s)          
-       $Payload = @"
-{
-    "@context": "https://schema.org/extensions",
-    "@type": "MessageCard",
-    "potentialAction": [
-            {
-            "@type": "OpenUri",
-            "name": "More info",
-            "targets": [
-                {
-                    "os": "default",
-                    "uri": "$($Item.Link)"
+       $PayloadObject = @{
+    '@context' = 'https://schema.org/extensions'
+    '@type'    = 'MessageCard'
+    potentialAction = @(
+        @{
+            '@type' = 'OpenUri'
+            name    = 'More info'
+            targets = @(
+                @{
+                    os  = 'default'
+                    uri = $Item.Link
                 }
-            ]
-        },
-     ],
-    "sections": [
-        {
-            "facts": [
-                {
-                    "name": "Status:",
-                    "value": "$($Item.Status)"
-                },
-                {
-                    "name": "Category:",
-                    "value": "$($Item.Categories)"
-                },
-            {
-                    "name": "Date:",
-                    "value": "$($Item.Date)"
-                }
-            ],
-            "text": $($MessageText)
+            )
         }
-    ],
-    "summary": "$($Item.Title)",
-    "themeColor": "$($Item.Color)",
-    "title": "Feature ID: $($Item.FeatureId) - $($Item.Title)"
+    )
+    sections = @(
+        @{
+            facts = @(
+                @{
+                    name  = 'Status:'
+                    value = $Item.Status
+                }
+                @{
+                    name  = 'Category:'
+                    value = $Item.Categories
+                }
+                @{
+                    name  = 'Date:'
+                    value = $Item.Date
+                }
+            )
+            text = $Item.Description
+        }
+    )
+    summary    = $Item.Title
+    themeColor = $Item.Color
+    title      = "Feature ID: $($Item.FeatureId) - $($Item.Title)"
 }
-"@
+
+$Payload = $PayloadObject | ConvertTo-Json -Depth 10 -Compress
+
     # If we have an update, post details to Teams
     Write-Host "Posting details of feature" $Item.FeatureID "to Teams."
-    $Status = (Invoke-RestMethod -uri $URI -Method Post -body $Payload -ContentType 'application/json; charset=utf-8')
+    Invoke-RestMethod -uri $URI -Method Post -body $Payload -ContentType 'application/json; charset=utf-8'
     }
 }
 
