@@ -8,7 +8,7 @@
 # sites. Given the number of files that might be checked, best to use an Azure Automation runbook with a managed identity that has access to the sites. The script uses Microsoft Graph PowerShell SDK to connect and retrieve data.
 
 # V1.0 2-Sept-2026
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ArchivedSPOFiles.PS1
 
 function FormatFileSize {
     # Format File Size nicely
