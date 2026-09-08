@@ -102,7 +102,7 @@ ForEach ($Service in $ImportantServiceStatus) {
         "OrgLiveID"             { $ServiceName = "Entra ID" }
         "Planner"               { $ServiceName = "Microsoft Planner" }
         "microsoftteams"        { $ServiceName = "Microsoft Teams" }
-        "O365Client"            { $ServiceName = "Office 365 Client" }
+        "O365Client"            { $ServiceName = "Microsoft 365 Client" }
         "OneDriveForBusiness"   { $ServiceName = "OneDrive for Business" }
     }
     # Update the list of services
