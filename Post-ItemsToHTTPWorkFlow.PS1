@@ -45,7 +45,7 @@ $Card = @'
 }
 '@
 
-# Webhook to post the adaptive card to - each team channel will have a different webhook. The webhook below is for illustrative purposes only.
+# Webhook to post the adaptive card to - each team channel will have a different webhook. The webhook below is for illustrative purposes only and is invalid.
 #You will need to create your own webhook for the channel you want to post to.
 # Use the Workflows option to get a webhook for the 'Post to a channel when a webhook request is received' workflow in Power Automate
 $WebHook = "https://prod-161.westeurope.logic.azure.com:443/workflows/643e69f83c8944438d68119179a10axx/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=KODuebWbDGYFr0z0eu-6Rj8aUKz7108W3wrNJZxFE5A"
