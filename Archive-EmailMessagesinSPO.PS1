@@ -5,7 +5,7 @@
 # sites. Given the number of files that might be checked, best to use an Azure Automation runbook with a managed identity that has access to the sites. The script uses Microsoft Graph PowerShell SDK to connect and retrieve data.
 
 # V1.0 8-Sept-2026
-# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ArchivedSPOFiles.PS1
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Archive-EmailMessagesinSPO.PS1
 
 # Files.ReadWrite.All is needed to archive files in SharePoint Online
 
@@ -50,7 +50,7 @@ function Get-DriveItems {
     # Equivalent Graph SDK cmdlet when the SDK is updated (last checked with V2.39)
     # [array]$Data = Get-MgDriveItemChild -DriveId $Drive -DriveItemId $FolderId -All
 
-    $FolderUri = "https://graph.microsoft.com/v1.0/drives/$DriveId/items/$FolderId"
+    $FolderUri = ("https://graph.microsoft.com/v1.0/drives/{0}/items/{1}" -f $DriveId, $FolderId)
 
     Try {
         $FolderInfo = Invoke-MgGraphRequest -Uri $FolderUri -Method Get -OutputType PSObject -ErrorAction Stop
@@ -96,14 +96,14 @@ function Get-DriveItems {
     [array]$Files = $FolderData | Where-Object {$null -ne $_.file.mimetype} | Sort-Object Name
 
     If (!$ProcessFolder) {
-        Write-Host ("Skipping folder {0} as it does not match an email messages folder name" -f $FolderName)
+        Write-Output ("Skipping folder {0} as it does not match an email messages folder name" -f $FolderName)
         # Process the child folders 
         ForEach ($Folder in $Folders) {
             # Write-Host ("====> Checking folder {0} ({1} files/size {2})" -f $Folder.Name, $Folder.folder.childcount, (FormatFileSize $Folder.Size))
             Get-DriveItems -DriveId $DriveId -FolderId $Folder.Id
         }
     } Else {   
-        Write-Output ("Processing Email folder {0} ({1} files/size {2})" -f $FolderName, $Files.Count, (FormatFileSize ($Files | Measure-Object -Property Size -Sum).Sum))
+        Write-Output ("!!! Processing files in email folder {0} ({1} files/size {2})" -f $FolderName, $Files.Count, (FormatFileSize ($Files | Measure-Object -Property Size -Sum).Sum))
         # Process the files found in the folder.
         ForEach ($File in $Files) {  
 
