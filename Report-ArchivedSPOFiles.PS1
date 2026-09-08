@@ -93,6 +93,24 @@ function Get-DriveItems {
         If ($File.CreatedDateTime) {
             $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
         }
+
+        $YearCreated = Get-Date $FileCreatedDateTime -format 'yyyy'
+        $FileType = $File.file.fileExtension
+        Switch ($FileType) {
+            '.csv' { $FileType = 'CSV File' }
+            '.docx' { $FileType = 'Word Document' }
+            '.doc' { $FileType = 'Word Document (old format)' }
+            '.mht' { $FileType = 'MHTML Document' }
+            '.eml' { $FileType = 'Email Message' }
+            '.xlsx' { $FileType = 'Excel Spreadsheet' }
+            '.xls' { $FileType = 'Excel Spreadsheet (old format)' }
+            '.pptx' { $FileType = 'PowerPoint Presentation' }
+            '.ppt' { $FileType = 'PowerPoint Presentation (old format)' }
+            '.pdf' { $FileType = 'PDF Document' }
+            '.jpg' { $FileType = 'JPEG Image' }
+            '.jpeg' { $FileType = 'JPEG Image' }
+            default { $FileType = $File.file.mimeType }
+        }
         
         $ReportLine = [PSCustomObject]@{
             Site                    = $SiteName
@@ -105,13 +123,15 @@ function Get-DriveItems {
             'Last modified by'      = $File.LastModifiedBy.User.DisplayName
             SizeInBytes             = $File.Size
             ArchiveStatus           = $File.File.ArchiveStatus
+            YearCreated             = $YearCreated
+            FileType                = $FileType
         }
         $ReportData.Add($ReportLine)
     }
 
     # Process the child folders 
     ForEach ($Folder in $Folders) {
-        Write-Host ("Processing folder {0} ({1} files/size {2})" -f $Folder.Name, $Folder.folder.childcount, (FormatFileSize $Folder.Size))
+        Write-Host ("====> Processing folder {0} ({1} files/size {2})" -f $Folder.Name, $Folder.folder.childcount, (FormatFileSize $Folder.Size))
         Get-DriveItems -DriveId $DriveId -FolderId $Folder.Id
     }
 }
@@ -129,7 +149,7 @@ Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbpr
 
 # Find the Microsoft 365 groups in the tenant. We use the groups to find the associated SharePoint Online sites.
 # The script will then check each site for archived files.
-$Global:ReportData = [System.Collections.Generic.List[Object]]::new()
+
 Try {
     [array]$Groups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'unified')" -All -ErrorAction Stop
 } Catch {
@@ -141,6 +161,7 @@ $Groups = $Groups | Sort-Object DisplayName
 Write-Output ("{0} Microsoft 365 groups found" -f $Groups.Count)
 [int]$BlockedSites = 0
 
+$Global:ReportData = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Group in $Groups) {
     Write-Output ("Processing group: {0}..." -f $Group.DisplayName)
     Try {
@@ -158,23 +179,33 @@ ForEach ($Group in $Groups) {
     }
 
     $SiteId = $GroupSite.Id
-    Try {
-        # Get default document library (drive) for the site.
-        $Drive = Get-MgSiteDefaultDrive -SiteId $SiteId -ErrorAction Stop
-    } Catch {
-        Write-Error "Failed to retrieve default drive for site $($GroupSite.DisplayName): $_"
-        Continue
-    }
-    $DriveId = $Drive.Id
     $Global:SiteName = $GroupSite.displayName
+    
     Try {
-        $RootId = Get-MgDriveRoot -DriveId $DriveId -ErrorAction Stop
+        # Get the document libraries for the site.
+        # $Drive = Get-MgSiteDefaultDrive -SiteId $SiteId -ErrorAction Stop
+        [array]$Drives = Get-MgSiteDrive -SiteId $GroupSite.Id -ErrorAction Stop
     } Catch {
-        Write-Error "Failed to retrieve root folder for drive $($Drive.Name): $_"
+        Write-Error "Failed to retrieve drives for site $($GroupSite.DisplayName): $_"
         Continue
     }
-    $RootId = $RootId.Id
-    [array]$ArchivedFiles = Get-DriveItems -DriveId $DriveId -FolderId $RootId
+
+    # Remove the preservation hold library from the list of drives to process, as it is not relevant for this report.
+    $Drives = $Drives | Where-Object {$_.Name -ne 'Preservation Hold Library'}
+    ForEach ($Drive in $Drives) {
+        Write-Output ("==> Processing document library: {0}..." -f $Drive.Name)
+    
+        $DriveId = $Drive.Id
+     
+        Try {
+            $RootId = Get-MgDriveRoot -DriveId $DriveId -ErrorAction Stop
+        } Catch {
+            Write-Error "Failed to retrieve root folder for drive $($Drive.Name): $_"
+            Continue
+        }
+        $RootId = $RootId.Id
+        [array]$ArchivedFiles = Get-DriveItems -DriveId $DriveId -FolderId $RootId
+    }
 }
 
 # Generate some statistics
@@ -192,6 +223,22 @@ Write-Output ("Total files processed: {0}" -f $Global:TotalFiles)
 Write-Output ("Total archived files found: {0}" -f $Global:ReportData.Count)
 Write-Output ("Total size of archived files found: {0}" -f (FormatFileSize $TotalArchivedFilesSize))
 Write-Output ("Estimated storage savings from archived files: {0}" -f $StorageSavings)
+
+# Analyze the years when archived files were created
+Write-Output "Archived Files by Year of Creation"
+Write-Output "----------------------------------"
+$ArchivedFilesByYear = $Global:ReportData | Group-Object -Property YearCreated
+Foreach ($YearGroup in $ArchivedFilesByYear) {
+    Write-Output ("{0}: {1}" -f $YearGroup.Name, $YearGroup.Count)
+}
+# Analyze the file types of archived files
+Write-Output ""
+Write-Output "Archived Files by Type"
+Write-Output "----------------------"
+$ArchivedFilesByType = $Global:ReportData | Group-Object -Property FileType
+Foreach ($TypeGroup in $ArchivedFilesByType) {
+    Write-Output ("{0}: {1}" -f $TypeGroup.Name, $TypeGroup.Count)
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
