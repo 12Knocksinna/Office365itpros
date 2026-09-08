@@ -1,7 +1,9 @@
 # Post-ItemstoHTTPWorkFlow.ps1
 # An example of posting an adaptive card to the Power Automate 'Post to a channel when a webhook request is received' workflow
 # V1.0 12-Jun-2024
+# V1.1 8-Sep-2026 
 # Github link: https://github.com/12Knocksinna/Office365itpros/blob/master/Post-ItemsToHTTPWorkFlow.PS1
+# Article: https://office365itpros.com/2024/06/17/teams-post-to-channel-workflow/
 
 # Define a protype adaptive card to use to post to the webhook
 $Card = '{
@@ -35,7 +37,9 @@ $Card = '{
        ]
 }'
 
-# Webhook to post the adaptive card to - each team channel will have a different webhook
+# Webhook to post the adaptive card to - each team channel will have a different webhook. The webhook below is for illustrative purposes only.
+#You will need to create your own webhook for the channel you want to post to.
+# Use the Workflows option to get a webhook for the 'Post to a channel when a webhook request is received' workflow in Power Automate
 $WebHook = "https://prod-161.westeurope.logic.azure.com:443/workflows/643e69f83c8944438d68119179a10a64/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=KODuebWbDGYFr0z0eu-6Rj8aUKz7108W3wrNJZxFE5A"
 
 # Connect to the Microsoft Graph PowerShell SDK with the permission to read service health data
@@ -137,14 +141,14 @@ $Card = $Card.Replace("MessageHeader",$MessageHeader).Replace("InsertFacts",$Fac
 # And post the card to the webhook
 Write-Host "Posting adaptive card to webhook..."
 Try {
-    Invoke-MgGraphRequest -uri $WebHook -Method Post -body $Card 
+    Invoke-MgGraphRequest -uri $WebHook -Method Post -body $Card -ErrorAction Stop
     Write-Host "Service health status successfully posted to Teams channel"
 } Catch {
     Write-Host "Failed to post adaptive card to webhook: $_"
 }   
 
-# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
+# An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Microsoft 365 for IT Pros repository # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the need of your organization. Never run any code downloaded from the Internet without
 # first validating the code in a non-production environment.
