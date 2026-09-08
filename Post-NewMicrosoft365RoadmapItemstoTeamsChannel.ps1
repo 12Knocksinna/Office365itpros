@@ -26,57 +26,152 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Item in $Updates) {               
     # Figure out the categories
 
-      $i = $Item.Category.Count
-      $Categories = $Item.Category[0..$i] -join ", "
+    $i = $Item.Category.Count
+    $Categories = $Item.Category[0..$i] -join ", "
 
-      #Set the color line of the card according to the Status of the environment
-      if ($Item.Category.Contains("In development")) { $Color = "ff0000"  }
-        elseif ($Item.Category.Contains("Rolling out")) { $color = "ffff00"  }
-        else { $color = "00cc00"  }
-     # Now process the categories to identify favorite products
-     $Outlook = $False; $OneDrive = $False; $Clipchamp = $False; $Exchange = $False; $SharePoint = $False; $Windows = $False; `
+    #Set the color line of the card according to the Status of the environment
+    If ($Item.Category.Contains("In development")) { 
+        $Color = "ff0000"  
+        } Elseif ($Item.Category.Contains("Rolling out")) { 
+            $Color = "ffff00"  
+        } Else { 
+            $Color = "00cc00" 
+    }
+    # Now process the categories to identify favorite products
+    $Outlook = $False; $OneDrive = $False; $Clipchamp = $False; $Exchange = $False; $SharePoint = $False; $Windows = $False; `
         $InTune = $False; $VivaEngage = $False; $EntraID = $False; $Forms = $False; $iOS = $False; $Android = $False; $O365 = $False; `
         $Project = $False; $Planner = $False; $Teams = $False; $GCC = $False; $Education = $False; $Mac = $False; $Excel = $False; `
         $Developer = $False; $AllEnv = $False; $StandardMT = $False; $MCAS = $False; $Dod = $False; $MIP = $False; $Visio = $False; `
         $Technology = $Null; $Purview = $false; $Viva = $false; $Color = $Null; $Copilot = $false; $Availability = $Null
-        If ($Item.Category.Contains("Outlook")) { 
-            $Outlook = $True
-            $O365 = $true
-            $Technology = "Outlook"
-        }
-        If ($Item.Category.Contains("Microsoft Copilot")) { 
-            $Copilot = $True
-            $O365 = $True
-            $Technology = "Microsoft Copilot for Microsoft 365" 
-        }
-     If ($Item.Category.Contains("Exchange")) { $Exchange = $True; $O365 = $True; $Technology = "Exchange Online" }
-     If ($Item.Category.Contains("SharePoint")) { $SharePoint = $True; $O365 = $True; $Technology = "SharePoint Online"}
-     If ($Item.Category.Contains("OneDrive")) { $OneDrive = $True; $O365 = $True; $Technology = "OneDrive for Business"}
-     If ($Item.Category.Contains("Microsoft Viva")) { $Viva = $True; $O365 = $True; $Technology = "Microsoft Viva" }
-     If ($Item.Category.Contains("Microsoft Clipchamp")) { $Clipchamp = $True; $O365 = $True; $Technology = "Microsoft Clipchamp" }
-      If ($Item.Category.Contains("Microsoft Purview")) { $Purview = $True; $O365 = $True; $Technology = "Microsoft Purview" }
-     If ($Item.Category.Contains("Windows Desktop") -or $Item.Category.Contains("Windows")) { $Windows = $True; $Technology = "Windows" }
-     If ($Item.Category.Contains("Microsoft Intune")) { $Intune = $True; $Technology = "Intune" }
-     If ($Item.Category.Contains("Viva Engage")) { $VivaEngage = $True; $O365 = $True; $Technology = "Viva Engage" }
-     If ($Item.Category.Contains("Entra ID")) { $EntraID = $True; $Technology = "Entra ID" }
-     If ($Item.Category.Contains("Microsoft Forms")) { $Forms = $True; $O365 = $True; $Technology = "Forms" }
-     If ($Item.Category.Contains("iOS")) { $iOS = $True; $Technology = "Clients" }
-     If ($Item.Category.Contains("Android")) { $Android = $True ; $Technology = "Clients" }
-     If ($Item.Category.Contains("Mac")) { $Mac = $True; $Technology = "Clients" }
-     If ($Item.Category.Contains("Visio")) { $Visio = $True; $Technology = "Desktop App" }
-     If ($Item.Category.Contains("Excel")) { $Excel = $True; $Technology = "Desktop App" }
-     If ($Item.Category.Contains("Microsoft Information Protection") -or $Item.Category.Contains("Azure Information Protection")) { $MIP = $True; $Technology = "Information Protection" }
-     If ($Item.Category.Contains("Project")) { $Project = $True; $Technology = "Project" }
-     If ($Item.Category.Contains("Planner")) { $Planner = $True; $O365 = $True; $Technology = "Planner" }
-     If ($Item.Category.Contains("Microsoft Teams")) { $Teams = $True; $O365 = $True; $Technology = "Teams"}
-     If ($Item.Category.Contains("O365") -or $Item.Category.Contains("Office 365")) { $O365 = $True }
-     If ($Item.Category.Contains("Microsoft Cloud App Security")) { $MCAS = $True; $Technology = "Cloud App Security" }
-     If ($Item.Category.Contains("GCC")) { $GCC = $True; $Technology = "GCC" }
-     If ($Item.Category.Contains("Dod")) { $Dod = $True; $Technology = "DoD"}
-     If ($Item.Category.Contains("Education")) { $Education = $True; $Technology = "Education" }
-     If ($Item.Category.Contains("Developer")) { $Developer = $True }
-     If ($Item.Category.Contains("All Environments")) { $AllEnv = $True }
-     If ($Item.Category.Contains("Standard Multi-Tenant")) { $StandardMT = $True }
+        
+    If ($Item.Category.Contains("Outlook")) { 
+        $Outlook = $True
+        $O365 = $true
+        $Technology = "Outlook"
+    }
+    If ($Item.Category.Contains("Microsoft Copilot")) { 
+        $Copilot = $True
+        $O365 = $True
+        $Technology = "Microsoft Copilot for Microsoft 365" 
+    }
+    If ($Item.Category.Contains("Exchange")) { 
+        $Exchange = $True
+        $O365 = $True
+        $Technology = "Exchange Online" 
+    }
+    If ($Item.Category.Contains("SharePoint")) { 
+        $SharePoint = $True
+        $O365 = $True
+        $Technology = "SharePoint Online"
+    }
+    If ($Item.Category.Contains("OneDrive")) { 
+        $OneDrive = $True
+        $O365 = $True
+        $Technology = "OneDrive for Business"
+    }
+    If ($Item.Category.Contains("Microsoft Viva")) { 
+        $Viva = $True
+        $O365 = $True
+        $Technology = "Microsoft Viva" 
+    }
+    If ($Item.Category.Contains("Microsoft Clipchamp")) { 
+        $Clipchamp = $True
+        $O365 = $True
+        $Technology = "Microsoft Clipchamp" 
+    }
+    If ($Item.Category.Contains("Microsoft Purview")) { 
+        $Purview = $True
+        $O365 = $True
+        $Technology = "Microsoft Purview" 
+    }
+    If ($Item.Category.Contains("Windows Desktop") -or $Item.Category.Contains("Windows")) { 
+        $Windows = $True
+        $Technology = "Windows" 
+    }
+    If ($Item.Category.Contains("Microsoft Intune")) { 
+        $Intune = $True
+        $Technology = "Intune" 
+    }
+    If ($Item.Category.Contains("Viva Engage")) { 
+        $VivaEngage = $True
+        $O365 = $True
+        $Technology = "Viva Engage" 
+    }
+    If ($Item.Category.Contains("Entra ID")) { 
+        $EntraID = $True
+        $Technology = "Entra ID" 
+    }
+    If ($Item.Category.Contains("Microsoft Forms")) { 
+        $Forms = $True
+        $O365 = $True
+        $Technology = "Forms" 
+    }
+    If ($Item.Category.Contains("iOS")) { 
+        $iOS = $True
+        $Technology = "Clients" 
+    }
+    If ($Item.Category.Contains("Android")) { 
+        $Android = $True
+        $Technology = "Clients" 
+    }
+    If ($Item.Category.Contains("Mac")) { 
+        $Mac = $True
+        $Technology = "Clients" 
+    }
+    If ($Item.Category.Contains("Visio")) { 
+        $Visio = $True
+        $Technology = "Desktop App" 
+    }
+    If ($Item.Category.Contains("Excel")) { 
+        $Excel = $True
+        $Technology = "Desktop App" 
+    }
+    If ($Item.Category.Contains("Microsoft Information Protection") -or $Item.Category.Contains("Azure Information Protection")) { 
+        $MIP = $True
+        $Technology = "Information Protection" 
+    }
+    If ($Item.Category.Contains("Project")) { 
+        $Project = $True
+        $Technology = "Project" 
+    }
+    If ($Item.Category.Contains("Planner")) { 
+        $Planner = $True
+        $O365 = $True
+        $Technology = "Planner" 
+    }
+    If ($Item.Category.Contains("Microsoft Teams")) { 
+        $Teams = $True
+        $O365 = $True
+        $Technology = "Teams" 
+    }
+    If ($Item.Category.Contains("O365") -or $Item.Category.Contains("Office 365")) { 
+            $O365 = $True 
+    }
+    If ($Item.Category.Contains("Microsoft Cloud App Security")) { 
+        $MCAS = $True
+        $Technology = "Cloud App Security" 
+    }
+    If ($Item.Category.Contains("GCC")) { 
+        $GCC = $True
+        $Technology = "GCC" 
+    }
+    If ($Item.Category.Contains("Dod")) { 
+        $Dod = $True
+        $Technology = "DoD"
+    }
+    If ($Item.Category.Contains("Education")) { 
+        $Education = $True
+        $Technology = "Education" 
+    }
+    If ($Item.Category.Contains("Developer")) { 
+        $Developer = $True 
+    }
+    If ($Item.Category.Contains("All Environments")) { 
+        $AllEnv = $True 
+    }
+    If ($Item.Category.Contains("Standard Multi-Tenant")) { 
+        $StandardMT = $True 
+    }
 
     $ItemAge = ($Item.PubDate | New-TimeSpan).Days
     If ($ItemAge -lt $DaysToCheck -and $O365 -eq $True ) {
