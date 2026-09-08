@@ -143,7 +143,7 @@ function Get-DriveItems {
 # $TenantId and $CertificateThumbprint to match your app registration.
 
 $AppId = 'd4c18027-cb9c-4983-b2d8-8ba6a5e753e7'
-$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $CertificateThumbprint = '8D225839321765FE6D224D393CDE5A61A45CD846'
 Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertificateThumbprint
 

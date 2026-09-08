@@ -7,6 +7,8 @@
 # V1.0 8-Sept-2026
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ArchivedSPOFiles.PS1
 
+# Files.ReadWrite.All is needed to archive files in SharePoint Online
+
 function FormatFileSize {
     # Format File Size nicely
     param (
@@ -101,7 +103,7 @@ function Get-DriveItems {
             Get-DriveItems -DriveId $DriveId -FolderId $Folder.Id
         }
     } Else {   
-        Write-Output ("Processing folder {0} ({1} files/size {2})" -f $FolderName, $Files.Count, (FormatFileSize ($Files | Measure-Object -Property Size -Sum).Sum))
+        Write-Output ("Processing Email folder {0} ({1} files/size {2})" -f $FolderName, $Files.Count, (FormatFileSize ($Files | Measure-Object -Property Size -Sum).Sum))
         # Process the files found in the folder.
         ForEach ($File in $Files) {  
 
@@ -158,7 +160,7 @@ function Get-DriveItems {
 # $TenantId and $CertificateThumbprint to match your app registration.
 
 $AppId = 'd4c18027-cb9c-4983-b2d8-8ba6a5e753e7'
-$TenantId = 'b662313f-14fc-43a2-9a7a-d2e27f4f3478'
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $CertificateThumbprint = '8D225839321765FE6D224D393CDE5A61A45CD846'
 Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertificateThumbprint
 
