@@ -6,36 +6,44 @@
 # Article: https://office365itpros.com/2024/06/17/teams-post-to-channel-workflow/
 
 # Define a protype adaptive card to use to post to the webhook
-$Card = '{
-       "type": "message",
-       "attachments":[
+$Card = @'
+{
+  "type": "message",
+  "attachments": [
+    {
+      "contentType": "application/vnd.microsoft.card.adaptive",
+      "contentUrl": null,
+      "content": {
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "type": "AdaptiveCard",
+        "version": "1.4",
+        "msteams": {
+          "width": "Full"
+        },
+        "body": [
           {
-             "contentType":"application/vnd.microsoft.card.adaptive",
-             "contentUrl":null,
-             "content":{
-                "$schema":"http://adaptivecards.io/schemas/adaptive-card.json",
-                "type":"AdaptiveCard",
-                "version":"1.4",
-                "body":[
-                    {
-                        "type": "Image",
-                        "url": "https://office365itpros.com/wp-content/uploads/2024/06/ProblemIndicator.jpg",
-                        "height": "30px",
-                        "altText": "Problem report"
-                    },
-                    {
-                    "type": "TextBlock",
-                    "text": "**MessageHeader**",
-                    "style": "heading"
-                    },
-                    {
-                    "type": "FactSet",
-                    "facts": [
-                       InsertFacts
-                    ]
-                }
-       ]
-}'
+            "type": "Image",
+            "url": "https://office365itpros.com/wp-content/uploads/2024/06/ProblemIndicator.jpg",
+            "height": "30px",
+            "altText": "Problem report"
+          },
+          {
+            "type": "TextBlock",
+            "text": "**MessageHeader**",
+            "size": "Large",
+            "weight": "Bolder",
+            "wrap": true
+          },
+          {
+            "type": "FactSet",
+            "facts": InsertFacts
+          }
+        ]
+      }
+    }
+  ]
+}
+'@
 
 # Webhook to post the adaptive card to - each team channel will have a different webhook. The webhook below is for illustrative purposes only.
 #You will need to create your own webhook for the channel you want to post to.
@@ -51,7 +59,12 @@ Connect-MgGraph -NoWelcome -Scopes ServiceHealth.Read.All
 # Grab the service health data
 Write-Host "Retrieving service health data..."
 $Uri = "https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/healthOverviews"
-[array]$Data = Invoke-MgGraphRequest -Method Get -Uri $Uri
+Try {
+    [array]$Data = Invoke-MgGraphRequest -Method Get -Uri $Uri -OutputType "PSObject" -ErrorAction Stop
+} Catch {
+    Write-Host "Failed to retrieve service health data: $_"
+    return
+}
 
 # Extract the service health data for the services we're interested in
 [array]$ImportantServiceStatus = $Data.Value | Where-Object {$_.Id -in $ImportantServices}
@@ -65,22 +78,23 @@ $Report = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Service in $ImportantServiceStatus) {
     # add a graphic indicator based on the service status
     $ServiceIndicator = $null
-    Switch ($Service.Status) {
-        "ServiceOperational"    { $ServiceIndicator = "✅" }
-        "ServiceRestored"       { $ServiceIndicator = "🟢" }
-        "serviceDegradation"    { $ServiceIndicator = "🟡" }
-        "ServiceInterruption"   { $ServiceIndicator = "🔴" }
-        "ExtendedRecovery"      { $ServiceIndicator = "🟠" }
-        "FalsePositive"         { $ServiceIndicator = "🟣" }
-        "ServiceIncident"       { $ServiceIndicator = "🔵" }
-        "ServiceRestoration"    { $ServiceIndicator = "🟢" }
-        "ServiceMaintenance"    { $ServiceIndicator = "🔧" }
-        "ServiceInfo"           { $ServiceIndicator = "ℹ️" }
-        "ServiceWarning"        { $ServiceIndicator = "⚠️" }
-        "ServiceUnknown"        { $ServiceIndicator = "❓" }
+    Switch ($Service.Status.tolower()) {
+        "serviceoperational"    { $ServiceIndicator = "✅" }
+        "servicerestored"       { $ServiceIndicator = "🟢" }
+        "servicedegradation"    { $ServiceIndicator = "🟡" }
+        "serviceinterruption"   { $ServiceIndicator = "🔴" }
+        "extendedrecovery"      { $ServiceIndicator = "🟠" }
+        "falsepositive"         { $ServiceIndicator = "🟣" }
+        "serviceincident"       { $ServiceIndicator = "🔵" }
+        "servicerestoration"    { $ServiceIndicator = "🟢" }
+        "servicemaintenance"    { $ServiceIndicator = "🔧" }
+        "serviceinfo"           { $ServiceIndicator = "ℹ️" }
+        "servicewarning"        { $ServiceIndicator = "⚠️" }
+        "serviceunknown"        { $ServiceIndicator = "❓" }
         Default                 { $ServiceIndicator = "❌" }
     }
     # Nicer names for the services
+    $ServiceName = $Service.Id
     Switch ($Service.Id) {
         "Exchange"              { $ServiceName = "Exchange Online" }
         "Teams"                 { $ServiceName = "Microsoft Teams" }
@@ -103,40 +117,36 @@ ForEach ($Service in $ImportantServiceStatus) {
 
 # Sort by service name
 $Report = $Report | Sort-Object ServiceName
-# Format the facts about service health to insert into the adaptive card
-[string]$Facts = $null
-[int]$Count = 1
-ForEach ($R in $Report) {
-   # Nicer names for the operational status
-    Switch ($R.Status) {
-        "ServiceOperational"    { $RStatus = "Operational" }
-        "ServiceRestored"       { $RStatus = "Restored" }
-        "serviceDegradation"    { $RStatus = "Degradation" }
-        "ServiceInterruption"   { $RStatus = "Interruption" }
-        "ExtendedRecovery"      { $RStatus = "Extended Recovery" }
-        "FalsePositive"         { $RStatus = "False Positive" }
-        "ServiceIncident"       { $RStatus = "Incident" }
-        "ServiceRestoration"    { $RStatus = "Restoration" }
-        "ServiceMaintenance"    { $RStatus = "Maintenance" }
-        "ServiceInfo"           { $RStatus = "Information" }
-        "ServiceWarning"        { $RStatus = "Warning" }
-        "ServiceUnknown"        { $RStatus = "Unknown" }
-        Default                 { $RStatus = "Unknown" }
+# Format the facts about service health for the adaptive card
+$Facts = ForEach ($R in $Report) {
+    Switch ($R.Status.ToLowerInvariant()) {
+        "serviceoperational"  { $RStatus = "Operational" }
+        "servicerestored"     { $RStatus = "Restored" }
+        "servicedegradation"  { $RStatus = "Degradation" }
+        "serviceinterruption" { $RStatus = "Interruption" }
+        "extendedrecovery"    { $RStatus = "Extended Recovery" }
+        "falsepositive"       { $RStatus = "False Positive" }
+        "serviceincident"     { $RStatus = "Incident" }
+        "servicerestoration"  { $RStatus = "Restoration" }
+        "servicemaintenance"  { $RStatus = "Maintenance" }
+        "serviceinfo"         { $RStatus = "Information" }
+        "servicewarning"      { $RStatus = "Warning" }
+        "serviceunknown"      { $RStatus = "Unknown" }
+        default               { $RStatus = "Unknown" }
     }
-    # Generat5e the facts to insert into the adaptive card
-    $RStatus = ("{0} {1}" -f $RStatus, $R.Indicator)
-    $Fact = '{ "title": "' + $R.ServiceName + '",' + ' "value": "' + $RStatus + '" }'
-    If ($Count -lt $Report.count) {
-        $Fact = $Fact + ","
-        $Count++
+
+    [PSCustomObject]@{
+        title = $R.ServiceName
+        value = '{0} {1}' -f $RStatus, $R.Indicator
     }
-    $Facts = $Facts + $Fact
 }
 
+$FactsJson = ConvertTo-Json -InputObject @($Facts) -Compress
+
 # Create the message header
-$MessageHeader = "Microsoft 365 Critical Service Status at " + (Get-Date).ToString("dd-MMM-yyyy HH:mm:ss") 
+$MessageHeader = "Microsoft Critical Service Status\n$(Get-Date -Format 'dd-MMM-yyyy HH:mm:ss')"
 # Replace the fields in the protype card with the actual data
-$Card = $Card.Replace("MessageHeader",$MessageHeader).Replace("InsertFacts",$Facts)
+$Card = $Card.Replace("MessageHeader",$MessageHeader).Replace("InsertFacts",$FactsJson)
 
 # And post the card to the webhook
 Write-Host "Posting adaptive card to webhook..."
