@@ -6,7 +6,7 @@
 # Article: https://office365itpros.com/2024/06/17/teams-post-to-channel-workflow/
 
 # Define a protype adaptive card to use to post to the webhook
-$Card = @'
+$CardTemplate = @'
 {
   "type": "message",
   "attachments": [
@@ -54,7 +54,7 @@ $WebHook = "https://prod-161.westeurope.logic.azure.com:443/workflows/643e69f83c
 Connect-MgGraph -NoWelcome -Scopes ServiceHealth.Read.All
 
 # Define the set of services we're interested in knowing about
-[array]$ImportantServices = "Exchange", "Teams", "SharePoint", "OrgLiveID", "Planner", "microsoftteams", "O365Client", "OneDriveForBusiness"
+[array]$ImportantServices = "Exchange", "Teams", "SharePoint", "OrgLiveID", "Planner", "microsoftteams", "Purview", "OneDriveForBusiness", "Copilot"
 
 # Grab the service health data
 Write-Host "Retrieving service health data..."
@@ -102,8 +102,10 @@ ForEach ($Service in $ImportantServiceStatus) {
         "OrgLiveID"             { $ServiceName = "Entra ID" }
         "Planner"               { $ServiceName = "Microsoft Planner" }
         "microsoftteams"        { $ServiceName = "Microsoft Teams" }
-        "O365Client"            { $ServiceName = "Microsoft 365 Client" }
+        "Purview"               { $ServiceName = "Microsoft Purview" }
         "OneDriveForBusiness"   { $ServiceName = "OneDrive for Business" }
+        "Copilot"               { $ServiceName = "Microsoft 365 Copilot" }
+        default                 { $ServiceName = $Service.Id }
     }
     # Update the list of services
     $ServiceHealth = [PSCustomObject] @{
@@ -146,7 +148,7 @@ $FactsJson = ConvertTo-Json -InputObject @($Facts) -Compress
 # Create the message header
 $MessageHeader = "Microsoft Critical Service Status\n$(Get-Date -Format 'dd-MMM-yyyy HH:mm:ss')"
 # Replace the fields in the protype card with the actual data
-$Card = $Card.Replace("MessageHeader",$MessageHeader).Replace("InsertFacts",$FactsJson)
+$Card = $CardTemplate.Replace("MessageHeader",$MessageHeader).Replace("InsertFacts",$FactsJson)
 
 # And post the card to the webhook
 Write-Host "Posting adaptive card to webhook..."
