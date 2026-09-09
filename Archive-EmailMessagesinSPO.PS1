@@ -60,10 +60,7 @@ function Get-DriveItems {
         Return
     }
     
-    # We only want to process files in folders that match the pattern for email messages folders. The pattern is 'Email Messages' or 'Email_Messages' or 'Email-Messages' or 'EmailMessages'. The regex pattern used is '^Email([ _])?Messages'.
-    $ProcessFolder = $FolderName -match '^Email([ _])?Messages'
-
-    # Need to fetch files and folders from the current folder to check if there's anything to process.
+        # Need to fetch files and folders from the current folder to check if there's anything to process.
     $Uri = ("https://graph.microsoft.com/V1.0/drives/{0}/items/{1}/children" -f $DriveId, $FolderId)
         Try {
             [array]$Data = Invoke-MgGraphRequest -Uri $Uri -Method Get -OutputType PsObject -ErrorAction Stop
@@ -93,7 +90,11 @@ function Get-DriveItems {
     [array]$Folders = $FolderData | Where-Object {$_.folder.childcount -gt 0} | Sort-Object Name
     $Global:TotalFolders = $Global:TotalFolders + $Folders.Count
     $Global:TotalFiles = $Global:TotalFiles + ($FolderData.Count - $Folders.Count)
-    [array]$Files = $FolderData | Where-Object {$null -ne $_.file.mimetype} | Sort-Object Name
+    # Extract unarchived files from the set returned
+    [array]$Files = $FolderData | Where-Object {$null -ne $_.file.mimetype -and $null -eq $file.archivestatus} | Sort-Object Name
+
+    # We only want to process files in folders that match the pattern for email messages folders. The pattern is 'Email Messages' or 'Email_Messages' or 'Email-Messages' or 'EmailMessages'. The regex pattern used is '^Email([ _])?Messages'.
+    $ProcessFolder = $FolderName -match '^Email([ _])?Messages' 
 
     If (!$ProcessFolder) {
         Write-Host ("Skipping folder {0} as it does not match an email messages folder name" -f $FolderName)
@@ -174,8 +175,9 @@ $TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $CertificateThumbprint = '8D225839321765FE6D224D393CDE5A61A45CD846'
 Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertificateThumbprint
 
-# Define value for input file containing Teams channels with email addresses
-$InputFile = "C:\Users\tonyr\Downloads\Teams Channels with Email Addresses.csv"
+# Define value for input file containing Teams channels with email addresses. This file can be created using the 
+# script in https://github.com/12Knocksinna/Office365itpros/blob/master/Report-TeamsChannelEmailAddresses.PS1
+$InputFile = "C:\Temp\Teams Channels with Email Addresses.csv"
 # Threshold for archiving files in days. Files older than this threshold will be archived.
 [datetime]$Global:ArchiveThresholdDate = Get-Date (Get-Date).AddYears(-3) # 3 years ago. Change this value to set a different threshold for archiving files.
 Write-Host ("Email items will be archived if dated before {0} " -f (Get-Date $Global:ArchiveThresholdDate -format 'dd-MMM-yyyy HH:mm'))
