@@ -60,7 +60,7 @@ function Get-DriveItems {
         Return
     }
     
-        # Need to fetch files and folders from the current folder to check if there's anything to process.
+    # Need to fetch files and folders from the current folder to check if there's anything to process.
     $Uri = ("https://graph.microsoft.com/V1.0/drives/{0}/items/{1}/children" -f $DriveId, $FolderId)
         Try {
             [array]$Data = Invoke-MgGraphRequest -Uri $Uri -Method Get -OutputType PsObject -ErrorAction Stop
@@ -168,7 +168,7 @@ function Get-DriveItems {
 
 # Start of processing
 # This is the code for app-only authentication. The permissions needed are
-# Sites.Read.All and Group.Read.All. The app must be registered in Entra ID and the certificate uploaded to the app.
+# Sites.ReadWrite.All and Group.Read.All. The app must be registered in Entra ID and the certificate uploaded to the app.
 # registration. The script uses the certificate to authenticate to Microsoft Graph. Amend the values for $AppId
 # $TenantId and $CertificateThumbprint to match your app registration.
 
