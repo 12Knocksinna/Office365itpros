@@ -91,7 +91,7 @@ function Get-DriveItems {
     $Global:TotalFolders = $Global:TotalFolders + $Folders.Count
     $Global:TotalFiles = $Global:TotalFiles + ($FolderData.Count - $Folders.Count)
     # Extract unarchived files from the set returned
-    [array]$Files = $FolderData | Where-Object {$null -ne $_.file.mimetype -and $null -eq $file.archivestatus} | Sort-Object Name
+    [array]$Files = $FolderData | Where-Object {$null -ne $_.file.mimetype -and $null -eq $_.file.archivestatus} | Sort-Object Name
 
     # We only want to process files in folders that match the pattern for email messages folders. The pattern is 'Email Messages' or 'Email_Messages' or 'Email-Messages' or 'EmailMessages'. The regex pattern used is '^Email([ _])?Messages'.
     $ProcessFolder = $FolderName -match '^Email([ _])?Messages' 
@@ -104,55 +104,57 @@ function Get-DriveItems {
             Get-DriveItems -DriveId $DriveId -FolderId $Folder.Id
         }
     } Else {   
-        Write-Host ("!!! Processing files in email folder {0} ({1} files/size {2})" -f $FolderName, $Files.Count, (FormatFileSize ($Files | Measure-Object -Property Size -Sum).Sum))
-        # Process the files found in the folder.
-        ForEach ($File in $Files) {  
+        If ($Files.count -gt 0) {
+            Write-Host ("!!! Processing files in email folder {0} ({1} files/size {2})" -f $FolderName, $Files.Count, (FormatFileSize ($Files | Measure-Object -Property Size -Sum).Sum))
+            # Process the files found in the folder.
+            ForEach ($File in $Files) {  
 
-            If ($File.LastModifiedDateTime) {
-                $LastModifiedDateTime = Get-Date $File.LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
-            } Else {
-                $LastModifiedDateTime = $null
-            }
-            If ($File.CreatedDateTime) {
-                $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
-            } Else {
-                $FileCreatedDateTime = $null
-            }
-
-            If ([datetime]$File.LastModifiedDateTime -lt $Global:ArchiveThresholdDate) {
-                # File is older than the threshold date, so it will be archived
-                $Uri = ("https://graph.microsoft.com/beta/drives/{0}/items/{1}/archive" -f $DriveId, $File.Id)
-                Try {
-                    Invoke-MgGraphRequest -Method POST -Uri $Uri -OutputType PSobject -ErrorAction Stop
-                    Write-Host ("File {0} is now archived" -f $File.Name) -ForegroundColor Yellow
-                } Catch {
-                    Write-Host ("Failed to archive file {0}: {1}" -f $File.Name, $_.Exception.Message) -ForegroundColor Red
+                If ($File.LastModifiedDateTime) {
+                    $LastModifiedDateTime = Get-Date $File.LastModifiedDateTime -format 'dd-MMM-yyyy HH:mm'
+                } Else {
+                    $LastModifiedDateTime = $null
                 }
-                $ArchivedFiles++
-                # Basic throttling
-                Start-Sleep -Milliseconds 25
-            } Else {
-                # File is newer than the threshold date, so it will not be archived
-                Continue
-            }   
+                If ($File.CreatedDateTime) {
+                    $FileCreatedDateTime = Get-Date $File.CreatedDateTime -format 'dd-MMM-yyyy HH:mm'
+                } Else {
+                    $FileCreatedDateTime = $null
+                }
 
-            $YearCreated = Get-Date $FileCreatedDateTime -format 'yyyy'
-            $FileType = $File.file.fileExtension
-            # Report what's been done
-            $ReportLine = [PSCustomObject]@{
-                Site                    = $SiteName
-                FileName                = $File.Name
-                Folder                  = $File.parentreference.name
-                Size                    = (FormatFileSize $File.Size)
-                Created                 = $FileCreatedDateTime
-                Author                  = $File.CreatedBy.User.DisplayName
-                LastModified            = $LastModifiedDateTime
-                'Last modified by'      = $File.LastModifiedBy.User.DisplayName
-                SizeInBytes             = $File.Size
-                YearCreated             = $YearCreated
-                FileType                = $FileType
+                If ([datetime]$File.LastModifiedDateTime -lt $Global:ArchiveThresholdDate) {
+                # File is older than the threshold date, so it will be archived
+                    $Uri = ("https://graph.microsoft.com/beta/drives/{0}/items/{1}/archive" -f $DriveId, $File.Id)
+                    Try {
+                        Invoke-MgGraphRequest -Method POST -Uri $Uri -OutputType PSobject -ErrorAction Stop
+                        Write-Host ("File {0} is now archived" -f $File.Name) -ForegroundColor Yellow
+                    } Catch {
+                        Write-Host ("Failed to archive file {0}: {1}" -f $File.Name, $_.Exception.Message) -ForegroundColor Red
+                    }
+                    $ArchivedFiles++
+                    # Basic throttling
+                    Start-Sleep -Milliseconds 25
+                } Else {
+                    # File is newer than the threshold date, so it will not be archived
+                    Continue
+                }   
+
+                $YearCreated = Get-Date $FileCreatedDateTime -format 'yyyy'
+                $FileType = $File.file.fileExtension
+                # Report what's been done
+                $ReportLine = [PSCustomObject]@{
+                    Site                    = $SiteName
+                    FileName                = $File.Name
+                    Folder                  = $File.parentreference.name
+                    Size                    = (FormatFileSize $File.Size)
+                    Created                 = $FileCreatedDateTime
+                    Author                  = $File.CreatedBy.User.DisplayName
+                    LastModified            = $LastModifiedDateTime
+                    'Last modified by'      = $File.LastModifiedBy.User.DisplayName
+                    SizeInBytes             = $File.Size
+                    YearCreated             = $YearCreated
+                    FileType                = $FileType
+                }
+                $Global:Report.Add($ReportLine)
             }
-            $Global:Report.Add($ReportLine)
         }
 
         # Process the child folders - but only those matching the email messages pattern
