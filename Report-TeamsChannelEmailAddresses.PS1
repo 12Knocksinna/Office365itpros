@@ -1,3 +1,9 @@
+# Report-TeamsChannelEmailAddresses.PS1
+# Helper script to create a set of email addresses used by Teams channels
+#
+# V1.0 9-Sep-2026
+# GitHub linl: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-TeamsChannelEmailAddresses.PS1
+# Article link: https://office365itpros.com/2022/08/24/teams-channel-email-addresses/
 
 Connect-MgGraph -Scopes GroupMember.Read.All, Channel.ReadBasic.All
 
