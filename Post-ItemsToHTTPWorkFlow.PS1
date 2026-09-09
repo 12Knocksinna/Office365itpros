@@ -58,12 +58,14 @@ Connect-MgGraph -NoWelcome -Scopes ServiceHealth.Read.All
 
 # Grab the service health data
 Write-Host "Retrieving service health data..."
+# This is the URI for a web request, but the Get-MgServiceAnnouncementHealthOverview cmdlet is used instead for simplicity.
 $Uri = "https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/healthOverviews"
 Try {
-    [array]$Data = Invoke-MgGraphRequest -Method Get -Uri $Uri -OutputType "PSObject" -ErrorAction Stop
+  [array]$Data = Get-MgServiceAnnouncementHealthOverview -ErrorAction Stop
+  # [array]$Data = Invoke-MgGraphRequest -Method Get -Uri $Uri -OutputType "PSObject" -ErrorAction Stop
 } Catch {
-    Write-Host "Failed to retrieve service health data: $_"
-    return
+  Write-Host "Failed to retrieve service health data: $_"
+  return
 }
 
 # Extract the service health data for the services we're interested in
