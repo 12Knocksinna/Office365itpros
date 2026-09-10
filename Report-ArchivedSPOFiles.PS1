@@ -218,6 +218,11 @@ ForEach ($Group in $Groups) {
     }
 }
 
+If ($ReportData.Count -eq 0) {
+    Write-Output "No archived files found to report - exiting."
+    Return
+}
+
 # Generate some statistics
 $TotalArchivedFilesSize = ($Global:ReportData | Measure-Object -Property SizeInBytes -Sum).Sum
 $StorageSavingsBytes = ($TotalArchivedFilesSize / 4)*3
