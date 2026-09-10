@@ -232,7 +232,6 @@ Write-Output ("Total folders processed: {0}" -f $Global:TotalFolders)
 Write-Output ("Total files processed: {0}" -f $Global:TotalFiles)
 Write-Output ("Total archived files found: {0}" -f $Global:ReportData.Count)
 Write-Output ("Total size of archived files found: {0}" -f (FormatFileSize $TotalArchivedFilesSize))
-Write-Output ("Estimated storage savings from archived files: {0}" -f $StorageSavings)
 Write-Output ""
 
 # Analyze the years when archived files were created
@@ -287,7 +286,6 @@ $HtmlMsg += "<h2>Summary of Archived Files by File Type</h2>"
 $HtmlMsg += $ArchivedFilesByTypeOutput | ConvertTo-Html -Fragment
 $HtmlMsg += "<p>Total archived files found: $($Global:ReportData.Count)</p>"
 $HtmlMsg += "<p>Total size of archived files found: $(FormatFileSize $TotalArchivedFilesSize)</p>"
-$HtmlMsg += "<p>Estimated storage savings from archived files: $StorageSavings</p>"
 $HtmlMsg += "<p>Report generated on:<b> $(Get-Date -Format 'dd-MMM-yyyy HH:mm:ss')</b></p>"
 $HtmlMsg += "<p>Processing completed in: $($ProcessingDuration.ToString('hh\:mm\:ss'))</p>"
 $HtmlMsg += "</body></html>"
