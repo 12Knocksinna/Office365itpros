@@ -255,6 +255,11 @@ ForEach ($Group in $Groups) {
     }
 }
 
+If ($Report.Count -eq 0) {
+    Write-Output "No files archived to report - exiting."
+    Return
+}
+
 $TotalArchivedFilesSize = ($Global:Report | Measure-Object -Property SizeInBytes -Sum).Sum
 
 Write-Output ""
