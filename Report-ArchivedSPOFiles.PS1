@@ -10,6 +10,8 @@
 # V1.0 2-Sept-2026
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-ArchivedSPOFiles.PS1
 
+# Requires Sites.Read.All to read site information and GroupMember.Read.All to read group details. Also Mail.Send to send the email.
+
 function FormatFileSize {
     # Format File Size nicely
     param (
@@ -109,6 +111,7 @@ function Get-DriveItems {
             '.pdf' { $FileType = 'PDF Document' }
             '.jpg' { $FileType = 'JPEG Image' }
             '.jpeg' { $FileType = 'JPEG Image' }
+            '.mp4' { $FileType = 'MP4 Video' }
             default { $FileType = $File.file.mimeType }
         }
         
@@ -147,10 +150,12 @@ $TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478'
 $CertificateThumbprint = '8D225839321765FE6D224D393CDE5A61A45CD846'
 Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertificateThumbprint
 
+$ProcessingStartTime = Get-Date
+$DestinationEmailAddress = 'Customer.Services@office365itpros.com'
+$MsgFrom = 'Customer.Services@office365itpros.com'
+
 # Find the Microsoft 365 groups in the tenant. We use the groups to find the associated SharePoint Online sites.
 # The script will then check each site for archived files.
-
-$ProcessingStartTime = Get-Date
 Try {
     [array]$Groups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'unified')" -All -ErrorAction Stop
 } Catch {
@@ -229,27 +234,84 @@ Write-Output ""
 # Analyze the years when archived files were created
 Write-Output "Archived Files by Year of Creation"
 Write-Output "----------------------------------"
-$ArchivedFilesByYear = $Global:ReportData | Group-Object -Property YearCreated
-Foreach ($YearGroup in $ArchivedFilesByYear) {
-    Write-Output ("{0}: {1}" -f $YearGroup.Name, $YearGroup.Count)
-}
+$ArchivedFilesByYearOutput =  $Global:ReportData | Group-Object YearCreated | Select-Object @{
+    Name='Year created'; Expression={$_.Name}}, @{Name='Count'; Expression={$_.Count} }
+$ArchivedFilesByYearOutput 
+
 # Analyze the file types of archived files
 Write-Output ""
 Write-Output "Archived Files by Type"
 Write-Output "----------------------"
-$ArchivedFilesByType = $Global:ReportData | Group-Object -Property FileType
-Foreach ($TypeGroup in $ArchivedFilesByType) {
-    Write-Output ("{0}: {1}" -f $TypeGroup.Name, $TypeGroup.Count)
-}
+    
+$ArchivedFilesByTypeOutput =  $Global:ReportData | Group-Object FileType | Select-Object @{
+    Name='File type'; Expression={$_.Name}}, @{Name='Count'; Expression={$_.Count} }
+$ArchivedFilesByTypeOutput | Format-Table -AutoSize
 
 Write-Output ""
 Write-Output "Sites holding archived files"
 Write-Output "----------------------------"
-$Reportdata | Group-Object Site -NoElement | Format-Table Name, Count -AutoSize
-Write-Output ""
+$SitesWithArchivedFiles = $Global:ReportData | Group-Object Site -NoElement | Select-Object @{
+    Name='Site name'; Expression={$_.Name}}, @{Name='Number of archived files'; Expression={$_.Count} }
+$SitesWithArchivedFiles
+
 $ProcessingEndTime = Get-Date
 $ProcessingDuration = $ProcessingEndTime - $ProcessingStartTime
+Write-Host ""
 Write-Host "Processing completed in $($ProcessingDuration.ToString('hh\:mm\:ss'))"
+
+# Build the array of a single TO recipient detailed in a hash table - change this to the appropriate recipient for your tenant
+$ToRecipient = @{}
+$ToRecipient.Add("emailAddress",@{'address'=$DestinationEmailAddress})
+[array]$MsgTo = $ToRecipient
+
+# Define the message subject
+$MsgSubject = "File-Level Archiving Report for SharePoint Online Sites"
+# Create the HTML content
+$HtmlMsg = "<html><body>"
+$HtmlMsg += "<h1>File-Level Archiving Report for SharePoint Online Sites</h1>"
+$HtmlMsg += "<p>Total Microsoft 365 groups found for processing: <b>$($Groups.Count)</b></p>"
+If ($BlockedSites -gt 0) {
+    $HtmlMsg += "<p>Unable to access Microsoft 365 groups: <b>$($BlockedSites)</b>. This may be because the site is archived.</p>"
+}
+$HtmlMsg += "<p>The information contained in this report is calculated based on an examination of file properties found in the SharePoint Online sites belonging to the Microsoft 365 Groups scanned by the job..</p>"
+$HtmlMsg += "<h2>Summary of Archived Files by Site</h2>"
+$HtmlMsg += $SitesWithArchivedFiles | ConvertTo-Html -Fragment
+$HtmlMsg += "<h2>Summary of Archived Files by Year of Creation</h2>"
+$HtmlMsg += $ArchivedFilesByYearOutput | ConvertTo-Html -Fragment
+$HtmlMsg += "<h2>Summary of Archived Files by File Type</h2>"
+$HtmlMsg += $ArchivedFilesByTypeOutput | ConvertTo-Html -Fragment
+$HtmlMsg += "<p>Total archived files found: $($Global:ReportData.Count)</p>"
+$HtmlMsg += "<p>Total size of archived files found: $(FormatFileSize $TotalArchivedFilesSize)</p>"
+$HtmlMsg += "<p>Estimated storage savings from archived files: $StorageSavings</p>"
+$HtmlMsg += "<p>Report generated on:<b> $(Get-Date -Format 'dd-MMM-yyyy HH:mm:ss')</b></p>"
+$HtmlMsg += "<p>Processing completed in: $($ProcessingDuration.ToString('hh\:mm\:ss'))</p>"
+$HtmlMsg += "</body></html>"
+
+# Construct the message body 	
+$MsgBody = @{}
+$MsgBody.Add('Content', "$($HtmlMsg)")
+$MsgBody.Add('ContentType','html')
+# Build the parameters to submit the message
+$Message = @{}
+$Message.Add('subject', $MsgSubject)
+$Message.Add('toRecipients', $MsgTo)
+$Message.Add('body', $MsgBody)
+$Message.Add("attachments", $MsgAttachments)
+
+$EmailParameters = @{}
+$EmailParameters.Add('message', $Message)
+$EmailParameters.Add('saveToSentItems', $true)
+$EmailParameters.Add('isDeliveryReceiptRequested', $true)
+
+# Send the message
+Try {
+    Send-MgUserMail -UserId $MsgFrom -BodyParameter $EmailParameters -ErrorAction Stop
+    Write-Output ("File-Level Archiving report emailed to {0}" -f $ToRecipient.emailAddress.address)
+    Write-Output "All done!"
+} Catch {
+    Write-Output "Unable to send email"
+    Write-Output $_.Exception.Message
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
