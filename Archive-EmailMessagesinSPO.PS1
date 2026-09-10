@@ -256,8 +256,6 @@ ForEach ($Group in $Groups) {
 }
 
 $TotalArchivedFilesSize = ($Global:Report | Measure-Object -Property SizeInBytes -Sum).Sum
-$StorageSavingsBytes = ($TotalArchivedFilesSize / 4)*3
-$StorageSavings = FormatFileSize $StorageSavingsBytes
 
 Write-Output ""
 Write-Output ("Total Microsoft 365 groups processed: {0}" -f $Groups.Count)
@@ -268,7 +266,6 @@ Write-Output ("Total folders processed: {0}" -f $Global:TotalFolders)
 Write-Output ("Total files processed: {0}" -f $Global:TotalFiles)
 Write-Output ("Total email files archived: {0}" -f $Global:Report.Count)
 Write-Output ("Total size of files archived: {0}" -f (FormatFileSize $TotalArchivedFilesSize))
-Write-Output ("Estimated storage savings from archived files: {0}" -f $StorageSavings)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
