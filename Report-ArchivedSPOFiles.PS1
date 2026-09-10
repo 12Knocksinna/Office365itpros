@@ -150,6 +150,7 @@ Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbpr
 # Find the Microsoft 365 groups in the tenant. We use the groups to find the associated SharePoint Online sites.
 # The script will then check each site for archived files.
 
+$ProcessingStartTime = Get-Date
 Try {
     [array]$Groups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'unified')" -All -ErrorAction Stop
 } Catch {
@@ -191,7 +192,7 @@ ForEach ($Group in $Groups) {
     }
 
     # Remove the preservation hold library from the list of drives to process, as it is not relevant for this report.
-    $Drives = $Drives | Where-Object {$_.Name -ne 'Preservation Hold Library'}
+    $Drives = $Drives | Where-Object {$_.Name -ne 'Preservation Hold Library' -or $_.Name -ne 'Teams Wiki Data'}
     ForEach ($Drive in $Drives) {
         Write-Output ("==> Processing document library: {0}..." -f $Drive.Name)
     
@@ -223,6 +224,7 @@ Write-Output ("Total files processed: {0}" -f $Global:TotalFiles)
 Write-Output ("Total archived files found: {0}" -f $Global:ReportData.Count)
 Write-Output ("Total size of archived files found: {0}" -f (FormatFileSize $TotalArchivedFilesSize))
 Write-Output ("Estimated storage savings from archived files: {0}" -f $StorageSavings)
+Write-Output ""
 
 # Analyze the years when archived files were created
 Write-Output "Archived Files by Year of Creation"
@@ -239,6 +241,15 @@ $ArchivedFilesByType = $Global:ReportData | Group-Object -Property FileType
 Foreach ($TypeGroup in $ArchivedFilesByType) {
     Write-Output ("{0}: {1}" -f $TypeGroup.Name, $TypeGroup.Count)
 }
+
+Write-Output ""
+Write-Output "Sites holding archived files"
+Write-Output "----------------------------"
+$Reportdata | Group-Object Site -NoElement | Format-Table Name, Count -AutoSize
+Write-Output ""
+$ProcessingEndTime = Get-Date
+$ProcessingDuration = $ProcessingEndTime - $ProcessingStartTime
+Write-Host "Processing completed in $($ProcessingDuration.ToString('hh\:mm\:ss'))"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
