@@ -151,9 +151,13 @@ $CertificateThumbprint = '8D225839321765FE6D224D393CDE5A61A45CD846'
 Connect-MgGraph -NoWelcome -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertificateThumbprint
 
 $ProcessingStartTime = Get-Date
+
+# Change the destination email address to receive the emailed report and the mailbox from which the report is sent
+# to match valid recipients in your tenant.
 $DestinationEmailAddress = 'Customer.Services@office365itpros.com'
 $MsgFrom = 'Customer.Services@office365itpros.com'
 
+Write-Output "Fetching Microsoft 365 groups...."
 # Find the Microsoft 365 groups in the tenant. We use the groups to find the associated SharePoint Online sites.
 # The script will then check each site for archived files.
 Try {
@@ -256,8 +260,9 @@ $SitesWithArchivedFiles
 
 $ProcessingEndTime = Get-Date
 $ProcessingDuration = $ProcessingEndTime - $ProcessingStartTime
-Write-Host ""
-Write-Host "Processing completed in $($ProcessingDuration.ToString('hh\:mm\:ss'))"
+Write-Output ""
+Write-Output "Processing completed in $($ProcessingDuration.ToString('hh\:mm\:ss'))"
+Write-Output ""
 
 # Build the array of a single TO recipient detailed in a hash table - change this to the appropriate recipient for your tenant
 $ToRecipient = @{}
