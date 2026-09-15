@@ -43,6 +43,8 @@ $Thumbprint = "A43876D6692CF5366FE872175B5CE27482774C26"
 [int]$ThresholdInboxItems = 25
 # Tenant name to use with Connect-ExchangeOnline - requires the service domain
 $TenantName = 'office365itpros.onmicrosoft.com'
+# Html Output file
+$HTMLReportFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\" + "GroupMailboxReport.html"
 # Define filter to expand single value extension properties fetched using the Import-Export API
 $PropertyFilter = "id eq 'String 0x0037' or id eq 'String 0x1035' or id eq 'String 0x1000' or id eq 'Binary 0x1013' or id eq 'Boolean 0x0E1B' or id eq 'Binary 0x3013' or id eq 'String 0x0C1A' or id eq 'String 0x0C1F'"
 $EncodedPropertyFilter = [uri]::EscapeDataString($PropertyFilter)
@@ -55,7 +57,7 @@ $EncodedPropertyFilter = [uri]::EscapeDataString($PropertyFilter)
 
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $Thumbprint -NoWelcome
 
-Write-Output "Finding Outlook groyups..."
+Write-Output "Finding Outlook groups..."
 # Find Microsoft 365 Groups and Teams, and discard any group that is team-enabled
 [array]$M365Groups = Get-MgGroup -Filter "groupTypes/any(c:c eq 'Unified')" -All -Property id, displayName
 [array]$Teams = Get-MgTeam -All -Property Id, displayName
@@ -87,15 +89,6 @@ ForEach ($Mailbox in $OutlookGroups) {
         ForEach ($Folder in $FoldersToProcess) {
             If ($Folder.ItemsInFolder -gt 0) { 
                 # If a folder has items, process it
-                $ConvertedFolderId = [Convert]::FromBase64String($Folder.FolderId)
-                $encoding = [System.Text.Encoding]::GetEncoding("us-ascii")
-                $nibbler = $encoding.GetBytes("0123456789ABCDEF")
-                $indexIdBytes = New-Object byte[] 48; $indexIdIdx = 0
-                $ConvertedFolderId | Select-Object -Skip 23 -First 24 | `
-                    ForEach-Object { $indexIdBytes[$indexIdIdx++] = $nibbler[$_ -shr 4]; $indexIdBytes[$indexIdIdx++] = $nibbler[$_ -band 0x0F]
-                }
-                $FolderIdentifier = $encoding.GetString($indexIdBytes)
-
                 # Write details about the folder to the report  
                 $ReportLine = [PSCustomObject]@{
                     DisplayName      = $Mailbox.DisplayName
@@ -103,7 +96,6 @@ ForEach ($Mailbox in $OutlookGroups) {
                     FolderName       = $Folder.Name
                     GroupId          = $Mailbox.Id
                     FolderId         = $Folder.FolderId
-                    FolderIdentifier = $FolderIdentifier
                     MailboxId        = $InboxData.ContentMailboxGuid.Guid
                 }
                 $Report.Add($ReportLine)
@@ -173,9 +165,10 @@ ForEach ($Mailbox in $Mailboxes) {
         [datetime]$LastPostDateTime = ($ItemData | Sort-Object CreatedDateTime -Descending | Select-Object -First 1).CreatedDateTime
         $DaysSinceLastPost = (Get-Date) - $LastPostDateTime
         $DaysSinceLastPost = $DaysSinceLastPost.Days    
-        [datetime]$FirstPostDateTime = ($Data | Sort-Object CreatedDateTime | Select-Object -First 1).CreatedDateTime
+        [datetime]$FirstPostDateTime = ($ItemData | Sort-Object CreatedDateTime | Select-Object -First 1).CreatedDateTime
         $DaysSinceFirstPost = (Get-Date) - $FirstPostDateTime
-        $DaysSinceFirstPost = $DaysSinceFirstPost.Days    
+        $DaysSinceFirstPost = $DaysSinceFirstPost.Days  
+
         # Who sends most posts to the group mailbox?
         $ItemData | Select-Object @{ Name = 'Sender'; Expression = { ($_.singleValueExtendedProperties | Where-Object Id -eq 'String 0xc1a').Value }} |
             Group-Object -NoElement Sender | Sort-Object Count -Descending | ForEach-Object {
@@ -204,9 +197,50 @@ ForEach ($Mailbox in $Mailboxes) {
             $MailboxReport.Add($MailboxReportLine)
         } 
     }
-  
 }
 
+
+# Create the HTML report
+$HtmlHead="<html>
+	<style>
+	    BODY{font-family: Arial; font-size: 8pt;}
+	    H1{font-size: 28px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	    H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	    H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+	    TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
+	    TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
+	    TD{border: 1px solid #969595; padding: 5px; }
+	    td.info{background: #85D4FF;}
+	</style>
+	<body>
+        <div align=center>
+        <p><h1>Group Mailbox Folders Report</h1></p>
+        <p><h2><b>For the " + $Organization + " $TenantName</b></h2></p>
+        <p><h3>Generated: " + (Get-Date -format 'dd-MMM-yyyy HH:mm') + "</h3></p></div>"
+
+$HtmlBody = $HtmlHead +"<html><body>"
+# Produce some output
+[array]$GroupMailboxes = $MailboxSummaryReport | Select-Object -Property Mailbox -Unique
+ForEach ($GroupMailbox in $GroupMailboxes) {
+    $MailboxHeader = "<h2>Group mailbox: " + $GroupMailbox.Mailbox + "</h2>"
+    [array]$FoldersInGroupMailbox = $MailboxSummaryReport | Where-Object Mailbox -eq $GroupMailbox.Mailbox | Select-Object -Property Folder -Unique
+    $MailboxHeader += "<p><h3>Number of Folders with posts: " + $FoldersInGroupMailbox.Count + "</h3></p>"
+    $HtmlBody += $MailboxHeader
+    ForEach ($FolderInGroupMailbox in $FoldersInGroupMailbox) {
+        $FolderSummary = $MailboxSummaryReport | Where-Object {$_.Mailbox -eq $GroupMailbox.Mailbox -and $_.Folder -eq $FolderInGroupMailbox.Folder}
+        $FolderHeader = "<h3>Folder: " + $FolderInGroupMailbox.Folder + "</h3>"
+        $FolderHeader += "<p><h4>Number of Items: " + $FolderSummary.Count + "</h4></p>"
+        $FolderHeader += "<p>First item posted at " + ($FolderSummary | Select-Object -First 1).FirstPostDateTime + "</p>"
+        $FolderHeader += "<p>Last item posted at " + ($FolderSummary | Select-Object -First 1).LastPostDateTime + "</p>"
+        $HtmlBody += $FolderHeader
+        $HtmlBody += "<p><i><b>Senders to the folder:</b></i></p>"
+        $FolderContent = $FolderSummary | Select-Object Sender, Count | ConvertTo-Html -Fragment
+        $HtmlBody += $FolderContent
+    }
+}
+$HtmlBody += "</body></html>"
+$HtmlBody | Out-File $HTMLReportFile -Encoding UTF8
+Write-Output "HTML report generated at $HTMLReportFile"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
