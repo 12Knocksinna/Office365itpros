@@ -3,7 +3,7 @@
 # It also serves how to use the API in general
 
 # V1.0 15-Sept-2026
-# GitHub Link: 
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-GroupMailboxFolders.PS1
 
 function Get-GraphMailboxFolders {
     param(
