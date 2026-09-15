@@ -5,6 +5,12 @@
 # V1.0 15-Sept-2026
 # GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-GroupMailboxFolders.PS1
 
+# Permissions used:
+# GroupMember.Read.All - Get Microsoft 365 Groups
+# Teams.ReadBasic.All - Get Microsoft Teams
+# MailboxFolder.Read.All - Read access to mailbox folders
+# MailboxItems.Read.All - Read access to mailbox items
+# Exchange.ManageAsApp - Access group mailboxes via the Import-Export Graph API (app role for Office 365 Exchange Online)
 function Get-GraphMailboxFolders {
     param(
         [string]$MailboxId
@@ -159,9 +165,7 @@ ForEach ($Mailbox in $Mailboxes) {
                 $NextLink = $Data.'@Odata.NextLink'  
             }
         }
-        # Display the first few items in the folder for inspection
-        # $Data | Select-Object -first 5 | Format-Table CreatedDateTime, Size, @{n="Subject"; e= {($_.singleValueExtendedProperties | Where-Object Id -eq 'String 0x37').Value }}
-        
+        # Compute the first and last post date times for the folder
         [datetime]$LastPostDateTime = ($ItemData | Sort-Object CreatedDateTime -Descending | Select-Object -First 1).CreatedDateTime
         $DaysSinceLastPost = (Get-Date) - $LastPostDateTime
         $DaysSinceLastPost = $DaysSinceLastPost.Days    
@@ -169,7 +173,7 @@ ForEach ($Mailbox in $Mailboxes) {
         $DaysSinceFirstPost = (Get-Date) - $FirstPostDateTime
         $DaysSinceFirstPost = $DaysSinceFirstPost.Days  
 
-        # Who sends most posts to the group mailbox?
+        # Figure out who posts items to the folder and capture the summary information
         $ItemData | Select-Object @{ Name = 'Sender'; Expression = { ($_.singleValueExtendedProperties | Where-Object Id -eq 'String 0xc1a').Value }} |
             Group-Object -NoElement Sender | Sort-Object Count -Descending | ForEach-Object {
                 $MailboxSummaryReportLine = [PSCustomObject]@{
@@ -184,7 +188,7 @@ ForEach ($Mailbox in $Mailboxes) {
                 }
             $MailboxSummaryReport.Add($MailboxSummaryReportLine)
         }
-        # Populate the report
+        # Populate the report of items found in the folder. We don't do anythimg with this, but the data might be interesting to someone
         $ItemData | Select-Object -first 10 | ForEach-Object {
             $MailboxReportLine = [PSCustomObject]@{
                 Mailbox = $Mailbox.DisplayName
@@ -198,7 +202,6 @@ ForEach ($Mailbox in $Mailboxes) {
         } 
     }
 }
-
 
 # Create the HTML report
 $HtmlHead="<html>
