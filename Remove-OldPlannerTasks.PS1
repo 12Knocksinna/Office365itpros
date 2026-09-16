@@ -3,6 +3,7 @@
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Remove-OldPlannerTasks.PS1
 # V1.0 25-Jul-2025
+# Article: https://office365itpros.com/2026/08/19/clean-up-planner-tasks/
 
 # This script must be run in app-only mode to have full access to all Microsoft 365 groups and plans in the tenant.
 # Alternatively, run it as an Azure Automation runbook with the appropriate permissions.
@@ -69,7 +70,7 @@ ForEach ($Group in $Groups) {
             If ($TasksRemovedFromPlan -gt 0) {
                 Write-Host "Removed $TasksRemovedFromPlan old completed Tasks from Plan '$($Plan.Title)' in Group '$($Group.DisplayName)'."
                 # Small pause to avoid hitting API rate limits
-                Start-Sleep -Seconds 1
+                Start-Sleep -Milliseconds 300
             }
         }
     }
