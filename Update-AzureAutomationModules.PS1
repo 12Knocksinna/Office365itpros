@@ -6,6 +6,7 @@ $SubscriptionId = "35429342-a1a5-4427-9e2d-551840f2ad25" # Add your Azure subscr
 $ResourceGroupName = "ExoAutomation" # Add the resource group used by the Azure Automation account
 $AutomationAccountName = "M365Automation" # Add your Azure Automation account name here
 $RuntimeEnvironment = "PS74-Graph" # Specify the runtime environment (e.g., PowerShell7, PowerShell5.1)
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478' # Change this value to your tenant identifier
 
 [array]$RuntimeModules = "Az.Accounts", "Az.Automation", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", `
     "MicrosoftTeams", "Pnp.PowerShell", "ImportExcel", "Microsoft.Graph.Authentication", "Microsoft.Graph.Groups", "Microsoft.Graph.Users",`
@@ -14,7 +15,11 @@ $RuntimeEnvironment = "PS74-Graph" # Specify the runtime environment (e.g., Powe
      "Microsoft.Graph.Mail", "Microsoft.Graph.Applications", "Microsoft.Graph.Calendar", "Microsoft.Graph.Files"
 
 Write-Output "Connecting to Azure"
-Connect-AzAccount -Subscription $SubscriptionId 
+Connect-AzAccount -Subscription $SubscriptionId -Tenant $TenantId -WarningAction SilentlyContinue
+
+Write-Output ""
+Write-Output "Preparing to check PowerShell modules installed in the target runtime environment..."
+Write-Output ""
 
 ForEach ($Module in $RuntimeModules) {
     Write-Output "Checking for updates to module: $Module"
@@ -36,7 +41,7 @@ $RequestBody = @"
 
 # Check installation
 Do {
-    Write-Host "Checking Packages..."
+    Write-Output "Checking individual PowerShell modules (packages)..."
     $Data = Invoke-AzRestMethod -Method Get -Path $Path
 
     $Object = ($Data.Content | convertFrom-Json).Value
@@ -46,7 +51,7 @@ Do {
 }
 While ($Null -ne $Packages)
 
-Write-Output "No packages remain to be installed into the runtime environment"
+Write-Output "No packages remain to be installed into the target runtime environment"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Microsoft 365 for IT Pros repository 
