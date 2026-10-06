@@ -37,6 +37,9 @@ $RequestBody = @"
     $Path = ("/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Automation/automationAccounts/{2}/runtimeEnvironments/{3}/packages/{4}/?api-version=2023-05-15-preview" -f $SubscriptionId, $ResourceGroupName, $AutomationAccountName, $RuntimeEnvironment, $Module)
   
     $Result = Invoke-AzRestMethod -Method Put -Path $Path -Payload $RequestBody
+    # check if everything was OK 
+    $Output = $Result.content | ConvertFrom-Json
+    $Output.Message
 }
 
 # Check installation
