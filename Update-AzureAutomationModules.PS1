@@ -65,11 +65,17 @@ ForEach ($Module in $Modules) {
 # Check installation
 Do {
     Write-Output "Checking individual PowerShell modules (packages)..."
-    $Data = Invoke-AzRestMethod -Method Get -Path $Path
+    Try {
+        $Data = Invoke-AzRestMethod -Method Get -Path $Path -ErrorAction Stop
+    } Catch {
+        Write-Error "Failed to retrieve package status with HTTP status $($Result.StatusCode)."
+        $ErrorOutput = $Result.content | ConvertFrom-Json
+        $ErrorOutput.Message
+    }
 
-    $Object = ($Data.Content | ConvertFrom-Json).Value
-    $Array = $Object | Select-Object Name, @{Name="Version";Expression={$_.properties.version}},@{Name="provisioningState";Expression={$_.properties.provisioningState}}
-    $Packages = $Array | Where-Object {$_.provisioningState -ne "Succeeded" -and $_.provisioningState -ne "Failed"}
+    $PackageInfo = ($Data.Content | ConvertFrom-Json).Value
+    $InfoAboutPackages = $PackageInfo | Select-Object Name, @{Name="Version";Expression={$_.properties.version}},@{Name="provisioningState";Expression={$_.properties.provisioningState}}
+    $Packages = $InfoAboutPackages | Where-Object {$_.provisioningState -ne "Succeeded" -and $_.provisioningState -ne "Failed"}
     Start-Sleep -Seconds 15
 }
 While ($Null -ne $Packages)
