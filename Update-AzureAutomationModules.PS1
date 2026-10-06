@@ -2,12 +2,21 @@
 # This script updates the Azure Automation modules in an Azure Automation account to the latest versions available in the PowerShell Gallery. 
 # It connects to the specified Azure Automation account, checks for updates to the modules, and applies any available updates.
 
-$SubscriptionId = "35429342-a1a5-4427-9e2d-551840f2ad25" # Add your Azure subscription ID here
-$ResourceGroupName = "ExoAutomation" # Add the resource group used by the Azure Automation account
-$AutomationAccountName = "M365Automation" # Add your Azure Automation account name here
-$RuntimeEnvironment = "PS74-Graph" # Specify the runtime environment (e.g., PowerShell7, PowerShell5.1)
-$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478' # Change this value to your tenant identifier
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Update-AzureAutomationModules.PS1
+# V1.0 25-Jul-2025
 
+# Define the identifier of the Azure subscription to use 
+$SubscriptionId = "35429342-a1a5-4427-9e2d-551840f2ad25" 
+# Define the resource group used by the Azure Automation account
+$ResourceGroupName = "ExoAutomation"
+# Define the name of the Azure Automation account
+$AutomationAccountName = "M365Automation"
+# Define the name of the target custom runtime environment to update
+$RuntimeEnvironment = "PS74-Graph"
+# Define the tenant identifier
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478' 
+
+# Define the list of PowerShell modules to check for updates. This list includes commonly used modules for Microsoft 365 and Azure management.
 [array]$RuntimeModules = "Az.Accounts", "Az.Automation", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", `
     "MicrosoftTeams", "Pnp.PowerShell", "ImportExcel", "Microsoft.Graph.Authentication", "Microsoft.Graph.Groups", "Microsoft.Graph.Users",`
      "Microsoft.Graph.Planner", "Microsoft.Graph.Users.Actions", "Microsoft.Graph.Security", "Microsoft.Graph.Teams", "Microsoft.Graph.Sites", `

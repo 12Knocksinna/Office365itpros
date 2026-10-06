@@ -2127,3 +2127,41 @@ Write-Host ("Total of {0} messages processed" -f $MessageDetails.count)
    $Url = "https://graph.microsoft.com/v1.0/users/$UserID/onlineMeetings/$($Meetingid)/transcripts/$($Transcriptid)/content"    
     $TranscriptFileName = "TranscriptVND-$($Transcript.callId)-$((($Transcript.createdDateTime -as [datetime]).ToString("yyyy-MM-dd_HH-mm-ss"))).txt"
     Invoke-MgGraphRequest -Method GET -Uri $Url -Headers $GraphHeaders -OutputFilePath "c:\temp\$TranscriptFileName"
+
+$SubscriptionId = "35429342-a1a5-4427-9e2d-551840f2ad25" # Add your Azure subscription ID here
+$ResourceGroupName = "ExoAutomation" # Add the resource group used by the Azure Automation account
+$AutomationAccountName = "M365Automation" # Add your Azure Automation account name here
+$RuntimeEnvironment = "PS74-Graph" # Specify the runtime environment (e.g., PowerShell7, PowerShell5.1)
+$TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478' # Change this value to your tenant identifier
+# Define version of the SDK to use
+$Version = '2.40.0'
+
+Write-Output "Connecting to Azure"
+Connect-AzAccount -Subscription $SubscriptionId -Tenant $TenantId -WarningAction SilentlyContinue
+
+# Azure Automation updates for specific version of the Microsoft Graph PowerShell SDK modules
+[array]$RuntimeModules = "Microsoft.Graph.Authentication", "Microsoft.Graph.Groups", "Microsoft.Graph.Users",`
+     "Microsoft.Graph.Planner", "Microsoft.Graph.Users.Actions", "Microsoft.Graph.Security", "Microsoft.Graph.Teams", "Microsoft.Graph.Sites", `
+     "Microsoft.Graph.Reports", "Microsoft.Graph.Mail", "Microsoft.Graph.Applications", "Microsoft.Graph.Calendar", "Microsoft.Graph.Files"
+
+ForEach ($Module in $RuntimeModules) {
+    Write-Output "Checking for updates to module: $Module"
+    $NupkgURI = "https://www.powershellgallery.com/api/v2/package/$Module/$Version"
+
+$RequestBody = @"
+    {
+        "properties": {
+            "contentLink": { "uri": "$NupkgURI" }
+        }
+    }
+"@
+    $Path = ("/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Automation/automationAccounts/{2}/runtimeEnvironments/{3}/packages/{4}/?api-version=2023-05-15-preview" -f $SubscriptionId, $ResourceGroupName, $AutomationAccountName, $RuntimeEnvironment, $Module)
+  
+    $Result = Invoke-AzRestMethod -Method Put -Path $Path -Payload $RequestBody
+    # Check if an error occured
+    $Output = $result.content | convertfrom-json
+    $Output.Message
+}
+
+
+
