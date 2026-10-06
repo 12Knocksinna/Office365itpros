@@ -4,7 +4,7 @@
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Update-AzureAutomationModules.PS1
 # V1.0 25-Jul-2025
-# V1.1 6-Oct-2026   Add output if error occurred when updating module
+# V1.1 6-Oct-2026   Add error checking
 
 # Define the identifier of the Azure subscription to use 
 $SubscriptionId = "35429342-a1a5-4427-9e2d-551840f2ad25" 
@@ -13,7 +13,7 @@ $ResourceGroupName = "ExoAutomation"
 # Define the name of the Azure Automation account
 $AutomationAccountName = "M365Automation"
 # Define the name of the target custom runtime environment to update
-$RuntimeEnvironment = "PS74-Graph"
+$RuntimeEnvironment = [System.Uri]::EscapeDataString("PS74-Graph")
 # Define the tenant identifier
 $TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478' 
 
@@ -37,19 +37,29 @@ ForEach ($Module in $Modules) {
     $Version = $CurrentModule.Version.toString()
     $NupkgURI = "https://www.powershellgallery.com/api/v2/package/$Module/$Version"
 
-$RequestBody = @"
-    {
-        "properties": {
-            "contentLink": { "uri": "$NupkgURI" }
+    $RequestBody = @{
+        properties = @{
+         contentLink = @{
+            uri = $NupkgURI
+         }
         }
-    }
-"@
-    $Path = ("/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Automation/automationAccounts/{2}/runtimeEnvironments/{3}/packages/{4}/?api-version=2023-05-15-preview" -f $SubscriptionId, $ResourceGroupName, $AutomationAccountName, $RuntimeEnvironment, $Module)
+    } | ConvertTo-Json -Depth 3
+
+    $EncodedModule = [System.Uri]::EscapeDataString($Module)
+    # Construct path to the Azure Automation REST API endpoint for updating the module in the specified runtime environment
+    $Path = ("/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Automation/automationAccounts/{2}/runtimeEnvironments/{3}/packages/{4}/?api-version=2023-05-15-preview" -f $SubscriptionId, $ResourceGroupName, $AutomationAccountName, $RuntimeEnvironment, $EncodedModule)
   
+    # Submit the request to update the module in the Azure Automation account
     $Result = Invoke-AzRestMethod -Method Put -Path $Path -Payload $RequestBody
-    # check if everything was OK 
-    $Output = $Result.content | ConvertFrom-Json
-    $Output.Message
+    # Check if everything went OK 
+    If ($Result.StatusCode -notin 200, 201, 202) {
+        Write-Error "Import request for $Module failed with HTTP status $($Result.StatusCode)."
+        $ErrorOutput = $Result.content | ConvertFrom-Json
+        $ErrorOutput.Message
+    } Else {
+        Write-Output "Submitted import of $Module version $Version."
+    }
+    
 }
 
 # Check installation
@@ -57,8 +67,8 @@ Do {
     Write-Output "Checking individual PowerShell modules (packages)..."
     $Data = Invoke-AzRestMethod -Method Get -Path $Path
 
-    $Object = ($Data.Content | convertFrom-Json).Value
-    $Array = $Object | Select-Object name, @{Name="Version";Expression={$_.properties.version}},@{Name="provisioningState";Expression={$_.properties.provisioningState}}
+    $Object = ($Data.Content | ConvertFrom-Json).Value
+    $Array = $Object | Select-Object Name, @{Name="Version";Expression={$_.properties.version}},@{Name="provisioningState";Expression={$_.properties.provisioningState}}
     $Packages = $Array | Where-Object {$_.provisioningState -ne "Succeeded" -and $_.provisioningState -ne "Failed"}
     Start-Sleep -Seconds 15
 }

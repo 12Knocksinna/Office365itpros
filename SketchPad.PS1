@@ -2128,10 +2128,11 @@ Write-Host ("Total of {0} messages processed" -f $MessageDetails.count)
     $TranscriptFileName = "TranscriptVND-$($Transcript.callId)-$((($Transcript.createdDateTime -as [datetime]).ToString("yyyy-MM-dd_HH-mm-ss"))).txt"
     Invoke-MgGraphRequest -Method GET -Uri $Url -Headers $GraphHeaders -OutputFilePath "c:\temp\$TranscriptFileName"
 
+
 $SubscriptionId = "35429342-a1a5-4427-9e2d-551840f2ad25" # Add your Azure subscription ID here
 $ResourceGroupName = "ExoAutomation" # Add the resource group used by the Azure Automation account
 $AutomationAccountName = "M365Automation" # Add your Azure Automation account name here
-$RuntimeEnvironment = "PS74-Graph" # Specify the runtime environment (e.g., PowerShell7, PowerShell5.1)
+$RuntimeEnvironment = [System.Uri]::EscapeDataString("PS74-Graph") # Specify the runtime environment (e.g., PowerShell7, PowerShell5.1)
 $TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478' # Change this value to your tenant identifier
 # Define version of the SDK to use
 $Version = '2.40.0'
@@ -2144,24 +2145,37 @@ Connect-AzAccount -Subscription $SubscriptionId -Tenant $TenantId -WarningAction
      "Microsoft.Graph.Planner", "Microsoft.Graph.Users.Actions", "Microsoft.Graph.Security", "Microsoft.Graph.Teams", "Microsoft.Graph.Sites", `
      "Microsoft.Graph.Reports", "Microsoft.Graph.Mail", "Microsoft.Graph.Applications", "Microsoft.Graph.Calendar", "Microsoft.Graph.Files"
 
-ForEach ($Module in $RuntimeModules) {
-    Write-Output "Checking for updates to module: $Module"
+ForEach ($Module in $Modules) {
+    Write-Output ("Checking for {0} of module {1}" -f $Version, $Module)
     $NupkgURI = "https://www.powershellgallery.com/api/v2/package/$Module/$Version"
+    # Is the package available in the PowerShell Gallery with the required version?
 
-$RequestBody = @"
-    {
-        "properties": {
-            "contentLink": { "uri": "$NupkgURI" }
-        }
+    $EncodedModule = [System.Uri]::EscapeDataString($Module)
+    Try {
+        $Package = Find-PSResource -Name $Module -Version $Version -Repository PSGallery -ErrorAction Stop
+    } Catch {
+        Write-Error ("Module {0} version {1} not found in PowerShell Gallery" -f $Module, $Version)
+        Continue
     }
-"@
-    $Path = ("/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Automation/automationAccounts/{2}/runtimeEnvironments/{3}/packages/{4}/?api-version=2023-05-15-preview" -f $SubscriptionId, $ResourceGroupName, $AutomationAccountName, $RuntimeEnvironment, $Module)
+    # Create the request body
+    $RequestBody = @{
+        properties = @{
+          contentLink = @{
+            uri = $NupkgURI
+          }
+        }
+    } | ConvertTo-Json -Depth 3
+    $Path = ("/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Automation/automationAccounts/{2}/runtimeEnvironments/{3}/packages/{4}/?api-version=2023-05-15-preview" -f $SubscriptionId, $ResourceGroupName, $AutomationAccountName, $RuntimeEnvironment, $EncodedModule)
   
     $Result = Invoke-AzRestMethod -Method Put -Path $Path -Payload $RequestBody
-    # Check if an error occured
-    $Output = $result.content | convertfrom-json
-    $Output.Message
+    # check if everything was OK 
+    If ($Result.StatusCode -notin 200, 201, 202) {
+        Write-Error "Import request for $Module failed with HTTP status $($Result.StatusCode)."
+        $ErrorOutput = $Result.content | ConvertFrom-Json
+        $ErrorOutput.Message
+    } Else {
+        Write-Output "Submitted import of $Module version $Version."
+    }
 }
-
 
 
