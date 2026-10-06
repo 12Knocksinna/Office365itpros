@@ -4,6 +4,7 @@
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Update-AzureAutomationModules.PS1
 # V1.0 25-Jul-2025
+# V1.1 6-Oct-2026   Add output if error occurred when updating module
 
 # Define the identifier of the Azure subscription to use 
 $SubscriptionId = "35429342-a1a5-4427-9e2d-551840f2ad25" 
@@ -17,7 +18,7 @@ $RuntimeEnvironment = "PS74-Graph"
 $TenantId = 'a662313f-14fc-43a2-9a7a-d2e27f4f3478' 
 
 # Define the list of PowerShell modules to check for updates. This list includes commonly used modules for Microsoft 365 and Azure management.
-[array]$RuntimeModules = "Az.Accounts", "Az.Automation", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", `
+[array]$Modules = "Az.Accounts", "Az.Automation", "ExchangeOnlineManagement", "Microsoft.Online.Sharepoint.PowerShell", `
     "MicrosoftTeams", "Pnp.PowerShell", "ImportExcel", "Microsoft.Graph.Authentication", "Microsoft.Graph.Groups", "Microsoft.Graph.Users",`
      "Microsoft.Graph.Planner", "Microsoft.Graph.Users.Actions", "Microsoft.Graph.Security", "Microsoft.Graph.Teams", "Microsoft.Graph.Sites", `
      "Microsoft.Online.SharePoint.PowerShell", "Microsoft.PowerShell.PSResourceGet", "MSIdentityTools", "Microsoft.Graph.Reports", `
@@ -30,7 +31,7 @@ Write-Output ""
 Write-Output "Preparing to check PowerShell modules installed in the target runtime environment..."
 Write-Output ""
 
-ForEach ($Module in $RuntimeModules) {
+ForEach ($Module in $Modules) {
     Write-Output "Checking for updates to module: $Module"
     $CurrentModule = Find-PsResource -Name $Module
     $Version = $CurrentModule.Version.toString()
