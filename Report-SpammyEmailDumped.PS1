@@ -4,24 +4,24 @@
 # and record its data in a CSV file stored in a SharePoint Online document library. The data in the CSV
 # file can then be used to generate statistics over a long-term basis.
 
-# GitHub Link:
+# GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-SpammyEmailDumped.PS1
 # V1.0  13-Oct-2026
 
 # Interactive login to Exchange Online
 Connect-ExchangeOnline -ShowBanner:$false
 # The Azure Automation sign in using a managed identity uses the service domain for your tenant, which you will
 # Have to change here.
-Connect-ExchangeOnline -ManagedIdentity -Organization office365itpros.onmicrosoft.com
+# Connect-ExchangeOnline -ManagedIdentity -Organization office365itpros.onmicrosoft.com
 
 # Connect to the Microsoft Graph to access SharePoint Online
 Try {
-    Connect-MgGraph -Identity -ErrorAction Stop
+    Connect-MgGraph -Identity -ErrorAction Stop -NoWelcome
 } Catch {
     Write-Error "Failed to connect to Microsoft Graph. Please ensure you have the necessary permissions."
     Exit
 }
 
-$RunDate = Get-Date -Format "yyyy-MM-dd HH:mm"
+ $RunDate = (Get-Date).toUniversalTime().ToString("yyyy-MM-dd HH:mm") 
 # We fetch every seven days using a scheduled job
 [datetime]$StartDate = (Get-Date).AddDays(-7)
 [datetime]$EndDate = Get-Date
@@ -85,7 +85,7 @@ ForEach ($Domain in $SpammyDomains) {
   $CheckDomain = "*"+$Domain+"*"
   [array]$SpamRecords = $MData | Where-Object {$_.SenderAddress -like $CheckDomain} 
   If ($SpamRecords.Count -gt 0) {
-    Write-Host ("Domain {0} sent {1} spammy messages" -f $Domain, $SpamRecords.Count)
+    Write-Output ("Domain {0} sent {1} spammy messages" -f $Domain, $SpamRecords.Count)
     $SpamDataRecord = [PSCustomObject]@{
         RunDate = $RunDate
         Domain = $Domain
@@ -100,6 +100,7 @@ Remove-Item -Path $ExportedSpamDataFile -ErrorAction SilentlyContinue
 $SpamData | Export-CSV $ExportedSpamDataFile -Encoding utf8
 
 Write-Output "Updating historical spammy email data in SharePoint Online..."
+# Define path to the folder where the item is stored and the name of the CSV file that contains the historical data. The folder must already exist in the document library.
 $FolderPath = "The Base of All Good in Office 365"
 $SpammyEmailHistoricalFile = "HistoricalSpammyEmail.csv"
 
