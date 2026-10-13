@@ -15,7 +15,9 @@ Connect-ExchangeOnline -ShowBanner:$false
 
 # Connect to the Microsoft Graph to access SharePoint Online
 Try {
-    Connect-MgGraph -Identity -ErrorAction Stop -NoWelcome
+    Connect-MgGraph -NoWelcome -Scopes Sites.Read.All, Files.Read.All
+    # For Azure Automation
+    # Connect-MgGraph -Identity -ErrorAction Stop
 } Catch {
     Write-Error "Failed to connect to Microsoft Graph. Please ensure you have the necessary permissions."
     Exit
