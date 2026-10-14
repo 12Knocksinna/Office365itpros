@@ -23,7 +23,7 @@ Try {
     Exit
 }
 
- $RunDate = (Get-Date).toUniversalTime().ToString("yyyy-MM-dd HH:mm") 
+$RunDate = (Get-Date).toUniversalTime().ToString("yyyy-MM-dd HH:mm") 
 # We fetch every seven days using a scheduled job
 [datetime]$StartDate = (Get-Date).AddDays(-7)
 [datetime]$EndDate = Get-Date
@@ -131,14 +131,9 @@ Try {
 } Catch {
     Write-Error "Failed to retrieve Spammy Email Historical file: $_"
     Write-Output "Creating new file..."
-    $TargetLocation = "root:/" + $FolderPath + "/" + $SpammyEmailHistoricalFile + ":"
-    Try {
-        $SpamFileItem = Set-MgDriveItemContent -DriveId $Drive.Id -DriveItemId $TargetLocation -InFile $ExportedSpamDataFile -ErrorAction Stop
-    } Catch {
-        Write-Error "Failed to create new Spammy Email Historical file: $_"
-        Return
-    }
-}
+   cd 
+
+cd}
 
 # If we need to update the historical file, download it first, append the new data, and then upload it back to SharePoint
 If ($UpdateItemRequired) {  
