@@ -31,9 +31,12 @@ Write-Output ""
 Write-Output "Preparing to check PowerShell modules installed in the target runtime environment..."
 Write-Output ""
 
+# Preferred repository is either PSGallery (PowerShell Gallery) or MicrosoftArtifactRegistry (Microsoft Artifact Registry). If you have a different repository, change the value of $RepositoryName below.
+$RepositoryName = "PSGallery"
+
 ForEach ($Module in $Modules) {
-    Write-Output ("Checking for updates to module: {0}" -f $Module)
-    $CurrentModule = Find-PsResource -Name $Module -Repository PSGallery
+    Write-Output "Checking for updates to module: $Module"
+    $CurrentModule = Find-PsResource -Name $Module
     $Version = $CurrentModule.Version.toString()
     $NupkgURI = "https://www.powershellgallery.com/api/v2/package/$Module/$Version"
 
