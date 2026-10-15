@@ -5,6 +5,7 @@
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Update-AzureAutomationModules.PS1
 # V1.0 25-Jul-2025
 # V1.1 6-Oct-2026   Add error checking
+# V1.2 15-Oct-2026  Add support for specifying repository for module download
 
 # Define the identifier of the Azure subscription to use 
 $SubscriptionId = "35429342-a1a5-4427-9e2d-551840f2ad25" 
@@ -35,7 +36,7 @@ Write-Output ""
 $RepositoryName = "PSGallery"
 
 ForEach ($Module in $Modules) {
-    Write-Output "Checking for updates to module: $Module"
+    Write-Output ("Checking for updates to module: {0}" -f $Module)
     $CurrentModule = Find-PsResource -Name $Module -Repository $RepositoryName
     $Version = $CurrentModule.Version.toString()
     $NupkgURI = "https://www.powershellgallery.com/api/v2/package/$Module/$Version"
