@@ -32,8 +32,8 @@ Write-Output "Preparing to check PowerShell modules installed in the target runt
 Write-Output ""
 
 ForEach ($Module in $Modules) {
-    Write-Output "Checking for updates to module: $Module"
-    $CurrentModule = Find-PsResource -Name $Module
+    Write-Output ("Checking for updates to module: {0}" -f $Module)
+    $CurrentModule = Find-PsResource -Name $Module -Repository PSGallery
     $Version = $CurrentModule.Version.toString()
     $NupkgURI = "https://www.powershellgallery.com/api/v2/package/$Module/$Version"
 
@@ -57,9 +57,8 @@ ForEach ($Module in $Modules) {
         $ErrorOutput = $Result.content | ConvertFrom-Json
         $ErrorOutput.Message
     } Else {
-        Write-Output "Submitted import of $Module version $Version."
-    }
-    
+        Write-Output ("Submitted import of $Module version {0}" -f $Version)
+    }    
 }
 
 # Check installation

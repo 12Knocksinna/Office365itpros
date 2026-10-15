@@ -2,6 +2,7 @@
 # https://github.com/12Knocksinna/Office365itpros/blob/master/Update%20AzureAutomationGraphModules.PS1
 # A script to update the set of Graph modules for an Azure Automation account
 # V3.0 16-Dec-2022 - Updated to include Exchange Online management module
+# V3.1 15-Oct-2026 - Updated to specicy repostory for module download.
 # Requires the Az.Automation PowerShell module
 
 Write-Host "Connecting to Azure Automation"
@@ -33,6 +34,8 @@ Write-Host ("Checking for version {0} of the Exchange Online Management module" 
 If (!($AzAccounts)) { write-Host "No Automation accounts found - existing" ; break }
 Write-Host ("{0} Azure Automation accounts will be processed" -f $AzAccounts.Count)
 
+# Preferred repository is either PSGallery (PowerShell Gallery) or MicrosoftArtifactRegistry (Microsoft Artifact Registry). If you have a different repository, change the value of $RepositoryName below.
+$RepositoryName = "PSGallery"
 ForEach ($AzAccount in $AzAccounts) {
   $AzName = $AzAccount.AutomationAccountName
   $AzResourceGroup = $AzAccount.ResourceGroupName
