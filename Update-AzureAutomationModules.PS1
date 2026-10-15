@@ -36,7 +36,7 @@ $RepositoryName = "PSGallery"
 
 ForEach ($Module in $Modules) {
     Write-Output "Checking for updates to module: $Module"
-    $CurrentModule = Find-PsResource -Name $Module
+    $CurrentModule = Find-PsResource -Name $Module -Repository $RepositoryName
     $Version = $CurrentModule.Version.toString()
     $NupkgURI = "https://www.powershellgallery.com/api/v2/package/$Module/$Version"
 
