@@ -3,7 +3,7 @@
 
 # V1.0 5-May-2026
 
-# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-WeeklyOutstandingTasks.PS1
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-NonUserAuditEvents.PS1
 
 Connect-ExchangeOnline -ShowBanner:$false
 
@@ -21,12 +21,35 @@ $WellKnownApps.Add('dacf6086-a190-467a-aadd-d519472b8d1d', 'Exchange Online')
 $WellKnownApps.Add('e6ff64fa-aad6-4944-8e6c-c746c7b613a6', 'Microsoft 365 Substrate Management')
 $WellKnownApps.Add('1342cefb-7a89-4ee2-af90-c8443053e1e8', 'Microsoft Approval Management')
 
+$MbxHash = [ordered]@{}
+# Get the set of user mailboxes in the tenant to help identify non-user audit events and populate a hash table for later use
+[array]$Mbx = Get-ExoMailbox -ResultSize Unlimited -RecipientTypeDetails UserMailbox | `
+    Select-Object DisplayName, PrimarySmtpAddress | Sort-Object PrimarySmtpAddress 
+$Mbx | ForEach-Object { $MbxHash.Add($_.PrimarySmtpAddress.ToString().ToLower(), $_.DisplayName) }
+
+Write-Output "Starting search for non-user audit events for the last 7 days..."
+$StartTimeSearch = Get-Date
 # Example of fetching all audit events for the last week (well, limited to 5000 records)
 [array]$Records = Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-7) -EndDate (Get-Date).AddDays(1) -ResultSize 5000 -Formatted -SessionCommand ReturnLargeSet
 $Records = $Records | Sort-Object identity -Unique
 
+If (!$Records) {
+    Write-Host "No audit records found for the last 7 days"
+    Return
+} Else {
+    $EndTimeSearch = Get-Date
+    $SearchDuration = $EndTimeSearch - $StartTimeSearch     
+    Write-Host "Found $($Records.Count) audit records for the last 7 days"
+    Write-Host "Search duration: $SearchDuration"
+}
+
 $Report = [System.Collections.Generic.List[Object]]::new()
-ForEach ($Rec in $Records) {
+ForEach ($Rec in $Records | Where-Object {$_.UserIds -notin $MbxHash.Keys}) {
+
+    # Drop guest user activities
+    If ($Rec.UserIds -Like  "*#ext#*") {
+        Continue
+    }
     $GuestAccountFlag = $False
     $SystemAppName = $Null; $AppOperation = $Null; $ClientApp = $Null
 
@@ -138,9 +161,11 @@ ForEach ($Rec in $Records) {
 } 
 
 $Report= $Report | Sort-Object {$_.timestamp -as [datetime]}
+Write-Output "Found $($Report.Count) non-user audit events for the last 7 days"
+$Report | Out-GridView -Title "Non-user audit events for the last week"
 
-# An example script used to illustrate a concept. More information about the topic can be found in the Office 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Microsoft 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
