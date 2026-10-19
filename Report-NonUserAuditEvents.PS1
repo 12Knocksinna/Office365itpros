@@ -9,7 +9,6 @@ Connect-ExchangeOnline -ShowBanner:$false
 
 [array]$BackEndSIDS = 'S-1-8-618832045-1217504451-1955385509-1851076329', 'S-1-8-618832045-1217504451-1955385509-1851076329'
 [array]$NotFound = 'NOT-FOUND', 'Not Available'
-[array]$Domains = Get-AcceptedDomain | Select-Object -ExpandProperty DomainName
 
 $WellKnownApps = @{}
 $WellKnownApps.Add('0d8921ab-7749-4a55-846e-67f0fef6b953', 'Entra ID Strong Authentication Service')
