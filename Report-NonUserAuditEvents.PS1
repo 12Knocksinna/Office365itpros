@@ -1,7 +1,9 @@
 # Report-NonUserAuditEvents.PS1
 # This script generates a report of non-user audit events logged for a Microsoft 365 tenant over the last 7 days
+# Two sets of code are in the script. The first uses the Search-UnifiedAuditLog cmdlet to fetch audit events, and the second uses 
+# the AuditLogQuery Graph API to do the same. Both methods are included for comparison and learning purposes.
 
-# V1.0 5-May-2026
+# V1.0 19-Oct-2026
 
 # GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-NonUserAuditEvents.PS1
 
@@ -186,6 +188,8 @@ ForEach ($Rec in $Records) {
 $Report= $Report | Sort-Object {$_.timestamp -as [datetime]}
 Write-Output "Found $($Report.Count) non-user audit events for the last 7 days"
 $Report | Out-GridView -Title "Non-user audit events for the last week"
+
+# Steps to do the same with the AuditLogQuery Graph API.
 
 # Step 1 - Connect to Microsoft Graph with the required permissions to read audit logs. This is necessary to access the audit data for non-user events.
 Connect-MgGraph -Scopes AuditLogsQuery.Read.All 
