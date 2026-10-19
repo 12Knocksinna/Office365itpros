@@ -175,7 +175,8 @@ $Global:ReportData = [System.Collections.Generic.List[Object]]::new()
 ForEach ($Group in $Groups) {
     Write-Output ("Processing group: {0}..." -f $Group.DisplayName)
     Try {
-    # $GroupSite = Invoke-MgGraphRequest -Uri $Uri -Method Get -OutputType PsObject -ErrorAction Stop
+        # $Uri = "https://graph.microsoft.com/v1.0/groups/$($Group.Id)/sites/root"
+        # $GroupSite = Invoke-MgGraphRequest -Uri $Uri -Method Get -OutputType PsObject -ErrorAction Stop
         $GroupSite = Get-MgGroupSite -GroupId $Group.Id -SiteId 'root' -ErrorAction Stop
     } Catch {
         $BlockedSites++
@@ -280,7 +281,7 @@ $HtmlMsg = "<html><body>"
 $HtmlMsg += "<h1>File-Level Archiving Report for SharePoint Online Sites</h1>"
 $HtmlMsg += "<p>Total Microsoft 365 groups found for processing: <b>$($Groups.Count)</b></p>"
 If ($BlockedSites -gt 0) {
-    $HtmlMsg += "<p>Unable to access Microsoft 365 groups: <b>$($BlockedSites)</b>. This may be because the site is archived.</p>"
+    $HtmlMsg += "<p>Unable to access Microsoft 365 groups: <b>$($BlockedSites)</b>. Most sites are blocked because they are archived.</p>"
 }
 $HtmlMsg += "<p>The information contained in this report is calculated based on an examination of file properties found in the SharePoint Online sites belonging to the Microsoft 365 Groups scanned by the job..</p>"
 $HtmlMsg += "<h2>Summary of Archived Files by Site</h2>"

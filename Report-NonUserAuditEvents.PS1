@@ -3,7 +3,9 @@
 
 # V1.0 5-May-2026
 
-# GitHub link: https://github.com/12Knocksinna/Office365    itpros/blob/master/Report-WeeklyOutstandingTasks.PS1
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Report-WeeklyOutstandingTasks.PS1
+
+Connect-ExchangeOnline -ShowBanner:$false
 
 [array]$BackEndSIDS = 'S-1-8-618832045-1217504451-1955385509-1851076329', 'S-1-8-618832045-1217504451-1955385509-1851076329'
 [array]$NotFound = 'NOT-FOUND', 'Not Available'
