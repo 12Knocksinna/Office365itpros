@@ -227,6 +227,8 @@ $AuditQueryParameters.Add("filterEndDateTime", $AuditQueryEnd)
 
 # Step 3: Submit the audit log query job.
 $AuditJob = New-MgSecurityAuditLogQuery -BodyParameter $AuditQueryParameters
+# Alternatively
+# $AuditJob = New-MgSecurityAuditLogQuery -DisplayName $AuditJobName -FilterStartDateTime $AuditQueryStart -FilterEndDateTime $AuditQueryEnd
 If (!$AuditJob) {
     Write-Output "Failed to create audit log query job. Exiting script."
     Return
