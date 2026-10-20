@@ -192,7 +192,25 @@ $Report | Out-GridView -Title "Non-user audit events for the last week"
 # Steps to do the same with the AuditLogQuery Graph API.
 
 # Step 1 - Connect to Microsoft Graph with the required permissions to read audit logs. This is necessary to access the audit data for non-user events.
-Connect-MgGraph -Scopes AuditLogsQuery.Read.All 
+Connect-MgGraph -Scopes AuditLogsQuery.Read.All -NoWelcome
+
+# Create the same kind of hash table holding details of user mailboxes to help identify non-user audit events. 
+# This is done by fetching all users with an Exchange Online license assigned and enabled. This isn't necessary to run audit jobs
+# but we need the data to filter out user mailbox events from the audit log results. 
+$ExoServicePlan1 = "9aaf7827-d63c-4b61-89c3-182f06f82e5c"
+$ExoServicePlan2 = "efb87545-963c-4e0d-99df-69c6916d9eb0" 
+
+$MbxHash = [ordered]@{}
+Write-Output "Finding all user mailboxes in the tenant to help identify non-user audit events..."
+[array]$Mbx = Get-MgUser -Filter "assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan1 and capabilityStatus eq 'Enabled') or assignedPlans/any(c:c/servicePlanId eq $ExoServicePlan2 and capabilityStatus eq 'Enabled') and accountEnabled eq true" `
+   -ConsistencyLevel eventual -CountVariable Test -All -PageSize 500  -Property DisplayName, UserPrincipalName -Sort UserPrincipalName 
+If (!$Mbx) {
+    Write-Output "No user mailboxes found in the tenant. Exiting script."
+    Return
+} Else {
+    Write-Output ("Found {0} user mailboxes in the tenant" -f $Mbx.Count)
+}   
+$Mbx | ForEach-Object { $MbxHash.Add($_.UserPrincipalName.ToString().ToLower(), $_.DisplayName) }
 
 # Step 2: Create a hash table for the request body for the audit log query job.
 $AuditJobName = ("Audit job to fetch all events for the last week created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
