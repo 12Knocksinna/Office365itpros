@@ -43,7 +43,7 @@ param (
 
     [Parameter()]
     [ValidateRange(0, 10)]
-    [int]$MaximumRetries = 5,
+    [int]$MaximumRetries = 10,
 
     [Parameter()]
     [ValidateRange(1, 1000)]
