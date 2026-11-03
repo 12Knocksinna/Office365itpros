@@ -378,9 +378,9 @@ If (Get-Module ImportExcel -ListAvailable) {
 }
 
 If ($ExcelGenerated) {
-    Write-Output ("{0:N0} unique sign-in records written to {1}" -f $UniqueSignInRecords.Count, $ExcelOutputFile)
+    Write-Output ("{0:N0} Entra ID audit sign-in records written to {1}" -f $AuditReport.Count, $ExcelOutputFile)
 } Else {
-    Write-Output ("{0:N0} unique sign-in records written to {1}" -f $UniqueSignInRecords.Count, $CSVOutputFile)
+    Write-Output ("{0:N0} Entra ID audit sign-in records written to {1}" -f $AuditReport.Count, $CSVOutputFile)
 }
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
