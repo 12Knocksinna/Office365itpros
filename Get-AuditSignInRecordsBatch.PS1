@@ -244,7 +244,7 @@ While ($PendingRequests.Count -gt 0) {
         Requests = $GraphBatchRequests
     }
 
-    Write-Output ("Submitting batch {0} containing {1} requests; {2} requests remain queued." -f $BatchNumber, $GraphBatchRequests.Count, $PendingRequests.Count )
+    Write-Output ("Submitting batch {0} containing {1} requests. {2} requests remain queued for a later batch." -f $BatchNumber, $GraphBatchRequests.Count, $PendingRequests.Count )
     # Let's submit the batch request to Microsoft Graph. If it fails, throw an error and stop processing.
     Try {
         $BatchResponse = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/`$batch" `
@@ -324,7 +324,7 @@ While ($PendingRequests.Count -gt 0) {
 }
 
 Write-Output ("All batch requests completed. {0:N0} sign-in records retrieved." -f $SignIns.Count)
-Write-Output ("Processing the sign-in records to create an audit report...")]
+Write-Output ("Processing the sign-in records to create an audit report...")
 
 # Deduplicate records just in case Microsoft Graph returns an unexpected overlap.
 [array]$AllSignIns = $Signins | Sort-Object Id -Unique 
