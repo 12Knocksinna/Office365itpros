@@ -178,10 +178,10 @@ If (-not $Context -or $Context.Scopes -notcontains $RequiredScope) {
 # Number of seconds to delay between batch submissions. This is to avoid hitting the Microsoft Graph service too quickly and getting throttled.
 $DelayBetweenBatchSubmission = 1
 
-# Compute how many batches we need to process to find all sign-in records in the specified date range.
+# Compute the requests we need to process (individual time-bounded sets of sign-in records) to find all sign-in records in the specified date range.
 $PendingRequests = New-SignInRequestQueue -RangeStart $StartUtc -RangeEnd $EndUtc -Hours $WindowHours -Top $PageSize
 
-# Check that we got a queue back from New-SignInRequestQueue. If not, throw an error.
+# Check that we got a PowerShell queue back from New-SignInRequestQueue. If not, throw an error.
 If ($PendingRequests -isnot [System.Collections.Generic.Queue[object]]) {
     Throw "New-SignInRequestQueue returned $($PendingRequests.GetType().FullName) instead of a Queue."
 }
@@ -201,7 +201,7 @@ While ($PendingRequests.Count -gt 0) {
     $DeferredRequests = [System.Collections.Generic.List[object]]::new()
     $Now = Get-Date
 
-    # Fetch a batch job from the queue. If the request is not ready to be submitted, defer it until later.
+    # Fetch a request from the queue. If the request is not ready to be submitted, defer it until later.
     While ($PendingRequests.Count -gt 0 -and $RequestsForBatch.Count -lt $BatchSize) {
         $Request = $PendingRequests.Dequeue()
 
@@ -229,6 +229,7 @@ While ($PendingRequests.Count -gt 0) {
         continue
     }
 
+    # Create the request body containing the requests to be processed by the batch.
     $GraphBatchRequests = @(
         Foreach ($Request in $RequestsForBatch) {
             [ordered]@{
@@ -243,19 +244,20 @@ While ($PendingRequests.Count -gt 0) {
         Requests = $GraphBatchRequests
     }
 
-    Write-Output ("Submitting batch {0} with {1} requests; {2} requests remain queued." -f $BatchNumber, $GraphBatchRequests.Count, $PendingRequests.Count )
+    Write-Output ("Submitting batch {0} containing {1} requests; {2} requests remain queued." -f $BatchNumber, $GraphBatchRequests.Count, $PendingRequests.Count )
     # Let's submit the batch request to Microsoft Graph. If it fails, throw an error and stop processing.
     Try {
         $BatchResponse = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/`$batch" `
             -Body ($BatchBody | ConvertTo-Json -Depth 10) -ContentType "application/json" -ErrorAction Stop
-        Write-Output ("Submitted batch number {0}" -f $BatchNumber)
-        # Pause to avoid hitting Microsoft Graph with too many batch requeststoo quickly and getting throttled.
+        Write-Output ("Batch number {0} successfully submitted..." -f $BatchNumber)
+        # Pause to avoid hitting Microsoft Graph with too many batch requests too quickly and getting throttled.
         Start-Sleep -Seconds $DelayBetweenBatchSubmission
     } Catch {
         Throw "Batch $BatchNumber failed: $($_.Exception.Message)"
     }
 
-    # Check what the response was
+    # Check what the response was for each request in the batch. If the response is successful, add the sign-in records to our list. 
+    # If the response is a retryable error, queue up a retry. If the response is a non-retryable error, throw an exception and stop processing.
     ForEach ($Response in ($BatchResponse.responses)) {
         $OriginalRequest = $RequestsForBatch | Where-Object Id -eq ([string]$Response.id) | Select-Object -First 1
 
@@ -320,6 +322,9 @@ While ($PendingRequests.Count -gt 0) {
 
     Write-Output ( "{0:N0} sign-in records retrieved so far." -f $SignIns.Count )
 }
+
+Write-Output ("All batch requests completed. {0:N0} sign-in records retrieved." -f $SignIns.Count)
+Write-Output ("Processing the sign-in records to create an audit report...")]
 
 # Deduplicate records just in case Microsoft Graph returns an unexpected overlap.
 [array]$SignIns = $Signins | Sort-Object Id -Unique 
