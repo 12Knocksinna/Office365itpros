@@ -322,7 +322,46 @@ While ($PendingRequests.Count -gt 0) {
 }
 
 # Deduplicate records just in case Microsoft Graph returns an unexpected overlap.
-[array]$UniqueSignInRecords = $Signins | Sort-Object Id -Unique | Sort-Object {$_.CreatedDateTime -as [datetime]} -Descending
+[array]$SignIns = $Signins | Sort-Object Id -Unique 
+
+$AuditReport = [System.Collections.Generic.List[Object]]::new()
+ForEach ($AuditRecord in $SignIns) {
+
+   If ($null -ne $AuditRecord.Status) { 
+       If ($AuditRecord.Status.ErrorCode -eq 0) { 
+           $SignInStatus = "Success" 
+       } Else { 
+           $SignInStatus = ("Failure: {0} {1}" -f $AuditRecord.Status.ErrorCode, $AuditRecord.Status.FailureReason)
+       }
+   } 
+
+    $AuditReportLine = [PSCustomObject]@{
+        CreatedDateTime     = (Get-Date $AuditRecord.CreatedDateTime -format 'dd-MMM-yyyy HH:mm:ss')
+        UserPrincipalName   = $AuditRecord.UserPrincipalName
+        UserDisplayName     = $AuditRecord.UserDisplayName
+        UserId              = $AuditRecord.UserId
+        AppDisplayName      = $AuditRecord.AppDisplayName
+        AppId               = $AuditRecord.AppId
+        ClientAppUsed       = $AuditRecord.ClientAppUsed
+        ResourceId          = $AuditRecord.ResourceId
+        ResourceDisplayName = $AuditRecord.ResourceDisplayName
+        HomeTenantId        = $AuditRecord.HomeTenantId
+        ResourceTenantId    = $AuditRecord.ResourceTenantId
+        IPAddress           = $AuditRecord.IPAddress
+        'CA Status'         = $AuditRecord.ConditionalAccessStatus
+        RiskState           = $AuditRecord.RiskState
+        RiskLevelAggregated = $AuditRecord.RiskLevelAggregated
+        RiskDetail          = $AuditRecord.RiskDetail
+        Location            = if ($null -ne $AuditRecord.Location) { "$($AuditRecord.Location.City), $($AuditRecord.Location.State), $($AuditRecord.Location.CountryOrRegion)" } else { "" }
+        Status              = $SignInStatus  
+        Id                  = $AuditRecord.Id
+        IsInteractive       = $AuditRecord.IsInteractive
+    }
+    $AuditReport.Add($AuditReportLine)
+        
+}
+
+$AuditReport = $AuditReport | Sort-Object {$_.CreatedDateTime -as [datetime]} -Descending
 
 # Export the data to an Excel worksheet or a CSV file
 If (Get-Module ImportExcel -ListAvailable) {
@@ -332,10 +371,10 @@ If (Get-Module ImportExcel -ListAvailable) {
     If (Test-Path $ExcelOutputFile) {
         Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
     } 
-    $UniqueSignInRecords | Export-Excel -Path $ExcelOutputFile -WorksheetName "Entra Audit Sign-ins" -Title ("Entra Audit Sign-ins {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "EntraAuditSignIns" 
+    $AuditReport | Export-Excel -Path $ExcelOutputFile -WorksheetName "Entra Audit Sign-ins" -Title ("Entra Audit Sign-ins {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "EntraAuditSignIns" 
 } Else {
     $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\EntraAuditSignIns.CSV"
-    $UniqueSignInRecords | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+    $AuditReport | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
 }
 
 If ($ExcelGenerated) {
