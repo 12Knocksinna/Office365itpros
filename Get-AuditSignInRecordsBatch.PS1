@@ -327,10 +327,10 @@ Write-Output ("All batch requests completed. {0:N0} sign-in records retrieved." 
 Write-Output ("Processing the sign-in records to create an audit report...")]
 
 # Deduplicate records just in case Microsoft Graph returns an unexpected overlap.
-[array]$SignIns = $Signins | Sort-Object Id -Unique 
+[array]$AllSignIns = $Signins | Sort-Object Id -Unique 
 
 $AuditReport = [System.Collections.Generic.List[Object]]::new()
-ForEach ($AuditRecord in $SignIns) {
+ForEach ($AuditRecord in $AllSignIns) {
 
    If ($null -ne $AuditRecord.Status) { 
        If ($AuditRecord.Status.ErrorCode -eq 0) { 
