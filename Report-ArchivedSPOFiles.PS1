@@ -238,6 +238,7 @@ Write-Output ("Total folders processed: {0}" -f $Global:TotalFolders)
 Write-Output ("Total files processed: {0}" -f $Global:TotalFiles)
 Write-Output ("Total archived files found: {0}" -f $Global:ReportData.Count)
 Write-Output ("Total size of archived files found: {0}" -f (FormatFileSize $TotalArchivedFilesSize))
+Write-Output ("Estimated storage savings from archiving: {0}" -f $StorageSavings)
 Write-Output ""
 
 # Analyze the years when archived files were created
