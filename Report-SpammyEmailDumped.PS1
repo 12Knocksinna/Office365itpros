@@ -129,11 +129,18 @@ Try {
     $SpamFileItem = Invoke-MgGraphRequest -Uri $Uri -Method GET -ErrorAction Stop
     $UpdateItemRequired = $true
 } Catch {
-    Write-Error "Failed to retrieve Spammy Email Historical file: $_"
+    Write-Output "Failed to retrieve Spammy Email Historical file: $_"
     Write-Output "Creating new file..."
-   cd 
-
-cd}
+    $TargetLocation = $FolderPath + "/" + $SpammyEmailHistoricalFile + ":"
+    Try {
+        # $SpamFileItem = Set-MgDriveItemContent -DriveId $Drive.Id -DriveItemId $TargetLocation -InFile $ExportedSpamDataFile -ErrorAction Stop
+        $Uri = "https://graph.microsoft.com/v1.0/drives/$($Drive.Id)/root:/$($TargetLocation)/content"
+        $SpamFileItem = Invoke-MgGraphRequest -Uri $Uri -Method PUT -InputFilePath $ExportedSpamDataFile -ContentType "application/octet-stream" -ErrorAction Stop
+    } Catch {
+        Write-Error "Failed to create new Spammy Email Historical file: $_"
+        Return
+    }
+}
 
 # If we need to update the historical file, download it first, append the new data, and then upload it back to SharePoint
 If ($UpdateItemRequired) {  

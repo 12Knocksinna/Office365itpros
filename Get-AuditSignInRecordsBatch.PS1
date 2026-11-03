@@ -19,11 +19,10 @@ Batches are generated to fetch records for 24 hours. This is controlled by the W
 By default, the Graph returns 1000 records per request. Update the PageSize parameter to change the number of records returned per request. 
 
 V1.0 3-Nov-2026
-GitHub Link: 
+GitHub Link: https://github.com/12Knocksinna/Office365itpros/blob/master/Get-AuditSignInRecordsBatch.PS1
 
 .EXAMPLE
-.\Get-AuditSignInRecordsBatch.ps1 -StartDate "2026-10-01T00:00:00Z" -EndDate "2026-11-01T00:00:00Z" -WindowHours 6 `
-    -OutputFile ".\EntraSignIns-October-2026.json"  -Verbose
+.\Get-AuditSignInRecordsBatch.ps1 -StartDate "2026-10-01T00:00:00Z" -EndDate "2026-11-01T00:00:00Z" -WindowHours 6 
 #>
 
 [CmdletBinding()]
@@ -48,10 +47,7 @@ param (
 
     [Parameter()]
     [ValidateRange(1, 1000)]
-    [int]$PageSize = 1000,
-
-    [Parameter()]
-    [string]$OutputFile = "c:\temp\EntraSignIns.csv"
+    [int]$PageSize = 1000
 )
 
 function ConvertTo-GraphRelativeUri {
@@ -328,11 +324,25 @@ While ($PendingRequests.Count -gt 0) {
 # Deduplicate records just in case Microsoft Graph returns an unexpected overlap.
 [array]$UniqueSignInRecords = $Signins | Sort-Object Id -Unique | Sort-Object {$_.CreatedDateTime -as [datetime]} -Descending
 
-# Export the data to a CSV file
-Remove-Item -Path $OutputFile -ErrorAction SilentlyContinue
-$UniqueSignInRecords | Export-CSV -Path $OutputFile -Encoding utf8 -NoTypeInformation
+# Export the data to an Excel worksheet or a CSV file
+If (Get-Module ImportExcel -ListAvailable) {
+    $ExcelGenerated = $true
+    Import-Module ImportExcel -ErrorAction SilentlyContinue
+    $ExcelOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\EntraAuditSignIns.xlsx"
+    If (Test-Path $ExcelOutputFile) {
+        Remove-Item $ExcelOutputFile -ErrorAction SilentlyContinue
+    } 
+    $UniqueSignInRecords | Export-Excel -Path $ExcelOutputFile -WorksheetName "Entra Audit Sign-ins" -Title ("Entra Audit Sign-ins {0}" -f (Get-Date -format 'dd-MMM-yyyy')) -TitleBold -TableName "EntraAuditSignIns" 
+} Else {
+    $CSVOutputFile = ((New-Object -ComObject Shell.Application).Namespace('shell:Downloads').Self.Path) + "\EntraAuditSignIns.CSV"
+    $UniqueSignInRecords | Export-Csv -Path $CSVOutputFile -NoTypeInformation -Encoding Utf8
+}
 
-Write-Output ("{0:N0} unique sign-in records written to {1}" -f $UniqueSignInRecords.Count, $OutputFile)
+If ($ExcelGenerated) {
+    Write-Output ("{0:N0} unique sign-in records written to {1}" -f $UniqueSignInRecords.Count, $ExcelOutputFile)
+} Else {
+    Write-Output ("{0:N0} unique sign-in records written to {1}" -f $UniqueSignInRecords.Count, $CSVOutputFile)
+}
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
