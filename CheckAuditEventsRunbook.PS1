@@ -22,7 +22,7 @@ $ToAddress = "AdminDL@mydomain.com"
 $MsgSubject = "High-Priority Audit Events Found for $($TenantName)"
 
 # Define the set of operations we're interested in picking up in the audit log
-[array]$AuditOperationFilters = "New-TransportRule", "New-InboundConnector", "Set-TransportRule"
+[array]$AuditOperationFilters = "New-TransportRule", "New-InboundConnector", "Set-TransportRule", "New-Mailbox", "New-UnifiedGroup", "Set-OrganizationConfig"
 $AuditJobName = ("Transport rules audit job created at {0}" -f (Get-Date -format 'dd-MMM-yyyy HH:mm'))
 $AuditQueryStart = ((Get-Date).AddDays(-30).toUniversalTime().toString('yyyy-MM-ddTHH:mm:ss'))
 $AuditQueryEnd = ((Get-Date).AddHours(1).toUniversalTime().toString('yyyy-MM-ddTHH:mm:ss'))
@@ -69,11 +69,19 @@ If (!($AuditRecords)) {
 $AuditRecords | Format-Table CreatedDateTime, Operation, Userid -AutoSize
 $AuditRecords = $AuditRecords | Sort-Object {$_.CreatedDateTime -as [datetime]} -Descending
 
+$ExoMailboxes = @{}
+
 # Parse out audit information to make it useful
 $Report = [System.Collections.Generic.List[Object]]::new() 
 ForEach ($Record in $AuditRecords) {
   $AuditData = $Record.AuditData.additionalProperties 
-  $UserDisplayName = Get-Exomailbox -Identity $Record.UserId | Select-Object -ExpandProperty DisplayName
+  If ($ExoMailboxes[$Record.UserId]) {
+    $UserDisplayName = $ExoMailboxes[$Record.UserId]
+  } Else {
+    $UserDisplayName = Get-Exomailbox -Identity $Record.UserId | Select-Object -ExpandProperty DisplayName
+    $ExoMailboxes[$Record.UserId] = $UserDisplayName
+  }
+ 
   $ReportLine   = [PSCustomObject] @{
      TimeStamp   = Get-Date($Record.CreatedDateTime) -Format 'dd-MMM-yyyy HH:mm:ss'
      User        = $Record.UserId
@@ -155,6 +163,7 @@ Try {
   Write-Output "Error sending email: $_"
   Return
 }
+
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
