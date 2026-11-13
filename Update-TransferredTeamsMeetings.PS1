@@ -137,20 +137,10 @@ ForEach ($Item in $InputMeetings) {
         Continue
     }
    
-    # The join information is stored in the JoinInformation.Content property, which is a URL-encoded HTML string. We need to decode it to extract the join URL, meeting ID, and passcode.
-    Add-Type -AssemblyName System.Web
-    # Decode the meeting content
-    $Html = [System.Uri]::UnescapeDataString(($onlineMeeting.JoinInformation.Content -replace '^data:text/html,'))
-
-    # Extract Join URL
-    $JoinUrl = [Regex]::Match($Html,'https://teams\.microsoft\.com/meet/[^"&<\s]+').Value
-
-    # Extract Meeting ID
-    $MeetingId = ([Regex]::Match($Html,'\d{3}\+\d{3}\+\d{3}\+\d{3}\+\d{3}').Value) -replace '\+',' '
-
-    # Extract Passcode
-    $PasscodeSection = $Html.Substring($Html.IndexOf('Passcode'), 200)
-    $Passcode = ([Regex]::Matches($PasscodeSection,'[A-Za-z0-9]{8}') | Select-Object -Last 1).Value
+    # Retrieve the join details directly from the online meeting
+    $JoinUrl   = $OnlineMeeting.JoinWebUrl
+    $MeetingId = $OnlineMeeting.JoinMeetingIdSettings.JoinMeetingId
+    $Passcode  = $OnlineMeeting.JoinMeetingIdSettings.Passcode
   
     # Now that we have an online meeting, we can update the calendar event with the new meeting information.
     $EventLink = "<p><b><h2>Microsoft Teams meeting</h2></b></p>"
