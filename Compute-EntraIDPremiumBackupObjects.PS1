@@ -74,7 +74,7 @@ function Get-EntraObjectCount {
             $Uri = "https://graph.microsoft.com/v1.0/oauth2PermissionGrants"
             $Count = 0
             Do {
-                $Result = Invoke-MgGraphRequest -Method GET -Uri $Uri -Headers $Headers
+                $Result = Invoke-MgGraphRequest -Method GET -Uri $Uri 
                 $Count += $Result.value.Count
                 $Uri = $Result.'@odata.nextLink'
             } While ($Uri)            
@@ -141,7 +141,7 @@ Write-Host ("Estimated monthly cost: `${0:N2} USD" -f $MonthlyCost)
 Write-Host ("Estimated annual cost:  `${0:N2} USD" -f $AnnualCost)
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
-# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Office 365 for IT Pros repository 
+# and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Microsoft 365 for IT Pros repository 
 # https://office365itpros.com/office-365-github-repository/ for information about the scripts we write.
 
 # Do not use our scripts in production until you are satisfied that the code meets the needs of your organization. Never run any code downloaded from 
