@@ -4,7 +4,7 @@
 # Current preview price: $0.025 USD per protected object/month
 
 # V1.0 25-Nov-2026
-# GitHub link:
+# GitHub link: https://github.com/12Knocksinna/Office365itpros/blob/master/Compute-EntraIDPremiumBackupObjects.PS1
 
 # See https://office365itpros.com/2026/11/26/microsoft-365-backup-entra/ for more information about the
 # Microsoft Entra Backup and Recovery Premium license and how to use this script to estimate the cost of protecting your Microsoft Entra objects.
