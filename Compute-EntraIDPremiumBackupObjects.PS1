@@ -80,13 +80,8 @@ function Get-EntraObjectCount {
             } While ($Uri)            
         }
         "Agent Identities" {
-            $Uri = "https://graph.microsoft.com/beta/servicePrincipals/microsoft.graph.agentIdentity"
-            $Count = 0
-            Do {
-                $Result = Invoke-MgGraphRequest -Method GET -Uri $Uri -Headers $Headers
-                $Count += $Result.value.Count
-                $Uri = $Result.'@odata.nextLink'
-            } While ($Uri)
+            $Uri = "https://graph.microsoft.com/beta/servicePrincipals/microsoft.graph.agentIdentity?`$count=true"
+            $Count = (Invoke-MgGraphRequest -Method GET -Uri $Uri -Headers $Headers).'@odata.count'
         }
         default { 
             Write-Host ("Unknown object type: {0}" -f $Name)
