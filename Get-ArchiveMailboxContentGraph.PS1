@@ -154,12 +154,12 @@ ForEach ($User in $Users) {
     }
     # And report everything
     $ReportLine = [PSCustomObject]@{
-        UserPrincipalName   = $User.UserPrincipalName
-        ArchiveMailboxId    = $ArchiveMailboxId
-        FolderCount         = $Folders.Count
-        InboxItemCount      = $ItemsFromFolder.Count
-        LargestItemSubject  = $LargestItemSubject
-        LargestItemSize     = If ($LargestItem) { "{0} MB" -f $LargestItemSizeMB + " MB" } else { 0 }
+        User                        = $User.UserPrincipalName
+        ArchiveMailboxId            = $ArchiveMailboxId
+        'Folder count'              = $Folders.Count
+        'Items in Inbox'            = $ItemsFromFolder.Count
+        'Size of largest item'      = If ($LargestItem) { "{0} MB" -f $LargestItemSizeMB  } else { 0 }
+        'Subject of largest item'   = $LargestItemSubject
     }
     $Report.Add($ReportLine)
 }
