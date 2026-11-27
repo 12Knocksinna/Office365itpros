@@ -47,7 +47,7 @@ Connect-ExchangeOnline -ShowBanner:$false
 Connect-MgGraph -AppId $AppId -TenantId $TenantId -CertificateThumbprint $CertificateThumbprint 
 
 Write-Host "Checking for mailboxes with an archive mailbox..."
-[array]$Users = Get-Exomailbox -RecipientTypeDetails UserMailbox -PropertySets Archive -Filter {ArchiveStatus -ne "None"} | Sort-Object DisplayName
+[array]$Users = Get-Exomailbox -RecipientTypeDetails UserMailbox -PropertySets Archive -Filter {ArchiveStatus -ne "None"} | Sort-Object UserPrincipalName
 If ($Users.Count -eq 0) {
     Write-Host "No mailboxes with an archive mailbox found."
     return
@@ -62,7 +62,7 @@ $EncodedPropertyFilter = [uri]::EscapeDataString($PropertyFilter)
 
 ForEach ($User in $Users) {
     Write-Host ("Processing mailbox: {0}" -f $User.UserPrincipalName)
-    $OverallFolderSize = 0
+    $OverallFolderSize = 0; $LargestItemSubject = $null
     # Get Exchange settings for the user to find the archive mailbox ID
     Try {
         $Uri = ("https://graph.microsoft.com/beta/users/{0}/settings/exchange" -f ($User.UserPrincipalName))
@@ -92,6 +92,7 @@ ForEach ($User in $Users) {
     # Fetch all inbox items from the archive mailbox, handling paging with nextLink and the redirection that might occur if
     # folder items are held in an auxilary archive (shard). When this happens, Exchange responds with 308 and we can get the 
     # redirect URI from the response headers.
+    Write-Host "Checking Inbox Items..."
     Try {   
         $ItemsFromFolder = [System.Collections.Generic.List[Object]]::new() 
         [int]$RedirectCount = 0
@@ -125,7 +126,6 @@ ForEach ($User in $Users) {
             }
             # Follow Graph pagination
             $MailboxItemsUri = $Data.'@odata.nextLink'
-
         } While ($MailboxItemsUri)
         Write-Host ("Retrieved {0:N0} items from archive mailbox Inbox for {1}" -f $ItemsFromFolder.Count, $User.UserPrincipalName)
     } Catch {
@@ -138,7 +138,7 @@ ForEach ($User in $Users) {
     $OverallFolderSizeMB = [math]::Round($OverallFolderSize / 1MB, 2)
     Write-Host ("Total size of items in archive mailbox Inbox for {0}: {1:N0} MB" -f $User.UserPrincipalName, $OverallFolderSizeMB)
     # Find the largest item in the Inbox based on size and output its details
-    If ($FolderItems.Count -gt 0) {
+    If ($ItemsFromFolder.Count -gt 0) {
         $LargestItem = $ItemsFromFolder | Sort-Object -Property size -Descending | Select-Object -First 1
     } Else {
         Write-Host ("No items found in archive mailbox Inbox for {0}" -f $User.UserPrincipalName)
@@ -163,6 +163,8 @@ ForEach ($User in $Users) {
     }
     $Report.Add($ReportLine)
 }
+
+$Report | Out-GridView -Title "Archive Mailboxes Info"
 
 # An example script used to illustrate a concept. More information about the topic can be found in the Microsoft 365 for IT Pros eBook https://gum.co/O365IT/
 # and/or a relevant article on https://office365itpros.com or https://www.practical365.com. See our post about the Microsoft 365 for IT Pros repository 
