@@ -22,9 +22,9 @@ Function Get-ArchiveMailFolders {
     # If a folder ID is provided, return the child folders of that folder; otherwise, return the top-level folders.
 
     If ($FolderId) {
-        $Uri = ("https://graph.microsoft.com/beta/users/{0}/mailFolders/{1}/childFolders" -f $UserId, $FolderId)
+        $Uri = ("https://graph.microsoft.com/beta/admin/exchange/mailboxes/{0}/folders/{1}/childFolders" -f $UserId, $FolderId)
     } Else {
-        $Uri = ("https://graph.microsoft.com/beta/users/{0}/mailFolders" -f $UserId)
+        $Uri = ("https://graph.microsoft.com/beta/admin/exchange/mailboxes/{0}/folders" -f $UserId)
     }
 
     Do {
